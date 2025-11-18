@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Accueil - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>Microsoft Active Directory Web Interface</h1>
+    <p>Interface web cross-platform compatible avec Windows et Linux</p>
+</div>
+
+<div class="features">
+    <div class="feature-card">
+        <h3>Cross-Platform</h3>
+        <p>Fonctionne sur Windows et Linux sans modification</p>
+    </div>
+    <div class="feature-card">
+        <h3>Accès Réseau</h3>
+        <p>Accessible depuis n'importe quel appareil sur le réseau</p>
+    </div>
+    <div class="feature-card">
+        <h3>LDAP/LDAPS</h3>
+        <p>Support des connexions sécurisées SSL/TLS</p>
+    </div>
+</div>
+
+<div class="system-info">
+    <h2>Information Système</h2>
+    <table>
+        <tr>
+            <th>Système d'exploitation</th>
+            <td>{{ system_info.os }}</td>
+        </tr>
+        <tr>
+            <th>Version</th>
+            <td>{{ system_info.os_version }}</td>
+        </tr>
+        <tr>
+            <th>Nom d'hôte</th>
+            <td>{{ system_info.hostname }}</td>
+        </tr>
+        <tr>
+            <th>Python</th>
+            <td>{{ system_info.python_version }}</td>
+        </tr>
+        <tr>
+            <th>Architecture</th>
+            <td>{{ system_info.architecture }}</td>
+        </tr>
+    </table>
+</div>
+
+<div class="cta">
+    <a href="{{ url_for('connect') }}" class="btn btn-primary">Se connecter à Active Directory</a>
+</div>
+{% endblock %}
