@@ -1,34 +1,34 @@
 #!/bin/bash
-# Linux/macOS startup script for AD Web Interface
+# Script de démarrage Linux/macOS pour l'interface Web AD
 
-echo "Starting AD Web Interface on Linux/macOS..."
+echo "Démarrage de l'interface Web AD sur Linux/macOS..."
 echo
 
-# Get script directory
+# Obtenir le répertoire du script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-# Check if Python is available
+# Vérifier si Python est disponible
 if ! command -v python3 &> /dev/null; then
-    echo "Error: Python 3 is not installed"
-    echo "Please install Python 3: sudo apt install python3 python3-pip"
+    echo "Erreur: Python 3 n'est pas installé"
+    echo "Veuillez installer Python 3: sudo apt install python3 python3-pip"
     exit 1
 fi
 
-# Check if virtual environment exists
+# Vérifier si l'environnement virtuel existe
 if [ -d "venv" ]; then
     source venv/bin/activate
-    echo "Virtual environment activated"
+    echo "Environnement virtuel activé"
 else
-    echo "Note: No virtual environment found. Using system Python."
-    echo "To create a venv: python3 -m venv venv"
+    echo "Note: Aucun environnement virtuel trouvé. Utilisation du Python système."
+    echo "Pour créer un venv: python3 -m venv venv"
 fi
 
-# Install dependencies if needed
+# Installer les dépendances si nécessaire
 if ! python3 -c "import flask" 2>/dev/null; then
-    echo "Installing dependencies..."
+    echo "Installation des dépendances..."
     pip3 install -r requirements.txt
 fi
 
-# Run the application
+# Démarrer l'application
 python3 run.py

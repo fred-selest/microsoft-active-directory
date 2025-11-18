@@ -1,18 +1,18 @@
 /**
- * Cross-platform JavaScript for AD Web Interface
- * Works on any modern browser regardless of OS
+ * JavaScript multi-plateforme pour l'interface Web AD
+ * Fonctionne sur n'importe quel navigateur moderne, quel que soit le système d'exploitation
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize search forms
+    // Initialiser les formulaires de recherche
     initSearchForms();
 
-    // Check system info
+    // Vérifier les informations système
     fetchSystemInfo();
 });
 
 /**
- * Initialize search form handlers
+ * Initialiser les gestionnaires de formulaires de recherche
  */
 function initSearchForms() {
     const forms = [
@@ -30,7 +30,7 @@ function initSearchForms() {
 }
 
 /**
- * Handle search form submission
+ * Gérer la soumission du formulaire de recherche
  */
 async function handleSearchSubmit(event) {
     event.preventDefault();
@@ -39,10 +39,10 @@ async function handleSearchSubmit(event) {
     const formData = new FormData(form);
     const resultsDiv = document.getElementById('results');
 
-    // Show loading state
+    // Afficher l'état de chargement
     resultsDiv.innerHTML = '<p>Recherche en cours...</p>';
 
-    // Get connection credentials from session or prompt
+    // Obtenir les identifiants de connexion depuis la session ou demander à l'utilisateur
     const credentials = getStoredCredentials();
 
     if (!credentials) {
@@ -81,7 +81,7 @@ async function handleSearchSubmit(event) {
 }
 
 /**
- * Display search results
+ * Afficher les résultats de recherche
  */
 function displayResults(results) {
     const resultsDiv = document.getElementById('results');
@@ -105,18 +105,18 @@ function displayResults(results) {
 }
 
 /**
- * Get stored credentials (simplified - in production, use secure session)
+ * Obtenir les identifiants stockés (simplifié - en production, utiliser une session sécurisée)
  */
 function getStoredCredentials() {
-    // In a production app, these would come from a secure session
-    // For demo purposes, we'll prompt the user
+    // Dans une application de production, ceux-ci proviendraient d'une session sécurisée
+    // Pour la démonstration, nous demandons à l'utilisateur
     const stored = sessionStorage.getItem('ad_credentials');
 
     if (stored) {
         return JSON.parse(stored);
     }
 
-    // Prompt for credentials if not stored
+    // Demander les identifiants s'ils ne sont pas stockés
     const server = prompt('Serveur AD:');
     const username = prompt('Nom d\'utilisateur:');
     const password = prompt('Mot de passe:');
@@ -131,20 +131,20 @@ function getStoredCredentials() {
 }
 
 /**
- * Fetch and display system information
+ * Récupérer et afficher les informations système
  */
 async function fetchSystemInfo() {
     try {
         const response = await fetch('/api/system-info');
         const data = await response.json();
-        console.log('System Info:', data);
+        console.log('Informations système:', data);
     } catch (error) {
-        console.error('Failed to fetch system info:', error);
+        console.error('Échec de la récupération des informations système:', error);
     }
 }
 
 /**
- * Clear stored credentials
+ * Effacer les identifiants stockés
  */
 function clearCredentials() {
     sessionStorage.removeItem('ad_credentials');

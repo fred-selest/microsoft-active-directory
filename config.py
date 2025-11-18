@@ -1,39 +1,39 @@
 """
-Cross-platform configuration for Microsoft Active Directory Web Interface.
-Supports Windows and Linux systems.
+Configuration multi-plateforme pour l'interface web Microsoft Active Directory.
+Compatible avec les systèmes Windows et Linux.
 """
 
 import os
 import platform
 from pathlib import Path
 
-# Detect operating system
+# Détection du système d'exploitation
 CURRENT_OS = platform.system().lower()
 IS_WINDOWS = CURRENT_OS == 'windows'
 IS_LINUX = CURRENT_OS == 'linux'
 
-# Base directory (cross-platform)
+# Répertoire de base (multi-plateforme)
 BASE_DIR = Path(__file__).resolve().parent
 
 class Config:
-    """Base configuration class with cross-platform support."""
+    """Classe de configuration de base avec support multi-plateforme."""
 
-    # Server binding - 0.0.0.0 allows access from any network interface
-    # This is critical for cross-platform and remote access
+    # Liaison du serveur - 0.0.0.0 permet l'accès depuis n'importe quelle interface réseau
+    # Ceci est essentiel pour l'accès multi-plateforme et à distance
     HOST = os.environ.get('AD_WEB_HOST', '0.0.0.0')
     PORT = int(os.environ.get('AD_WEB_PORT', 5000))
 
-    # Flask configuration
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'change-this-in-production')
+    # Configuration Flask
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'changer-ceci-en-production')
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
-    # Active Directory configuration
+    # Configuration Active Directory
     AD_SERVER = os.environ.get('AD_SERVER', '')
     AD_PORT = int(os.environ.get('AD_PORT', 389))
     AD_USE_SSL = os.environ.get('AD_USE_SSL', 'False').lower() == 'true'
     AD_BASE_DN = os.environ.get('AD_BASE_DN', '')
 
-    # Cross-platform paths
+    # Chemins multi-plateformes
     if IS_WINDOWS:
         LOG_DIR = Path(os.environ.get('AD_LOG_DIR', 'C:/ProgramData/ADWebInterface/logs'))
         DATA_DIR = Path(os.environ.get('AD_DATA_DIR', 'C:/ProgramData/ADWebInterface/data'))
@@ -41,15 +41,15 @@ class Config:
         LOG_DIR = Path(os.environ.get('AD_LOG_DIR', '/var/log/ad-web-interface'))
         DATA_DIR = Path(os.environ.get('AD_DATA_DIR', '/var/lib/ad-web-interface'))
 
-    # Ensure directories exist
+    # Création des répertoires nécessaires
     @classmethod
     def init_directories(cls):
-        """Create necessary directories if they don't exist."""
+        """Créer les répertoires nécessaires s'ils n'existent pas."""
         for directory in [cls.LOG_DIR, cls.DATA_DIR]:
             try:
                 directory.mkdir(parents=True, exist_ok=True)
             except PermissionError:
-                # Fall back to user directory if system directories are not accessible
+                # Utiliser le répertoire utilisateur si les répertoires système ne sont pas accessibles
                 fallback = BASE_DIR / directory.name
                 fallback.mkdir(parents=True, exist_ok=True)
                 if directory == cls.LOG_DIR:
@@ -59,22 +59,22 @@ class Config:
 
 
 class DevelopmentConfig(Config):
-    """Development configuration."""
+    """Configuration de développement."""
     DEBUG = True
 
 
 class ProductionConfig(Config):
-    """Production configuration."""
+    """Configuration de production."""
     DEBUG = False
 
 
 class TestConfig(Config):
-    """Testing configuration."""
+    """Configuration de test."""
     TESTING = True
     DEBUG = True
 
 
-# Configuration dictionary
+# Dictionnaire de configuration
 config = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
@@ -84,6 +84,6 @@ config = {
 
 
 def get_config():
-    """Get configuration based on environment."""
+    """Obtenir la configuration basée sur l'environnement."""
     env = os.environ.get('FLASK_ENV', 'development')
     return config.get(env, config['default'])

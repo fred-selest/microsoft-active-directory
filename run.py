@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Cross-platform runner for AD Web Interface.
-Automatically detects OS and uses appropriate server.
+Lanceur multi-plateforme pour l'interface Web AD.
+Détecte automatiquement le système d'exploitation et utilise le serveur approprié.
 """
 
 import os
@@ -9,21 +9,21 @@ import sys
 import platform
 
 def main():
-    # Ensure we're in the correct directory
+    # S'assurer que nous sommes dans le bon répertoire
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
-    # Load environment variables from .env if exists
+    # Charger les variables d'environnement depuis .env si le fichier existe
     env_file = os.path.join(script_dir, '.env')
     if os.path.exists(env_file):
         try:
             from dotenv import load_dotenv
             load_dotenv(env_file)
-            print(f"Loaded configuration from {env_file}")
+            print(f"Configuration chargée depuis {env_file}")
         except ImportError:
-            print("Note: python-dotenv not installed, .env file not loaded")
+            print("Note: python-dotenv non installé, fichier .env non chargé")
 
-    # Import and run the app
+    # Importer et démarrer l'application
     from app import run_server
     run_server()
 
