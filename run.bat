@@ -1,34 +1,34 @@
 @echo off
-REM Windows startup script for AD Web Interface
-echo Starting AD Web Interface on Windows...
+REM Script de démarrage Windows pour l'interface Web AD
+echo Démarrage de l'interface Web AD sur Windows...
 echo.
 
-REM Check if Python is available
+REM Vérifier si Python est disponible
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo Error: Python is not installed or not in PATH
-    echo Please install Python from https://python.org
+    echo Erreur: Python n'est pas installé ou n'est pas dans le PATH
+    echo Veuillez installer Python depuis https://python.org
     pause
     exit /b 1
 )
 
-REM Check if virtual environment exists
+REM Vérifier si l'environnement virtuel existe
 if exist venv\Scripts\activate.bat (
     call venv\Scripts\activate.bat
-    echo Virtual environment activated
+    echo Environnement virtuel activé
 ) else (
-    echo Note: No virtual environment found. Using system Python.
-    echo To create a venv: python -m venv venv
+    echo Note: Aucun environnement virtuel trouvé. Utilisation du Python système.
+    echo Pour créer un venv: python -m venv venv
 )
 
-REM Install dependencies if needed
+REM Installer les dépendances si nécessaire
 pip show flask >nul 2>&1
 if errorlevel 1 (
-    echo Installing dependencies...
+    echo Installation des dépendances...
     pip install -r requirements.txt
 )
 
-REM Run the application
+REM Démarrer l'application
 python run.py
 
 pause

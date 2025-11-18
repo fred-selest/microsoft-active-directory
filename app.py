@@ -1,6 +1,6 @@
 """
-Cross-platform Web Interface for Microsoft Active Directory.
-Works on Windows and Linux systems.
+Interface Web Multi-Plateforme pour Microsoft Active Directory.
+Fonctionne sur les systèmes Windows et Linux.
 """
 
 import os
@@ -13,18 +13,18 @@ from config import get_config, CURRENT_OS, IS_WINDOWS
 app = Flask(__name__)
 config = get_config()
 
-# Apply configuration
+# Appliquer la configuration
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['DEBUG'] = config.DEBUG
 
-# Initialize directories
+# Initialiser les répertoires
 config.init_directories()
 
 
 def get_ad_connection(server, username, password, use_ssl=False, port=None):
     """
-    Create a connection to Active Directory.
-    Works on both Windows and Linux.
+    Créer une connexion à Active Directory.
+    Fonctionne sur Windows et Linux.
     """
     if port is None:
         port = 636 if use_ssl else 389
@@ -49,7 +49,7 @@ def get_ad_connection(server, username, password, use_ssl=False, port=None):
 
 @app.route('/')
 def index():
-    """Home page with system information."""
+    """Page d'accueil avec informations système."""
     system_info = {
         'os': platform.system(),
         'os_version': platform.version(),
@@ -62,7 +62,7 @@ def index():
 
 @app.route('/connect', methods=['GET', 'POST'])
 def connect():
-    """Connect to Active Directory server."""
+    """Connexion au serveur Active Directory."""
     if request.method == 'POST':
         server = request.form.get('server')
         username = request.form.get('username')
@@ -76,7 +76,7 @@ def connect():
 
         if conn:
             flash('Connexion réussie à Active Directory!', 'success')
-            # Store connection info in session for later use
+            # Stocker les informations de connexion pour une utilisation ultérieure
             return redirect(url_for('dashboard'))
         else:
             flash(f'Erreur de connexion: {error}', 'error')
@@ -86,15 +86,15 @@ def connect():
 
 @app.route('/dashboard')
 def dashboard():
-    """Dashboard page."""
+    """Page du tableau de bord."""
     return render_template('dashboard.html')
 
 
 @app.route('/api/search', methods=['POST'])
 def api_search():
     """
-    API endpoint to search Active Directory.
-    Cross-platform compatible.
+    Point d'accès API pour rechercher dans Active Directory.
+    Compatible multi-plateforme.
     """
     data = request.get_json()
 
@@ -131,7 +131,7 @@ def api_search():
 
 @app.route('/api/system-info')
 def api_system_info():
-    """Return system information for debugging."""
+    """Retourner les informations système pour le débogage."""
     return jsonify({
         'os': CURRENT_OS,
         'is_windows': IS_WINDOWS,
@@ -143,39 +143,39 @@ def api_system_info():
 
 @app.route('/health')
 def health():
-    """Health check endpoint."""
-    return jsonify({'status': 'healthy', 'platform': CURRENT_OS})
+    """Point de vérification de santé."""
+    return jsonify({'status': 'ok', 'platform': CURRENT_OS})
 
 
 def run_server():
     """
-    Run the web server with cross-platform support.
-    Uses Waitress on Windows, Gunicorn on Linux, or Flask's built-in server for development.
+    Démarrer le serveur web avec support multi-plateforme.
+    Utilise Waitress sur Windows, Gunicorn sur Linux, ou le serveur intégré Flask pour le développement.
     """
     host = config.HOST
     port = config.PORT
 
     print(f"\n{'='*50}")
-    print(f"Microsoft Active Directory Web Interface")
+    print(f"Interface Web Microsoft Active Directory")
     print(f"{'='*50}")
-    print(f"Platform: {platform.system()} ({platform.release()})")
-    print(f"Listening on: http://{host}:{port}")
-    print(f"Access from any device on network: http://<your-ip>:{port}")
+    print(f"Plateforme: {platform.system()} ({platform.release()})")
+    print(f"Écoute sur: http://{host}:{port}")
+    print(f"Accès depuis n'importe quel appareil: http://<votre-ip>:{port}")
     print(f"{'='*50}\n")
 
     if os.environ.get('FLASK_ENV') == 'production':
         if IS_WINDOWS:
-            # Use Waitress on Windows (cross-platform WSGI server)
+            # Utiliser Waitress sur Windows (serveur WSGI multi-plateforme)
             from waitress import serve
-            print("Starting with Waitress (Windows production server)...")
+            print("Démarrage avec Waitress (serveur de production Windows)...")
             serve(app, host=host, port=port)
         else:
-            # On Linux, recommend using gunicorn externally
+            # Sur Linux, recommander d'utiliser gunicorn en externe
             # gunicorn -w 4 -b 0.0.0.0:5000 app:app
-            print("For production on Linux, use: gunicorn -w 4 -b 0.0.0.0:5000 app:app")
+            print("Pour la production sur Linux, utilisez: gunicorn -w 4 -b 0.0.0.0:5000 app:app")
             app.run(host=host, port=port, debug=False)
     else:
-        # Development server
+        # Serveur de développement
         app.run(host=host, port=port, debug=config.DEBUG)
 
 
