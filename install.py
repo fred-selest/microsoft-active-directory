@@ -326,6 +326,101 @@ def get_local_ip():
     except:
         return "VOTRE_IP"
 
+def detect_domain():
+    """Détecter automatiquement le domaine Active Directory."""
+    system = platform.system()
+    domain = None
+
+    if system == "Windows":
+        # Méthode 1: PowerShell avec WMI
+        try:
+            result = subprocess.run(
+                ["powershell", "-Command", "(Get-WmiObject Win32_ComputerSystem).Domain"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                domain = result.stdout.strip()
+                if domain and domain.upper() != "WORKGROUP":
+                    return domain
+        except:
+            pass
+
+        # Méthode 2: wmic
+        try:
+            result = subprocess.run(
+                ["wmic", "computersystem", "get", "domain"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                if len(lines) > 1:
+                    domain = lines[1].strip()
+                    if domain and domain.upper() != "WORKGROUP":
+                        return domain
+        except:
+            pass
+
+        # Méthode 3: Variable d'environnement USERDNSDOMAIN
+        domain = os.environ.get('USERDNSDOMAIN')
+        if domain:
+            return domain
+
+    else:  # Linux/macOS
+        # Méthode 1: dnsdomainname
+        try:
+            result = subprocess.run(
+                ["dnsdomainname"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                domain = result.stdout.strip()
+                if domain:
+                    return domain
+        except:
+            pass
+
+        # Méthode 2: hostname -d
+        try:
+            result = subprocess.run(
+                ["hostname", "-d"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                domain = result.stdout.strip()
+                if domain:
+                    return domain
+        except:
+            pass
+
+        # Méthode 3: /etc/resolv.conf
+        try:
+            with open("/etc/resolv.conf", "r") as f:
+                for line in f:
+                    if line.startswith("domain ") or line.startswith("search "):
+                        parts = line.split()
+                        if len(parts) > 1:
+                            domain = parts[1]
+                            return domain
+        except:
+            pass
+
+    return None
+
+def domain_to_base_dn(domain):
+    """Convertir un nom de domaine en Base DN LDAP."""
+    if not domain:
+        return ""
+    parts = domain.split('.')
+    return ','.join([f"DC={part}" for part in parts])
+
 def test_installation():
     """Tester que l'installation fonctionne."""
     print_section("Test de l'installation")
@@ -396,13 +491,32 @@ def main():
     # Configuration Active Directory
     print_section("Configuration Active Directory (optionnel)")
 
-    configure_ad = ask_yes_no("Configurer le serveur AD maintenant?", False)
+    # Détecter automatiquement le domaine
+    print_info("Recherche automatique du domaine...")
+    detected_domain = detect_domain()
+
+    if detected_domain:
+        print_success(f"Domaine détecté: {detected_domain}")
+        default_server = detected_domain
+        default_base_dn = domain_to_base_dn(detected_domain)
+        print_info(f"Base DN suggéré: {default_base_dn}")
+    else:
+        print_info("Aucun domaine détecté automatiquement")
+        default_server = ""
+        default_base_dn = ""
+
+    configure_ad = ask_yes_no("Configurer le serveur AD maintenant?", detected_domain is not None)
 
     if configure_ad:
-        config['ad_server'] = ask_question("Adresse du serveur AD", "")
+        config['ad_server'] = ask_question("Adresse du serveur AD", default_server)
         config['ad_port'] = ask_port("Port LDAP", 389)
         config['ad_use_ssl'] = ask_yes_no("Utiliser SSL/TLS (LDAPS)?", False)
-        config['ad_base_dn'] = ask_question("Base DN (ex: DC=exemple,DC=com)", "")
+
+        # Proposer le Base DN détecté ou le calculer depuis le serveur
+        if not default_base_dn and config['ad_server']:
+            default_base_dn = domain_to_base_dn(config['ad_server'])
+
+        config['ad_base_dn'] = ask_question("Base DN", default_base_dn if default_base_dn else "DC=exemple,DC=com")
     else:
         config['ad_server'] = ""
         config['ad_port'] = 389
