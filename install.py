@@ -290,7 +290,7 @@ AD_BASE_DN={config['ad_base_dn']}
 """
 
     try:
-        with open(".env", "w") as f:
+        with open(".env", "w", encoding="utf-8") as f:
             f.write(env_content)
         print_success("Fichier .env créé")
         return True
