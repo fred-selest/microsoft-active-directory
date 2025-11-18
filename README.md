@@ -24,37 +24,40 @@ L'interface fonctionne sur **tous les systèmes** (Windows, Linux, macOS, tablet
 ### Prérequis
 
 - Un serveur (Windows ou Linux)
-- Python 3.8+
 - Accès réseau au serveur Active Directory
 
-### Installation avec l'assistant (recommandé)
+### Installation en une commande (recommandé)
 
-L'assistant d'installation vous guide pas à pas dans la configuration.
-
-**Linux/macOS :**
-```bash
-git clone <url-du-repo>
-cd microsoft-active-directory
-./install.sh
-```
+Téléchargez et exécutez le script d'installation. Il téléchargera automatiquement tout le projet et installera Python si nécessaire.
 
 **Windows :**
-```cmd
-git clone <url-du-repo>
-cd microsoft-active-directory
-install.bat
+
+1. Téléchargez [install.bat](https://raw.githubusercontent.com/fred-selest/microsoft-active-directory/claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2/install.bat)
+2. Double-cliquez sur `install.bat`
+
+Ou en PowerShell :
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fred-selest/microsoft-active-directory/claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2/install.bat" -OutFile "install.bat"; .\install.bat
 ```
 
-L'assistant vous demandera :
-- Le port du serveur (défaut: 5000)
-- Si c'est une installation de production
-- Les informations du serveur Active Directory (optionnel)
+**Linux/macOS :**
+
+```bash
+curl -O https://raw.githubusercontent.com/fred-selest/microsoft-active-directory/claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2/install.sh && chmod +x install.sh && ./install.sh
+```
+
+Le script va :
+- Télécharger tout le projet depuis GitHub
+- Installer Python si nécessaire
+- Créer l'environnement virtuel
+- Installer les dépendances
+- Configurer le serveur (port, Active Directory, etc.)
 
 ### Installation manuelle
 
 ```bash
 # 1. Cloner le projet
-git clone <url-du-repo>
+git clone https://github.com/fred-selest/microsoft-active-directory.git
 cd microsoft-active-directory
 
 # 2. Créer un environnement virtuel
