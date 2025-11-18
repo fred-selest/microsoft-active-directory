@@ -2,6 +2,7 @@
 """
 Assistant d'installation pour l'interface Web Active Directory.
 Guide l'administrateur à travers la configuration du serveur.
+Installe automatiquement toutes les dépendances au bon endroit.
 """
 
 import os
@@ -9,6 +10,7 @@ import sys
 import secrets
 import subprocess
 import platform
+import shutil
 
 def print_header():
     """Afficher l'en-tête de l'assistant."""
@@ -21,6 +23,18 @@ def print_header():
 def print_section(title):
     """Afficher un titre de section."""
     print(f"\n--- {title} ---\n")
+
+def print_success(message):
+    """Afficher un message de succès."""
+    print(f"  [OK] {message}")
+
+def print_error(message):
+    """Afficher un message d'erreur."""
+    print(f"  [ERREUR] {message}")
+
+def print_info(message):
+    """Afficher un message d'information."""
+    print(f"  [INFO] {message}")
 
 def ask_question(question, default=None, required=False):
     """Poser une question à l'utilisateur."""
@@ -70,45 +84,189 @@ def generate_secret_key():
     """Générer une clé secrète sécurisée."""
     return secrets.token_hex(32)
 
+def run_command(command, description=None, check=True, capture_output=False):
+    """Exécuter une commande et gérer les erreurs."""
+    if description:
+        print(f"  {description}...")
+
+    try:
+        if capture_output:
+            result = subprocess.run(command, check=check, capture_output=True, text=True)
+            return result
+        else:
+            subprocess.run(command, check=check)
+        return True
+    except subprocess.CalledProcessError as e:
+        return False
+    except FileNotFoundError:
+        return False
+
+def check_python_version():
+    """Vérifier la version de Python."""
+    print_section("Vérification de Python")
+
+    version = sys.version_info
+    version_str = f"{version.major}.{version.minor}.{version.micro}"
+
+    if version.major < 3 or (version.major == 3 and version.minor < 8):
+        print_error(f"Python {version_str} détecté. Python 3.8+ est requis.")
+        return False
+
+    print_success(f"Python {version_str} détecté")
+    return True
+
+def check_system_dependencies():
+    """Vérifier et installer les dépendances système."""
+    print_section("Vérification des dépendances système")
+
+    system = platform.system()
+
+    if system == "Linux":
+        # Vérifier si python3-venv est installé
+        try:
+            subprocess.run([sys.executable, "-m", "venv", "--help"],
+                         capture_output=True, check=True)
+            print_success("Module venv disponible")
+        except subprocess.CalledProcessError:
+            print_error("Le module venv n'est pas installé")
+            print_info("Installation requise: sudo apt install python3-venv")
+
+            if ask_yes_no("Voulez-vous l'installer maintenant? (nécessite sudo)", True):
+                result = run_command(
+                    ["sudo", "apt", "install", "-y", "python3-venv", "python3-pip"],
+                    "Installation de python3-venv"
+                )
+                if not result:
+                    print_error("Échec de l'installation. Veuillez l'installer manuellement.")
+                    return False
+                print_success("python3-venv installé")
+            else:
+                return False
+
+        # Vérifier pip
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "--version"],
+                         capture_output=True, check=True)
+            print_success("pip disponible")
+        except subprocess.CalledProcessError:
+            print_info("Installation de pip...")
+            if not run_command(["sudo", "apt", "install", "-y", "python3-pip"]):
+                print_error("Échec de l'installation de pip")
+                return False
+
+    elif system == "Windows":
+        # Sur Windows, venv est inclus avec Python
+        print_success("Système Windows détecté")
+        print_success("venv et pip inclus avec Python")
+
+    elif system == "Darwin":  # macOS
+        print_success("Système macOS détecté")
+        # venv est généralement inclus avec Python sur macOS
+
+    return True
+
+def get_venv_paths():
+    """Obtenir les chemins des exécutables dans le venv."""
+    if platform.system() == "Windows":
+        return {
+            'python': os.path.join("venv", "Scripts", "python.exe"),
+            'pip': os.path.join("venv", "Scripts", "pip.exe"),
+            'activate': os.path.join("venv", "Scripts", "activate.bat")
+        }
+    else:
+        return {
+            'python': os.path.join("venv", "bin", "python"),
+            'pip': os.path.join("venv", "bin", "pip"),
+            'activate': os.path.join("venv", "bin", "activate")
+        }
+
 def create_virtual_env():
     """Créer l'environnement virtuel."""
     print_section("Création de l'environnement virtuel")
 
     if os.path.exists("venv"):
         if ask_yes_no("Un environnement virtuel existe déjà. Le recréer?", False):
-            import shutil
+            print_info("Suppression de l'ancien environnement virtuel...")
             shutil.rmtree("venv")
         else:
-            print("Utilisation de l'environnement virtuel existant.")
+            print_info("Utilisation de l'environnement virtuel existant.")
             return True
 
-    print("Création de l'environnement virtuel...")
+    print_info("Création de l'environnement virtuel...")
+
     try:
         subprocess.run([sys.executable, "-m", "venv", "venv"], check=True)
-        print("Environnement virtuel créé avec succès.")
+        print_success("Environnement virtuel créé dans ./venv/")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Erreur lors de la création de l'environnement virtuel: {e}")
+        print_error(f"Échec de la création: {e}")
         return False
+
+def upgrade_pip():
+    """Mettre à jour pip dans le venv."""
+    paths = get_venv_paths()
+
+    print_info("Mise à jour de pip...")
+    try:
+        subprocess.run(
+            [paths['python'], "-m", "pip", "install", "--upgrade", "pip"],
+            check=True,
+            capture_output=True
+        )
+        print_success("pip mis à jour")
+        return True
+    except subprocess.CalledProcessError:
+        print_info("Impossible de mettre à jour pip (non critique)")
+        return True
 
 def install_dependencies():
-    """Installer les dépendances."""
-    print_section("Installation des dépendances")
+    """Installer les dépendances dans le venv."""
+    print_section("Installation des dépendances Python")
 
-    # Déterminer le chemin de pip dans le venv
-    if platform.system() == "Windows":
-        pip_path = os.path.join("venv", "Scripts", "pip")
-    else:
-        pip_path = os.path.join("venv", "bin", "pip")
+    paths = get_venv_paths()
 
-    print("Installation des dépendances Python...")
-    try:
-        subprocess.run([pip_path, "install", "-r", "requirements.txt"], check=True)
-        print("Dépendances installées avec succès.")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Erreur lors de l'installation des dépendances: {e}")
+    # Vérifier que le venv existe
+    if not os.path.exists(paths['pip']):
+        print_error(f"pip non trouvé dans {paths['pip']}")
         return False
+
+    # Mettre à jour pip d'abord
+    upgrade_pip()
+
+    # Installer les dépendances depuis requirements.txt
+    print_info("Installation des packages depuis requirements.txt...")
+
+    try:
+        result = subprocess.run(
+            [paths['pip'], "install", "-r", "requirements.txt"],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print_success("Toutes les dépendances installées")
+    except subprocess.CalledProcessError as e:
+        print_error(f"Échec de l'installation: {e.stderr}")
+        return False
+
+    # Vérifier l'installation des packages critiques
+    print_info("Vérification des packages installés...")
+
+    packages_to_check = ['flask', 'ldap3', 'python-dotenv']
+    all_ok = True
+
+    for package in packages_to_check:
+        try:
+            subprocess.run(
+                [paths['pip'], "show", package],
+                check=True,
+                capture_output=True
+            )
+            print_success(f"{package} installé")
+        except subprocess.CalledProcessError:
+            print_error(f"{package} non trouvé")
+            all_ok = False
+
+    return all_ok
 
 def create_env_file(config):
     """Créer le fichier .env avec la configuration."""
@@ -134,11 +292,27 @@ AD_BASE_DN={config['ad_base_dn']}
     try:
         with open(".env", "w") as f:
             f.write(env_content)
-        print("Fichier .env créé avec succès.")
+        print_success("Fichier .env créé")
         return True
     except IOError as e:
-        print(f"Erreur lors de la création du fichier .env: {e}")
+        print_error(f"Échec de la création du fichier .env: {e}")
         return False
+
+def create_data_directories():
+    """Créer les répertoires de données."""
+    print_section("Création des répertoires")
+
+    dirs_to_create = ['logs', 'data']
+
+    for dir_name in dirs_to_create:
+        dir_path = os.path.join(os.getcwd(), dir_name)
+        try:
+            os.makedirs(dir_path, exist_ok=True)
+            print_success(f"Répertoire {dir_name}/ créé")
+        except OSError as e:
+            print_info(f"Impossible de créer {dir_name}/: {e}")
+
+    return True
 
 def get_local_ip():
     """Obtenir l'adresse IP locale."""
@@ -152,12 +326,55 @@ def get_local_ip():
     except:
         return "VOTRE_IP"
 
+def test_installation():
+    """Tester que l'installation fonctionne."""
+    print_section("Test de l'installation")
+
+    paths = get_venv_paths()
+
+    # Tester l'import de Flask
+    print_info("Test d'import de Flask...")
+    try:
+        result = subprocess.run(
+            [paths['python'], "-c", "from flask import Flask; print('OK')"],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print_success("Flask fonctionne correctement")
+    except subprocess.CalledProcessError:
+        print_error("Échec du test Flask")
+        return False
+
+    # Tester l'import de ldap3
+    print_info("Test d'import de ldap3...")
+    try:
+        result = subprocess.run(
+            [paths['python'], "-c", "from ldap3 import Server; print('OK')"],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print_success("ldap3 fonctionne correctement")
+    except subprocess.CalledProcessError:
+        print_error("Échec du test ldap3")
+        return False
+
+    return True
+
 def main():
     """Fonction principale de l'assistant d'installation."""
     print_header()
 
-    print("Cet assistant va vous guider dans la configuration du serveur.")
+    print("Cet assistant va installer et configurer le serveur.")
     print("Appuyez sur Entrée pour accepter les valeurs par défaut.\n")
+
+    # Vérifications préliminaires
+    if not check_python_version():
+        return
+
+    if not check_system_dependencies():
+        return
 
     config = {}
 
@@ -174,7 +391,7 @@ def main():
 
     # Clé secrète
     config['secret_key'] = generate_secret_key()
-    print(f"\nClé secrète générée automatiquement.")
+    print_info("Clé secrète générée automatiquement")
 
     # Configuration Active Directory
     print_section("Configuration Active Directory (optionnel)")
@@ -191,7 +408,7 @@ def main():
         config['ad_port'] = 389
         config['ad_use_ssl'] = False
         config['ad_base_dn'] = ""
-        print("Vous pourrez configurer Active Directory plus tard via l'interface web.")
+        print_info("Vous pourrez configurer Active Directory via l'interface web.")
 
     # Résumé
     print_section("Résumé de la configuration")
@@ -210,37 +427,47 @@ def main():
         print("\nInstallation annulée.")
         return
 
-    # Création de l'environnement virtuel
-    if not create_virtual_env():
-        print("\nÉchec de la création de l'environnement virtuel.")
-        return
+    # Installation
+    steps = [
+        ("Environnement virtuel", create_virtual_env),
+        ("Dépendances Python", install_dependencies),
+        ("Fichier de configuration", lambda: create_env_file(config)),
+        ("Répertoires de données", create_data_directories),
+        ("Test de l'installation", test_installation),
+    ]
 
-    # Installation des dépendances
-    if not install_dependencies():
-        print("\nÉchec de l'installation des dépendances.")
-        return
-
-    # Création du fichier .env
-    if not create_env_file(config):
-        print("\nÉchec de la création du fichier de configuration.")
-        return
+    for step_name, step_func in steps:
+        if not step_func():
+            print_error(f"Échec à l'étape: {step_name}")
+            print("\nL'installation a échoué. Consultez les erreurs ci-dessus.")
+            return
 
     # Instructions finales
     local_ip = get_local_ip()
+    paths = get_venv_paths()
 
-    print_section("Installation terminée!")
-    print("Pour démarrer le serveur :\n")
+    print_section("Installation terminée avec succès!")
+
+    print("\nStructure installée:")
+    print("  ./venv/           - Environnement virtuel Python")
+    print("  ./.env            - Configuration du serveur")
+    print("  ./logs/           - Fichiers de logs")
+    print("  ./data/           - Données de l'application")
+
+    print("\n\nPour démarrer le serveur:\n")
 
     if platform.system() == "Windows":
         print("  run.bat")
-        print("  ou")
-        print("  venv\\Scripts\\activate && python run.py")
+        print("\n  ou manuellement:")
+        print(f"  {paths['activate']}")
+        print("  python run.py")
     else:
         print("  ./run.sh")
-        print("  ou")
-        print("  source venv/bin/activate && python run.py")
+        print("\n  ou manuellement:")
+        print(f"  source {paths['activate']}")
+        print("  python run.py")
 
-    print(f"\n\nURL d'accès pour les utilisateurs :")
+    print(f"\n\nURL d'accès pour les utilisateurs:")
     print(f"  http://{local_ip}:{config['port']}")
     print()
 
