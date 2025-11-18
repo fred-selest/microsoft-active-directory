@@ -27,7 +27,30 @@ L'interface fonctionne sur **tous les systèmes** (Windows, Linux, macOS, tablet
 - Python 3.8+
 - Accès réseau au serveur Active Directory
 
-### Installation rapide
+### Installation avec l'assistant (recommandé)
+
+L'assistant d'installation vous guide pas à pas dans la configuration.
+
+**Linux/macOS :**
+```bash
+git clone <url-du-repo>
+cd microsoft-active-directory
+./install.sh
+```
+
+**Windows :**
+```cmd
+git clone <url-du-repo>
+cd microsoft-active-directory
+install.bat
+```
+
+L'assistant vous demandera :
+- Le port du serveur (défaut: 5000)
+- Si c'est une installation de production
+- Les informations du serveur Active Directory (optionnel)
+
+### Installation manuelle
 
 ```bash
 # 1. Cloner le projet
@@ -46,7 +69,7 @@ venv\Scripts\activate
 # 4. Installer les dépendances
 pip install -r requirements.txt
 
-# 5. Configurer (optionnel)
+# 5. Configurer
 cp .env.example .env
 # Éditer .env selon vos besoins
 
