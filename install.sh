@@ -1,15 +1,16 @@
 #!/bin/bash
 # Script d'installation pour Linux/macOS
-# Installe Python si nécessaire et lance l'assistant d'installation
+# Télécharge le projet depuis GitHub, installe Python si nécessaire, et configure le serveur
 
 echo "======================================================"
 echo "  Installation - Interface Web Active Directory"
 echo "======================================================"
 echo
 
-# Obtenir le répertoire du script
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
+# Variables
+GITHUB_REPO="fred-selest/microsoft-active-directory"
+BRANCH="claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2"
+PROJECT_DIR="microsoft-active-directory"
 
 # Fonction pour demander confirmation
 ask_yes_no() {
@@ -31,6 +32,83 @@ ask_yes_no() {
         * ) return 1 ;;
     esac
 }
+
+# Vérifier si nous sommes déjà dans le dossier du projet
+if [ -f "install.py" ]; then
+    echo "Fichiers du projet détectés."
+else
+    # Télécharger le projet depuis GitHub
+    echo "Téléchargement du projet depuis GitHub..."
+    echo
+
+    # Vérifier si Git est installé
+    if command -v git &> /dev/null; then
+        echo "Git détecté. Clonage du repository..."
+        if git clone -b "$BRANCH" "https://github.com/$GITHUB_REPO.git"; then
+            cd "$PROJECT_DIR"
+        else
+            echo "Erreur lors du clonage. Tentative de téléchargement ZIP..."
+            DOWNLOAD_ZIP=true
+        fi
+    else
+        DOWNLOAD_ZIP=true
+    fi
+
+    # Télécharger le ZIP si nécessaire
+    if [ "$DOWNLOAD_ZIP" = true ]; then
+        echo "Téléchargement du projet en ZIP..."
+
+        # Créer un répertoire temporaire
+        TEMP_DIR=$(mktemp -d)
+        ZIP_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/$BRANCH.zip"
+
+        # Télécharger avec curl ou wget
+        if command -v curl &> /dev/null; then
+            curl -L -o "$TEMP_DIR/project.zip" "$ZIP_URL"
+        elif command -v wget &> /dev/null; then
+            wget -O "$TEMP_DIR/project.zip" "$ZIP_URL"
+        else
+            echo "Erreur: curl ou wget requis pour télécharger le projet."
+            echo "Installez curl: sudo apt install curl"
+            exit 1
+        fi
+
+        if [ ! -f "$TEMP_DIR/project.zip" ]; then
+            echo "Erreur: Impossible de télécharger le projet."
+            echo "Vérifiez votre connexion internet."
+            rm -rf "$TEMP_DIR"
+            exit 1
+        fi
+
+        echo "Extraction des fichiers..."
+
+        # Extraire le ZIP
+        unzip -q "$TEMP_DIR/project.zip" -d "$TEMP_DIR/extracted"
+
+        # Trouver le dossier extrait
+        EXTRACTED_DIR=$(ls -d "$TEMP_DIR/extracted"/*/ | head -1)
+
+        # Vérifier si le dossier existe déjà
+        if [ -d "$PROJECT_DIR" ]; then
+            if ask_yes_no "Le dossier $PROJECT_DIR existe déjà. Le remplacer?" "n"; then
+                rm -rf "$PROJECT_DIR"
+            else
+                echo "Installation annulée."
+                rm -rf "$TEMP_DIR"
+                exit 0
+            fi
+        fi
+
+        # Déplacer le dossier extrait
+        mv "$EXTRACTED_DIR" "$PROJECT_DIR"
+
+        echo "Fichiers extraits dans $PROJECT_DIR"
+        cd "$PROJECT_DIR"
+
+        # Nettoyer
+        rm -rf "$TEMP_DIR"
+    fi
+fi
 
 # Détecter le gestionnaire de paquets
 detect_package_manager() {
