@@ -9,10 +9,13 @@ echo   Installation - Interface Web Active Directory
 echo ======================================================
 echo.
 
+REM Se placer dans le répertoire du script
+cd /d "%~dp0"
+
 REM Définir les variables
 set "GITHUB_REPO=fred-selest/microsoft-active-directory"
 set "BRANCH=claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2"
-set "PROJECT_DIR=microsoft-active-directory"
+set "PROJECT_DIR=ad-web-interface"
 
 REM Vérifier si nous sommes déjà dans le dossier du projet (install.py existe)
 if exist "install.py" (
@@ -24,27 +27,19 @@ REM Télécharger le projet depuis GitHub
 echo Telechargement du projet depuis GitHub...
 echo.
 
-REM Vérifier si Git est installé
-git --version >nul 2>&1
-if not errorlevel 1 (
-    echo Git detecte. Clonage du repository...
-    git clone -b %BRANCH% https://github.com/%GITHUB_REPO%.git
-    if errorlevel 1 (
-        echo Erreur lors du clonage. Tentative de telechargement ZIP...
-        goto :download_zip
-    )
-    cd %PROJECT_DIR%
-    goto :check_python
-)
-
 :download_zip
 echo Telechargement du projet en ZIP...
 
 REM Créer un répertoire temporaire
 if not exist "%TEMP%\ad-web-install" mkdir "%TEMP%\ad-web-install"
 
+REM Construire l'URL avec le nom de branche encodé
+set "ZIP_URL=https://github.com/%GITHUB_REPO%/archive/refs/heads/%BRANCH%.zip"
+
 REM Télécharger le ZIP avec PowerShell
-powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/%GITHUB_REPO%/archive/refs/heads/%BRANCH%.zip' -OutFile '%TEMP%\ad-web-install\project.zip' -ErrorAction Stop; Write-Host 'Telechargement termine.' } catch { Write-Host 'Erreur: ' + $_.Exception.Message; exit 1 }}"
+echo URL: %ZIP_URL%
+echo.
+powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri '%ZIP_URL%' -OutFile '%TEMP%\ad-web-install\project.zip' -ErrorAction Stop; Write-Host 'Telechargement termine.' } catch { Write-Host 'Erreur: ' $_.Exception.Message; exit 1 }}"
 
 if not exist "%TEMP%\ad-web-install\project.zip" (
     echo.
@@ -56,16 +51,31 @@ if not exist "%TEMP%\ad-web-install\project.zip" (
     goto :end
 )
 
+echo.
 echo Extraction des fichiers...
+
+REM Supprimer l'ancien dossier d'extraction s'il existe
+if exist "%TEMP%\ad-web-install\extracted" rmdir /s /q "%TEMP%\ad-web-install\extracted"
 
 REM Extraire le ZIP avec PowerShell
 powershell -Command "& {Expand-Archive -Path '%TEMP%\ad-web-install\project.zip' -DestinationPath '%TEMP%\ad-web-install\extracted' -Force}"
 
 REM Trouver le dossier extrait (le nom inclut le nom de la branche)
-for /d %%i in ("%TEMP%\ad-web-install\extracted\*") do set "EXTRACTED_DIR=%%i"
+set "EXTRACTED_DIR="
+for /d %%i in ("%TEMP%\ad-web-install\extracted\*") do (
+    set "EXTRACTED_DIR=%%i"
+)
 
-REM Copier les fichiers vers le répertoire actuel ou créer un nouveau dossier
+if "!EXTRACTED_DIR!"=="" (
+    echo Erreur: Impossible de trouver le dossier extrait.
+    goto :cleanup
+)
+
+echo Dossier extrait: !EXTRACTED_DIR!
+
+REM Vérifier si le dossier de destination existe déjà
 if exist "%PROJECT_DIR%" (
+    echo.
     echo Le dossier %PROJECT_DIR% existe deja.
     set /p OVERWRITE="Voulez-vous le remplacer? [o/N]: "
     if /i "!OVERWRITE!"=="o" (
@@ -76,11 +86,22 @@ if exist "%PROJECT_DIR%" (
     )
 )
 
-REM Déplacer le dossier extrait
-move "!EXTRACTED_DIR!" "%PROJECT_DIR%" >nul
+REM Renommer et déplacer le dossier extrait
+echo Copie des fichiers vers %PROJECT_DIR%...
+rename "!EXTRACTED_DIR!" "%PROJECT_DIR%"
+move "%TEMP%\ad-web-install\extracted\%PROJECT_DIR%" "." >nul
 
+if not exist "%PROJECT_DIR%" (
+    echo Erreur lors du deplacement des fichiers.
+    goto :cleanup
+)
+
+echo.
 echo Fichiers extraits dans %PROJECT_DIR%
-cd %PROJECT_DIR%
+echo.
+
+REM Entrer dans le dossier du projet
+cd "%PROJECT_DIR%"
 
 REM Nettoyer les fichiers temporaires
 del "%TEMP%\ad-web-install\project.zip" >nul 2>&1
@@ -157,7 +178,9 @@ echo IMPORTANT: Vous devez redemarrer cette fenetre
 echo de commande pour que Python soit disponible.
 echo.
 echo Apres avoir ferme cette fenetre, ouvrez une nouvelle
-echo invite de commandes et relancez install.bat
+echo invite de commandes et relancez:
+echo   cd %cd%
+echo   python install.py
 echo ======================================================
 echo.
 
