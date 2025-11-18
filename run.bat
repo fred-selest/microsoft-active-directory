@@ -1,6 +1,11 @@
 @echo off
 REM Script de démarrage Windows pour l'interface Web AD
-echo Démarrage de l'interface Web AD sur Windows...
+
+REM Se placer dans le répertoire du script
+cd /d "%~dp0"
+
+echo Demarrage de l'interface Web AD sur Windows...
+echo Repertoire: %cd%
 echo.
 
 REM Vérifier si Python est disponible
