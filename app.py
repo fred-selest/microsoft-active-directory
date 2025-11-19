@@ -20,6 +20,11 @@ from security import (
     validate_password_strength, get_password_requirements, add_security_headers,
     get_secure_session_config, generate_csrf_token, validate_csrf_token
 )
+from translations import get_translation, get_all_translations, Translator
+from api import generate_api_key, revoke_api_key, load_api_keys, get_api_documentation, require_api_key
+from user_templates import get_all_templates, get_template, create_template, update_template, delete_template, apply_template, init_default_templates
+from alerts import add_alert, get_alerts, acknowledge_alert, delete_alert as delete_alert_func, get_alert_counts, check_expiring_accounts, check_inactive_accounts
+from favorites import get_user_favorites, add_favorite, remove_favorite, is_favorite, get_favorites_count
 
 app = Flask(__name__)
 config = get_config()
@@ -79,13 +84,20 @@ def inject_update_info():
         except:
             _update_cache['result'] = {'update_available': False}
 
+    # Traductions
+    lang = session.get('language', 'fr')
+    translator = Translator(lang)
+
     return {
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
         'dark_mode': session.get('dark_mode', False),
         'config': config,
         'csrf_token': generate_csrf_token,
-        'password_requirements': get_password_requirements()
+        'password_requirements': get_password_requirements(),
+        't': translator,
+        'current_lang': lang,
+        'alert_counts': get_alert_counts()
     }
 
 
@@ -1991,6 +2003,331 @@ def api_perform_update():
             'success': False,
             'message': str(e)
         })
+
+
+# === NOUVELLES FONCTIONNALITES VERSION 1.6 ===
+
+@app.route('/search')
+@require_connection
+def global_search():
+    """Recherche globale dans tous les objets AD."""
+    query = request.args.get('q', '')
+    types = request.args.getlist('type') or ['users', 'groups', 'computers', 'ous']
+
+    results = {'users': [], 'groups': [], 'computers': [], 'ous': []}
+    total = 0
+
+    if query:
+        conn, error = get_ad_connection()
+        if conn:
+            base_dn = session.get('ad_base_dn', '')
+            safe_query = escape_ldap_filter(query)
+
+            if 'users' in types:
+                conn.search(base_dn, f'(&(objectClass=user)(objectCategory=person)(|(cn=*{safe_query}*)(sAMAccountName=*{safe_query}*)))',
+                           SUBTREE, attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName'])
+                results['users'] = [{'cn': str(e.cn), 'sAMAccountName': str(e.sAMAccountName),
+                                    'mail': str(e.mail) if e.mail else '', 'dn': str(e.distinguishedName)} for e in conn.entries]
+
+            if 'groups' in types:
+                conn.search(base_dn, f'(&(objectClass=group)(cn=*{safe_query}*))',
+                           SUBTREE, attributes=['cn', 'description', 'distinguishedName'])
+                results['groups'] = [{'cn': str(e.cn), 'description': str(e.description) if e.description else '',
+                                     'dn': str(e.distinguishedName)} for e in conn.entries]
+
+            if 'computers' in types:
+                conn.search(base_dn, f'(&(objectClass=computer)(cn=*{safe_query}*))',
+                           SUBTREE, attributes=['cn', 'operatingSystem', 'distinguishedName'])
+                results['computers'] = [{'cn': str(e.cn), 'os': str(e.operatingSystem) if e.operatingSystem else '',
+                                        'dn': str(e.distinguishedName)} for e in conn.entries]
+
+            if 'ous' in types:
+                conn.search(base_dn, f'(&(objectClass=organizationalUnit)(name=*{safe_query}*))',
+                           SUBTREE, attributes=['name', 'description', 'distinguishedName'])
+                results['ous'] = [{'name': str(e.name), 'description': str(e.description) if e.description else '',
+                                  'dn': str(e.distinguishedName)} for e in conn.entries]
+
+            conn.unbind()
+            total = sum(len(v) for v in results.values())
+
+    return render_template('global_search.html', query=query, types=types, results=results,
+                          total_results=total, connected=is_connected())
+
+
+@app.route('/alerts')
+@require_connection
+def alerts_page():
+    """Page des alertes."""
+    severity_filter = request.args.get('severity', '')
+    ack_filter = request.args.get('acknowledged', '')
+
+    acknowledged = None
+    if ack_filter == 'yes':
+        acknowledged = True
+    elif ack_filter == 'no':
+        acknowledged = False
+
+    alerts = get_alerts(limit=100, severity=severity_filter if severity_filter else None, acknowledged=acknowledged)
+
+    return render_template('alerts_page.html', alerts=alerts, alert_counts=get_alert_counts(),
+                          severity_filter=severity_filter, ack_filter=ack_filter, connected=is_connected())
+
+
+@app.route('/alerts/<alert_id>/acknowledge', methods=['POST'])
+@require_connection
+def acknowledge_alert_route(alert_id):
+    """Acquitter une alerte."""
+    acknowledge_alert(alert_id, session.get('ad_username', 'unknown'))
+    flash('Alerte acquittee.', 'success')
+    return redirect(url_for('alerts_page'))
+
+
+@app.route('/alerts/<alert_id>/delete', methods=['POST'])
+@require_connection
+def delete_alert_route(alert_id):
+    """Supprimer une alerte."""
+    delete_alert_func(alert_id)
+    flash('Alerte supprimee.', 'success')
+    return redirect(url_for('alerts_page'))
+
+
+@app.route('/templates')
+@require_connection
+def user_templates_page():
+    """Page des modeles d'utilisateurs."""
+    init_default_templates()
+    templates = get_all_templates()
+    return render_template('user_templates.html', templates=templates, connected=is_connected())
+
+
+@app.route('/templates/create', methods=['GET', 'POST'])
+@require_connection
+def create_user_template():
+    """Creer un modele d'utilisateur."""
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        attributes = {
+            'department': request.form.get('department', ''),
+            'title': request.form.get('title', ''),
+            'description': request.form.get('user_description', '')
+        }
+        groups = request.form.getlist('groups')
+        ou = request.form.get('ou', '')
+
+        create_template(name, description, attributes, groups, ou)
+        flash('Modele cree avec succes!', 'success')
+        return redirect(url_for('user_templates_page'))
+
+    return render_template('template_form.html', action='create', template=None, connected=is_connected())
+
+
+@app.route('/templates/<template_id>/edit', methods=['GET', 'POST'])
+@require_connection
+def edit_user_template(template_id):
+    """Modifier un modele d'utilisateur."""
+    template = get_template(template_id)
+    if not template:
+        flash('Modele non trouve.', 'error')
+        return redirect(url_for('user_templates_page'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        attributes = {
+            'department': request.form.get('department', ''),
+            'title': request.form.get('title', ''),
+            'description': request.form.get('user_description', '')
+        }
+
+        update_template(template_id, name=name, description=description, attributes=attributes)
+        flash('Modele modifie avec succes!', 'success')
+        return redirect(url_for('user_templates_page'))
+
+    return render_template('template_form.html', action='edit', template=template,
+                          template_id=template_id, connected=is_connected())
+
+
+@app.route('/templates/<template_id>/delete', methods=['POST'])
+@require_connection
+def delete_user_template(template_id):
+    """Supprimer un modele d'utilisateur."""
+    delete_template(template_id)
+    flash('Modele supprime.', 'success')
+    return redirect(url_for('user_templates_page'))
+
+
+@app.route('/favorites')
+@require_connection
+def favorites_page():
+    """Page des favoris."""
+    username = session.get('ad_username', '')
+    favorites = get_user_favorites(username)
+    counts = get_favorites_count(username)
+    return render_template('favorites_page.html', favorites=favorites, counts=counts, connected=is_connected())
+
+
+@app.route('/favorites/toggle', methods=['POST'])
+@require_connection
+def toggle_favorite():
+    """Ajouter ou retirer un favori."""
+    username = session.get('ad_username', '')
+    action = request.form.get('action', 'add')
+    obj_type = request.form.get('type', 'user')
+    dn = request.form.get('dn')
+    name = request.form.get('name', '')
+    description = request.form.get('description', '')
+
+    if action == 'remove':
+        remove_favorite(username, dn)
+        flash('Retire des favoris.', 'success')
+    else:
+        if add_favorite(username, obj_type, dn, name, description):
+            flash('Ajoute aux favoris!', 'success')
+        else:
+            flash('Deja dans les favoris.', 'info')
+
+    return redirect(request.referrer or url_for('favorites_page'))
+
+
+@app.route('/expiring')
+@require_connection
+def expiring_accounts():
+    """Page des comptes expirants."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    exp_accounts = check_expiring_accounts(conn, base_dn, days=30)
+    pwd_expiring = []  # check_password_expiring(conn, base_dn, days=14)
+    inactive = check_inactive_accounts(conn, base_dn, days=90)
+
+    conn.unbind()
+
+    return render_template('expiring_accounts.html', expiring_accounts=exp_accounts,
+                          password_expiring=pwd_expiring, inactive_accounts=inactive,
+                          connected=is_connected())
+
+
+@app.route('/api/docs')
+@require_connection
+def api_documentation_page():
+    """Page de documentation de l'API."""
+    api_docs = get_api_documentation()
+    api_keys = load_api_keys()
+    return render_template('api_docs.html', api_docs=api_docs, api_keys=api_keys, connected=is_connected())
+
+
+@app.route('/api/keys/generate', methods=['POST'])
+@require_connection
+def generate_api_key_route():
+    """Generer une nouvelle cle API."""
+    name = request.form.get('name', 'Default')
+    permissions = request.form.getlist('permissions') or ['read']
+
+    key = generate_api_key(name, permissions)
+    flash(f'Cle API generee: {key}', 'success')
+    return redirect(url_for('api_documentation_page'))
+
+
+@app.route('/api/keys/revoke', methods=['POST'])
+@require_connection
+def revoke_api_key_route():
+    """Revoquer une cle API."""
+    key = request.form.get('key')
+    if revoke_api_key(key):
+        flash('Cle API revoquee.', 'success')
+    else:
+        flash('Cle non trouvee.', 'error')
+    return redirect(url_for('api_documentation_page'))
+
+
+@app.route('/language/<lang>')
+def set_language(lang):
+    """Changer la langue de l'interface."""
+    if lang in ['fr', 'en']:
+        session['language'] = lang
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/export/audit')
+@require_connection
+def export_audit_logs():
+    """Exporter les logs d'audit en CSV."""
+    logs = get_audit_logs(limit=1000)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Date', 'Action', 'Utilisateur', 'Succes', 'IP', 'Details'])
+
+    for log in logs:
+        writer.writerow([
+            log.get('timestamp', ''),
+            log.get('action', ''),
+            log.get('user', ''),
+            'Oui' if log.get('success') else 'Non',
+            log.get('ip', ''),
+            str(log.get('details', ''))
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=audit_logs.csv'}
+    )
+
+
+@app.route('/export/expiring/pdf')
+@require_connection
+def export_expiring_pdf():
+    """Exporter les comptes expirants en PDF."""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+
+        conn, error = get_ad_connection()
+        if not conn:
+            flash('Erreur de connexion', 'error')
+            return redirect(url_for('expiring_accounts'))
+
+        base_dn = session.get('ad_base_dn', '')
+        exp_accounts = check_expiring_accounts(conn, base_dn, days=30)
+        conn.unbind()
+
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=letter)
+        c.setTitle("Comptes expirants")
+
+        c.drawString(50, 750, "Rapport des comptes expirants")
+        c.drawString(50, 730, f"Genere le: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+        y = 700
+        for account in exp_accounts:
+            if y < 50:
+                c.showPage()
+                y = 750
+            c.drawString(50, y, f"{account['cn']} ({account['sAMAccountName']})")
+            y -= 20
+
+        if not exp_accounts:
+            c.drawString(50, y, "Aucun compte expirant.")
+
+        c.save()
+        buffer.seek(0)
+
+        return Response(
+            buffer.getvalue(),
+            mimetype='application/pdf',
+            headers={'Content-Disposition': 'attachment; filename=expiring_accounts.pdf'}
+        )
+
+    except ImportError:
+        flash('Module reportlab non installe pour l\'export PDF.', 'error')
+        return redirect(url_for('expiring_accounts'))
 
 
 def run_server():

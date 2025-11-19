@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block title %}Alertes - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Alertes</h2>
+    <span class="badge badge-warning">{{ alert_counts.unacknowledged }} non lue(s)</span>
+</div>
+
+<div class="alerts-summary">
+    <div class="alert-stat critical">
+        <span class="count">{{ alert_counts.by_severity.critical }}</span>
+        <span class="label">Critiques</span>
+    </div>
+    <div class="alert-stat error">
+        <span class="count">{{ alert_counts.by_severity.error }}</span>
+        <span class="label">Erreurs</span>
+    </div>
+    <div class="alert-stat warning">
+        <span class="count">{{ alert_counts.by_severity.warning }}</span>
+        <span class="label">Avertissements</span>
+    </div>
+    <div class="alert-stat info">
+        <span class="count">{{ alert_counts.by_severity.info }}</span>
+        <span class="label">Informations</span>
+    </div>
+</div>
+
+<div class="alerts-filter">
+    <form method="get" class="filter-form">
+        <select name="severity" onchange="this.form.submit()">
+            <option value="">Toutes les gravites</option>
+            <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critiques</option>
+            <option value="error" {% if severity_filter == 'error' %}selected{% endif %}>Erreurs</option>
+            <option value="warning" {% if severity_filter == 'warning' %}selected{% endif %}>Avertissements</option>
+            <option value="info" {% if severity_filter == 'info' %}selected{% endif %}>Informations</option>
+        </select>
+        <select name="acknowledged" onchange="this.form.submit()">
+            <option value="">Toutes</option>
+            <option value="no" {% if ack_filter == 'no' %}selected{% endif %}>Non lues</option>
+            <option value="yes" {% if ack_filter == 'yes' %}selected{% endif %}>Lues</option>
+        </select>
+    </form>
+</div>
+
+<div class="alerts-list">
+    {% for alert in alerts %}
+    <div class="alert-item severity-{{ alert.severity }} {% if alert.acknowledged %}acknowledged{% endif %}">
+        <div class="alert-icon">
+            {% if alert.severity == 'critical' %}&#9888;{% endif %}
+            {% if alert.severity == 'error' %}&#10060;{% endif %}
+            {% if alert.severity == 'warning' %}&#9888;{% endif %}
+            {% if alert.severity == 'info' %}&#8505;{% endif %}
+        </div>
+        <div class="alert-content">
+            <div class="alert-header">
+                <h4>{{ alert.title }}</h4>
+                <span class="alert-time">{{ alert.created }}</span>
+            </div>
+            <p class="alert-message">{{ alert.message }}</p>
+            {% if alert.acknowledged %}
+            <p class="alert-ack">Acquittee par {{ alert.acknowledged_by }} le {{ alert.acknowledged_at }}</p>
+            {% endif %}
+        </div>
+        <div class="alert-actions">
+            {% if not alert.acknowledged %}
+            <form method="post" action="{{ url_for('acknowledge_alert_route', alert_id=alert.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-secondary">Acquitter</button>
+            </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('delete_alert_route', alert_id=alert.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <p class="no-alerts">Aucune alerte.</p>
+    {% endfor %}
+</div>
+
+{% block extra_css %}
+<style>
+.alerts-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.alert-stat {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.alert-stat .count {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+}
+.alert-stat .label {
+    color: #666;
+}
+.alert-stat.critical .count { color: #d32f2f; }
+.alert-stat.error .count { color: #f44336; }
+.alert-stat.warning .count { color: #ff9800; }
+.alert-stat.info .count { color: #2196f3; }
+
+.alerts-filter {
+    margin-bottom: 1rem;
+}
+.filter-form {
+    display: flex;
+    gap: 1rem;
+}
+.filter-form select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.alert-item {
+    display: flex;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid;
+}
+.severity-critical { border-color: #d32f2f; }
+.severity-error { border-color: #f44336; }
+.severity-warning { border-color: #ff9800; }
+.severity-info { border-color: #2196f3; }
+.acknowledged { opacity: 0.6; }
+
+.alert-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+.alert-content {
+    flex: 1;
+}
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.alert-header h4 {
+    margin: 0;
+}
+.alert-time {
+    font-size: 0.85rem;
+    color: #666;
+}
+.alert-message {
+    margin: 0.5rem 0;
+}
+.alert-ack {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+}
+.alert-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.no-alerts {
+    text-align: center;
+    color: #666;
+    padding: 2rem;
+}
+</style>
+{% endblock %}
+{% endblock %}
