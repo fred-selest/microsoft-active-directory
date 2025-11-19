@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% if dark_mode %}dark-mode{% endif %}">
     <nav class="navbar">
         <div class="nav-brand">
             <a href="{{ url_for('index') }}">AD Web Interface</a>
@@ -15,14 +15,17 @@
         <ul class="nav-links">
             <li><a href="{{ url_for('index') }}">Accueil</a></li>
             {% if connected %}
+            <li><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
             <li><a href="{{ url_for('users') }}">Utilisateurs</a></li>
             <li><a href="{{ url_for('groups') }}">Groupes</a></li>
-            <li><a href="{{ url_for('ous') }}">OUs</a></li>
+            <li><a href="{{ url_for('ous') }}">Unites d'org.</a></li>
             <li><a href="{{ url_for('ad_tree') }}">Arborescence</a></li>
+            <li><a href="{{ url_for('audit_logs') }}">Audit</a></li>
             <li><a href="{{ url_for('disconnect') }}" class="nav-disconnect">Deconnexion</a></li>
             {% else %}
             <li><a href="{{ url_for('connect') }}">Connexion AD</a></li>
             {% endif %}
+            <li><a href="{{ url_for('toggle_dark_mode') }}" class="dark-mode-toggle" title="Mode sombre">&#x1F319;</a></li>
             <li><a href="{{ url_for('update_page') }}">Mise a jour</a></li>
         </ul>
     </nav>

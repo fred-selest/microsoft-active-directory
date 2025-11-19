@@ -33,6 +33,18 @@ class Config:
     AD_USE_SSL = os.environ.get('AD_USE_SSL', 'False').lower() == 'true'
     AD_BASE_DN = os.environ.get('AD_BASE_DN', '')
 
+    # Configuration de session
+    SESSION_TIMEOUT = int(os.environ.get('SESSION_TIMEOUT', 30))  # minutes
+    PERMANENT_SESSION_LIFETIME = SESSION_TIMEOUT * 60  # secondes
+
+    # Configuration RBAC (Role-Based Access Control)
+    # Roles: admin, operator, reader
+    RBAC_ENABLED = os.environ.get('RBAC_ENABLED', 'False').lower() == 'true'
+    DEFAULT_ROLE = os.environ.get('DEFAULT_ROLE', 'admin')
+
+    # Pagination
+    ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE', 25))
+
     # Chemins multi-plateformes
     if IS_WINDOWS:
         LOG_DIR = Path(os.environ.get('AD_LOG_DIR', 'C:/ProgramData/ADWebInterface/logs'))
