@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Detail du backup - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Detail du backup</h2>
+    <a href="{{ url_for('backups') }}" class="btn btn-secondary">Retour aux backups</a>
+</div>
+
+<div class="backup-info">
+    <table class="data-table">
+        <tr>
+            <th>Date/Heure</th>
+            <td>{{ backup.timestamp }}</td>
+        </tr>
+        <tr>
+            <th>Type d'objet</th>
+            <td>{{ backup.object_type }}</td>
+        </tr>
+        <tr>
+            <th>DN</th>
+            <td>{{ backup.dn }}</td>
+        </tr>
+    </table>
+</div>
+
+<div class="backup-content">
+    <h3>Attributs sauvegardes</h3>
+    <pre>{{ backup.attributes | tojson(indent=2) }}</pre>
+</div>
+
+{% block extra_css %}
+<style>
+.backup-info {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.backup-info th {
+    width: 150px;
+}
+.backup-content {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.backup-content h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+.backup-content pre {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow: auto;
+    max-height: 500px;
+}
+</style>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Backups - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Backups</h2>
+    <a href="{{ url_for('change_history') }}" class="btn btn-secondary">Voir l'historique</a>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date/Heure</th>
+                <th>Type</th>
+                <th>Objet</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for backup in backups %}
+            <tr>
+                <td>{{ backup.timestamp }}</td>
+                <td>{{ backup.object_type }}</td>
+                <td class="dn-cell">{{ backup.dn }}</td>
+                <td>
+                    <a href="{{ url_for('view_backup', filename=backup.filename) }}" class="btn btn-sm btn-secondary">Voir</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Aucun backup disponible.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ backups|length }} backup(s)</p>
+
+{% block extra_css %}
+<style>
+.dn-cell {
+    font-size: 0.85rem;
+    max-width: 400px;
+    word-break: break-all;
+}
+</style>
+{% endblock %}
+{% endblock %}

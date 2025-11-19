@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Comptes verrouilles - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Comptes verrouilles</h2>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nom complet</th>
+                <th>Identifiant</th>
+                <th>Email</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for account in accounts %}
+            <tr>
+                <td>{{ account.cn }}</td>
+                <td>{{ account.sAMAccountName }}</td>
+                <td>{{ account.mail }}</td>
+                <td class="actions">
+                    <form method="post" action="{{ url_for('unlock_account', dn=account.dn) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-success">Deverrouiller</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Aucun compte verrouille.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ accounts|length }} compte(s) verrouille(s)</p>
+{% endblock %}
