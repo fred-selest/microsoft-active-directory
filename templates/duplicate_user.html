@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Dupliquer un utilisateur - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Dupliquer un utilisateur</h2>
+    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour a la liste</a>
+</div>
+
+<div class="form-container">
+    <p class="info-text">Duplication de: <strong>{{ user.dn }}</strong></p>
+
+    <form method="post">
+        <div class="form-section">
+            <h3>Nouveau compte</h3>
+            <div class="form-group">
+                <label for="sAMAccountName">Identifiant (login) *</label>
+                <input type="text" id="sAMAccountName" name="sAMAccountName" required placeholder="jdupont">
+            </div>
+            <div class="form-group">
+                <label for="password">Mot de passe *</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            {% if ous %}
+            <div class="form-group">
+                <label for="ou">Unite d'organisation</label>
+                <select id="ou" name="ou">
+                    <option value="">CN=Users (par defaut)</option>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-section">
+            <h3>Informations personnelles (copiees)</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="givenName">Prenom *</label>
+                    <input type="text" id="givenName" name="givenName" value="{{ user.givenName }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="sn">Nom *</label>
+                    <input type="text" id="sn" name="sn" value="{{ user.sn }}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="displayName">Nom d'affichage</label>
+                <input type="text" id="displayName" name="displayName" value="{{ user.displayName }}">
+            </div>
+            <div class="form-group">
+                <label for="mail">Email</label>
+                <input type="email" id="mail" name="mail" placeholder="Nouvelle adresse email">
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Informations professionnelles (copiees)</h3>
+            <div class="form-group">
+                <label for="department">Service</label>
+                <input type="text" id="department" name="department" value="{{ user.department }}">
+            </div>
+            <div class="form-group">
+                <label for="title">Fonction</label>
+                <input type="text" id="title" name="title" value="{{ user.title }}">
+            </div>
+        </div>
+
+        {% if user.memberOf %}
+        <div class="form-section">
+            <h3>Groupes</h3>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="copy_groups" value="1" checked>
+                    Copier l'appartenance aux groupes ({{ user.memberOf|length }} groupe(s))
+                </label>
+            </div>
+            <ul class="group-list">
+                {% for group in user.memberOf %}
+                <li>{{ group }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Creer la copie</button>
+            <a href="{{ url_for('users') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% block extra_css %}
+<style>
+.info-text {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+}
+</style>
+{% endblock %}
+{% endblock %}

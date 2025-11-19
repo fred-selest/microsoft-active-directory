@@ -14,6 +14,7 @@ from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, 
 from ldap3.core.exceptions import LDAPException
 from config import get_config, CURRENT_OS, IS_WINDOWS
 from audit import log_action, get_audit_logs, ACTIONS
+from backup import backup_object, get_backups, get_backup_content, record_change, get_object_history, get_all_history
 
 app = Flask(__name__)
 config = get_config()
@@ -1300,6 +1301,343 @@ def audit_logs():
     logs = get_audit_logs(limit=100, action_filter=action_filter, user_filter=user_filter)
     return render_template('audit.html', logs=logs, action_filter=action_filter,
                          user_filter=user_filter, connected=is_connected())
+
+
+# === GESTION DES ORDINATEURS ===
+
+@app.route('/computers')
+@require_connection
+def computers():
+    """Liste des ordinateurs Active Directory."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    search_query = request.args.get('search', '')
+
+    if search_query:
+        search_filter = f'(&(objectClass=computer)(cn=*{search_query}*))'
+    else:
+        search_filter = '(objectClass=computer)'
+
+    try:
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['cn', 'distinguishedName', 'operatingSystem', 'operatingSystemVersion',
+                             'lastLogonTimestamp', 'userAccountControl', 'description', 'dNSHostName'])
+
+        computer_list = []
+        for entry in conn.entries:
+            uac = entry.userAccountControl.value if entry.userAccountControl else 4096
+            is_disabled = bool(int(uac) & 2) if uac else False
+
+            computer_list.append({
+                'cn': str(entry.cn) if entry.cn else '',
+                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                'os': str(entry.operatingSystem) if entry.operatingSystem else '',
+                'os_version': str(entry.operatingSystemVersion) if entry.operatingSystemVersion else '',
+                'dns_name': str(entry.dNSHostName) if entry.dNSHostName else '',
+                'description': str(entry.description) if entry.description else '',
+                'disabled': is_disabled
+            })
+
+        conn.unbind()
+        return render_template('computers.html', computers=computer_list, search=search_query, connected=is_connected())
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return render_template('computers.html', computers=[], search=search_query, connected=is_connected())
+
+
+@app.route('/computers/<path:dn>/toggle', methods=['POST'])
+@require_connection
+def toggle_computer(dn):
+    """Activer/desactiver un ordinateur."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('computers'))
+
+    action = request.form.get('action', 'disable')
+    try:
+        if action == 'enable':
+            conn.modify(dn, {'userAccountControl': [(MODIFY_REPLACE, [4096])]})
+        else:
+            conn.modify(dn, {'userAccountControl': [(MODIFY_REPLACE, [4098])]})
+
+        if conn.result['result'] == 0:
+            flash(f'Ordinateur {"active" if action == "enable" else "desactive"} avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('computers'))
+
+
+@app.route('/computers/<path:dn>/delete', methods=['POST'])
+@require_connection
+def delete_computer(dn):
+    """Supprimer un ordinateur."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('computers'))
+
+    try:
+        conn.delete(dn)
+        if conn.result['result'] == 0:
+            flash('Ordinateur supprime avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('computers'))
+
+
+# === COMPTES VERROUILLES ===
+
+@app.route('/locked-accounts')
+@require_connection
+def locked_accounts():
+    """Liste des comptes verrouilles."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    try:
+        # Rechercher les comptes avec lockoutTime > 0
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person)(lockoutTime>=1))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'distinguishedName', 'lockoutTime', 'mail'])
+
+        locked_list = []
+        for entry in conn.entries:
+            locked_list.append({
+                'cn': str(entry.cn) if entry.cn else '',
+                'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                'mail': str(entry.mail) if entry.mail else '',
+                'lockoutTime': str(entry.lockoutTime) if entry.lockoutTime else ''
+            })
+
+        conn.unbind()
+        return render_template('locked_accounts.html', accounts=locked_list, connected=is_connected())
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return render_template('locked_accounts.html', accounts=[], connected=is_connected())
+
+
+@app.route('/locked-accounts/<path:dn>/unlock', methods=['POST'])
+@require_connection
+def unlock_account(dn):
+    """Deverrouiller un compte."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('locked_accounts'))
+
+    try:
+        conn.modify(dn, {'lockoutTime': [(MODIFY_REPLACE, [0])]})
+        if conn.result['result'] == 0:
+            log_action('unlock_account', session.get('ad_username'), {'dn': dn}, True, request.remote_addr)
+            flash('Compte deverrouille avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('locked_accounts'))
+
+
+# === POLITIQUE DE MOTS DE PASSE ===
+
+@app.route('/password-policy')
+@require_connection
+def password_policy():
+    """Afficher la politique de mots de passe du domaine."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    policy = {}
+
+    try:
+        # Rechercher la politique dans le domaine
+        conn.search(base_dn, '(objectClass=domain)', SUBTREE,
+                   attributes=['minPwdLength', 'pwdHistoryLength', 'maxPwdAge', 'minPwdAge',
+                             'lockoutThreshold', 'lockoutDuration', 'lockOutObservationWindow',
+                             'pwdProperties'])
+
+        if conn.entries:
+            entry = conn.entries[0]
+            policy = {
+                'min_length': str(entry.minPwdLength) if entry.minPwdLength else 'Non defini',
+                'history_length': str(entry.pwdHistoryLength) if entry.pwdHistoryLength else 'Non defini',
+                'max_age': str(entry.maxPwdAge) if entry.maxPwdAge else 'Non defini',
+                'min_age': str(entry.minPwdAge) if entry.minPwdAge else 'Non defini',
+                'lockout_threshold': str(entry.lockoutThreshold) if entry.lockoutThreshold else 'Non defini',
+                'lockout_duration': str(entry.lockoutDuration) if entry.lockoutDuration else 'Non defini',
+                'lockout_window': str(entry.lockOutObservationWindow) if entry.lockOutObservationWindow else 'Non defini',
+                'complexity': 'Oui' if entry.pwdProperties and int(str(entry.pwdProperties)) & 1 else 'Non'
+            }
+
+        conn.unbind()
+        return render_template('password_policy.html', policy=policy, connected=is_connected())
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return render_template('password_policy.html', policy={}, connected=is_connected())
+
+
+# === DUPLICATION D'UTILISATEUR ===
+
+@app.route('/users/<path:dn>/duplicate', methods=['GET', 'POST'])
+@require_connection
+def duplicate_user(dn):
+    """Dupliquer un utilisateur existant."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    if request.method == 'POST':
+        # Creer le nouvel utilisateur
+        username = request.form.get('sAMAccountName')
+        first_name = request.form.get('givenName')
+        last_name = request.form.get('sn')
+        display_name = request.form.get('displayName') or f"{first_name} {last_name}"
+        email = request.form.get('mail')
+        password = request.form.get('password')
+        ou = request.form.get('ou', '')
+
+        base_dn = session.get('ad_base_dn', '')
+        if ou:
+            user_dn = f"CN={display_name},{ou}"
+        else:
+            user_dn = f"CN={display_name},CN=Users,{base_dn}"
+
+        user_attrs = {
+            'objectClass': ['top', 'person', 'organizationalPerson', 'user'],
+            'cn': display_name,
+            'sAMAccountName': username,
+            'userPrincipalName': f"{username}@{session.get('ad_server', '')}",
+            'givenName': first_name,
+            'sn': last_name,
+            'displayName': display_name
+        }
+
+        # Copier les attributs supplementaires
+        for field in ['department', 'title', 'telephoneNumber', 'description']:
+            if request.form.get(field):
+                user_attrs[field] = request.form.get(field)
+
+        if email:
+            user_attrs['mail'] = email
+
+        try:
+            conn.add(user_dn, attributes=user_attrs)
+            if conn.result['result'] == 0:
+                if password:
+                    unicode_pwd = f'"{password}"'.encode('utf-16-le')
+                    conn.modify(user_dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+                    conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
+
+                # Copier les groupes si demande
+                if request.form.get('copy_groups'):
+                    conn.search(dn, '(objectClass=user)', SUBTREE, attributes=['memberOf'])
+                    if conn.entries and conn.entries[0].memberOf:
+                        for group_dn in conn.entries[0].memberOf:
+                            conn.modify(str(group_dn), {'member': [(MODIFY_ADD, [user_dn])]})
+
+                log_action(ACTIONS['CREATE_USER'], session.get('ad_username'),
+                          {'username': username, 'duplicated_from': dn}, True, request.remote_addr)
+                flash(f'Utilisateur {username} cree avec succes (copie de {dn.split(",")[0]})!', 'success')
+                conn.unbind()
+                return redirect(url_for('users'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except LDAPException as e:
+            flash(f'Erreur LDAP: {str(e)}', 'error')
+
+        conn.unbind()
+
+    # GET: Recuperer les infos de l'utilisateur source
+    try:
+        conn.search(dn, '(objectClass=user)', SUBTREE,
+                   attributes=['cn', 'givenName', 'sn', 'displayName', 'mail', 'department',
+                             'title', 'telephoneNumber', 'description', 'memberOf'])
+
+        if conn.entries:
+            entry = conn.entries[0]
+            source_user = {
+                'dn': dn,
+                'givenName': str(entry.givenName) if entry.givenName else '',
+                'sn': str(entry.sn) if entry.sn else '',
+                'displayName': str(entry.displayName) if entry.displayName else '',
+                'mail': str(entry.mail) if entry.mail else '',
+                'department': str(entry.department) if entry.department else '',
+                'title': str(entry.title) if entry.title else '',
+                'telephoneNumber': str(entry.telephoneNumber) if entry.telephoneNumber else '',
+                'description': str(entry.description) if entry.description else '',
+                'memberOf': list(entry.memberOf) if entry.memberOf else []
+            }
+
+            # Recuperer les OUs
+            ous = []
+            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['distinguishedName', 'name'])
+            for ou_entry in conn.entries:
+                ous.append({'dn': str(ou_entry.distinguishedName), 'name': str(ou_entry.name)})
+
+            conn.unbind()
+            return render_template('duplicate_user.html', user=source_user, ous=ous, connected=is_connected())
+
+        conn.unbind()
+        flash('Utilisateur non trouve.', 'error')
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+
+    return redirect(url_for('users'))
+
+
+# === HISTORIQUE DES CHANGEMENTS ===
+
+@app.route('/history')
+@require_connection
+def change_history():
+    """Afficher l'historique des changements."""
+    history = get_all_history(limit=100)
+    return render_template('history.html', history=history, connected=is_connected())
+
+
+@app.route('/backups')
+@require_connection
+def backups():
+    """Afficher les backups disponibles."""
+    backup_list = get_backups(limit=100)
+    return render_template('backups.html', backups=backup_list, connected=is_connected())
+
+
+@app.route('/backups/<filename>')
+@require_connection
+def view_backup(filename):
+    """Voir le contenu d'un backup."""
+    content = get_backup_content(filename)
+    if content:
+        return render_template('backup_detail.html', backup=content, filename=filename, connected=is_connected())
+    flash('Backup non trouve.', 'error')
+    return redirect(url_for('backups'))
 
 
 @app.route('/api/users/search')
