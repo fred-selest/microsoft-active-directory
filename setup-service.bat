@@ -61,14 +61,14 @@ REM Creation de la tache planifiee
 REM ============================================
 echo [2/3] Configuration du demarrage automatique...
 
-REM Chemin complet vers run-silent.vbs (demarrage sans fenetre)
-set SCRIPT_PATH=%~dp0run-silent.vbs
+REM Chemin complet vers run-silent.bat (demarrage sans fenetre)
+set SCRIPT_PATH=%~dp0run-silent.bat
 
 REM Supprimer l'ancienne tache si elle existe
 schtasks /delete /tn "AD Web Interface" /f >nul 2>&1
 
 REM Creer la tache planifiee pour demarrer au login (silencieux)
-schtasks /create /tn "AD Web Interface" /tr "wscript.exe \"%SCRIPT_PATH%\"" /sc onlogon /rl highest /f
+schtasks /create /tn "AD Web Interface" /tr "\"%SCRIPT_PATH%\"" /sc onlogon /rl highest /f
 
 if %errorlevel% equ 0 (
     echo [OK] Tache planifiee creee (demarrage silencieux a la connexion)
