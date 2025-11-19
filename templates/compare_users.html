@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Comparaison utilisateurs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Comparaison d'utilisateurs</h2>
+    <a href="{{ url_for('compare_users') }}" class="btn btn-secondary">Nouvelle comparaison</a>
+</div>
+
+<div class="table-container">
+    <table class="data-table compare-table">
+        <thead>
+            <tr>
+                <th>Attribut</th>
+                <th>{{ user1.cn }}</th>
+                <th>{{ user2.cn }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for attr in attributes %}
+            {% set val1 = user1[attr] %}
+            {% set val2 = user2[attr] %}
+            {% set is_different = val1 != val2 %}
+            <tr class="{% if is_different %}diff-row{% endif %}">
+                <td class="attr-name">{{ attr }}</td>
+                <td>
+                    {% if val1 is iterable and val1 is not string %}
+                        {% for v in val1 %}
+                        <div>{{ v }}</div>
+                        {% endfor %}
+                    {% else %}
+                        {{ val1 or '-' }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if val2 is iterable and val2 is not string %}
+                        {% for v in val2 %}
+                        <div>{{ v }}</div>
+                        {% endfor %}
+                    {% else %}
+                        {{ val2 or '-' }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% block extra_css %}
+<style>
+.compare-table {
+    table-layout: fixed;
+}
+.compare-table th:first-child,
+.compare-table td:first-child {
+    width: 200px;
+}
+.attr-name {
+    font-weight: 500;
+    background: #f5f5f5;
+}
+.diff-row {
+    background: #fff3cd;
+}
+.diff-row td {
+    border-left: 3px solid #ffc107;
+}
+</style>
+{% endblock %}
+{% endblock %}

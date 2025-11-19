@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Comparer utilisateurs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Comparer deux utilisateurs</h2>
+    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour aux utilisateurs</a>
+</div>
+
+<div class="form-container">
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="compare-grid">
+            <div class="form-group">
+                <label for="user1">Premier utilisateur *</label>
+                <select id="user1" name="user1" required>
+                    <option value="">Selectionner...</option>
+                    {% for user in users %}
+                    <option value="{{ user.dn }}">{{ user.cn }} ({{ user.sAMAccountName }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="user2">Deuxieme utilisateur *</label>
+                <select id="user2" name="user2" required>
+                    <option value="">Selectionner...</option>
+                    {% for user in users %}
+                    <option value="{{ user.dn }}">{{ user.cn }} ({{ user.sAMAccountName }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Comparer</button>
+        </div>
+    </form>
+</div>
+
+{% block extra_css %}
+<style>
+.compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+@media (max-width: 768px) {
+    .compare-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+{% endblock %}
