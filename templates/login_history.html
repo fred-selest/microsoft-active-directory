@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique de connexion - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Historique de connexion</h2>
+    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour aux utilisateurs</a>
+</div>
+
+<div class="user-card">
+    <h3>{{ user.displayName or user.cn }}</h3>
+    <p class="user-account">{{ user.sAMAccountName }}</p>
+</div>
+
+<div class="history-grid">
+    <div class="history-card">
+        <h4>Derniere connexion</h4>
+        <p class="history-value">{{ user.lastLogon }}</p>
+    </div>
+
+    <div class="history-card">
+        <h4>Derniere connexion (repliquee)</h4>
+        <p class="history-value">{{ user.lastLogonTimestamp }}</p>
+    </div>
+
+    <div class="history-card">
+        <h4>Nombre de connexions</h4>
+        <p class="history-value">{{ user.logonCount }}</p>
+    </div>
+
+    <div class="history-card">
+        <h4>Tentatives echouees</h4>
+        <p class="history-value {% if user.badPwdCount != '0' %}text-danger{% endif %}">{{ user.badPwdCount }}</p>
+    </div>
+
+    <div class="history-card">
+        <h4>Derniere tentative echouee</h4>
+        <p class="history-value">{{ user.badPasswordTime }}</p>
+    </div>
+
+    <div class="history-card">
+        <h4>Mot de passe defini le</h4>
+        <p class="history-value">{{ user.pwdLastSet }}</p>
+    </div>
+
+    <div class="history-card">
+        <h4>Expiration du compte</h4>
+        <p class="history-value">{{ user.accountExpires }}</p>
+    </div>
+
+    <div class="history-card">
+        <h4>Verrouillage</h4>
+        <p class="history-value {% if user.lockoutTime != 'Jamais' %}text-danger{% endif %}">{{ user.lockoutTime }}</p>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.user-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.user-card h3 {
+    margin: 0;
+    color: #0078d4;
+}
+.user-account {
+    margin: 0.5rem 0 0;
+    color: #666;
+}
+.history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+.history-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.history-card h4 {
+    margin: 0 0 0.5rem;
+    color: #666;
+    font-size: 0.875rem;
+}
+.history-value {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 500;
+}
+.text-danger {
+    color: #dc3545;
+}
+</style>
+{% endblock %}
+{% endblock %}

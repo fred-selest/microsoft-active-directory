@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Recherche avancee - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Recherche avancee</h2>
+</div>
+
+<div class="search-form-container">
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="search-grid">
+            <div class="form-group">
+                <label for="name">Nom / Identifiant</label>
+                <input type="text" id="name" name="name" placeholder="Rechercher...">
+            </div>
+
+            <div class="form-group">
+                <label for="department">Service</label>
+                <select id="department" name="department">
+                    <option value="">Tous les services</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept }}">{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="title">Fonction</label>
+                <select id="title" name="title">
+                    <option value="">Toutes les fonctions</option>
+                    {% for t in titles %}
+                    <option value="{{ t }}">{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="status">Statut</label>
+                <select id="status" name="status">
+                    <option value="">Tous</option>
+                    <option value="active">Actifs</option>
+                    <option value="disabled">Desactives</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="email_domain">Domaine email</label>
+                <input type="text" id="email_domain" name="email_domain" placeholder="example.com">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Rechercher</button>
+            <a href="{{ url_for('advanced_search') }}" class="btn btn-secondary">Reinitialiser</a>
+        </div>
+    </form>
+</div>
+
+{% if results %}
+<div class="table-container">
+    <table class="data-table sortable">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Identifiant</th>
+                <th>Email</th>
+                <th>Service</th>
+                <th>Fonction</th>
+                <th>Statut</th>
+                <th data-no-sort>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in results %}
+            <tr class="{% if user.disabled %}disabled-user{% endif %}">
+                <td>{{ user.cn }}</td>
+                <td>{{ user.sAMAccountName }}</td>
+                <td>{{ user.mail }}</td>
+                <td>{{ user.department }}</td>
+                <td>{{ user.title }}</td>
+                <td>
+                    {% if user.disabled %}
+                    <span class="badge badge-danger">Desactive</span>
+                    {% else %}
+                    <span class="badge badge-success">Actif</span>
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    <a href="{{ url_for('edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="results-count">{{ results|length }} resultat(s) trouve(s)</p>
+{% endif %}
+
+{% block extra_css %}
+<style>
+.search-form-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}
+{% endblock %}
