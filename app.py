@@ -148,7 +148,10 @@ def require_connection(f):
 
 @app.route('/')
 def index():
-    """Page d'accueil avec informations système."""
+    """Page d'accueil - redirige vers le tableau de bord si connecte."""
+    if is_connected():
+        return redirect(url_for('dashboard'))
+
     system_info = {
         'os': platform.system(),
         'os_version': platform.version(),
@@ -156,7 +159,7 @@ def index():
         'python_version': platform.python_version(),
         'architecture': platform.machine()
     }
-    return render_template('index.html', system_info=system_info, connected=is_connected())
+    return render_template('index.html', system_info=system_info, connected=False)
 
 
 @app.route('/connect', methods=['GET', 'POST'])
