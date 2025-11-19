@@ -9,6 +9,7 @@
 </div>
 
 <form method="post" id="bulk-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="bulk-container">
         <div class="bulk-actions">
             <h3>Action a effectuer</h3>
