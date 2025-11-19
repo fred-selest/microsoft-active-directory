@@ -34,10 +34,10 @@ def get_latest_version(silent=False):
     """Obtenir la derniere version disponible sur GitHub."""
     try:
         if platform.system() == "Windows":
-            # Utiliser PowerShell sur Windows
+            # Utiliser PowerShell sur Windows avec options optimisées
             cmd = [
-                "powershell", "-Command",
-                f"(Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{VERSION_FILE}' -UseBasicParsing).Content"
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                f"$ProgressPreference = 'SilentlyContinue'; (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{VERSION_FILE}' -UseBasicParsing).Content"
             ]
         else:
             # Utiliser curl sur Linux/macOS
@@ -100,9 +100,10 @@ def download_update(silent=False):
         url = f"https://github.com/{GITHUB_REPO}/archive/refs/heads/{GITHUB_BRANCH}.zip"
 
         if platform.system() == "Windows":
+            # Utiliser PowerShell avec options optimisées pour éviter les blocages
             cmd = [
-                "powershell", "-Command",
-                f"Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}'"
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                f"$ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}' -UseBasicParsing"
             ]
         else:
             cmd = ["curl", "-s", "-L", "-o", zip_path, url]
