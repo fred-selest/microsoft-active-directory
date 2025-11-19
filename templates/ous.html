@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Unites organisationnelles - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Unites organisationnelles</h2>
+    <a href="{{ url_for('create_ou') }}" class="btn btn-primary">Nouvelle OU</a>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Description</th>
+                <th>Chemin (DN)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ou in ous %}
+            <tr>
+                <td>{{ ou.name }}</td>
+                <td>{{ ou.description }}</td>
+                <td class="dn-cell">{{ ou.dn }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    <form method="post" action="{{ url_for('delete_ou', dn=ou.dn) }}"
+                          style="display: inline;" onsubmit="return confirm('Supprimer cette OU ?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Aucune OU trouvee.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ ous|length }} OU(s) trouvee(s)</p>
+
+{% block extra_css %}
+<style>
+.dn-cell {
+    font-size: 0.85rem;
+    color: #666;
+    word-break: break-all;
+    max-width: 300px;
+}
+</style>
+{% endblock %}
+{% endblock %}

@@ -5,7 +5,12 @@
 {% block content %}
 <div class="page-header">
     <h2>Utilisateurs Active Directory</h2>
-    <a href="{{ url_for('create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
+    <div class="header-actions">
+        <a href="{{ url_for('create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
+        <a href="{{ url_for('import_users') }}" class="btn btn-secondary">Importer</a>
+        <a href="{{ url_for('export_users') }}" class="btn btn-secondary">Exporter</a>
+        <a href="{{ url_for('bulk_operations') }}" class="btn btn-secondary">Operations en masse</a>
+    </div>
 </div>
 
 <div class="search-box">
@@ -67,4 +72,13 @@
 </div>
 
 <p class="results-count">{{ users|length }} utilisateur(s) trouve(s)</p>
+
+{% block extra_css %}
+<style>
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+</style>
+{% endblock %}
 {% endblock %}
