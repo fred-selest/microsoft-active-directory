@@ -7,11 +7,31 @@ cd /d "%~dp0"
 REM Definir le mode silencieux
 set AD_SILENT=true
 
-REM Utiliser pythonw.exe pour eviter la fenetre console
+REM Chercher Python dans l'ordre de preference
 if exist venv\Scripts\pythonw.exe (
     start "" /B venv\Scripts\pythonw.exe run.py
-) else if exist venv\Scripts\python.exe (
-    start "" /B venv\Scripts\python.exe run.py
-) else (
-    start "" /B pythonw run.py
+    exit /b 0
 )
+
+if exist venv\Scripts\python.exe (
+    start "" /B venv\Scripts\python.exe run.py
+    exit /b 0
+)
+
+REM Essayer pythonw.exe du systeme
+where pythonw >nul 2>&1
+if not errorlevel 1 (
+    start "" /B pythonw run.py
+    exit /b 0
+)
+
+REM Essayer python.exe du systeme
+where python >nul 2>&1
+if not errorlevel 1 (
+    start "" /B python run.py
+    exit /b 0
+)
+
+REM Aucun Python trouve
+echo Erreur: Python n'est pas installe ou n'est pas dans le PATH
+pause
