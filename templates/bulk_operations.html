@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Operations en masse - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Operations en masse</h2>
+    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<form method="post" id="bulk-form">
+    <div class="bulk-container">
+        <div class="bulk-actions">
+            <h3>Action a effectuer</h3>
+
+            <div class="action-options">
+                <label class="radio-label">
+                    <input type="radio" name="action" value="enable" required>
+                    Activer les comptes
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="action" value="disable">
+                    Desactiver les comptes
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="action" value="reset_password">
+                    Reinitialiser les mots de passe
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="action" value="delete">
+                    Supprimer les comptes
+                </label>
+            </div>
+
+            <div class="form-group password-group" style="display: none;">
+                <label for="new_password">Nouveau mot de passe</label>
+                <input type="password" id="new_password" name="new_password" placeholder="Mot de passe">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Executer</button>
+        </div>
+
+        <div class="bulk-users">
+            <h3>Selectionner les utilisateurs</h3>
+
+            <div class="select-all">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="select-all">
+                    Tout selectionner
+                </label>
+            </div>
+
+            <div class="user-list">
+                {% for user in users %}
+                <label class="checkbox-label user-item {% if user.disabled %}disabled{% endif %}">
+                    <input type="checkbox" name="user_dns" value="{{ user.dn }}">
+                    <span class="user-name">{{ user.cn }}</span>
+                    <span class="user-login">({{ user.sAMAccountName }})</span>
+                    {% if user.disabled %}
+                    <span class="badge badge-danger">Desactive</span>
+                    {% endif %}
+                </label>
+                {% else %}
+                <p>Aucun utilisateur trouve.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</form>
+
+{% block extra_css %}
+<style>
+.bulk-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.5rem;
+}
+
+.bulk-actions,
+.bulk-users {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-actions h3,
+.bulk-users h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+
+.action-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.select-all {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 1rem;
+}
+
+.user-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.user-item {
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.user-item:hover {
+    background: #f5f5f5;
+}
+
+.user-item.disabled {
+    opacity: 0.6;
+}
+
+.user-name {
+    font-weight: 500;
+}
+
+.user-login {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .bulk-container {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Afficher le champ mot de passe si reset_password est selectionne
+document.querySelectorAll('input[name="action"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const pwdGroup = document.querySelector('.password-group');
+        pwdGroup.style.display = this.value === 'reset_password' ? 'block' : 'none';
+    });
+});
+
+// Select all
+document.getElementById('select-all').addEventListener('change', function() {
+    document.querySelectorAll('input[name="user_dns"]').forEach(cb => {
+        cb.checked = this.checked;
+    });
+});
+
+// Confirmation pour suppression
+document.getElementById('bulk-form').addEventListener('submit', function(e) {
+    const action = document.querySelector('input[name="action"]:checked');
+    if (action && action.value === 'delete') {
+        if (!confirm('Etes-vous sur de vouloir supprimer les utilisateurs selectionnes ?')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

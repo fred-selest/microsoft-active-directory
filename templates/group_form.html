@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if action == 'create' %}Nouveau groupe{% else %}Modifier le groupe{% endif %} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{% if action == 'create' %}Nouveau groupe{% else %}Modifier le groupe{% endif %}</h2>
+    <a href="{{ url_for('groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+</div>
+
+<div class="form-container">
+    <form method="post">
+        <div class="form-section">
+            <h3>Informations du groupe</h3>
+
+            {% if action == 'create' %}
+            <div class="form-group">
+                <label for="name">Nom du groupe *</label>
+                <input type="text" id="name" name="name" required placeholder="MonGroupe">
+            </div>
+
+            <div class="form-group">
+                <label for="group_scope">Etendue</label>
+                <select id="group_scope" name="group_scope">
+                    <option value="global">Globale</option>
+                    <option value="domain_local">Domaine local</option>
+                    <option value="universal">Universelle</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="group_type">Type</label>
+                <select id="group_type" name="group_type">
+                    <option value="security">Securite</option>
+                    <option value="distribution">Distribution</option>
+                </select>
+            </div>
+
+            {% if ous %}
+            <div class="form-group">
+                <label for="ou">Unite organisationnelle</label>
+                <select id="ou" name="ou">
+                    <option value="">CN=Users (par defaut)</option>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="form-group">
+                <label>Nom du groupe</label>
+                <input type="text" value="{{ group.cn }}" disabled>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3">{{ group.description if group else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if action == 'create' %}Creer le groupe{% else %}Enregistrer{% endif %}
+            </button>
+            <a href="{{ url_for('groups') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
