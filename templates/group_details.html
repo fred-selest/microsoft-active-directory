@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ group.cn }} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{{ group.cn }}</h2>
+    <a href="{{ url_for('groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+</div>
+
+<div class="group-info">
+    <p><strong>DN:</strong> {{ group.dn }}</p>
+    {% if group.description %}
+    <p><strong>Description:</strong> {{ group.description }}</p>
+    {% endif %}
+    <p><strong>Nombre de membres:</strong> {{ group.members|length }}</p>
+</div>
+
+<h3>Membres du groupe</h3>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Identifiant</th>
+                <th>Type</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in group.members %}
+            <tr>
+                <td>{{ member.cn }}</td>
+                <td>{{ member.sAMAccountName }}</td>
+                <td>
+                    {% if member.type == 'user' %}
+                    <span class="badge badge-info">Utilisateur</span>
+                    {% else %}
+                    <span class="badge badge-secondary">Groupe</span>
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    {% if member.type == 'user' %}
+                    <a href="{{ url_for('edit_user', dn=member.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    {% else %}
+                    <a href="{{ url_for('group_details', dn=member.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Ce groupe n'a aucun membre.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

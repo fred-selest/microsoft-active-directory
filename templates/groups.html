@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Groupes - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Groupes Active Directory</h2>
+</div>
+
+<div class="search-box">
+    <form method="get" action="{{ url_for('groups') }}">
+        <div class="form-group">
+            <input type="text" name="search" placeholder="Rechercher un groupe..."
+                   value="{{ search }}" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-secondary">Rechercher</button>
+        {% if search %}
+        <a href="{{ url_for('groups') }}" class="btn btn-secondary">Effacer</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nom du groupe</th>
+                <th>Description</th>
+                <th>Membres</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups %}
+            <tr>
+                <td>{{ group.cn }}</td>
+                <td>{{ group.description }}</td>
+                <td>{{ group.member_count }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('group_details', dn=group.dn) }}" class="btn btn-sm btn-secondary">Voir les membres</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Aucun groupe trouve.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ groups|length }} groupe(s) trouve(s)</p>
+{% endblock %}
