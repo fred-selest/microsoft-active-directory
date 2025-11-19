@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Groupes imbriques - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Groupes imbriques</h2>
+    <a href="{{ url_for('groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+</div>
+
+<div class="group-card">
+    <h3>{{ group.cn }}</h3>
+    {% if group.description %}
+    <p>{{ group.description }}</p>
+    {% endif %}
+</div>
+
+<div class="nested-grid">
+    <div class="nested-section">
+        <h4>Groupes parents ({{ parent_groups|length }})</h4>
+        <p class="section-desc">Ce groupe est membre de:</p>
+        {% if parent_groups %}
+        <ul class="group-list">
+            {% for parent in parent_groups %}
+            <li>
+                <a href="{{ url_for('group_details', dn=parent.dn) }}">{{ parent.cn }}</a>
+                {% if parent.description %}<small>- {{ parent.description }}</small>{% endif %}
+                <a href="{{ url_for('nested_groups', dn=parent.dn) }}" class="btn btn-sm btn-secondary">Voir imbrication</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="no-data">Ce groupe n'est membre d'aucun autre groupe.</p>
+        {% endif %}
+    </div>
+
+    <div class="nested-section">
+        <h4>Groupes enfants ({{ child_groups|length }})</h4>
+        <p class="section-desc">Groupes qui sont membres de ce groupe:</p>
+        {% if child_groups %}
+        <ul class="group-list">
+            {% for child in child_groups %}
+            <li>
+                <a href="{{ url_for('group_details', dn=child.dn) }}">{{ child.cn }}</a>
+                {% if child.description %}<small>- {{ child.description }}</small>{% endif %}
+                <a href="{{ url_for('nested_groups', dn=child.dn) }}" class="btn btn-sm btn-secondary">Voir imbrication</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="no-data">Aucun groupe n'est membre de ce groupe.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.group-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.group-card h3 {
+    margin: 0;
+    color: #0078d4;
+}
+.nested-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+.nested-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.nested-section h4 {
+    margin: 0 0 0.5rem;
+    color: #0078d4;
+}
+.section-desc {
+    color: #666;
+    margin-bottom: 1rem;
+}
+.group-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.group-list li {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.group-list li:last-child {
+    border-bottom: none;
+}
+.group-list small {
+    color: #666;
+}
+.no-data {
+    color: #666;
+    font-style: italic;
+}
+</style>
+{% endblock %}
+{% endblock %}

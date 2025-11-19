@@ -7,36 +7,82 @@
     <h2>Comptes verrouilles</h2>
 </div>
 
-<div class="table-container">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Nom complet</th>
-                <th>Identifiant</th>
-                <th>Email</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for account in accounts %}
-            <tr>
-                <td>{{ account.cn }}</td>
-                <td>{{ account.sAMAccountName }}</td>
-                <td>{{ account.mail }}</td>
-                <td class="actions">
-                    <form method="post" action="{{ url_for('unlock_account', dn=account.dn) }}" style="display: inline;">
-                        <button type="submit" class="btn btn-sm btn-success">Deverrouiller</button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="4" class="text-center">Aucun compte verrouille.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+<form method="post" action="{{ url_for('bulk_unlock_accounts') }}" id="bulkForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {% if accounts %}
+    <div class="bulk-actions">
+        <button type="submit" class="btn btn-success" onclick="return confirm('Deverrouiller les comptes selectionnes?');">
+            Deverrouiller la selection
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="selectAll()">Tout selectionner</button>
+        <button type="button" class="btn btn-secondary" onclick="deselectAll()">Tout deselectionner</button>
+    </div>
+    {% endif %}
+
+    <div class="table-container">
+        <table class="data-table sortable">
+            <thead>
+                <tr>
+                    <th data-no-sort><input type="checkbox" id="selectAllCheckbox" onclick="toggleAll(this)"></th>
+                    <th>Nom complet</th>
+                    <th>Identifiant</th>
+                    <th>Email</th>
+                    <th data-no-sort>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in accounts %}
+                <tr>
+                    <td><input type="checkbox" name="dns" value="{{ account.dn }}" class="account-checkbox"></td>
+                    <td>{{ account.cn }}</td>
+                    <td>{{ account.sAMAccountName }}</td>
+                    <td>{{ account.mail }}</td>
+                    <td class="actions">
+                        <form method="post" action="{{ url_for('unlock_account', dn=account.dn) }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-success">Deverrouiller</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">Aucun compte verrouille.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</form>
 
 <p class="results-count">{{ accounts|length }} compte(s) verrouille(s)</p>
+
+{% block extra_css %}
+<style>
+.bulk-actions {
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.account-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+}
+
+function selectAll() {
+    document.querySelectorAll('.account-checkbox').forEach(cb => cb.checked = true);
+    document.getElementById('selectAllCheckbox').checked = true;
+}
+
+function deselectAll() {
+    document.querySelectorAll('.account-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllCheckbox').checked = false;
+}
+</script>
+{% endblock %}
 {% endblock %}
