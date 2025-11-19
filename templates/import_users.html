@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Importer des utilisateurs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Importer des utilisateurs</h2>
+    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="form-container">
+    <form method="post" enctype="multipart/form-data">
+        <div class="form-section">
+            <h3>Fichier CSV</h3>
+
+            <div class="form-group">
+                <label for="csv_file">Selectionner le fichier CSV *</label>
+                <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+            </div>
+
+            <div class="csv-format">
+                <h4>Format attendu</h4>
+                <p>Le fichier CSV doit contenir les colonnes suivantes (en-tete obligatoire):</p>
+                <code>sAMAccountName,givenName,sn,displayName,mail,department,title,telephoneNumber</code>
+                <p class="note">Seule la colonne <strong>sAMAccountName</strong> est obligatoire.</p>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Options d'import</h3>
+
+            <div class="form-group">
+                <label for="default_password">Mot de passe par defaut *</label>
+                <input type="password" id="default_password" name="default_password"
+                       value="P@ssw0rd123!" required>
+                <small>Tous les utilisateurs seront crees avec ce mot de passe</small>
+            </div>
+
+            {% if ous %}
+            <div class="form-group">
+                <label for="ou">Unite organisationnelle de destination</label>
+                <select id="ou" name="ou">
+                    <option value="">CN=Users (par defaut)</option>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Importer</button>
+            <a href="{{ url_for('export_users') }}" class="btn btn-secondary">Telecharger un modele CSV</a>
+        </div>
+    </form>
+</div>
+
+{% block extra_css %}
+<style>
+.csv-format {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+.csv-format h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+}
+.csv-format code {
+    display: block;
+    background: #e9ecef;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+}
+.csv-format .note {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.85rem;
+    color: #666;
+}
+small {
+    display: block;
+    color: #666;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}
+{% endblock %}

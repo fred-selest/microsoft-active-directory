@@ -16,6 +16,16 @@
     <p><strong>Nombre de membres:</strong> {{ group.members|length }}</p>
 </div>
 
+<div class="add-member-section">
+    <h3>Ajouter un membre</h3>
+    <form method="post" action="{{ url_for('add_group_member', dn=group.dn) }}" class="add-member-form">
+        <div class="form-group">
+            <input type="text" name="member_dn" placeholder="DN du membre (ex: CN=Jean Dupont,CN=Users,DC=...)" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+    </form>
+</div>
+
 <h3>Membres du groupe</h3>
 
 <div class="table-container">
@@ -46,6 +56,11 @@
                     {% else %}
                     <a href="{{ url_for('group_details', dn=member.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
                     {% endif %}
+                    <form method="post" action="{{ url_for('remove_group_member', dn=group.dn) }}"
+                          style="display: inline;" onsubmit="return confirm('Retirer ce membre du groupe ?');">
+                        <input type="hidden" name="member_dn" value="{{ member.dn }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Retirer</button>
+                    </form>
                 </td>
             </tr>
             {% else %}
@@ -56,4 +71,35 @@
         </tbody>
     </table>
 </div>
+
+{% block extra_css %}
+<style>
+.add-member-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.add-member-section h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+.add-member-form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+.add-member-form .form-group {
+    flex: 1;
+    margin: 0;
+}
+.add-member-form input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+</style>
+{% endblock %}
 {% endblock %}

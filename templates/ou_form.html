@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if action == 'create' %}Nouvelle OU{% else %}Modifier l'OU{% endif %} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{% if action == 'create' %}Nouvelle unite organisationnelle{% else %}Modifier l'OU{% endif %}</h2>
+    <a href="{{ url_for('ous') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="form-container">
+    <form method="post">
+        <div class="form-section">
+            <h3>Informations de l'OU</h3>
+
+            {% if action == 'create' %}
+            <div class="form-group">
+                <label for="name">Nom de l'OU *</label>
+                <input type="text" id="name" name="name" required placeholder="MonOU">
+            </div>
+
+            {% if parent_ous %}
+            <div class="form-group">
+                <label for="parent_ou">OU parente</label>
+                <select id="parent_ou" name="parent_ou">
+                    <option value="">Racine du domaine</option>
+                    {% for pou in parent_ous %}
+                    <option value="{{ pou.dn }}">{{ pou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="form-group">
+                <label>Nom de l'OU</label>
+                <input type="text" value="{{ ou.name }}" disabled>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3">{{ ou.description if ou else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if action == 'create' %}Creer l'OU{% else %}Enregistrer{% endif %}
+            </button>
+            <a href="{{ url_for('ous') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
