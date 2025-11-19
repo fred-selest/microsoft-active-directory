@@ -51,6 +51,12 @@
         <button id="btn-update" class="btn btn-primary" onclick="performUpdate()">
             Mettre a jour vers {{ update_info.latest_version }}
         </button>
+        <div id="update-progress" class="update-progress" style="display: none;">
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p class="progress-text" id="progress-text">Initialisation...</p>
+        </div>
         <div id="update-status" class="update-status"></div>
     </div>
     {% endif %}
@@ -75,6 +81,16 @@
 
     <div class="changelog">
         <h3>Historique des versions</h3>
+
+        <div class="version-entry">
+            <h4>Version 1.10.0 - Ameliorations mise a jour</h4>
+            <ul>
+                <li><strong>Interface:</strong> Barre de progression animee pendant la mise a jour</li>
+                <li><strong>Performance:</strong> Mise a jour silencieuse cote serveur (pas de logs console)</li>
+                <li><strong>PWA:</strong> Application Progressive Web App activee par defaut</li>
+                <li><strong>Simplification:</strong> Suppression du selecteur de langue</li>
+            </ul>
+        </div>
 
         <div class="version-entry">
             <h4>Version 1.9.0 - Interface d'administration</h4>
@@ -152,10 +168,33 @@
 function performUpdate() {
     const btn = document.getElementById('btn-update');
     const status = document.getElementById('update-status');
+    const progressContainer = document.getElementById('update-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
 
     btn.disabled = true;
-    btn.textContent = 'Mise a jour en cours...';
-    status.innerHTML = '<p class="updating">Telechargement et installation...</p>';
+    btn.style.display = 'none';
+    progressContainer.style.display = 'block';
+    status.innerHTML = '';
+
+    // Etapes de progression simulees
+    const steps = [
+        { progress: 10, text: 'Verification de la connexion...' },
+        { progress: 25, text: 'Telechargement de la mise a jour...' },
+        { progress: 50, text: 'Extraction des fichiers...' },
+        { progress: 70, text: 'Installation des dependances...' },
+        { progress: 85, text: 'Finalisation...' },
+        { progress: 95, text: 'Nettoyage...' }
+    ];
+
+    let stepIndex = 0;
+    const progressInterval = setInterval(() => {
+        if (stepIndex < steps.length) {
+            progressBar.style.width = steps[stepIndex].progress + '%';
+            progressText.textContent = steps[stepIndex].text;
+            stepIndex++;
+        }
+    }, 800);
 
     fetch('/api/perform-update', {
         method: 'POST',
@@ -165,33 +204,45 @@ function performUpdate() {
     })
     .then(response => response.json())
     .then(data => {
+        clearInterval(progressInterval);
+
         if (data.success) {
-            status.innerHTML = '<p class="update-success">' + data.message + '</p>';
-            btn.textContent = 'Mise a jour terminee';
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Mise a jour terminee!';
 
-            // Si le serveur redémarre, afficher un compte à rebours
-            if (data.restarting) {
-                let countdown = 10;
-                status.innerHTML += '<p class="restart-countdown">Le serveur redémarre. Rechargement dans <span id="countdown">' + countdown + '</span> secondes...</p>';
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                status.innerHTML = '<p class="update-success">' + data.message + '</p>';
 
-                const interval = setInterval(() => {
-                    countdown--;
-                    document.getElementById('countdown').textContent = countdown;
-                    if (countdown <= 0) {
-                        clearInterval(interval);
-                        window.location.reload();
-                    }
-                }, 1000);
-            }
+                // Si le serveur redémarre, afficher un compte à rebours
+                if (data.restarting) {
+                    let countdown = 10;
+                    status.innerHTML += '<p class="restart-countdown">Le serveur redémarre. Rechargement dans <span id="countdown">' + countdown + '</span> secondes...</p>';
+
+                    const countdownInterval = setInterval(() => {
+                        countdown--;
+                        document.getElementById('countdown').textContent = countdown;
+                        if (countdown <= 0) {
+                            clearInterval(countdownInterval);
+                            window.location.reload();
+                        }
+                    }, 1000);
+                }
+            }, 500);
         } else {
+            progressContainer.style.display = 'none';
             status.innerHTML = '<p class="update-error">' + data.message + '</p>';
             btn.disabled = false;
+            btn.style.display = 'inline-block';
             btn.textContent = 'Reessayer';
         }
     })
     .catch(error => {
+        clearInterval(progressInterval);
+        progressContainer.style.display = 'none';
         status.innerHTML = '<p class="update-error">Erreur: ' + error.message + '</p>';
         btn.disabled = false;
+        btn.style.display = 'inline-block';
         btn.textContent = 'Reessayer';
     });
 }
@@ -249,6 +300,56 @@ function performUpdate() {
 
 .update-status {
     margin-top: 1rem;
+}
+
+.update-progress {
+    margin: 1.5rem 0;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 24px;
+    background: #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0078d4, #00a4ef);
+    border-radius: 12px;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.progress-text {
+    text-align: center;
+    margin-top: 0.75rem;
+    color: #0078d4;
+    font-weight: 500;
 }
 
 .updating {

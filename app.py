@@ -2835,7 +2835,7 @@ def api_check_update():
 
 @app.route('/api/perform-update', methods=['POST'])
 def api_perform_update():
-    """API pour effectuer une mise à jour."""
+    """API pour effectuer une mise à jour en arrière-plan (silencieux)."""
     import threading
     from updater import download_update, apply_update, update_dependencies, check_for_updates, restart_server
 
@@ -2848,16 +2848,16 @@ def api_perform_update():
                 'message': 'Aucune mise à jour disponible'
             })
 
-        # Télécharger et appliquer
-        zip_path, temp_dir = download_update()
-        if apply_update(zip_path, temp_dir):
-            update_dependencies()
+        # Télécharger et appliquer en mode silencieux
+        zip_path, temp_dir = download_update(silent=True)
+        if apply_update(zip_path, temp_dir, silent=True):
+            update_dependencies(silent=True)
 
             # Redémarrer le serveur après un délai
             def delayed_restart():
                 import time
                 time.sleep(2)
-                restart_server()
+                restart_server(silent=True)
                 os._exit(0)
 
             threading.Thread(target=delayed_restart, daemon=True).start()

@@ -55,10 +55,6 @@
             <li><a href="{{ url_for('connect') }}">Connexion AD</a></li>
             {% endif %}
             <li><a href="{{ url_for('toggle_dark_mode') }}" class="dark-mode-toggle" title="Mode sombre">&#x1F319;</a></li>
-            <li class="lang-switch">
-                <a href="{{ url_for('set_language', lang='fr') }}" {% if current_lang == 'fr' %}class="active"{% endif %}>FR</a>
-                <a href="{{ url_for('set_language', lang='en') }}" {% if current_lang == 'en' %}class="active"{% endif %}>EN</a>
-            </li>
             <li><a href="{{ url_for('update_page') }}">Mise a jour</a></li>
         </ul>
     </nav>
