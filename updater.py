@@ -30,7 +30,7 @@ def get_current_version():
     return "0.0.0"
 
 
-def get_latest_version():
+def get_latest_version(silent=False):
     """Obtenir la derniere version disponible sur GitHub."""
     try:
         if platform.system() == "Windows":
@@ -52,7 +52,8 @@ def get_latest_version():
             return result.stdout.strip()
         return None
     except Exception as e:
-        print(f"Erreur lors de la verification de version: {e}")
+        if not silent:
+            print(f"Erreur lors de la verification de version: {e}")
         return None
 
 
@@ -90,7 +91,7 @@ def check_for_updates():
     }
 
 
-def download_update():
+def download_update(silent=False):
     """Telecharger la derniere version depuis GitHub."""
     temp_dir = tempfile.mkdtemp()
     zip_path = os.path.join(temp_dir, "update.zip")
@@ -104,9 +105,10 @@ def download_update():
                 f"Invoke-WebRequest -Uri '{url}' -OutFile '{zip_path}'"
             ]
         else:
-            cmd = ["curl", "-L", "-o", zip_path, url]
+            cmd = ["curl", "-s", "-L", "-o", zip_path, url]
 
-        print(f"Telechargement de la mise a jour...")
+        if not silent:
+            print(f"Telechargement de la mise a jour...")
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
         if result.returncode != 0:
@@ -122,13 +124,14 @@ def download_update():
         raise e
 
 
-def apply_update(zip_path, temp_dir):
+def apply_update(zip_path, temp_dir, silent=False):
     """Appliquer la mise a jour telechargee."""
     app_dir = Path(__file__).parent
 
     try:
         # Extraire l'archive
-        print("Extraction de la mise a jour...")
+        if not silent:
+            print("Extraction de la mise a jour...")
         extract_dir = os.path.join(temp_dir, "extracted")
 
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -145,7 +148,8 @@ def apply_update(zip_path, temp_dir):
         preserve_files = ['.env', 'logs', 'data', 'venv']
 
         # Copier les nouveaux fichiers
-        print("Installation des nouveaux fichiers...")
+        if not silent:
+            print("Installation des nouveaux fichiers...")
         for item in os.listdir(source_dir):
             if item in preserve_files:
                 continue
@@ -160,18 +164,20 @@ def apply_update(zip_path, temp_dir):
             else:
                 shutil.copy2(src_path, dst_path)
 
-        print("Mise a jour terminee avec succes!")
+        if not silent:
+            print("Mise a jour terminee avec succes!")
         return True
 
     except Exception as e:
-        print(f"Erreur lors de l'application de la mise a jour: {e}")
+        if not silent:
+            print(f"Erreur lors de l'application de la mise a jour: {e}")
         return False
     finally:
         # Nettoyer les fichiers temporaires
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def update_dependencies():
+def update_dependencies(silent=False):
     """Mettre a jour les dependances Python."""
     app_dir = Path(__file__).parent
 
@@ -181,7 +187,8 @@ def update_dependencies():
         pip_path = app_dir / "venv" / "bin" / "pip"
 
     if not pip_path.exists():
-        print("Environnement virtuel non trouve, dependances non mises a jour")
+        if not silent:
+            print("Environnement virtuel non trouve, dependances non mises a jour")
         return False
 
     requirements_path = app_dir / "requirements.txt"
@@ -190,26 +197,30 @@ def update_dependencies():
         return True
 
     try:
-        print("Mise a jour des dependances...")
+        if not silent:
+            print("Mise a jour des dependances...")
         result = subprocess.run(
-            [str(pip_path), "install", "-r", str(requirements_path), "--upgrade"],
+            [str(pip_path), "install", "-r", str(requirements_path), "--upgrade", "-q"],
             capture_output=True,
             text=True
         )
 
         if result.returncode == 0:
-            print("Dependances mises a jour")
+            if not silent:
+                print("Dependances mises a jour")
             return True
         else:
-            print(f"Erreur: {result.stderr}")
+            if not silent:
+                print(f"Erreur: {result.stderr}")
             return False
 
     except Exception as e:
-        print(f"Erreur lors de la mise a jour des dependances: {e}")
+        if not silent:
+            print(f"Erreur lors de la mise a jour des dependances: {e}")
         return False
 
 
-def restart_server():
+def restart_server(silent=False):
     """Redemarrer le serveur automatiquement."""
     app_dir = Path(__file__).parent
 
@@ -250,7 +261,8 @@ def restart_server():
                 start_new_session=True
             )
 
-    print("Serveur en cours de redemarrage...")
+    if not silent:
+        print("Serveur en cours de redemarrage...")
     return True
 
 
