@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}BitLocker - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Cles de recuperation BitLocker</h2>
+</div>
+
+<div class="search-box">
+    <form method="get">
+        <div class="form-group">
+            <input type="text" name="search" placeholder="Rechercher..."
+                   value="{{ search }}" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-secondary">Rechercher</button>
+        {% if search %}
+        <a href="{{ url_for('bitlocker_keys') }}" class="btn btn-secondary">Effacer</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table sortable">
+        <thead>
+            <tr>
+                <th>Ordinateur</th>
+                <th>ID de recuperation</th>
+                <th>Cle de recuperation</th>
+                <th>Date de creation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key in keys %}
+            <tr>
+                <td>{{ key.computer }}</td>
+                <td><code>{{ key.cn }}</code></td>
+                <td>
+                    <div class="key-field">
+                        <code class="key-hidden" id="key-{{ loop.index }}">********************************</code>
+                        <code class="key-visible" id="key-clear-{{ loop.index }}" style="display: none;">{{ key.recovery_password }}</code>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleKey({{ loop.index }})">Afficher</button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyKey('{{ key.recovery_password }}')">Copier</button>
+                    </div>
+                </td>
+                <td>{{ key.whenCreated }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Aucune cle BitLocker trouvee.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ keys|length }} cle(s) trouvee(s)</p>
+
+{% block extra_css %}
+<style>
+.key-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.key-field code {
+    background: #f5f5f5;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleKey(index) {
+    const hidden = document.getElementById('key-' + index);
+    const visible = document.getElementById('key-clear-' + index);
+    if (hidden.style.display !== 'none') {
+        hidden.style.display = 'none';
+        visible.style.display = 'inline';
+    } else {
+        hidden.style.display = 'inline';
+        visible.style.display = 'none';
+    }
+}
+
+function copyKey(key) {
+    navigator.clipboard.writeText(key).then(() => {
+        alert('Cle copiee!');
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

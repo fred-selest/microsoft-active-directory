@@ -1791,6 +1791,620 @@ def unlock_account(dn):
     return redirect(url_for('locked_accounts'))
 
 
+@app.route('/locked-accounts/bulk-unlock', methods=['POST'])
+@require_connection
+@require_permission('write')
+def bulk_unlock_accounts():
+    """Deverrouiller plusieurs comptes en masse."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('locked_accounts'))
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('locked_accounts'))
+
+    dns = request.form.getlist('dns')
+    if not dns:
+        flash('Aucun compte selectionne.', 'error')
+        return redirect(url_for('locked_accounts'))
+
+    success_count = 0
+    error_count = 0
+
+    for dn in dns:
+        try:
+            conn.modify(dn, {'lockoutTime': [(MODIFY_REPLACE, [0])]})
+            if conn.result['result'] == 0:
+                success_count += 1
+            else:
+                error_count += 1
+        except:
+            error_count += 1
+
+    conn.unbind()
+    log_action('bulk_unlock', session.get('ad_username'),
+              {'count': success_count}, True, request.remote_addr)
+
+    if success_count > 0:
+        flash(f'{success_count} compte(s) deverrouille(s) avec succes!', 'success')
+    if error_count > 0:
+        flash(f'{error_count} erreur(s) lors du deverrouillage.', 'error')
+
+    return redirect(url_for('locked_accounts'))
+
+
+@app.route('/users/<path:dn>/reset-password', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def reset_password(dn):
+    """Reinitialiser le mot de passe d'un utilisateur."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    if request.method == 'POST':
+        if not validate_csrf_token(request.form.get('csrf_token')):
+            flash('Token CSRF invalide.', 'error')
+            return redirect(url_for('users'))
+
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        must_change = request.form.get('must_change') == 'on'
+
+        if new_password != confirm_password:
+            flash('Les mots de passe ne correspondent pas.', 'error')
+            conn.unbind()
+            return redirect(url_for('reset_password', dn=dn))
+
+        # Valider la force du mot de passe
+        is_valid, pwd_message = validate_password_strength(new_password)
+        if not is_valid:
+            flash(f'Mot de passe trop faible: {pwd_message}', 'error')
+            conn.unbind()
+            return redirect(url_for('reset_password', dn=dn))
+
+        try:
+            # Encoder le mot de passe pour AD
+            unicode_pwd = ('"%s"' % new_password).encode('utf-16-le')
+            conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+
+            if conn.result['result'] == 0:
+                # Forcer le changement au prochain login si demande
+                if must_change:
+                    conn.modify(dn, {'pwdLastSet': [(MODIFY_REPLACE, [0])]})
+
+                log_action('reset_password', session.get('ad_username'),
+                          {'dn': dn, 'must_change': must_change}, True, request.remote_addr)
+                flash('Mot de passe reinitialise avec succes!', 'success')
+                conn.unbind()
+                return redirect(url_for('users'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except LDAPException as e:
+            flash(f'Erreur LDAP: {str(e)}', 'error')
+
+        conn.unbind()
+        return redirect(url_for('reset_password', dn=dn))
+
+    # GET: Afficher le formulaire
+    try:
+        conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'displayName'])
+
+        if conn.entries:
+            user = {
+                'cn': decode_ldap_value(conn.entries[0].cn),
+                'sAMAccountName': decode_ldap_value(conn.entries[0].sAMAccountName),
+                'displayName': decode_ldap_value(conn.entries[0].displayName),
+                'dn': dn
+            }
+            conn.unbind()
+            return render_template('reset_password.html', user=user, connected=is_connected())
+    except LDAPException as e:
+        flash(f'Erreur: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('users'))
+
+
+@app.route('/users/<path:dn>/login-history')
+@require_connection
+def user_login_history(dn):
+    """Afficher l'historique des connexions d'un utilisateur."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    try:
+        conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'displayName', 'lastLogon', 'lastLogonTimestamp',
+                              'logonCount', 'badPwdCount', 'badPasswordTime', 'pwdLastSet',
+                              'accountExpires', 'lockoutTime'])
+
+        if conn.entries:
+            entry = conn.entries[0]
+
+            def ad_timestamp_to_datetime(timestamp):
+                """Convertir un timestamp AD en datetime lisible."""
+                if not timestamp or str(timestamp) == '0':
+                    return 'Jamais'
+                try:
+                    ts = int(str(timestamp))
+                    if ts == 0 or ts == 9223372036854775807:
+                        return 'Jamais'
+                    # Timestamp AD: 100-nanoseconds depuis 1601-01-01
+                    from datetime import datetime, timedelta
+                    epoch = datetime(1601, 1, 1)
+                    dt = epoch + timedelta(microseconds=ts // 10)
+                    return dt.strftime('%d/%m/%Y %H:%M:%S')
+                except:
+                    return str(timestamp)
+
+            user = {
+                'cn': decode_ldap_value(entry.cn),
+                'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                'displayName': decode_ldap_value(entry.displayName),
+                'dn': dn,
+                'lastLogon': ad_timestamp_to_datetime(entry.lastLogon.value if entry.lastLogon else None),
+                'lastLogonTimestamp': ad_timestamp_to_datetime(entry.lastLogonTimestamp.value if entry.lastLogonTimestamp else None),
+                'logonCount': str(entry.logonCount.value) if entry.logonCount and entry.logonCount.value else '0',
+                'badPwdCount': str(entry.badPwdCount.value) if entry.badPwdCount and entry.badPwdCount.value else '0',
+                'badPasswordTime': ad_timestamp_to_datetime(entry.badPasswordTime.value if entry.badPasswordTime else None),
+                'pwdLastSet': ad_timestamp_to_datetime(entry.pwdLastSet.value if entry.pwdLastSet else None),
+                'accountExpires': ad_timestamp_to_datetime(entry.accountExpires.value if entry.accountExpires else None),
+                'lockoutTime': ad_timestamp_to_datetime(entry.lockoutTime.value if entry.lockoutTime else None)
+            }
+
+            conn.unbind()
+            return render_template('login_history.html', user=user, connected=is_connected())
+    except LDAPException as e:
+        flash(f'Erreur: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('users'))
+
+
+# === CORBEILLE AD ===
+
+@app.route('/recycle-bin')
+@require_connection
+def recycle_bin():
+    """Afficher les objets supprimes dans la corbeille AD."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    deleted_objects = []
+
+    try:
+        # Rechercher dans le conteneur Deleted Objects
+        # Le DN est: CN=Deleted Objects,DC=domain,DC=com
+        base_dn = session.get('ad_base_dn', '')
+        deleted_dn = f"CN=Deleted Objects,{base_dn}"
+
+        conn.search(deleted_dn, '(isDeleted=TRUE)', SUBTREE,
+                   attributes=['cn', 'distinguishedName', 'objectClass', 'whenChanged', 'lastKnownParent'],
+                   controls=[('1.2.840.113556.1.4.417', True, None)])  # LDAP_SERVER_SHOW_DELETED_OID
+
+        for entry in conn.entries:
+            obj_class = entry.objectClass.values if entry.objectClass else []
+            obj_type = 'Utilisateur' if 'user' in obj_class else 'Groupe' if 'group' in obj_class else 'OU' if 'organizationalUnit' in obj_class else 'Objet'
+
+            deleted_objects.append({
+                'cn': decode_ldap_value(entry.cn).replace('\nDEL:', ' (supprime)'),
+                'dn': decode_ldap_value(entry.distinguishedName),
+                'type': obj_type,
+                'whenChanged': str(entry.whenChanged) if entry.whenChanged else '',
+                'lastKnownParent': decode_ldap_value(entry.lastKnownParent) if entry.lastKnownParent else ''
+            })
+
+        conn.unbind()
+    except LDAPException as e:
+        conn.unbind()
+        # La corbeille AD peut ne pas etre activee
+        if 'No such object' in str(e) or 'unwillingToPerform' in str(e):
+            flash('La corbeille AD n\'est pas activee sur ce domaine.', 'warning')
+        else:
+            flash(f'Erreur: {str(e)}', 'error')
+
+    return render_template('recycle_bin.html', objects=deleted_objects, connected=is_connected())
+
+
+@app.route('/recycle-bin/<path:dn>/restore', methods=['POST'])
+@require_connection
+@require_permission('write')
+def restore_deleted_object(dn):
+    """Restaurer un objet supprime depuis la corbeille AD."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('recycle_bin'))
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('recycle_bin'))
+
+    try:
+        # Pour restaurer, on doit modifier isDeleted et deplacer l'objet
+        # C'est une operation complexe qui necessite des permissions elevees
+        new_dn = request.form.get('new_dn', '')
+
+        if new_dn:
+            # Retirer isDeleted et deplacer vers le nouveau DN
+            conn.modify(dn, {'isDeleted': [(MODIFY_DELETE, [])]},
+                       controls=[('1.2.840.113556.1.4.417', True, None)])
+
+            if conn.result['result'] == 0:
+                log_action('restore_object', session.get('ad_username'),
+                          {'dn': dn, 'new_dn': new_dn}, True, request.remote_addr)
+                flash('Objet restaure avec succes!', 'success')
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        else:
+            flash('DN de destination non specifie.', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('recycle_bin'))
+
+
+# === LAPS (Local Administrator Password Solution) ===
+
+@app.route('/laps')
+@require_connection
+def laps_passwords():
+    """Afficher les mots de passe LAPS des ordinateurs."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    search_query = request.args.get('search', '')
+    computers = []
+
+    try:
+        if search_query:
+            safe_query = escape_ldap_filter(search_query)
+            search_filter = f'(&(objectClass=computer)(cn=*{safe_query}*))'
+        else:
+            search_filter = '(objectClass=computer)'
+
+        # Attributs LAPS: ms-Mcs-AdmPwd (legacy) et msLAPS-Password (Windows LAPS)
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['cn', 'distinguishedName', 'ms-Mcs-AdmPwd', 'ms-Mcs-AdmPwdExpirationTime',
+                              'msLAPS-Password', 'msLAPS-PasswordExpirationTime', 'operatingSystem'])
+
+        for entry in conn.entries:
+            # Legacy LAPS
+            legacy_pwd = decode_ldap_value(entry['ms-Mcs-AdmPwd']) if hasattr(entry, 'ms-Mcs-AdmPwd') and entry['ms-Mcs-AdmPwd'] else ''
+            legacy_exp = str(entry['ms-Mcs-AdmPwdExpirationTime']) if hasattr(entry, 'ms-Mcs-AdmPwdExpirationTime') and entry['ms-Mcs-AdmPwdExpirationTime'] else ''
+
+            # Windows LAPS
+            win_laps_pwd = decode_ldap_value(entry['msLAPS-Password']) if hasattr(entry, 'msLAPS-Password') and entry['msLAPS-Password'] else ''
+            win_laps_exp = str(entry['msLAPS-PasswordExpirationTime']) if hasattr(entry, 'msLAPS-PasswordExpirationTime') and entry['msLAPS-PasswordExpirationTime'] else ''
+
+            # Afficher seulement si au moins un mot de passe LAPS existe
+            if legacy_pwd or win_laps_pwd:
+                computers.append({
+                    'cn': decode_ldap_value(entry.cn),
+                    'dn': decode_ldap_value(entry.distinguishedName),
+                    'os': decode_ldap_value(entry.operatingSystem) if entry.operatingSystem else '',
+                    'laps_password': win_laps_pwd or legacy_pwd,
+                    'laps_expiration': win_laps_exp or legacy_exp,
+                    'laps_type': 'Windows LAPS' if win_laps_pwd else 'Legacy LAPS'
+                })
+
+        conn.unbind()
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+
+    return render_template('laps.html', computers=computers, search=search_query, connected=is_connected())
+
+
+# === BITLOCKER ===
+
+@app.route('/bitlocker')
+@require_connection
+def bitlocker_keys():
+    """Afficher les cles de recuperation BitLocker."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    search_query = request.args.get('search', '')
+    recovery_keys = []
+
+    try:
+        if search_query:
+            safe_query = escape_ldap_filter(search_query)
+            search_filter = f'(&(objectClass=msFVE-RecoveryInformation)(cn=*{safe_query}*))'
+        else:
+            search_filter = '(objectClass=msFVE-RecoveryInformation)'
+
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['cn', 'distinguishedName', 'msFVE-RecoveryPassword', 'msFVE-VolumeGuid', 'whenCreated'])
+
+        for entry in conn.entries:
+            # Extraire le nom de l'ordinateur depuis le DN
+            dn = decode_ldap_value(entry.distinguishedName)
+            parts = dn.split(',')
+            computer_name = ''
+            for part in parts:
+                if part.startswith('CN=') and not part.startswith('CN={'):
+                    computer_name = part[3:]
+                    break
+
+            recovery_keys.append({
+                'cn': decode_ldap_value(entry.cn),
+                'dn': dn,
+                'computer': computer_name,
+                'recovery_password': decode_ldap_value(entry['msFVE-RecoveryPassword']) if entry['msFVE-RecoveryPassword'] else '',
+                'volume_guid': decode_ldap_value(entry['msFVE-VolumeGuid']) if entry['msFVE-VolumeGuid'] else '',
+                'whenCreated': str(entry.whenCreated) if entry.whenCreated else ''
+            })
+
+        conn.unbind()
+    except LDAPException as e:
+        conn.unbind()
+        if 'No such object' in str(e):
+            flash('Aucune cle BitLocker trouvee ou BitLocker non configure.', 'warning')
+        else:
+            flash(f'Erreur: {str(e)}', 'error')
+
+    return render_template('bitlocker.html', keys=recovery_keys, search=search_query, connected=is_connected())
+
+
+# === GROUPES IMBRIQUES ===
+
+@app.route('/groups/<path:dn>/nested')
+@require_connection
+def nested_groups(dn):
+    """Afficher les groupes imbriques (parents et enfants)."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('groups'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    try:
+        # Recuperer le groupe
+        conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
+                   attributes=['cn', 'member', 'memberOf', 'description'])
+
+        if not conn.entries:
+            flash('Groupe non trouve.', 'error')
+            conn.unbind()
+            return redirect(url_for('groups'))
+
+        group_entry = conn.entries[0]
+        group = {
+            'cn': decode_ldap_value(group_entry.cn),
+            'dn': dn,
+            'description': decode_ldap_value(group_entry.description)
+        }
+
+        # Groupes parents (memberOf)
+        parent_groups = []
+        if group_entry.memberOf:
+            for parent_dn in group_entry.memberOf.values:
+                conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(parent_dn)})', SUBTREE,
+                           attributes=['cn', 'description'])
+                if conn.entries:
+                    parent_groups.append({
+                        'cn': decode_ldap_value(conn.entries[0].cn),
+                        'dn': parent_dn,
+                        'description': decode_ldap_value(conn.entries[0].description)
+                    })
+
+        # Groupes enfants (membres qui sont des groupes)
+        child_groups = []
+        if group_entry.member:
+            for member_dn in group_entry.member.values:
+                conn.search(base_dn, f'(&(distinguishedName={escape_ldap_filter(member_dn)})(objectClass=group))', SUBTREE,
+                           attributes=['cn', 'description'])
+                if conn.entries:
+                    child_groups.append({
+                        'cn': decode_ldap_value(conn.entries[0].cn),
+                        'dn': member_dn,
+                        'description': decode_ldap_value(conn.entries[0].description)
+                    })
+
+        conn.unbind()
+        return render_template('nested_groups.html', group=group, parent_groups=parent_groups,
+                             child_groups=child_groups, connected=is_connected())
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return redirect(url_for('groups'))
+
+
+# === COMPARAISON D'UTILISATEURS ===
+
+@app.route('/users/compare', methods=['GET', 'POST'])
+@require_connection
+def compare_users():
+    """Comparer les attributs de deux utilisateurs."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    if request.method == 'POST':
+        user1_dn = request.form.get('user1')
+        user2_dn = request.form.get('user2')
+
+        if not user1_dn or not user2_dn:
+            flash('Veuillez selectionner deux utilisateurs.', 'error')
+            conn.unbind()
+            return redirect(url_for('compare_users'))
+
+        attributes = ['cn', 'sAMAccountName', 'displayName', 'mail', 'department', 'title',
+                     'manager', 'memberOf', 'userAccountControl', 'whenCreated', 'lastLogon',
+                     'telephoneNumber', 'physicalDeliveryOfficeName', 'company']
+
+        users = []
+        for dn in [user1_dn, user2_dn]:
+            conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
+                       attributes=attributes)
+            if conn.entries:
+                entry = conn.entries[0]
+                user_data = {'dn': dn}
+                for attr in attributes:
+                    if hasattr(entry, attr) and getattr(entry, attr):
+                        val = getattr(entry, attr)
+                        if hasattr(val, 'values'):
+                            user_data[attr] = [decode_ldap_value(v) for v in val.values]
+                        else:
+                            user_data[attr] = decode_ldap_value(val)
+                    else:
+                        user_data[attr] = ''
+                users.append(user_data)
+
+        conn.unbind()
+
+        if len(users) == 2:
+            return render_template('compare_users.html', user1=users[0], user2=users[1],
+                                 attributes=attributes, connected=is_connected())
+        else:
+            flash('Impossible de recuperer les informations des utilisateurs.', 'error')
+            return redirect(url_for('compare_users'))
+
+    # GET: Afficher le formulaire de selection
+    try:
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'distinguishedName'])
+
+        user_list = []
+        for entry in conn.entries:
+            user_list.append({
+                'cn': decode_ldap_value(entry.cn),
+                'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                'dn': decode_ldap_value(entry.distinguishedName)
+            })
+
+        conn.unbind()
+        return render_template('compare_users_form.html', users=user_list, connected=is_connected())
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return redirect(url_for('users'))
+
+
+# === RECHERCHE AVANCEE ===
+
+@app.route('/advanced-search', methods=['GET', 'POST'])
+@require_connection
+def advanced_search():
+    """Recherche avancee avec filtres multiples."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    results = []
+    departments = []
+    titles = []
+
+    # Recuperer les departements et fonctions pour les filtres
+    try:
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['department', 'title'])
+
+        for entry in conn.entries:
+            if entry.department and entry.department.value:
+                dept = decode_ldap_value(entry.department)
+                if dept and dept not in departments:
+                    departments.append(dept)
+            if entry.title and entry.title.value:
+                title = decode_ldap_value(entry.title)
+                if title and title not in titles:
+                    titles.append(title)
+
+        departments.sort()
+        titles.sort()
+    except:
+        pass
+
+    if request.method == 'POST':
+        # Construire le filtre LDAP
+        filters = ['(&(objectClass=user)(objectCategory=person)']
+
+        name = request.form.get('name', '').strip()
+        department = request.form.get('department', '').strip()
+        title = request.form.get('title', '').strip()
+        status = request.form.get('status', '')
+        email_domain = request.form.get('email_domain', '').strip()
+
+        if name:
+            safe_name = escape_ldap_filter(name)
+            filters.append(f'(|(cn=*{safe_name}*)(sAMAccountName=*{safe_name}*)(displayName=*{safe_name}*))')
+
+        if department:
+            safe_dept = escape_ldap_filter(department)
+            filters.append(f'(department={safe_dept})')
+
+        if title:
+            safe_title = escape_ldap_filter(title)
+            filters.append(f'(title={safe_title})')
+
+        if email_domain:
+            safe_domain = escape_ldap_filter(email_domain)
+            filters.append(f'(mail=*@{safe_domain})')
+
+        # Fermer le filtre
+        filters.append(')')
+        search_filter = ''.join(filters)
+
+        try:
+            conn.search(base_dn, search_filter, SUBTREE,
+                       attributes=['cn', 'sAMAccountName', 'mail', 'department', 'title',
+                                  'distinguishedName', 'userAccountControl'])
+
+            for entry in conn.entries:
+                uac = entry.userAccountControl.value if entry.userAccountControl else 512
+                is_disabled = bool(int(uac) & 2) if uac else False
+
+                # Filtrer par statut
+                if status == 'active' and is_disabled:
+                    continue
+                if status == 'disabled' and not is_disabled:
+                    continue
+
+                results.append({
+                    'cn': decode_ldap_value(entry.cn),
+                    'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                    'mail': decode_ldap_value(entry.mail),
+                    'department': decode_ldap_value(entry.department),
+                    'title': decode_ldap_value(entry.title),
+                    'dn': decode_ldap_value(entry.distinguishedName),
+                    'disabled': is_disabled
+                })
+        except LDAPException as e:
+            flash(f'Erreur de recherche: {str(e)}', 'error')
+
+    conn.unbind()
+    return render_template('advanced_search.html', results=results, departments=departments,
+                         titles=titles, connected=is_connected())
+
+
 # === POLITIQUE DE MOTS DE PASSE ===
 
 @app.route('/password-policy')

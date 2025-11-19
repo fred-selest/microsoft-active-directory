@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Corbeille AD - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Corbeille Active Directory</h2>
+</div>
+
+<div class="info-box">
+    <p>La corbeille AD permet de restaurer les objets supprimes. Cette fonctionnalite doit etre activee sur le domaine.</p>
+</div>
+
+<div class="table-container">
+    <table class="data-table sortable">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Type</th>
+                <th>Date de suppression</th>
+                <th>Emplacement d'origine</th>
+                <th data-no-sort>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for obj in objects %}
+            <tr>
+                <td>{{ obj.cn }}</td>
+                <td>
+                    {% if obj.type == 'Utilisateur' %}
+                    <span class="badge badge-info">Utilisateur</span>
+                    {% elif obj.type == 'Groupe' %}
+                    <span class="badge badge-secondary">Groupe</span>
+                    {% elif obj.type == 'OU' %}
+                    <span class="badge badge-warning">OU</span>
+                    {% else %}
+                    <span class="badge">{{ obj.type }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ obj.whenChanged }}</td>
+                <td class="dn-cell">{{ obj.lastKnownParent }}</td>
+                <td class="actions">
+                    <form method="post" action="{{ url_for('restore_deleted_object', dn=obj.dn) }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="new_dn" value="{{ obj.lastKnownParent }}">
+                        <button type="submit" class="btn btn-sm btn-primary" onclick="return confirm('Restaurer cet objet?');">Restaurer</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center">Aucun objet supprime dans la corbeille.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ objects|length }} objet(s) trouve(s)</p>
+
+{% block extra_css %}
+<style>
+.info-box {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+.info-box p {
+    margin: 0;
+}
+.dn-cell {
+    font-size: 0.85rem;
+    color: #666;
+    max-width: 300px;
+    word-break: break-all;
+}
+</style>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}LAPS - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>LAPS - Mots de passe administrateur local</h2>
+</div>
+
+<div class="search-box">
+    <form method="get">
+        <div class="form-group">
+            <input type="text" name="search" placeholder="Rechercher un ordinateur..."
+                   value="{{ search }}" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-secondary">Rechercher</button>
+        {% if search %}
+        <a href="{{ url_for('laps_passwords') }}" class="btn btn-secondary">Effacer</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table sortable">
+        <thead>
+            <tr>
+                <th>Ordinateur</th>
+                <th>Systeme</th>
+                <th>Type LAPS</th>
+                <th>Mot de passe</th>
+                <th>Expiration</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for computer in computers %}
+            <tr>
+                <td>{{ computer.cn }}</td>
+                <td>{{ computer.os }}</td>
+                <td>
+                    <span class="badge badge-info">{{ computer.laps_type }}</span>
+                </td>
+                <td>
+                    <div class="password-field">
+                        <code class="password-hidden" id="pwd-{{ loop.index }}">********</code>
+                        <code class="password-visible" id="pwd-clear-{{ loop.index }}" style="display: none;">{{ computer.laps_password }}</code>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="togglePassword({{ loop.index }})">Afficher</button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyPassword('{{ computer.laps_password }}')">Copier</button>
+                    </div>
+                </td>
+                <td>{{ computer.laps_expiration }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center">Aucun mot de passe LAPS trouve.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ computers|length }} ordinateur(s) avec LAPS</p>
+
+{% block extra_css %}
+<style>
+.password-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.password-field code {
+    background: #f5f5f5;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePassword(index) {
+    const hidden = document.getElementById('pwd-' + index);
+    const visible = document.getElementById('pwd-clear-' + index);
+    if (hidden.style.display !== 'none') {
+        hidden.style.display = 'none';
+        visible.style.display = 'inline';
+    } else {
+        hidden.style.display = 'inline';
+        visible.style.display = 'none';
+    }
+}
+
+function copyPassword(password) {
+    navigator.clipboard.writeText(password).then(() => {
+        alert('Mot de passe copie!');
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

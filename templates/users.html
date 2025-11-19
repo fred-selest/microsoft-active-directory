@@ -10,7 +10,8 @@
         <a href="{{ url_for('import_users') }}" class="btn btn-secondary">Importer</a>
         <a href="{{ url_for('export_users') }}" class="btn btn-secondary">CSV</a>
         <a href="{{ url_for('export_users_excel') }}" class="btn btn-secondary">Excel</a>
-        <a href="{{ url_for('bulk_operations') }}" class="btn btn-secondary">Operations en masse</a>
+        <a href="{{ url_for('compare_users') }}" class="btn btn-secondary">Comparer</a>
+        <a href="{{ url_for('advanced_search') }}" class="btn btn-secondary">Recherche</a>
     </div>
 </div>
 
@@ -57,7 +58,8 @@
                 </td>
                 <td class="actions">
                     <a href="{{ url_for('edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
-                    <a href="{{ url_for('duplicate_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Dupliquer</a>
+                    <a href="{{ url_for('reset_password', dn=user.dn) }}" class="btn btn-sm btn-warning">MDP</a>
+                    <a href="{{ url_for('user_login_history', dn=user.dn) }}" class="btn btn-sm btn-info">Hist.</a>
                     <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn }}', '{{ user.displayName or user.cn }}')">Deplacer</button>
                     <form method="post" action="{{ url_for('delete_user', dn=user.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
