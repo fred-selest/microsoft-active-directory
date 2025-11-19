@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}{% if action == 'create' %}Nouveau groupe{% else %}Modifier le groupe{% endif %} - AD Web Interface{% endblock %}
+{% block title %}{% if duplicate %}Dupliquer le groupe{% elif action == 'create' %}Nouveau groupe{% else %}Modifier le groupe{% endif %} - AD Web Interface{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2>{% if action == 'create' %}Nouveau groupe{% else %}Modifier le groupe{% endif %}</h2>
+    <h2>{% if duplicate %}Dupliquer le groupe{% elif action == 'create' %}Nouveau groupe{% else %}Modifier le groupe{% endif %}</h2>
     <a href="{{ url_for('groups') }}" class="btn btn-secondary">Retour aux groupes</a>
 </div>
 
@@ -14,12 +14,13 @@
         <div class="form-section">
             <h3>Informations du groupe</h3>
 
-            {% if action == 'create' %}
+            {% if action == 'create' or duplicate %}
             <div class="form-group">
                 <label for="name">Nom du groupe *</label>
-                <input type="text" id="name" name="name" required placeholder="MonGroupe">
+                <input type="text" id="name" name="name" required placeholder="MonGroupe" value="{{ group.cn if duplicate else '' }}">
             </div>
 
+            {% if not duplicate %}
             <div class="form-group">
                 <label for="group_scope">Etendue</label>
                 <select id="group_scope" name="group_scope">
@@ -36,6 +37,16 @@
                     <option value="distribution">Distribution</option>
                 </select>
             </div>
+            {% endif %}
+
+            {% if duplicate and source_members_count > 0 %}
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="copy_members" checked>
+                    Copier les {{ source_members_count }} membre(s) du groupe source
+                </label>
+            </div>
+            {% endif %}
 
             {% if ous %}
             <div class="form-group">
@@ -63,7 +74,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">
-                {% if action == 'create' %}Creer le groupe{% else %}Enregistrer{% endif %}
+                {% if duplicate %}Dupliquer{% elif action == 'create' %}Creer le groupe{% else %}Enregistrer{% endif %}
             </button>
             <a href="{{ url_for('groups') }}" class="btn btn-secondary">Annuler</a>
         </div>
