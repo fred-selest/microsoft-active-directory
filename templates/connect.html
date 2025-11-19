@@ -6,6 +6,7 @@
 <div class="form-container">
     <h2>Connexion à Active Directory</h2>
     <form method="POST" action="{{ url_for('connect') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label for="server">Serveur AD</label>
             <input type="text" id="server" name="server" required

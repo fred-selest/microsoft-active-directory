@@ -43,6 +43,7 @@
                 </td>
                 <td class="actions">
                     <form method="post" action="{{ url_for('toggle_computer', dn=computer.dn) }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if computer.disabled %}
                         <input type="hidden" name="action" value="enable">
                         <button type="submit" class="btn btn-sm btn-success">Activer</button>
@@ -51,8 +52,10 @@
                         <button type="submit" class="btn btn-sm btn-secondary">Desactiver</button>
                         {% endif %}
                     </form>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ computer.dn }}', '{{ computer.cn }}')">Deplacer</button>
                     <form method="post" action="{{ url_for('delete_computer', dn=computer.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer cet ordinateur ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
                     </form>
                 </td>
@@ -68,11 +71,78 @@
 
 <p class="results-count">{{ computers|length }} ordinateur(s) trouve(s)</p>
 
+<!-- Modal pour deplacer -->
+<div id="moveModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Deplacer l'ordinateur</h3>
+        <p id="moveComputerName"></p>
+        <form method="post" id="moveForm" action="">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="new_ou">Unite d'organisation de destination</label>
+                <select id="new_ou" name="new_ou" required>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Deplacer</button>
+                <button type="button" class="btn btn-secondary" onclick="closeMoveModal()">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% block extra_css %}
 <style>
 .disabled-row {
     opacity: 0.6;
 }
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    min-width: 400px;
+    max-width: 90%;
+}
+.modal-content h3 {
+    margin-top: 0;
+    color: #0078d4;
+}
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showMoveModal(dn, name) {
+    document.getElementById('moveComputerName').textContent = 'Ordinateur: ' + name;
+    document.getElementById('moveForm').action = '/computers/' + encodeURIComponent(dn) + '/move';
+    document.getElementById('moveModal').style.display = 'flex';
+}
+
+function closeMoveModal() {
+    document.getElementById('moveModal').style.display = 'none';
+}
+
+// Fermer le modal en cliquant a l'exterieur
+document.getElementById('moveModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeMoveModal();
+    }
+});
+</script>
 {% endblock %}
 {% endblock %}
