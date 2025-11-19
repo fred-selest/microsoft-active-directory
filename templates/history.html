@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique des changements - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Historique des changements</h2>
+    <a href="{{ url_for('backups') }}" class="btn btn-secondary">Voir les backups</a>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date/Heure</th>
+                <th>Type</th>
+                <th>Action</th>
+                <th>Utilisateur</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in history %}
+            <tr>
+                <td>{{ entry.timestamp }}</td>
+                <td>{{ entry.object_type }}</td>
+                <td>{{ entry.action }}</td>
+                <td>{{ entry.user }}</td>
+                <td>
+                    {% if entry.details %}
+                    <details>
+                        <summary>Voir</summary>
+                        <pre>{{ entry.details | tojson(indent=2) }}</pre>
+                    </details>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center">Aucun historique disponible.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ history|length }} entree(s)</p>
+
+{% block extra_css %}
+<style>
+.data-table pre {
+    background: #f5f5f5;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    max-height: 150px;
+    overflow: auto;
+    margin-top: 0.5rem;
+}
+</style>
+{% endblock %}
+{% endblock %}
