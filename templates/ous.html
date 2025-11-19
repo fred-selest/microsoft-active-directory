@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Unites organisationnelles - AD Web Interface{% endblock %}
+{% block title %}Unites d'organisation - AD Web Interface{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2>Unites organisationnelles</h2>
-    <a href="{{ url_for('create_ou') }}" class="btn btn-primary">Nouvelle OU</a>
+    <h2>Unites d'organisation</h2>
+    <a href="{{ url_for('create_ou') }}" class="btn btn-primary">Nouvelle unite d'organisation</a>
 </div>
 
 <div class="table-container">
@@ -27,21 +27,21 @@
                 <td class="actions">
                     <a href="{{ url_for('edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     <form method="post" action="{{ url_for('delete_ou', dn=ou.dn) }}"
-                          style="display: inline;" onsubmit="return confirm('Supprimer cette OU ?');">
+                          style="display: inline;" onsubmit="return confirm('Supprimer cette unite d\\'organisation ?');">
                         <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
                     </form>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="text-center">Aucune OU trouvee.</td>
+                <td colspan="4" class="text-center">Aucune unite d'organisation trouvee.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="results-count">{{ ous|length }} OU(s) trouvee(s)</p>
+<p class="results-count">{{ ous|length }} unite(s) d'organisation trouvee(s)</p>
 
 {% block extra_css %}
 <style>

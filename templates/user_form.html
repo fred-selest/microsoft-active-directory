@@ -125,16 +125,40 @@
             </div>
         </div>
 
-        {% if user.memberOf %}
         <div class="form-section">
-            <h3>Groupes</h3>
+            <h3>Appartenance aux groupes</h3>
+
+            <!-- Ajouter a un groupe -->
+            <div class="add-to-group-form">
+                <p><strong>Ajouter a un groupe:</strong></p>
+                <form method="post" action="{{ url_for('add_user_to_group', dn=user.dn) }}" class="inline-form">
+                    <div class="form-group">
+                        <input type="text" name="group_dn" id="group_search"
+                               placeholder="Rechercher un groupe ou entrer le DN..."
+                               autocomplete="off" required>
+                        <div id="group-suggestions" class="suggestions-dropdown"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+                </form>
+            </div>
+
+            {% if user.memberOf %}
+            <p><strong>Membre de {{ user.memberOf|length }} groupe(s):</strong></p>
             <ul class="group-list">
                 {% for group in user.memberOf %}
-                <li>{{ group }}</li>
+                <li class="group-item">
+                    <span class="group-name">{{ group }}</span>
+                    <form method="post" action="{{ url_for('remove_user_from_group', dn=user.dn) }}" style="display: inline;">
+                        <input type="hidden" name="group_dn" value="{{ group }}">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Retirer de ce groupe ?');">Retirer</button>
+                    </form>
+                </li>
                 {% endfor %}
             </ul>
+            {% else %}
+            <p class="text-muted">Cet utilisateur n'appartient a aucun groupe.</p>
+            {% endif %}
         </div>
-        {% endif %}
         {% endif %}
 
         <div class="form-actions">
@@ -145,4 +169,108 @@
         </div>
     </form>
 </div>
+
+{% block extra_css %}
+<style>
+.inline-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+.inline-form .form-group {
+    flex: 1;
+    margin: 0;
+    position: relative;
+}
+.add-to-group-form {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+.group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+}
+.group-name {
+    flex: 1;
+    word-break: break-all;
+    margin-right: 1rem;
+}
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+.suggestion-item {
+    padding: 0.5rem;
+    cursor: pointer;
+}
+.suggestion-item:hover {
+    background: #f0f0f0;
+}
+.text-muted {
+    color: #666;
+    font-style: italic;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Recherche AJAX de groupes
+const groupSearch = document.getElementById('group_search');
+const suggestions = document.getElementById('group-suggestions');
+
+if (groupSearch) {
+    let timeout;
+    groupSearch.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value;
+
+        if (query.length < 2) {
+            suggestions.style.display = 'none';
+            return;
+        }
+
+        timeout = setTimeout(() => {
+            fetch('/api/groups/search?q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.groups.length > 0) {
+                        suggestions.innerHTML = data.groups.map(g =>
+                            `<div class="suggestion-item" data-dn="${g.dn}">${g.cn} <small>(${g.description || 'Aucune description'})</small></div>`
+                        ).join('');
+                        suggestions.style.display = 'block';
+                    } else {
+                        suggestions.style.display = 'none';
+                    }
+                });
+        }, 300);
+    });
+
+    suggestions.addEventListener('click', function(e) {
+        if (e.target.classList.contains('suggestion-item')) {
+            groupSearch.value = e.target.dataset.dn;
+            suggestions.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!groupSearch.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}
 {% endblock %}
