@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}API Documentation - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Documentation API</h2>
+</div>
+
+<div class="api-overview">
+    <h3>Vue d'ensemble</h3>
+    <p>Cette API REST permet d'automatiser la gestion d'Active Directory.</p>
+
+    <div class="api-info">
+        <p><strong>Version:</strong> {{ api_docs.version }}</p>
+        <p><strong>URL de base:</strong> <code>{{ api_docs.base_url }}</code></p>
+    </div>
+</div>
+
+<div class="api-section">
+    <h3>Authentification</h3>
+    <p>Toutes les requetes API necessitent une cle API valide.</p>
+
+    <div class="code-block">
+        <p><strong>Type:</strong> {{ api_docs.authentication.type }}</p>
+        <p><strong>Exemple:</strong></p>
+        <code>{{ api_docs.authentication.example }}</code>
+    </div>
+
+    <h4>Vos cles API</h4>
+    {% if api_keys %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Cree le</th>
+                <th>Derniere utilisation</th>
+                <th>Permissions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key, info in api_keys.items() %}
+            <tr>
+                <td>{{ info.name }}</td>
+                <td>{{ info.created[:10] }}</td>
+                <td>{{ info.last_used[:10] if info.last_used else 'Jamais' }}</td>
+                <td>{{ info.permissions|join(', ') }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('revoke_api_key_route') }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="key" value="{{ key }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Revoquer</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Aucune cle API.</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('generate_api_key_route') }}" class="generate-key-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="key_name">Nom de la cle</label>
+            <input type="text" id="key_name" name="name" required placeholder="Ma cle API">
+        </div>
+        <div class="form-group">
+            <label>Permissions</label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="permissions" value="read" checked> Lecture</label>
+                <label><input type="checkbox" name="permissions" value="write"> Ecriture</label>
+                <label><input type="checkbox" name="permissions" value="delete"> Suppression</label>
+                <label><input type="checkbox" name="permissions" value="admin"> Admin</label>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Generer une cle</button>
+    </form>
+</div>
+
+<div class="api-section">
+    <h3>Endpoints</h3>
+
+    {% for endpoint, methods in api_docs.endpoints.items() %}
+    <div class="endpoint-card">
+        <h4><code>{{ endpoint }}</code></h4>
+        <ul>
+            {% for method, description in methods.items() %}
+            <li><span class="method method-{{ method|lower }}">{{ method }}</span> {{ description }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="api-section">
+    <h3>Permissions</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Permission</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for perm, desc in api_docs.permissions.items() %}
+            <tr>
+                <td><code>{{ perm }}</code></td>
+                <td>{{ desc }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% block extra_css %}
+<style>
+.api-overview, .api-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.api-info {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+.code-block {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+.code-block code {
+    color: #a6e22e;
+}
+.generate-key-form {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #eee;
+}
+.checkbox-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.endpoint-card {
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.endpoint-card h4 {
+    margin-top: 0;
+}
+.method {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: white;
+    margin-right: 0.5rem;
+}
+.method-get { background: #61affe; }
+.method-post { background: #49cc90; }
+.method-put { background: #fca130; }
+.method-delete { background: #f93e3e; }
+</style>
+{% endblock %}
+{% endblock %}
