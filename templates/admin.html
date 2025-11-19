@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+
+{% block title %}Administration - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Administration</h2>
+</div>
+
+<div class="admin-container">
+    <div class="admin-tabs">
+        <button class="admin-tab active" onclick="showAdminTab('general')">General</button>
+        <button class="admin-tab" onclick="showAdminTab('menu')">Menus</button>
+        <button class="admin-tab" onclick="showAdminTab('features')">Fonctionnalites</button>
+        <button class="admin-tab" onclick="showAdminTab('security')">Securite</button>
+    </div>
+
+    <!-- Onglet General -->
+    <div id="tab-general" class="admin-tab-content active">
+        <form method="post" action="{{ url_for('admin_save_general') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="admin-section">
+                <h3>Identite du site</h3>
+
+                <div class="form-group">
+                    <label for="site_title">Titre du site</label>
+                    <input type="text" id="site_title" name="site_title" value="{{ settings.site.title }}" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label for="logo">Logo (PNG, max 500KB)</label>
+                    {% if settings.site.logo %}
+                    <div class="current-logo">
+                        <img src="{{ url_for('static', filename='images/' + settings.site.logo) }}" alt="Logo actuel" style="max-height: 50px;">
+                        <span>{{ settings.site.logo }}</span>
+                    </div>
+                    {% endif %}
+                    <input type="file" id="logo" name="logo" accept="image/png,image/jpeg,image/svg+xml" class="form-control">
+                    <small>Laissez vide pour conserver le logo actuel</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="footer">Texte du pied de page</label>
+                    <input type="text" id="footer" name="footer" value="{{ settings.site.footer }}" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label for="theme_color">Couleur principale</label>
+                    <div class="color-input">
+                        <input type="color" id="theme_color" name="theme_color" value="{{ settings.site.theme_color }}">
+                        <input type="text" id="theme_color_text" value="{{ settings.site.theme_color }}" class="form-control" style="width: 100px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Onglet Menus -->
+    <div id="tab-menu" class="admin-tab-content">
+        <form method="post" action="{{ url_for('admin_save_menu') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="admin-section">
+                <h3>Menu principal</h3>
+                <p class="section-desc">Activez/desactivez les elements du menu et modifiez leur ordre.</p>
+
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Actif</th>
+                            <th>Libelle</th>
+                            <th>Ordre</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in settings.menu.items %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="menu_{{ item.id }}_enabled" {% if item.enabled %}checked{% endif %}>
+                            </td>
+                            <td>
+                                <input type="text" name="menu_{{ item.id }}_label" value="{{ item.label }}" class="form-control">
+                            </td>
+                            <td>
+                                <input type="number" name="menu_{{ item.id }}_order" value="{{ item.order }}" min="1" max="20" class="form-control" style="width: 60px;">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="admin-section">
+                <h3>Menu "Plus"</h3>
+                <p class="section-desc">Elements du menu deroulant.</p>
+
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Actif</th>
+                            <th>Libelle</th>
+                            <th>Ordre</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in settings.menu.dropdown_items %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="dropdown_{{ item.id }}_enabled" {% if item.enabled %}checked{% endif %}>
+                            </td>
+                            <td>
+                                <input type="text" name="dropdown_{{ item.id }}_label" value="{{ item.label }}" class="form-control">
+                            </td>
+                            <td>
+                                <input type="number" name="dropdown_{{ item.id }}_order" value="{{ item.order }}" min="1" max="20" class="form-control" style="width: 60px;">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Onglet Fonctionnalites -->
+    <div id="tab-features" class="admin-tab-content">
+        <form method="post" action="{{ url_for('admin_save_features') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="admin-section">
+                <h3>Fonctionnalites</h3>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" name="dark_mode" {% if settings.features.dark_mode %}checked{% endif %}>
+                        Activer le mode sombre
+                    </label>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" name="language_switch" {% if settings.features.language_switch %}checked{% endif %}>
+                        Afficher le selecteur de langue
+                    </label>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" name="update_check" {% if settings.features.update_check %}checked{% endif %}>
+                        Verifier les mises a jour
+                    </label>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" name="pwa_enabled" {% if settings.features.pwa_enabled %}checked{% endif %}>
+                        Activer le support PWA
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Onglet Securite -->
+    <div id="tab-security" class="admin-tab-content">
+        <form method="post" action="{{ url_for('admin_save_security') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="admin-section">
+                <h3>Parametres de securite</h3>
+
+                <div class="form-group">
+                    <label for="session_timeout">Expiration de session (minutes)</label>
+                    <input type="number" id="session_timeout" name="session_timeout" value="{{ settings.security.session_timeout }}" min="5" max="480" class="form-control" style="width: 100px;">
+                </div>
+
+                <div class="form-group">
+                    <label for="max_login_attempts">Tentatives de connexion max</label>
+                    <input type="number" id="max_login_attempts" name="max_login_attempts" value="{{ settings.security.max_login_attempts }}" min="1" max="10" class="form-control" style="width: 100px;">
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" name="require_https" {% if settings.security.require_https %}checked{% endif %}>
+                        Exiger HTTPS
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Actions -->
+    <div class="admin-section">
+        <h3>Actions</h3>
+        <div class="admin-actions">
+            <form method="post" action="{{ url_for('admin_reset_settings') }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Reinitialiser tous les parametres?');">
+                    Reinitialiser par defaut
+                </button>
+            </form>
+            <a href="{{ url_for('admin_export_settings') }}" class="btn btn-secondary">Exporter les parametres</a>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.admin-container {
+    max-width: 900px;
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 0.5rem;
+}
+
+.admin-tab {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    border-radius: 4px 4px 0 0;
+}
+
+.admin-tab:hover {
+    background: #f0f0f0;
+}
+
+.admin-tab.active {
+    background: #0078d4;
+    color: white;
+}
+
+.admin-tab-content {
+    display: none;
+}
+
+.admin-tab-content.active {
+    display: block;
+}
+
+.admin-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.admin-section h3 {
+    color: #0078d4;
+    margin: 0 0 1rem;
+}
+
+.section-desc {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.admin-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+}
+
+.color-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.color-input input[type="color"] {
+    width: 50px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.checkbox-group {
+    margin-bottom: 0.75rem;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.current-logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.admin-actions {
+    display: flex;
+    gap: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showAdminTab(tabName) {
+    // Cacher tous les contenus
+    document.querySelectorAll('.admin-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // Afficher le contenu selectionne
+    document.getElementById('tab-' + tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// Synchroniser le color picker avec le champ texte
+document.getElementById('theme_color').addEventListener('input', function() {
+    document.getElementById('theme_color_text').value = this.value;
+});
+
+document.getElementById('theme_color_text').addEventListener('input', function() {
+    document.getElementById('theme_color').value = this.value;
+});
+</script>
+{% endblock %}
+{% endblock %}

@@ -18,8 +18,12 @@
     <nav class="navbar">
         <div class="nav-brand">
             <a href="{{ url_for('index') }}">
+                {% if site_settings.logo %}
+                <img src="{{ url_for('static', filename='images/' + site_settings.logo) }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+                {% else %}
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
-                <span class="nav-title">AD Web Interface</span>
+                {% endif %}
+                <span class="nav-title">{{ site_settings.title or 'AD Web Interface' }}</span>
             </a>
         </div>
         <ul class="nav-links">
@@ -42,6 +46,7 @@
                     <li><a href="{{ url_for('alerts_page') }}">Alertes {% if alert_counts and alert_counts.unacknowledged > 0 %}<span class="badge badge-warning">{{ alert_counts.unacknowledged }}</span>{% endif %}</a></li>
                     <li><a href="{{ url_for('audit_logs') }}">Audit</a></li>
                     <li><a href="{{ url_for('api_documentation_page') }}">API</a></li>
+                    <li><a href="{{ url_for('admin_page') }}">Administration</a></li>
                 </ul>
             </li>
             <li><a href="{{ url_for('disconnect') }}" class="nav-disconnect">Deconnexion</a></li>
@@ -85,7 +90,7 @@
     </main>
 
     <footer class="footer">
-        <p>Active Directory Web Interface - Compatible Windows & Linux</p>
+        <p>{{ site_settings.footer or 'Active Directory Web Interface - Compatible Windows & Linux' }}</p>
     </footer>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

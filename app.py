@@ -110,6 +110,10 @@ def inject_update_info():
     lang = session.get('language', 'fr')
     translator = Translator(lang)
 
+    # Charger les paramètres dynamiques
+    from settings_manager import load_settings, get_menu_items, get_dropdown_items
+    settings = load_settings()
+
     return {
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
@@ -119,7 +123,11 @@ def inject_update_info():
         'password_requirements': get_password_requirements(),
         't': translator,
         'current_lang': lang,
-        'alert_counts': get_alert_counts()
+        'alert_counts': get_alert_counts(),
+        'site_settings': settings.get('site', {}),
+        'menu_items': get_menu_items(),
+        'dropdown_items': get_dropdown_items(),
+        'feature_settings': settings.get('features', {})
     }
 
 
@@ -2870,6 +2878,196 @@ def api_perform_update():
             'success': False,
             'message': str(e)
         })
+
+
+# === ADMINISTRATION ===
+
+@app.route('/admin')
+@require_connection
+@require_permission('admin')
+def admin_page():
+    """Page d'administration pour configurer l'application."""
+    from settings_manager import load_settings
+    settings = load_settings()
+    return render_template('admin.html', settings=settings, connected=is_connected())
+
+
+@app.route('/admin/save/general', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def admin_save_general():
+    """Sauvegarder les parametres generaux."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('admin_page'))
+
+    from settings_manager import load_settings, save_settings
+    import os
+
+    settings = load_settings()
+
+    # Mettre a jour les parametres
+    settings['site']['title'] = request.form.get('site_title', 'AD Web Interface')
+    settings['site']['footer'] = request.form.get('footer', '')
+    settings['site']['theme_color'] = request.form.get('theme_color', '#0078d4')
+
+    # Gerer l'upload du logo
+    if 'logo' in request.files:
+        file = request.files['logo']
+        if file and file.filename:
+            # Valider le fichier
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'svg'}
+            ext = file.filename.rsplit('.', 1)[-1].lower()
+            if ext in allowed_extensions:
+                # Sauvegarder le logo
+                logo_filename = f'logo.{ext}'
+                logo_path = os.path.join(app.static_folder, 'images', logo_filename)
+                os.makedirs(os.path.dirname(logo_path), exist_ok=True)
+                file.save(logo_path)
+                settings['site']['logo'] = logo_filename
+                flash('Logo mis a jour!', 'success')
+            else:
+                flash('Format de fichier non supporte.', 'error')
+
+    if save_settings(settings):
+        flash('Parametres generaux enregistres!', 'success')
+    else:
+        flash('Erreur lors de la sauvegarde.', 'error')
+
+    return redirect(url_for('admin_page'))
+
+
+@app.route('/admin/save/menu', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def admin_save_menu():
+    """Sauvegarder la configuration des menus."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('admin_page'))
+
+    from settings_manager import load_settings, save_settings
+
+    settings = load_settings()
+
+    # Mettre a jour les elements du menu principal
+    for item in settings['menu']['items']:
+        item_id = item['id']
+        item['enabled'] = request.form.get(f'menu_{item_id}_enabled') == 'on'
+        item['label'] = request.form.get(f'menu_{item_id}_label', item['label'])
+        try:
+            item['order'] = int(request.form.get(f'menu_{item_id}_order', item['order']))
+        except:
+            pass
+
+    # Mettre a jour les elements du dropdown
+    for item in settings['menu']['dropdown_items']:
+        item_id = item['id']
+        item['enabled'] = request.form.get(f'dropdown_{item_id}_enabled') == 'on'
+        item['label'] = request.form.get(f'dropdown_{item_id}_label', item['label'])
+        try:
+            item['order'] = int(request.form.get(f'dropdown_{item_id}_order', item['order']))
+        except:
+            pass
+
+    if save_settings(settings):
+        flash('Configuration des menus enregistree!', 'success')
+    else:
+        flash('Erreur lors de la sauvegarde.', 'error')
+
+    return redirect(url_for('admin_page'))
+
+
+@app.route('/admin/save/features', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def admin_save_features():
+    """Sauvegarder les fonctionnalites."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('admin_page'))
+
+    from settings_manager import load_settings, save_settings
+
+    settings = load_settings()
+
+    settings['features']['dark_mode'] = request.form.get('dark_mode') == 'on'
+    settings['features']['language_switch'] = request.form.get('language_switch') == 'on'
+    settings['features']['update_check'] = request.form.get('update_check') == 'on'
+    settings['features']['pwa_enabled'] = request.form.get('pwa_enabled') == 'on'
+
+    if save_settings(settings):
+        flash('Fonctionnalites enregistrees!', 'success')
+    else:
+        flash('Erreur lors de la sauvegarde.', 'error')
+
+    return redirect(url_for('admin_page'))
+
+
+@app.route('/admin/save/security', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def admin_save_security():
+    """Sauvegarder les parametres de securite."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('admin_page'))
+
+    from settings_manager import load_settings, save_settings
+
+    settings = load_settings()
+
+    try:
+        settings['security']['session_timeout'] = int(request.form.get('session_timeout', 30))
+        settings['security']['max_login_attempts'] = int(request.form.get('max_login_attempts', 5))
+    except:
+        pass
+
+    settings['security']['require_https'] = request.form.get('require_https') == 'on'
+
+    if save_settings(settings):
+        flash('Parametres de securite enregistres!', 'success')
+    else:
+        flash('Erreur lors de la sauvegarde.', 'error')
+
+    return redirect(url_for('admin_page'))
+
+
+@app.route('/admin/reset', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def admin_reset_settings():
+    """Reinitialiser les parametres par defaut."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('admin_page'))
+
+    from settings_manager import reset_settings
+
+    if reset_settings():
+        flash('Parametres reinitialises par defaut!', 'success')
+    else:
+        flash('Erreur lors de la reinitialisation.', 'error')
+
+    return redirect(url_for('admin_page'))
+
+
+@app.route('/admin/export')
+@require_connection
+@require_permission('admin')
+def admin_export_settings():
+    """Exporter les parametres en JSON."""
+    from settings_manager import load_settings
+    import json
+
+    settings = load_settings()
+    output = json.dumps(settings, indent=2, ensure_ascii=False)
+
+    return Response(
+        output,
+        mimetype='application/json',
+        headers={'Content-Disposition': 'attachment; filename=ad-web-settings.json'}
+    )
 
 
 # === NOUVELLES FONCTIONNALITES VERSION 1.6 ===
