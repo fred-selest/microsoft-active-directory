@@ -1397,13 +1397,38 @@ def bulk_operations():
 @app.route('/ous')
 @require_connection
 def ous():
-    """Liste des unites organisationnelles."""
+    """Liste des unites organisationnelles et arborescence."""
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur de connexion: {error}', 'error')
         return redirect(url_for('connect'))
 
     base_dn = session.get('ad_base_dn', '')
+
+    def build_tree(base, entries):
+        """Construire l'arborescence a partir des OUs."""
+        tree = {'name': base.split(',')[0].replace('DC=', ''), 'dn': base, 'children': [], 'type': 'container'}
+
+        # Creer un dictionnaire des OUs par DN
+        ou_dict = {base: tree}
+        for entry in entries:
+            entry_dn = decode_ldap_value(entry.distinguishedName)
+            ou_dict[entry_dn] = {
+                'name': decode_ldap_value(entry.name),
+                'dn': entry_dn,
+                'type': 'ou',
+                'children': []
+            }
+
+        # Construire la hierarchie
+        for entry in entries:
+            entry_dn = decode_ldap_value(entry.distinguishedName)
+            parent_dn = ','.join(entry_dn.split(',')[1:])
+            if parent_dn in ou_dict:
+                ou_dict[parent_dn]['children'].append(ou_dict[entry_dn])
+
+        return tree
+
     try:
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName', 'description', 'whenCreated'])
@@ -1411,17 +1436,20 @@ def ous():
         ou_list = []
         for entry in conn.entries:
             ou_list.append({
-                'name': str(entry.name) if entry.name else '',
-                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
-                'description': str(entry.description) if entry.description else ''
+                'name': decode_ldap_value(entry.name),
+                'dn': decode_ldap_value(entry.distinguishedName),
+                'description': decode_ldap_value(entry.description)
             })
 
+        # Construire l'arborescence
+        tree = build_tree(base_dn, conn.entries)
+
         conn.unbind()
-        return render_template('ous.html', ous=ou_list, connected=is_connected())
+        return render_template('ous.html', ous=ou_list, tree=tree, connected=is_connected())
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
-        return render_template('ous.html', ous=[], connected=is_connected())
+        return render_template('ous.html', ous=[], tree=None, connected=is_connected())
 
 
 @app.route('/ous/create', methods=['GET', 'POST'])
