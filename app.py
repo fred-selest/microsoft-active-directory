@@ -7,10 +7,13 @@ import os
 import platform
 import csv
 import io
+from datetime import timedelta
+from functools import wraps
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, session, Response
 from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 from ldap3.core.exceptions import LDAPException
 from config import get_config, CURRENT_OS, IS_WINDOWS
+from audit import log_action, get_audit_logs, ACTIONS
 
 app = Flask(__name__)
 config = get_config()
@@ -18,9 +21,32 @@ config = get_config()
 # Appliquer la configuration
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['DEBUG'] = config.DEBUG
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=config.SESSION_TIMEOUT)
 
 # Initialiser les répertoires
 config.init_directories()
+
+# Configuration RBAC
+ROLE_PERMISSIONS = {
+    'admin': ['read', 'write', 'delete', 'admin'],
+    'operator': ['read', 'write'],
+    'reader': ['read']
+}
+
+
+def require_permission(permission):
+    """Decorateur pour verifier les permissions RBAC."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if config.RBAC_ENABLED:
+                user_role = session.get('user_role', config.DEFAULT_ROLE)
+                if permission not in ROLE_PERMISSIONS.get(user_role, []):
+                    flash('Permission refusee. Vous n\'avez pas les droits necessaires.', 'error')
+                    return redirect(url_for('index'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # Cache pour la vérification des mises à jour (éviter les appels répétés)
 _update_cache = {'last_check': 0, 'result': None}
@@ -41,7 +67,20 @@ def inject_update_info():
         except:
             _update_cache['result'] = {'update_available': False}
 
-    return {'update_info': _update_cache['result']}
+    return {
+        'update_info': _update_cache['result'],
+        'user_role': session.get('user_role', config.DEFAULT_ROLE),
+        'dark_mode': session.get('dark_mode', False),
+        'config': config
+    }
+
+
+@app.before_request
+def before_request():
+    """Verifier le timeout de session et rendre la session permanente."""
+    session.permanent = True
+    if is_connected():
+        session.modified = True
 
 
 def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None):
@@ -153,9 +192,12 @@ def connect():
                     pass
 
             conn.unbind()
+            session['user_role'] = config.DEFAULT_ROLE
+            log_action(ACTIONS['LOGIN'], username, {'server': server}, True, request.remote_addr)
             flash('Connexion réussie à Active Directory!', 'success')
-            return redirect(url_for('users'))
+            return redirect(url_for('dashboard'))
         else:
+            log_action(ACTIONS['LOGIN'], username, {'server': server, 'error': error}, False, request.remote_addr)
             flash(f'Erreur de connexion: {error}', 'error')
 
     return render_template('connect.html', connected=is_connected())
@@ -164,22 +206,75 @@ def connect():
 @app.route('/disconnect')
 def disconnect():
     """Déconnexion d'Active Directory."""
+    username = session.get('ad_username', 'unknown')
+    log_action(ACTIONS['LOGOUT'], username, {}, True, request.remote_addr)
     session.clear()
     flash('Déconnecté d\'Active Directory.', 'success')
     return redirect(url_for('index'))
 
 
+@app.route('/toggle-dark-mode')
+def toggle_dark_mode():
+    """Basculer le mode sombre."""
+    session['dark_mode'] = not session.get('dark_mode', False)
+    return redirect(request.referrer or url_for('index'))
+
+
 @app.route('/dashboard')
 @require_connection
 def dashboard():
-    """Page du tableau de bord."""
-    return render_template('dashboard.html', connected=is_connected())
+    """Page du tableau de bord avec statistiques."""
+    conn, error = get_ad_connection()
+    stats = {
+        'total_users': 0,
+        'active_users': 0,
+        'disabled_users': 0,
+        'total_groups': 0,
+        'empty_groups': 0,
+        'total_ous': 0
+    }
+
+    if conn:
+        base_dn = session.get('ad_base_dn', '')
+        try:
+            # Compter les utilisateurs
+            conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                       attributes=['userAccountControl'])
+            stats['total_users'] = len(conn.entries)
+
+            for entry in conn.entries:
+                uac = entry.userAccountControl.value if entry.userAccountControl else 512
+                if uac and int(uac) & 2:
+                    stats['disabled_users'] += 1
+                else:
+                    stats['active_users'] += 1
+
+            # Compter les groupes
+            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['member'])
+            stats['total_groups'] = len(conn.entries)
+            for entry in conn.entries:
+                members = list(entry.member) if entry.member else []
+                if not members:
+                    stats['empty_groups'] += 1
+
+            # Compter les OUs
+            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE)
+            stats['total_ous'] = len(conn.entries)
+
+            conn.unbind()
+        except Exception as e:
+            conn.unbind()
+
+    # Derniers logs d'audit
+    recent_logs = get_audit_logs(limit=10)
+
+    return render_template('dashboard.html', stats=stats, logs=recent_logs, connected=is_connected())
 
 
 @app.route('/users')
 @require_connection
 def users():
-    """Liste des utilisateurs Active Directory."""
+    """Liste des utilisateurs Active Directory avec pagination."""
     conn, error = get_ad_connection()
 
     if not conn:
@@ -188,6 +283,8 @@ def users():
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = config.ITEMS_PER_PAGE
 
     # Construire le filtre de recherche
     if search_query:
@@ -227,12 +324,26 @@ def users():
             })
 
         conn.unbind()
-        return render_template('users.html', users=user_list, search=search_query, connected=is_connected())
+
+        # Pagination
+        total = len(user_list)
+        total_pages = (total + per_page - 1) // per_page
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_users = user_list[start:end]
+
+        return render_template('users.html',
+                             users=paginated_users,
+                             search=search_query,
+                             page=page,
+                             total_pages=total_pages,
+                             total=total,
+                             connected=is_connected())
 
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur de recherche: {str(e)}', 'error')
-        return render_template('users.html', users=[], search=search_query, connected=is_connected())
+        return render_template('users.html', users=[], search=search_query, page=1, total_pages=1, total=0, connected=is_connected())
 
 
 @app.route('/users/create', methods=['GET', 'POST'])
@@ -296,10 +407,14 @@ def create_user():
                     # Activer le compte
                     conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
 
+                log_action(ACTIONS['CREATE_USER'], session.get('ad_username'),
+                          {'username': username, 'dn': user_dn}, True, request.remote_addr)
                 flash(f'Utilisateur {username} créé avec succès!', 'success')
                 conn.unbind()
                 return redirect(url_for('users'))
             else:
+                log_action(ACTIONS['CREATE_USER'], session.get('ad_username'),
+                          {'username': username, 'error': conn.result['description']}, False, request.remote_addr)
                 flash(f'Erreur lors de la création: {conn.result["description"]}', 'error')
 
         except LDAPException as e:
@@ -1174,6 +1289,148 @@ def ad_tree():
     conn.unbind()
 
     return render_template('tree.html', tree=tree, connected=is_connected())
+
+
+@app.route('/audit')
+@require_connection
+def audit_logs():
+    """Afficher les logs d'audit."""
+    action_filter = request.args.get('action', '')
+    user_filter = request.args.get('user', '')
+    logs = get_audit_logs(limit=100, action_filter=action_filter, user_filter=user_filter)
+    return render_template('audit.html', logs=logs, action_filter=action_filter,
+                         user_filter=user_filter, connected=is_connected())
+
+
+@app.route('/api/users/search')
+@require_connection
+def api_users_search():
+    """API pour recherche AJAX des utilisateurs."""
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': error})
+
+    base_dn = session.get('ad_base_dn', '')
+    query = request.args.get('q', '')
+
+    if query:
+        search_filter = f'(&(objectClass=user)(objectCategory=person)(|(cn=*{query}*)(sAMAccountName=*{query}*)(mail=*{query}*)))'
+    else:
+        search_filter = '(&(objectClass=user)(objectCategory=person))'
+
+    try:
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName', 'userAccountControl'])
+
+        users = []
+        for entry in conn.entries:
+            uac = entry.userAccountControl.value if entry.userAccountControl else 512
+            users.append({
+                'cn': str(entry.cn) if entry.cn else '',
+                'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                'mail': str(entry.mail) if entry.mail else '',
+                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                'disabled': bool(int(uac) & 2) if uac else False
+            })
+
+        conn.unbind()
+        return jsonify({'success': True, 'users': users[:50]})  # Limiter a 50 resultats
+    except Exception as e:
+        conn.unbind()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/groups/search')
+@require_connection
+def api_groups_search():
+    """API pour recherche AJAX des groupes."""
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': error})
+
+    base_dn = session.get('ad_base_dn', '')
+    query = request.args.get('q', '')
+
+    if query:
+        search_filter = f'(&(objectClass=group)(cn=*{query}*))'
+    else:
+        search_filter = '(objectClass=group)'
+
+    try:
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['cn', 'distinguishedName', 'description'])
+
+        groups = []
+        for entry in conn.entries:
+            groups.append({
+                'cn': str(entry.cn) if entry.cn else '',
+                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                'description': str(entry.description) if entry.description else ''
+            })
+
+        conn.unbind()
+        return jsonify({'success': True, 'groups': groups[:50]})
+    except Exception as e:
+        conn.unbind()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/users/<path:dn>/add-to-group', methods=['POST'])
+@require_connection
+def add_user_to_group(dn):
+    """Ajouter un utilisateur a un groupe."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('edit_user', dn=dn))
+
+    group_dn = request.form.get('group_dn')
+    if not group_dn:
+        flash('Aucun groupe selectionne.', 'error')
+        return redirect(url_for('edit_user', dn=dn))
+
+    try:
+        conn.modify(group_dn, {'member': [(MODIFY_ADD, [dn])]})
+        if conn.result['result'] == 0:
+            log_action(ACTIONS['ADD_MEMBER'], session.get('ad_username'),
+                      {'user_dn': dn, 'group_dn': group_dn}, True, request.remote_addr)
+            flash('Utilisateur ajoute au groupe avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('edit_user', dn=dn))
+
+
+@app.route('/users/<path:dn>/remove-from-group', methods=['POST'])
+@require_connection
+def remove_user_from_group(dn):
+    """Retirer un utilisateur d'un groupe."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('edit_user', dn=dn))
+
+    group_dn = request.form.get('group_dn')
+    if not group_dn:
+        flash('Aucun groupe selectionne.', 'error')
+        return redirect(url_for('edit_user', dn=dn))
+
+    try:
+        conn.modify(group_dn, {'member': [(MODIFY_DELETE, [dn])]})
+        if conn.result['result'] == 0:
+            log_action(ACTIONS['REMOVE_MEMBER'], session.get('ad_username'),
+                      {'user_dn': dn, 'group_dn': group_dn}, True, request.remote_addr)
+            flash('Utilisateur retire du groupe avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('edit_user', dn=dn))
 
 
 @app.route('/api/search', methods=['POST'])

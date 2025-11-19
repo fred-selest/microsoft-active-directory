@@ -566,6 +566,109 @@ body {
     color: #533f03;
 }
 
+/* Dark Mode Toggle */
+.dark-mode-toggle {
+    font-size: 1.2rem;
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+}
+
+body.dark-mode .navbar {
+    background-color: #16213e;
+}
+
+body.dark-mode .feature-card,
+body.dark-mode .system-info,
+body.dark-mode .form-container,
+body.dark-mode .dashboard-card,
+body.dark-mode .results-container,
+body.dark-mode .search-box,
+body.dark-mode .table-container,
+body.dark-mode .group-info,
+body.dark-mode .stat-card,
+body.dark-mode .dashboard-section {
+    background: #0f3460;
+    color: #e0e0e0;
+}
+
+body.dark-mode .data-table th {
+    background-color: #16213e;
+    color: #e0e0e0;
+}
+
+body.dark-mode .data-table tr:hover {
+    background-color: #1a1a2e;
+}
+
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea,
+body.dark-mode .search-box .form-control {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    border-color: #16213e;
+}
+
+body.dark-mode .alert-success {
+    background-color: #1e4620;
+    color: #a3d9a5;
+    border-color: #2e7d32;
+}
+
+body.dark-mode .alert-error {
+    background-color: #4a1c1c;
+    color: #f5a5a5;
+    border-color: #c62828;
+}
+
+body.dark-mode .footer {
+    background-color: #16213e;
+}
+
+body.dark-mode .hero {
+    background: linear-gradient(135deg, #16213e, #0f3460);
+}
+
+body.dark-mode .page-header h2,
+body.dark-mode .feature-card h3,
+body.dark-mode .system-info h2,
+body.dark-mode .form-container h2,
+body.dark-mode .dashboard-card h3,
+body.dark-mode .dashboard-section h3,
+body.dark-mode .form-section h3 {
+    color: #53a4e0;
+}
+
+body.dark-mode .stat-value {
+    color: #53a4e0;
+}
+
+body.dark-mode .btn-secondary {
+    background-color: #1a1a2e;
+}
+
+body.dark-mode .update-notification {
+    background: linear-gradient(135deg, #3d3d00, #4a4a00);
+    border-color: #8a8a00;
+}
+
+body.dark-mode .update-icon,
+body.dark-mode .update-text {
+    color: #e0e000;
+}
+
+body.dark-mode .group-list {
+    background: #1a1a2e;
+}
+
+body.dark-mode .data-table td {
+    border-color: #16213e;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .navbar {

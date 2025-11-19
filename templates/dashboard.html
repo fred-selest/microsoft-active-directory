@@ -1,65 +1,186 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - AD Web Interface{% endblock %}
+{% block title %}Tableau de bord - AD Web Interface{% endblock %}
 
 {% block content %}
-<h2>Dashboard Active Directory</h2>
+<div class="page-header">
+    <h2>Tableau de bord</h2>
+</div>
 
-<div class="dashboard-grid">
-    <div class="dashboard-card">
-        <h3>Recherche Utilisateurs</h3>
-        <form id="search-users-form">
-            <div class="form-group">
-                <label for="search-base">Base DN</label>
-                <input type="text" id="search-base" name="base_dn"
-                       placeholder="DC=exemple,DC=com">
-            </div>
-            <div class="form-group">
-                <label for="search-filter">Filtre</label>
-                <input type="text" id="search-filter" name="filter"
-                       value="(objectClass=user)" placeholder="(objectClass=user)">
-            </div>
-            <button type="submit" class="btn btn-primary">Rechercher</button>
-        </form>
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon users-icon">&#x1F465;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total_users }}</div>
+            <div class="stat-label">Utilisateurs</div>
+        </div>
     </div>
 
-    <div class="dashboard-card">
-        <h3>Recherche Groupes</h3>
-        <form id="search-groups-form">
-            <div class="form-group">
-                <label for="group-base">Base DN</label>
-                <input type="text" id="group-base" name="base_dn"
-                       placeholder="DC=exemple,DC=com">
-            </div>
-            <div class="form-group">
-                <label for="group-filter">Filtre</label>
-                <input type="text" id="group-filter" name="filter"
-                       value="(objectClass=group)" placeholder="(objectClass=group)">
-            </div>
-            <button type="submit" class="btn btn-primary">Rechercher</button>
-        </form>
+    <div class="stat-card stat-success">
+        <div class="stat-icon">&#x2714;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.active_users }}</div>
+            <div class="stat-label">Comptes actifs</div>
+        </div>
     </div>
 
-    <div class="dashboard-card">
-        <h3>Recherche Ordinateurs</h3>
-        <form id="search-computers-form">
-            <div class="form-group">
-                <label for="computer-base">Base DN</label>
-                <input type="text" id="computer-base" name="base_dn"
-                       placeholder="DC=exemple,DC=com">
-            </div>
-            <div class="form-group">
-                <label for="computer-filter">Filtre</label>
-                <input type="text" id="computer-filter" name="filter"
-                       value="(objectClass=computer)" placeholder="(objectClass=computer)">
-            </div>
-            <button type="submit" class="btn btn-primary">Rechercher</button>
-        </form>
+    <div class="stat-card stat-danger">
+        <div class="stat-icon">&#x26D4;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.disabled_users }}</div>
+            <div class="stat-label">Comptes desactives</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">&#x1F465;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total_groups }}</div>
+            <div class="stat-label">Groupes</div>
+        </div>
+    </div>
+
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">&#x26A0;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.empty_groups }}</div>
+            <div class="stat-label">Groupes vides</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">&#x1F4C1;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total_ous }}</div>
+            <div class="stat-label">Unites d'organisation</div>
+        </div>
     </div>
 </div>
 
-<div id="results-container" class="results-container">
-    <h3>Résultats</h3>
-    <div id="results"></div>
+<div class="dashboard-section">
+    <h3>Acces rapide</h3>
+    <div class="quick-actions">
+        <a href="{{ url_for('create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
+        <a href="{{ url_for('create_group') }}" class="btn btn-secondary">Nouveau groupe</a>
+        <a href="{{ url_for('create_ou') }}" class="btn btn-secondary">Nouvelle unite d'organisation</a>
+        <a href="{{ url_for('import_users') }}" class="btn btn-secondary">Importer utilisateurs</a>
+        <a href="{{ url_for('export_users') }}" class="btn btn-secondary">Exporter utilisateurs</a>
+    </div>
 </div>
+
+<div class="dashboard-section">
+    <h3>Activite recente</h3>
+    {% if logs %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date/Heure</th>
+                    <th>Action</th>
+                    <th>Utilisateur</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.user }}</td>
+                    <td>
+                        {% if log.status == 'SUCCESS' %}
+                        <span class="badge badge-success">Succes</span>
+                        {% else %}
+                        <span class="badge badge-danger">Echec</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p><a href="{{ url_for('audit_logs') }}">Voir tous les logs d'audit</a></p>
+    {% else %}
+    <p class="text-muted">Aucune activite recente.</p>
+    {% endif %}
+</div>
+
+{% block extra_css %}
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    border-radius: 8px;
+}
+
+.stat-success .stat-icon {
+    background: #d4edda;
+}
+
+.stat-danger .stat-icon {
+    background: #f8d7da;
+}
+
+.stat-warning .stat-icon {
+    background: #fff3cd;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: #0078d4;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.dashboard-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-section h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.text-muted {
+    color: #666;
+    font-style: italic;
+}
+</style>
+{% endblock %}
 {% endblock %}
