@@ -1901,27 +1901,42 @@ def run_server():
     Démarrer le serveur web avec support multi-plateforme.
     Utilise Waitress sur Windows, Gunicorn sur Linux, ou le serveur intégré Flask pour le développement.
     """
+    import sys
+
     host = config.HOST
     port = config.PORT
 
-    print(f"\n{'='*50}")
-    print(f"Interface Web Microsoft Active Directory")
-    print(f"{'='*50}")
-    print(f"Plateforme: {platform.system()} ({platform.release()})")
-    print(f"Écoute sur: http://{host}:{port}")
-    print(f"Accès depuis n'importe quel appareil: http://<votre-ip>:{port}")
-    print(f"{'='*50}\n")
+    # Mode silencieux si AD_SILENT est defini ou si pas de console
+    silent_mode = os.environ.get('AD_SILENT', '').lower() == 'true'
+
+    # Detecter si on a une console (pour pythonw.exe)
+    try:
+        if sys.stdout is None or not hasattr(sys.stdout, 'write'):
+            silent_mode = True
+    except:
+        silent_mode = True
+
+    if not silent_mode:
+        print(f"\n{'='*50}")
+        print(f"Interface Web Microsoft Active Directory")
+        print(f"{'='*50}")
+        print(f"Plateforme: {platform.system()} ({platform.release()})")
+        print(f"Écoute sur: http://{host}:{port}")
+        print(f"Accès depuis n'importe quel appareil: http://<votre-ip>:{port}")
+        print(f"{'='*50}\n")
 
     if os.environ.get('FLASK_ENV') == 'production':
         if IS_WINDOWS:
             # Utiliser Waitress sur Windows (serveur WSGI multi-plateforme)
             from waitress import serve
-            print("Démarrage avec Waitress (serveur de production Windows)...")
+            if not silent_mode:
+                print("Démarrage avec Waitress (serveur de production Windows)...")
             serve(app, host=host, port=port)
         else:
             # Sur Linux, recommander d'utiliser gunicorn en externe
             # gunicorn -w 4 -b 0.0.0.0:5000 app:app
-            print("Pour la production sur Linux, utilisez: gunicorn -w 4 -b 0.0.0.0:5000 app:app")
+            if not silent_mode:
+                print("Pour la production sur Linux, utilisez: gunicorn -w 4 -b 0.0.0.0:5000 app:app")
             app.run(host=host, port=port, debug=False)
     else:
         # Serveur de développement
