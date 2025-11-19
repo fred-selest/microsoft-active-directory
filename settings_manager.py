@@ -38,7 +38,7 @@ DEFAULT_SETTINGS = {
     },
     'features': {
         'dark_mode': True,
-        'language_switch': True,
+        'language_switch': False,
         'update_check': True,
         'pwa_enabled': True
     },
