@@ -15,18 +15,33 @@
         <ul class="nav-links">
             {% if connected %}
             <li><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
+            <li><a href="{{ url_for('global_search') }}">Recherche</a></li>
             <li><a href="{{ url_for('users') }}">Utilisateurs</a></li>
             <li><a href="{{ url_for('groups') }}">Groupes</a></li>
             <li><a href="{{ url_for('computers') }}">Ordinateurs</a></li>
             <li><a href="{{ url_for('ous') }}">Unites d'org.</a></li>
-            <li><a href="{{ url_for('ad_tree') }}">Arborescence</a></li>
-            <li><a href="{{ url_for('audit_logs') }}">Audit</a></li>
+            <li class="nav-dropdown">
+                <a href="#">Plus &#9662;</a>
+                <ul class="dropdown-menu">
+                    <li><a href="{{ url_for('ad_tree') }}">Arborescence</a></li>
+                    <li><a href="{{ url_for('user_templates_page') }}">Modeles</a></li>
+                    <li><a href="{{ url_for('favorites_page') }}">Favoris</a></li>
+                    <li><a href="{{ url_for('expiring_accounts') }}">Expirations</a></li>
+                    <li><a href="{{ url_for('alerts_page') }}">Alertes {% if alert_counts and alert_counts.unacknowledged > 0 %}<span class="badge badge-warning">{{ alert_counts.unacknowledged }}</span>{% endif %}</a></li>
+                    <li><a href="{{ url_for('audit_logs') }}">Audit</a></li>
+                    <li><a href="{{ url_for('api_documentation_page') }}">API</a></li>
+                </ul>
+            </li>
             <li><a href="{{ url_for('disconnect') }}" class="nav-disconnect">Deconnexion</a></li>
             {% else %}
             <li><a href="{{ url_for('index') }}">Accueil</a></li>
             <li><a href="{{ url_for('connect') }}">Connexion AD</a></li>
             {% endif %}
             <li><a href="{{ url_for('toggle_dark_mode') }}" class="dark-mode-toggle" title="Mode sombre">&#x1F319;</a></li>
+            <li class="lang-switch">
+                <a href="{{ url_for('set_language', lang='fr') }}" {% if current_lang == 'fr' %}class="active"{% endif %}>FR</a>
+                <a href="{{ url_for('set_language', lang='en') }}" {% if current_lang == 'en' %}class="active"{% endif %}>EN</a>
+            </li>
             <li><a href="{{ url_for('update_page') }}">Mise a jour</a></li>
         </ul>
     </nav>

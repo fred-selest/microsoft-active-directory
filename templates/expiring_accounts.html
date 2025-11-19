@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Comptes expirants - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Comptes expirants</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('export_expiring_pdf') }}" class="btn btn-secondary">Exporter PDF</a>
+    </div>
+</div>
+
+<div class="expiring-sections">
+    <!-- Comptes qui expirent -->
+    <div class="section-card">
+        <h3>Comptes expirants ({{ expiring_accounts|length }})</h3>
+        <p class="section-desc">Comptes qui expireront dans les 30 prochains jours</p>
+
+        {% if expiring_accounts %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Identifiant</th>
+                    <th>Email</th>
+                    <th>Expiration</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in expiring_accounts %}
+                <tr>
+                    <td>{{ account.cn }}</td>
+                    <td>{{ account.sAMAccountName }}</td>
+                    <td>{{ account.mail or '-' }}</td>
+                    <td>{{ account.accountExpires }}</td>
+                    <td>
+                        <a href="{{ url_for('edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">Aucun compte expirant dans les 30 prochains jours.</p>
+        {% endif %}
+    </div>
+
+    <!-- Mots de passe expirants -->
+    <div class="section-card">
+        <h3>Mots de passe expirants ({{ password_expiring|length }})</h3>
+        <p class="section-desc">Utilisateurs dont le mot de passe expire dans les 14 prochains jours</p>
+
+        {% if password_expiring %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Identifiant</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in password_expiring %}
+                <tr>
+                    <td>{{ user.cn }}</td>
+                    <td>{{ user.sAMAccountName }}</td>
+                    <td>{{ user.mail or '-' }}</td>
+                    <td>
+                        <a href="{{ url_for('edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">Aucun mot de passe expirant dans les 14 prochains jours.</p>
+        {% endif %}
+    </div>
+
+    <!-- Comptes inactifs -->
+    <div class="section-card">
+        <h3>Comptes inactifs ({{ inactive_accounts|length }})</h3>
+        <p class="section-desc">Comptes sans connexion depuis plus de 90 jours</p>
+
+        {% if inactive_accounts %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Identifiant</th>
+                    <th>Email</th>
+                    <th>Derniere connexion</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in inactive_accounts %}
+                <tr>
+                    <td>{{ account.cn }}</td>
+                    <td>{{ account.sAMAccountName }}</td>
+                    <td>{{ account.mail or '-' }}</td>
+                    <td>{{ account.lastLogon }}</td>
+                    <td>
+                        <a href="{{ url_for('edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">Aucun compte inactif detecte.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.section-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.section-card h3 {
+    color: #0078d4;
+    margin-top: 0;
+}
+.section-desc {
+    color: #666;
+    margin-bottom: 1rem;
+}
+.no-data {
+    color: #666;
+    font-style: italic;
+    padding: 1rem 0;
+}
+</style>
+{% endblock %}
+{% endblock %}

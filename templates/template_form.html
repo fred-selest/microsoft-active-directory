@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if action == 'create' %}Nouveau modele{% else %}Modifier le modele{% endif %} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{% if action == 'create' %}Nouveau modele d'utilisateur{% else %}Modifier le modele{% endif %}</h2>
+    <a href="{{ url_for('user_templates_page') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="form-container">
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-section">
+            <h3>Informations du modele</h3>
+
+            <div class="form-group">
+                <label for="name">Nom du modele *</label>
+                <input type="text" id="name" name="name" required
+                       value="{{ template.name if template else '' }}"
+                       placeholder="Ex: Employe standard">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3"
+                          placeholder="Description du modele">{{ template.description if template else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Attributs par defaut</h3>
+
+            <div class="form-group">
+                <label for="department">Service</label>
+                <input type="text" id="department" name="department"
+                       value="{{ template.attributes.department if template and template.attributes else '' }}"
+                       placeholder="Informatique">
+            </div>
+
+            <div class="form-group">
+                <label for="title">Fonction</label>
+                <input type="text" id="title" name="title"
+                       value="{{ template.attributes.title if template and template.attributes else '' }}"
+                       placeholder="Developpeur">
+            </div>
+
+            <div class="form-group">
+                <label for="user_description">Description utilisateur</label>
+                <input type="text" id="user_description" name="user_description"
+                       value="{{ template.attributes.description if template and template.attributes else '' }}"
+                       placeholder="Compte standard">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if action == 'create' %}Creer le modele{% else %}Enregistrer{% endif %}
+            </button>
+            <a href="{{ url_for('user_templates_page') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
