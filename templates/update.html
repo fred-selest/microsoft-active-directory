@@ -72,6 +72,57 @@
             <li>Un redemarrage du serveur est necessaire apres la mise a jour</li>
         </ul>
     </div>
+
+    <div class="changelog">
+        <h3>Historique des versions</h3>
+
+        <div class="version-entry">
+            <h4>Version 1.8.0 - Securite et gestion avancee</h4>
+            <ul>
+                <li><strong>Securite:</strong> Reinitialisation de mot de passe, deverrouillage en masse, historique des connexions</li>
+                <li><strong>Integration:</strong> Corbeille AD, LAPS (mots de passe admin locaux), BitLocker (cles de recuperation)</li>
+                <li><strong>Gestion:</strong> Groupes imbriques, comparaison d'utilisateurs, recherche avancee multi-filtres</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.7.0 - Ameliorations majeures</h4>
+            <ul>
+                <li><strong>Interface:</strong> Tri des colonnes, graphiques Chart.js, support PWA</li>
+                <li><strong>Fonctionnalites:</strong> Deplacement utilisateurs, export Excel, duplication de groupes</li>
+                <li><strong>Modules:</strong> Cache LDAP, service SMTP, webhooks, export PowerShell</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.6.1 - Corrections</h4>
+            <ul>
+                <li>Correction encodage UTF-8 pour caracteres accentues</li>
+                <li>Amelioration menu mobile</li>
+                <li>Ajout filtre dans la liste des groupes</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.6.0 - Fonctionnalites avancees</h4>
+            <ul>
+                <li>API REST complete</li>
+                <li>Systeme d'alertes et favoris</li>
+                <li>Support multi-langues (FR/EN)</li>
+                <li>Modeles d'utilisateurs</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.5.0 - Securite renforcee</h4>
+            <ul>
+                <li>Protection CSRF</li>
+                <li>Validation force mot de passe</li>
+                <li>Rate limiting</li>
+                <li>Headers de securite</li>
+            </ul>
+        </div>
+    </div>
 </div>
 
 {% block extra_js %}
@@ -222,6 +273,43 @@ code {
 
 .update-info li {
     margin-bottom: 0.5rem;
+}
+
+.changelog {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.changelog h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+
+.version-entry {
+    border-left: 3px solid #0078d4;
+    padding-left: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.version-entry:last-child {
+    margin-bottom: 0;
+}
+
+.version-entry h4 {
+    margin: 0 0 0.5rem;
+    color: #333;
+}
+
+.version-entry ul {
+    margin: 0 0 0 1rem;
+    padding: 0;
+}
+
+.version-entry li {
+    margin-bottom: 0.25rem;
 }
 </style>
 {% endblock %}

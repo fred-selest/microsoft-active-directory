@@ -1,56 +1,223 @@
 {% extends 'base.html' %}
 
-{% block title %}Unites d'organisation - AD Web Interface{% endblock %}
+{% block title %}Structure AD - AD Web Interface{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2>Unites d'organisation</h2>
+    <h2>Structure Active Directory</h2>
     <a href="{{ url_for('create_ou') }}" class="btn btn-primary">Nouvelle unite d'organisation</a>
 </div>
 
-<div class="table-container">
-    <table class="data-table sortable">
-        <thead>
-            <tr>
-                <th>Nom</th>
-                <th>Description</th>
-                <th>Chemin (DN)</th>
-                <th data-no-sort>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ou in ous %}
-            <tr>
-                <td>{{ ou.name }}</td>
-                <td>{{ ou.description }}</td>
-                <td class="dn-cell">{{ ou.dn }}</td>
-                <td class="actions">
-                    <a href="{{ url_for('edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
-                    <form method="post" action="{{ url_for('delete_ou', dn=ou.dn) }}"
-                          style="display: inline;" onsubmit="return confirm('Supprimer cette unite d\\'organisation ?');">
-                        <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="4" class="text-center">Aucune unite d'organisation trouvee.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="tabs">
+    <button class="tab-btn active" onclick="showTab('list')">Liste des OUs</button>
+    <button class="tab-btn" onclick="showTab('tree')">Arborescence</button>
 </div>
 
-<p class="results-count">{{ ous|length }} unite(s) d'organisation trouvee(s)</p>
+<div id="tab-list" class="tab-content active">
+    <div class="table-container">
+        <table class="data-table sortable">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Description</th>
+                    <th>Chemin (DN)</th>
+                    <th data-no-sort>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ou in ous %}
+                <tr>
+                    <td>{{ ou.name }}</td>
+                    <td>{{ ou.description }}</td>
+                    <td class="dn-cell">{{ ou.dn }}</td>
+                    <td class="actions">
+                        <a href="{{ url_for('edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <form method="post" action="{{ url_for('delete_ou', dn=ou.dn) }}"
+                              style="display: inline;" onsubmit="return confirm('Supprimer cette unite d\'organisation ?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center">Aucune unite d'organisation trouvee.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="results-count">{{ ous|length }} unite(s) d'organisation trouvee(s)</p>
+</div>
+
+<div id="tab-tree" class="tab-content">
+    <div class="tree-container">
+        <div class="tree-view">
+            {% macro render_tree(node) %}
+            <div class="tree-node">
+                <div class="node-content">
+                    {% if node.type == 'ou' %}
+                    <span class="node-icon">&#128193;</span>
+                    {% else %}
+                    <span class="node-icon">&#127970;</span>
+                    {% endif %}
+                    <span class="node-name">{{ node.name }}</span>
+                    <span class="node-dn">{{ node.dn }}</span>
+                </div>
+                {% if node.children %}
+                <div class="tree-children">
+                    {% for child in node.children %}
+                    {{ render_tree(child) }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endmacro %}
+
+            {% if tree %}
+            {{ render_tree(tree) }}
+            {% else %}
+            <p class="text-muted">Arborescence non disponible.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="tree-legend">
+        <h4>Legende</h4>
+        <p><span class="node-icon">&#127970;</span> Domaine</p>
+        <p><span class="node-icon">&#128193;</span> Unite organisationnelle (OU)</p>
+    </div>
+</div>
 
 {% block extra_css %}
 <style>
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: #e0e0e0;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    font-size: 1rem;
+}
+
+.tab-btn.active {
+    background: white;
+    border-bottom: 2px solid #0078d4;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
 .dn-cell {
     font-size: 0.85rem;
     color: #666;
     word-break: break-all;
     max-width: 300px;
 }
+
+.tree-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+}
+
+.tree-view {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+}
+
+.tree-node {
+    margin-left: 1.5rem;
+}
+
+.tree-node:first-child {
+    margin-left: 0;
+}
+
+.node-content {
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 4px;
+}
+
+.node-content:hover {
+    background: #f5f5f5;
+}
+
+.node-icon {
+    font-size: 1rem;
+}
+
+.node-name {
+    font-weight: 600;
+}
+
+.node-dn {
+    color: #666;
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
+.tree-children {
+    border-left: 2px solid #ddd;
+    margin-left: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.tree-legend {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-top: 1rem;
+}
+
+.tree-legend h4 {
+    color: #0078d4;
+    margin: 0 0 0.5rem;
+}
+
+.tree-legend p {
+    margin: 0.25rem 0;
+}
+
+.text-muted {
+    color: #666;
+    font-style: italic;
+}
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById('tab-' + tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+</script>
 {% endblock %}
 {% endblock %}
