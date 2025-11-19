@@ -1543,35 +1543,6 @@ def delete_ou(dn):
     return redirect(url_for('ous'))
 
 
-@app.route('/users/<path:dn>/move', methods=['POST'])
-@require_connection
-def move_user(dn):
-    """Deplacer un utilisateur vers une autre OU."""
-    conn, error = get_ad_connection()
-    if not conn:
-        flash(f'Erreur de connexion: {error}', 'error')
-        return redirect(url_for('users'))
-
-    new_ou = request.form.get('new_ou')
-    if not new_ou:
-        flash('Aucune OU de destination selectionnee.', 'error')
-        return redirect(url_for('users'))
-
-    # Extraire le CN de l'utilisateur
-    cn = dn.split(',')[0]
-
-    try:
-        conn.modify_dn(dn, cn, new_superior=new_ou)
-        if conn.result['result'] == 0:
-            flash('Utilisateur deplace avec succes!', 'success')
-        else:
-            flash(f'Erreur: {conn.result["description"]}', 'error')
-    except LDAPException as e:
-        flash(f'Erreur LDAP: {str(e)}', 'error')
-    conn.unbind()
-    return redirect(url_for('users'))
-
-
 @app.route('/tree')
 @require_connection
 def ad_tree():
