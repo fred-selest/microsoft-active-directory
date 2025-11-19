@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if action == 'create' %}Nouvel utilisateur{% else %}Modifier l'utilisateur{% endif %} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{% if action == 'create' %}Nouvel utilisateur{% else %}Modifier l'utilisateur{% endif %}</h2>
+    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour a la liste</a>
+</div>
+
+<div class="form-container">
+    <form method="post" class="user-form">
+        {% if action == 'create' %}
+        <div class="form-section">
+            <h3>Informations de compte</h3>
+
+            <div class="form-group">
+                <label for="sAMAccountName">Identifiant (login) *</label>
+                <input type="text" id="sAMAccountName" name="sAMAccountName" required
+                       placeholder="jdupont">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Mot de passe *</label>
+                <input type="password" id="password" name="password" required
+                       placeholder="Mot de passe initial">
+            </div>
+
+            {% if ous %}
+            <div class="form-group">
+                <label for="ou">Unite organisationnelle (OU)</label>
+                <select id="ou" name="ou">
+                    <option value="">CN=Users (par defaut)</option>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="form-section">
+            <h3>Informations personnelles</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="givenName">Prenom *</label>
+                    <input type="text" id="givenName" name="givenName"
+                           value="{{ user.givenName if user else '' }}" required
+                           placeholder="Jean">
+                </div>
+
+                <div class="form-group">
+                    <label for="sn">Nom *</label>
+                    <input type="text" id="sn" name="sn"
+                           value="{{ user.sn if user else '' }}" required
+                           placeholder="Dupont">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="displayName">Nom d'affichage</label>
+                <input type="text" id="displayName" name="displayName"
+                       value="{{ user.displayName if user else '' }}"
+                       placeholder="Jean Dupont">
+            </div>
+
+            <div class="form-group">
+                <label for="mail">Email</label>
+                <input type="email" id="mail" name="mail"
+                       value="{{ user.mail if user else '' }}"
+                       placeholder="jean.dupont@exemple.com">
+            </div>
+
+            <div class="form-group">
+                <label for="telephoneNumber">Telephone</label>
+                <input type="tel" id="telephoneNumber" name="telephoneNumber"
+                       value="{{ user.telephoneNumber if user else '' }}"
+                       placeholder="+33 1 23 45 67 89">
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Informations professionnelles</h3>
+
+            <div class="form-group">
+                <label for="department">Service</label>
+                <input type="text" id="department" name="department"
+                       value="{{ user.department if user else '' }}"
+                       placeholder="Informatique">
+            </div>
+
+            <div class="form-group">
+                <label for="title">Fonction</label>
+                <input type="text" id="title" name="title"
+                       value="{{ user.title if user else '' }}"
+                       placeholder="Administrateur systeme">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3"
+                          placeholder="Description de l'utilisateur">{{ user.description if user else '' }}</textarea>
+            </div>
+        </div>
+
+        {% if action == 'edit' %}
+        <div class="form-section">
+            <h3>Gestion du compte</h3>
+
+            <div class="form-group">
+                <label for="new_password">Nouveau mot de passe</label>
+                <input type="password" id="new_password" name="new_password"
+                       placeholder="Laisser vide pour ne pas changer">
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="enable_account"
+                           {% if not user.disabled %}checked{% endif %}
+                           value="on">
+                    Compte actif
+                </label>
+            </div>
+        </div>
+
+        {% if user.memberOf %}
+        <div class="form-section">
+            <h3>Groupes</h3>
+            <ul class="group-list">
+                {% for group in user.memberOf %}
+                <li>{{ group }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if action == 'create' %}Creer l'utilisateur{% else %}Enregistrer les modifications{% endif %}
+            </button>
+            <a href="{{ url_for('users') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

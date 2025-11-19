@@ -1,0 +1,89 @@
+"""
+Configuration multi-plateforme pour l'interface web Microsoft Active Directory.
+Compatible avec les systèmes Windows et Linux.
+"""
+
+import os
+import platform
+from pathlib import Path
+
+# Détection du système d'exploitation
+CURRENT_OS = platform.system().lower()
+IS_WINDOWS = CURRENT_OS == 'windows'
+IS_LINUX = CURRENT_OS == 'linux'
+
+# Répertoire de base (multi-plateforme)
+BASE_DIR = Path(__file__).resolve().parent
+
+class Config:
+    """Classe de configuration de base avec support multi-plateforme."""
+
+    # Liaison du serveur - 0.0.0.0 permet l'accès depuis n'importe quelle interface réseau
+    # Ceci est essentiel pour l'accès multi-plateforme et à distance
+    HOST = os.environ.get('AD_WEB_HOST', '0.0.0.0')
+    PORT = int(os.environ.get('AD_WEB_PORT', 5000))
+
+    # Configuration Flask
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'changer-ceci-en-production')
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+
+    # Configuration Active Directory
+    AD_SERVER = os.environ.get('AD_SERVER', '')
+    AD_PORT = int(os.environ.get('AD_PORT', 389))
+    AD_USE_SSL = os.environ.get('AD_USE_SSL', 'False').lower() == 'true'
+    AD_BASE_DN = os.environ.get('AD_BASE_DN', '')
+
+    # Chemins multi-plateformes
+    if IS_WINDOWS:
+        LOG_DIR = Path(os.environ.get('AD_LOG_DIR', 'C:/ProgramData/ADWebInterface/logs'))
+        DATA_DIR = Path(os.environ.get('AD_DATA_DIR', 'C:/ProgramData/ADWebInterface/data'))
+    else:
+        LOG_DIR = Path(os.environ.get('AD_LOG_DIR', '/var/log/ad-web-interface'))
+        DATA_DIR = Path(os.environ.get('AD_DATA_DIR', '/var/lib/ad-web-interface'))
+
+    # Création des répertoires nécessaires
+    @classmethod
+    def init_directories(cls):
+        """Créer les répertoires nécessaires s'ils n'existent pas."""
+        for directory in [cls.LOG_DIR, cls.DATA_DIR]:
+            try:
+                directory.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                # Utiliser le répertoire utilisateur si les répertoires système ne sont pas accessibles
+                fallback = BASE_DIR / directory.name
+                fallback.mkdir(parents=True, exist_ok=True)
+                if directory == cls.LOG_DIR:
+                    cls.LOG_DIR = fallback
+                else:
+                    cls.DATA_DIR = fallback
+
+
+class DevelopmentConfig(Config):
+    """Configuration de développement."""
+    DEBUG = True
+
+
+class ProductionConfig(Config):
+    """Configuration de production."""
+    DEBUG = False
+
+
+class TestConfig(Config):
+    """Configuration de test."""
+    TESTING = True
+    DEBUG = True
+
+
+# Dictionnaire de configuration
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestConfig,
+    'default': DevelopmentConfig
+}
+
+
+def get_config():
+    """Obtenir la configuration basée sur l'environnement."""
+    env = os.environ.get('FLASK_ENV', 'development')
+    return config.get(env, config['default'])

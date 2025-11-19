@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Connexion - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Connexion à Active Directory</h2>
+    <form method="POST" action="{{ url_for('connect') }}">
+        <div class="form-group">
+            <label for="server">Serveur AD</label>
+            <input type="text" id="server" name="server" required
+                   placeholder="ad.exemple.com ou 192.168.1.100">
+        </div>
+
+        <div class="form-group">
+            <label for="port">Port (optionnel)</label>
+            <input type="number" id="port" name="port"
+                   placeholder="389 (LDAP) ou 636 (LDAPS)">
+        </div>
+
+        <div class="form-group">
+            <label for="username">Nom d'utilisateur</label>
+            <input type="text" id="username" name="username" required
+                   placeholder="DOMAIN\username ou user@domain.com">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Mot de passe</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+
+        <div class="form-group checkbox">
+            <input type="checkbox" id="use_ssl" name="use_ssl">
+            <label for="use_ssl">Utiliser SSL/TLS (LDAPS)</label>
+        </div>
+
+        <div class="form-group">
+            <label for="base_dn">Base DN (optionnel)</label>
+            <input type="text" id="base_dn" name="base_dn"
+                   placeholder="DC=exemple,DC=com (detecte automatiquement si vide)">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+    </form>
+</div>
+{% endblock %}
