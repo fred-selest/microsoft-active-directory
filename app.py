@@ -682,6 +682,7 @@ def groups():
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
+    filter_type = request.args.get('filter', '')
 
     # Construire le filtre de recherche avec protection contre injection LDAP
     if search_query:
@@ -704,22 +705,49 @@ def groups():
         group_list = []
         for entry in conn.entries:
             members = list(entry.member) if entry.member else []
+            group_type_val = int(entry.groupType.value) if entry.groupType and entry.groupType.value else 0
+
+            # Determiner le type et l'etendue du groupe
+            is_security = bool(group_type_val & 0x80000000)
+            scope = 'global'
+            if group_type_val & 0x00000004:
+                scope = 'domain_local'
+            elif group_type_val & 0x00000008:
+                scope = 'universal'
+
+            # Appliquer les filtres
+            if filter_type == 'security' and not is_security:
+                continue
+            if filter_type == 'distribution' and is_security:
+                continue
+            if filter_type == 'empty' and len(members) > 0:
+                continue
+            if filter_type == 'with_members' and len(members) == 0:
+                continue
+            if filter_type == 'global' and scope != 'global':
+                continue
+            if filter_type == 'domain_local' and scope != 'domain_local':
+                continue
+            if filter_type == 'universal' and scope != 'universal':
+                continue
 
             group_list.append({
                 'cn': decode_ldap_value(entry.cn),
                 'dn': decode_ldap_value(entry.distinguishedName),
                 'description': decode_ldap_value(entry.description),
                 'member_count': len(members),
-                'groupType': str(entry.groupType) if entry.groupType else ''
+                'groupType': str(entry.groupType) if entry.groupType else '',
+                'is_security': is_security,
+                'scope': scope
             })
 
         conn.unbind()
-        return render_template('groups.html', groups=group_list, search=search_query, connected=is_connected())
+        return render_template('groups.html', groups=group_list, search=search_query, filter=filter_type, connected=is_connected())
 
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur de recherche: {str(e)}', 'error')
-        return render_template('groups.html', groups=[], search=search_query, connected=is_connected())
+        return render_template('groups.html', groups=[], search=search_query, filter=filter_type, connected=is_connected())
 
 
 @app.route('/groups/<path:dn>')
