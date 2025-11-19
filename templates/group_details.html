@@ -20,7 +20,10 @@
     <h3>Ajouter un membre</h3>
     <form method="post" action="{{ url_for('add_group_member', dn=group.dn) }}" class="add-member-form">
         <div class="form-group">
-            <input type="text" name="member_dn" placeholder="DN du membre (ex: CN=Jean Dupont,CN=Users,DC=...)" required>
+            <input type="text" name="member_dn" id="member_search"
+                   placeholder="Rechercher un utilisateur ou entrer le DN..."
+                   autocomplete="off" required>
+            <div id="member-suggestions" class="suggestions-dropdown"></div>
         </div>
         <button type="submit" class="btn btn-primary">Ajouter</button>
     </form>
@@ -88,11 +91,12 @@
 .add-member-form {
     display: flex;
     gap: 1rem;
-    align-items: center;
+    align-items: flex-start;
 }
 .add-member-form .form-group {
     flex: 1;
     margin: 0;
+    position: relative;
 }
 .add-member-form input {
     width: 100%;
@@ -100,6 +104,78 @@
     border: 1px solid #ddd;
     border-radius: 4px;
 }
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+.suggestion-item {
+    padding: 0.5rem;
+    cursor: pointer;
+}
+.suggestion-item:hover {
+    background: #f0f0f0;
+}
+.suggestion-item small {
+    color: #666;
+}
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Recherche AJAX d'utilisateurs
+const memberSearch = document.getElementById('member_search');
+const suggestions = document.getElementById('member-suggestions');
+
+if (memberSearch) {
+    let timeout;
+    memberSearch.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value;
+
+        if (query.length < 2) {
+            suggestions.style.display = 'none';
+            return;
+        }
+
+        timeout = setTimeout(() => {
+            fetch('/api/users/search?q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.users.length > 0) {
+                        suggestions.innerHTML = data.users.map(u =>
+                            `<div class="suggestion-item" data-dn="${u.dn}">${u.cn} <small>(${u.sAMAccountName})</small></div>`
+                        ).join('');
+                        suggestions.style.display = 'block';
+                    } else {
+                        suggestions.style.display = 'none';
+                    }
+                });
+        }, 300);
+    });
+
+    suggestions.addEventListener('click', function(e) {
+        if (e.target.classList.contains('suggestion-item')) {
+            memberSearch.value = e.target.dataset.dn;
+            suggestions.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!memberSearch.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+}
+</script>
 {% endblock %}
 {% endblock %}

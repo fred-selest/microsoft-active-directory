@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Ordinateurs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Ordinateurs</h2>
+</div>
+
+<div class="search-box">
+    <form method="get">
+        <div class="form-group">
+            <input type="text" name="search" placeholder="Rechercher un ordinateur..."
+                   value="{{ search }}" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-secondary">Rechercher</button>
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Systeme d'exploitation</th>
+                <th>Nom DNS</th>
+                <th>Statut</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for computer in computers %}
+            <tr class="{% if computer.disabled %}disabled-row{% endif %}">
+                <td>{{ computer.cn }}</td>
+                <td>{{ computer.os }} {% if computer.os_version %}({{ computer.os_version }}){% endif %}</td>
+                <td>{{ computer.dns_name }}</td>
+                <td>
+                    {% if computer.disabled %}
+                    <span class="badge badge-danger">Desactive</span>
+                    {% else %}
+                    <span class="badge badge-success">Actif</span>
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    <form method="post" action="{{ url_for('toggle_computer', dn=computer.dn) }}" style="display: inline;">
+                        {% if computer.disabled %}
+                        <input type="hidden" name="action" value="enable">
+                        <button type="submit" class="btn btn-sm btn-success">Activer</button>
+                        {% else %}
+                        <input type="hidden" name="action" value="disable">
+                        <button type="submit" class="btn btn-sm btn-secondary">Desactiver</button>
+                        {% endif %}
+                    </form>
+                    <form method="post" action="{{ url_for('delete_computer', dn=computer.dn) }}"
+                          style="display: inline;" onsubmit="return confirm('Supprimer cet ordinateur ?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center">Aucun ordinateur trouve.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ computers|length }} ordinateur(s) trouve(s)</p>
+
+{% block extra_css %}
+<style>
+.disabled-row {
+    opacity: 0.6;
+}
+</style>
+{% endblock %}
+{% endblock %}
