@@ -209,6 +209,51 @@ def update_dependencies():
         return False
 
 
+def restart_server():
+    """Redemarrer le serveur automatiquement."""
+    app_dir = Path(__file__).parent
+
+    if platform.system() == "Windows":
+        # Sur Windows, utiliser run.bat
+        script_path = app_dir / "run.bat"
+        if script_path.exists():
+            subprocess.Popen(
+                ['cmd', '/c', 'start', '', str(script_path)],
+                cwd=str(app_dir),
+                creationflags=subprocess.CREATE_NEW_CONSOLE
+            )
+        else:
+            # Fallback: lancer directement python
+            python_path = app_dir / "venv" / "Scripts" / "python.exe"
+            run_py = app_dir / "run.py"
+            subprocess.Popen(
+                [str(python_path), str(run_py)],
+                cwd=str(app_dir),
+                creationflags=subprocess.CREATE_NEW_CONSOLE
+            )
+    else:
+        # Sur Linux/macOS, utiliser run.sh
+        script_path = app_dir / "run.sh"
+        if script_path.exists():
+            subprocess.Popen(
+                ['bash', str(script_path)],
+                cwd=str(app_dir),
+                start_new_session=True
+            )
+        else:
+            # Fallback: lancer directement python
+            python_path = app_dir / "venv" / "bin" / "python"
+            run_py = app_dir / "run.py"
+            subprocess.Popen(
+                [str(python_path), str(run_py)],
+                cwd=str(app_dir),
+                start_new_session=True
+            )
+
+    print("Serveur en cours de redemarrage...")
+    return True
+
+
 def perform_update():
     """Executer la mise a jour complete."""
     print("\n" + "="*50)

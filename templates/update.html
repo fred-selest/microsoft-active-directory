@@ -95,6 +95,21 @@ function performUpdate() {
         if (data.success) {
             status.innerHTML = '<p class="update-success">' + data.message + '</p>';
             btn.textContent = 'Mise a jour terminee';
+
+            // Si le serveur redémarre, afficher un compte à rebours
+            if (data.restarting) {
+                let countdown = 10;
+                status.innerHTML += '<p class="restart-countdown">Le serveur redémarre. Rechargement dans <span id="countdown">' + countdown + '</span> secondes...</p>';
+
+                const interval = setInterval(() => {
+                    countdown--;
+                    document.getElementById('countdown').textContent = countdown;
+                    if (countdown <= 0) {
+                        clearInterval(interval);
+                        window.location.reload();
+                    }
+                }, 1000);
+            }
         } else {
             status.innerHTML = '<p class="update-error">' + data.message + '</p>';
             btn.disabled = false;
