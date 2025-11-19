@@ -22,6 +22,27 @@ app.config['DEBUG'] = config.DEBUG
 # Initialiser les répertoires
 config.init_directories()
 
+# Cache pour la vérification des mises à jour (éviter les appels répétés)
+_update_cache = {'last_check': 0, 'result': None}
+
+
+@app.context_processor
+def inject_update_info():
+    """Injecter les infos de mise à jour dans tous les templates."""
+    import time
+    from updater import check_for_updates
+
+    # Vérifier toutes les 5 minutes maximum
+    current_time = time.time()
+    if _update_cache['result'] is None or (current_time - _update_cache['last_check']) > 300:
+        try:
+            _update_cache['result'] = check_for_updates()
+            _update_cache['last_check'] = current_time
+        except:
+            _update_cache['result'] = {'update_available': False}
+
+    return {'update_info': _update_cache['result']}
+
 
 def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None):
     """
@@ -1233,7 +1254,8 @@ def api_check_update():
 @app.route('/api/perform-update', methods=['POST'])
 def api_perform_update():
     """API pour effectuer une mise à jour."""
-    from updater import download_update, apply_update, update_dependencies, check_for_updates
+    import threading
+    from updater import download_update, apply_update, update_dependencies, check_for_updates, restart_server
 
     try:
         # Vérifier qu'une mise à jour est disponible
@@ -1248,9 +1270,20 @@ def api_perform_update():
         zip_path, temp_dir = download_update()
         if apply_update(zip_path, temp_dir):
             update_dependencies()
+
+            # Redémarrer le serveur après un délai
+            def delayed_restart():
+                import time
+                time.sleep(2)
+                restart_server()
+                os._exit(0)
+
+            threading.Thread(target=delayed_restart, daemon=True).start()
+
             return jsonify({
                 'success': True,
-                'message': f'Mise à jour vers la version {info["latest_version"]} réussie. Redémarrez le serveur.'
+                'message': f'Mise à jour vers la version {info["latest_version"]} réussie. Le serveur redémarre...',
+                'restarting': True
             })
         else:
             return jsonify({
