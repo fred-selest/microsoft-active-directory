@@ -4,6 +4,9 @@ REM Double-cliquez sur ce fichier pour demarrer le serveur en arriere-plan
 
 cd /d "%~dp0"
 
+REM Definir le mode silencieux
+set AD_SILENT=true
+
 REM Utiliser pythonw.exe pour eviter la fenetre console
 if exist venv\Scripts\pythonw.exe (
     start "" /B venv\Scripts\pythonw.exe run.py

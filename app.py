@@ -15,6 +15,11 @@ from ldap3.core.exceptions import LDAPException
 from config import get_config, CURRENT_OS, IS_WINDOWS
 from audit import log_action, get_audit_logs, ACTIONS
 from backup import backup_object, get_backups, get_backup_content, record_change, get_object_history, get_all_history
+from security import (
+    escape_ldap_filter, sanitize_dn_component, check_rate_limit, record_login_attempt,
+    validate_password_strength, get_password_requirements, add_security_headers,
+    get_secure_session_config, generate_csrf_token, validate_csrf_token
+)
 
 app = Flask(__name__)
 config = get_config()
@@ -23,6 +28,12 @@ config = get_config()
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['DEBUG'] = config.DEBUG
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=config.SESSION_TIMEOUT)
+
+# Configuration de session securisee
+secure_session = get_secure_session_config()
+app.config['SESSION_COOKIE_HTTPONLY'] = secure_session['SESSION_COOKIE_HTTPONLY']
+app.config['SESSION_COOKIE_SAMESITE'] = secure_session['SESSION_COOKIE_SAMESITE']
+app.config['SESSION_COOKIE_NAME'] = secure_session['SESSION_COOKIE_NAME']
 
 # Initialiser les répertoires
 config.init_directories()
@@ -72,7 +83,9 @@ def inject_update_info():
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
         'dark_mode': session.get('dark_mode', False),
-        'config': config
+        'config': config,
+        'csrf_token': generate_csrf_token,
+        'password_requirements': get_password_requirements()
     }
 
 
@@ -82,6 +95,12 @@ def before_request():
     session.permanent = True
     if is_connected():
         session.modified = True
+
+
+@app.after_request
+def after_request(response):
+    """Ajouter les headers de securite a chaque reponse."""
+    return add_security_headers(response)
 
 
 def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None):
@@ -166,6 +185,19 @@ def index():
 def connect():
     """Connexion au serveur Active Directory."""
     if request.method == 'POST':
+        # Verifier le token CSRF
+        csrf_token = request.form.get('csrf_token')
+        if not validate_csrf_token(csrf_token):
+            flash('Token de securite invalide. Veuillez reessayer.', 'error')
+            return render_template('connect.html', connected=is_connected())
+
+        # Verifier le rate limiting
+        ip = request.remote_addr
+        allowed, remaining = check_rate_limit(ip, max_attempts=5, window_seconds=300)
+        if not allowed:
+            flash(f'Trop de tentatives de connexion. Reessayez dans {remaining} secondes.', 'error')
+            return render_template('connect.html', connected=is_connected())
+
         server = request.form.get('server')
         username = request.form.get('username')
         password = request.form.get('password')
@@ -178,6 +210,8 @@ def connect():
         conn, error = get_ad_connection(server, username, password, use_ssl, port)
 
         if conn:
+            # Enregistrer le succes et reinitialiser le compteur
+            record_login_attempt(ip, success=True)
             # Stocker les informations de connexion en session
             session['ad_server'] = server
             session['ad_username'] = username
@@ -201,6 +235,8 @@ def connect():
             flash('Connexion réussie à Active Directory!', 'success')
             return redirect(url_for('dashboard'))
         else:
+            # Enregistrer l'echec pour le rate limiting
+            record_login_attempt(ip, success=False)
             log_action(ACTIONS['LOGIN'], username, {'server': server, 'error': error}, False, request.remote_addr)
             flash(f'Erreur de connexion: {error}', 'error')
 
@@ -290,9 +326,10 @@ def users():
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
 
-    # Construire le filtre de recherche
+    # Construire le filtre de recherche avec protection contre injection LDAP
     if search_query:
-        search_filter = f'(&(objectClass=user)(objectCategory=person)(|(cn=*{search_query}*)(sAMAccountName=*{search_query}*)(mail=*{search_query}*)))'
+        safe_query = escape_ldap_filter(search_query)
+        search_filter = f'(&(objectClass=user)(objectCategory=person)(|(cn=*{safe_query}*)(sAMAccountName=*{safe_query}*)(mail=*{safe_query}*)))'
     else:
         search_filter = '(&(objectClass=user)(objectCategory=person))'
 
@@ -371,6 +408,14 @@ def create_user():
         ou = request.form.get('ou', '')
         department = request.form.get('department', '')
         title = request.form.get('title', '')
+
+        # Valider la force du mot de passe
+        if password:
+            is_valid, pwd_message = validate_password_strength(password)
+            if not is_valid:
+                flash(f'Mot de passe invalide: {pwd_message}', 'error')
+                conn.unbind()
+                return redirect(url_for('create_user'))
 
         # Construire le DN
         base_dn = session.get('ad_base_dn', '')
@@ -489,6 +534,13 @@ def edit_user(dn):
             # Gérer le changement de mot de passe
             new_password = request.form.get('new_password')
             if new_password:
+                # Valider la force du mot de passe
+                is_valid, pwd_message = validate_password_strength(new_password)
+                if not is_valid:
+                    flash(f'Mot de passe invalide: {pwd_message}', 'error')
+                    conn.unbind()
+                    return redirect(url_for('edit_user', dn=dn))
+
                 unicode_pwd = f'"{new_password}"'.encode('utf-16-le')
                 conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
 
@@ -597,9 +649,10 @@ def groups():
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
 
-    # Construire le filtre de recherche
+    # Construire le filtre de recherche avec protection contre injection LDAP
     if search_query:
-        search_filter = f'(&(objectClass=group)(|(cn=*{search_query}*)(description=*{search_query}*)))'
+        safe_query = escape_ldap_filter(search_query)
+        search_filter = f'(&(objectClass=group)(|(cn=*{safe_query}*)(description=*{safe_query}*)))'
     else:
         search_filter = '(objectClass=group)'
 
@@ -1320,8 +1373,10 @@ def computers():
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
 
+    # Protection contre injection LDAP
     if search_query:
-        search_filter = f'(&(objectClass=computer)(cn=*{search_query}*))'
+        safe_query = escape_ldap_filter(search_query)
+        search_filter = f'(&(objectClass=computer)(cn=*{safe_query}*))'
     else:
         search_filter = '(objectClass=computer)'
 
@@ -1345,12 +1400,18 @@ def computers():
                 'disabled': is_disabled
             })
 
+        # Recuperer les OUs pour le deplacement
+        ous = []
+        conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['distinguishedName', 'name'])
+        for entry in conn.entries:
+            ous.append({'dn': str(entry.distinguishedName), 'name': str(entry.name)})
+
         conn.unbind()
-        return render_template('computers.html', computers=computer_list, search=search_query, connected=is_connected())
+        return render_template('computers.html', computers=computer_list, ous=ous, search=search_query, connected=is_connected())
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
-        return render_template('computers.html', computers=[], search=search_query, connected=is_connected())
+        return render_template('computers.html', computers=[], ous=[], search=search_query, connected=is_connected())
 
 
 @app.route('/computers/<path:dn>/toggle', methods=['POST'])
@@ -1393,6 +1454,38 @@ def delete_computer(dn):
         conn.delete(dn)
         if conn.result['result'] == 0:
             flash('Ordinateur supprime avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('computers'))
+
+
+@app.route('/computers/<path:dn>/move', methods=['POST'])
+@require_connection
+def move_computer(dn):
+    """Deplacer un ordinateur vers une autre OU."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('computers'))
+
+    new_ou = request.form.get('new_ou')
+    if not new_ou:
+        flash('Aucune OU de destination selectionnee.', 'error')
+        return redirect(url_for('computers'))
+
+    # Extraire le CN de l'ordinateur
+    cn = dn.split(',')[0]
+
+    try:
+        conn.modify_dn(dn, cn, new_superior=new_ou)
+        if conn.result['result'] == 0:
+            log_action('move_computer', session.get('ad_username'),
+                      {'dn': dn, 'new_ou': new_ou}, True, request.remote_addr)
+            flash('Ordinateur deplace avec succes!', 'success')
         else:
             flash(f'Erreur: {conn.result["description"]}', 'error')
     except LDAPException as e:
@@ -1654,8 +1747,10 @@ def api_users_search():
     base_dn = session.get('ad_base_dn', '')
     query = request.args.get('q', '')
 
+    # Protection contre injection LDAP
     if query:
-        search_filter = f'(&(objectClass=user)(objectCategory=person)(|(cn=*{query}*)(sAMAccountName=*{query}*)(mail=*{query}*)))'
+        safe_query = escape_ldap_filter(query)
+        search_filter = f'(&(objectClass=user)(objectCategory=person)(|(cn=*{safe_query}*)(sAMAccountName=*{safe_query}*)(mail=*{safe_query}*)))'
     else:
         search_filter = '(&(objectClass=user)(objectCategory=person))'
 
@@ -1692,8 +1787,10 @@ def api_groups_search():
     base_dn = session.get('ad_base_dn', '')
     query = request.args.get('q', '')
 
+    # Protection contre injection LDAP
     if query:
-        search_filter = f'(&(objectClass=group)(cn=*{query}*))'
+        safe_query = escape_ldap_filter(query)
+        search_filter = f'(&(objectClass=group)(cn=*{safe_query}*))'
     else:
         search_filter = '(objectClass=group)'
 
@@ -1901,27 +1998,42 @@ def run_server():
     Démarrer le serveur web avec support multi-plateforme.
     Utilise Waitress sur Windows, Gunicorn sur Linux, ou le serveur intégré Flask pour le développement.
     """
+    import sys
+
     host = config.HOST
     port = config.PORT
 
-    print(f"\n{'='*50}")
-    print(f"Interface Web Microsoft Active Directory")
-    print(f"{'='*50}")
-    print(f"Plateforme: {platform.system()} ({platform.release()})")
-    print(f"Écoute sur: http://{host}:{port}")
-    print(f"Accès depuis n'importe quel appareil: http://<votre-ip>:{port}")
-    print(f"{'='*50}\n")
+    # Mode silencieux si AD_SILENT est defini ou si pas de console
+    silent_mode = os.environ.get('AD_SILENT', '').lower() == 'true'
+
+    # Detecter si on a une console (pour pythonw.exe)
+    try:
+        if sys.stdout is None or not hasattr(sys.stdout, 'write'):
+            silent_mode = True
+    except:
+        silent_mode = True
+
+    if not silent_mode:
+        print(f"\n{'='*50}")
+        print(f"Interface Web Microsoft Active Directory")
+        print(f"{'='*50}")
+        print(f"Plateforme: {platform.system()} ({platform.release()})")
+        print(f"Écoute sur: http://{host}:{port}")
+        print(f"Accès depuis n'importe quel appareil: http://<votre-ip>:{port}")
+        print(f"{'='*50}\n")
 
     if os.environ.get('FLASK_ENV') == 'production':
         if IS_WINDOWS:
             # Utiliser Waitress sur Windows (serveur WSGI multi-plateforme)
             from waitress import serve
-            print("Démarrage avec Waitress (serveur de production Windows)...")
+            if not silent_mode:
+                print("Démarrage avec Waitress (serveur de production Windows)...")
             serve(app, host=host, port=port)
         else:
             # Sur Linux, recommander d'utiliser gunicorn en externe
             # gunicorn -w 4 -b 0.0.0.0:5000 app:app
-            print("Pour la production sur Linux, utilisez: gunicorn -w 4 -b 0.0.0.0:5000 app:app")
+            if not silent_mode:
+                print("Pour la production sur Linux, utilisez: gunicorn -w 4 -b 0.0.0.0:5000 app:app")
             app.run(host=host, port=port, debug=False)
     else:
         # Serveur de développement
