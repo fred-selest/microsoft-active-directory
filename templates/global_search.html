@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}Recherche globale - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Recherche globale</h2>
+</div>
+
+<div class="search-container">
+    <form method="get" class="global-search-form">
+        <div class="search-input-group">
+            <input type="text" name="q" id="search-query" placeholder="Rechercher dans tous les objets..."
+                   value="{{ query }}" class="form-control" autofocus>
+            <button type="submit" class="btn btn-primary">Rechercher</button>
+        </div>
+        <div class="search-filters">
+            <label class="checkbox-label">
+                <input type="checkbox" name="type" value="users" {% if 'users' in types %}checked{% endif %}>
+                Utilisateurs
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" name="type" value="groups" {% if 'groups' in types %}checked{% endif %}>
+                Groupes
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" name="type" value="computers" {% if 'computers' in types %}checked{% endif %}>
+                Ordinateurs
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" name="type" value="ous" {% if 'ous' in types %}checked{% endif %}>
+                Unites d'org.
+            </label>
+        </div>
+    </form>
+</div>
+
+{% if query %}
+<div class="search-results">
+    <p class="results-summary">{{ total_results }} resultat(s) pour "{{ query }}"</p>
+
+    {% if results.users %}
+    <div class="result-section">
+        <h3>Utilisateurs ({{ results.users|length }})</h3>
+        <div class="result-list">
+            {% for user in results.users %}
+            <div class="result-item">
+                <div class="result-icon user-icon">U</div>
+                <div class="result-info">
+                    <a href="{{ url_for('edit_user', dn=user.dn) }}" class="result-name">{{ user.cn }}</a>
+                    <span class="result-details">{{ user.sAMAccountName }} - {{ user.mail or 'Pas d\'email' }}</span>
+                </div>
+                <div class="result-actions">
+                    <a href="{{ url_for('edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    <form method="post" action="{{ url_for('toggle_favorite') }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="type" value="user">
+                        <input type="hidden" name="dn" value="{{ user.dn }}">
+                        <input type="hidden" name="name" value="{{ user.cn }}">
+                        <button type="submit" class="btn btn-sm btn-secondary" title="Ajouter aux favoris">&#9733;</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if results.groups %}
+    <div class="result-section">
+        <h3>Groupes ({{ results.groups|length }})</h3>
+        <div class="result-list">
+            {% for group in results.groups %}
+            <div class="result-item">
+                <div class="result-icon group-icon">G</div>
+                <div class="result-info">
+                    <a href="{{ url_for('group_details', dn=group.dn) }}" class="result-name">{{ group.cn }}</a>
+                    <span class="result-details">{{ group.description or 'Pas de description' }}</span>
+                </div>
+                <div class="result-actions">
+                    <a href="{{ url_for('group_details', dn=group.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if results.computers %}
+    <div class="result-section">
+        <h3>Ordinateurs ({{ results.computers|length }})</h3>
+        <div class="result-list">
+            {% for computer in results.computers %}
+            <div class="result-item">
+                <div class="result-icon computer-icon">C</div>
+                <div class="result-info">
+                    <span class="result-name">{{ computer.cn }}</span>
+                    <span class="result-details">{{ computer.os or 'OS inconnu' }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if results.ous %}
+    <div class="result-section">
+        <h3>Unites d'organisation ({{ results.ous|length }})</h3>
+        <div class="result-list">
+            {% for ou in results.ous %}
+            <div class="result-item">
+                <div class="result-icon ou-icon">OU</div>
+                <div class="result-info">
+                    <span class="result-name">{{ ou.name }}</span>
+                    <span class="result-details">{{ ou.description or 'Pas de description' }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not results.users and not results.groups and not results.computers and not results.ous %}
+    <p class="no-results">Aucun resultat trouve pour "{{ query }}"</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% block extra_css %}
+<style>
+.search-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+.search-input-group {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.search-input-group input {
+    flex: 1;
+    padding: 1rem;
+    font-size: 1.1rem;
+}
+.search-filters {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+.result-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.result-section h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #0078d4;
+}
+.result-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+}
+.result-item:last-child {
+    border-bottom: none;
+}
+.result-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 1rem;
+    color: white;
+}
+.user-icon { background: #0078d4; }
+.group-icon { background: #107c10; }
+.computer-icon { background: #5c2d91; }
+.ou-icon { background: #ff8c00; font-size: 0.8rem; }
+.result-info {
+    flex: 1;
+}
+.result-name {
+    display: block;
+    font-weight: 500;
+    color: #333;
+    text-decoration: none;
+}
+.result-name:hover {
+    color: #0078d4;
+}
+.result-details {
+    font-size: 0.85rem;
+    color: #666;
+}
+.result-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+.results-summary {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+}
+.no-results {
+    text-align: center;
+    color: #666;
+    padding: 2rem;
+}
+</style>
+{% endblock %}
+{% endblock %}
