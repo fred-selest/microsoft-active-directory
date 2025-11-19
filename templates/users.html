@@ -8,7 +8,8 @@
     <div class="header-actions">
         <a href="{{ url_for('create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
         <a href="{{ url_for('import_users') }}" class="btn btn-secondary">Importer</a>
-        <a href="{{ url_for('export_users') }}" class="btn btn-secondary">Exporter</a>
+        <a href="{{ url_for('export_users') }}" class="btn btn-secondary">CSV</a>
+        <a href="{{ url_for('export_users_excel') }}" class="btn btn-secondary">Excel</a>
         <a href="{{ url_for('bulk_operations') }}" class="btn btn-secondary">Operations en masse</a>
     </div>
 </div>
@@ -27,7 +28,7 @@
 </div>
 
 <div class="table-container">
-    <table class="data-table">
+    <table class="data-table sortable">
         <thead>
             <tr>
                 <th>Nom d'affichage</th>
@@ -36,7 +37,7 @@
                 <th>Service</th>
                 <th>Fonction</th>
                 <th>Statut</th>
-                <th>Actions</th>
+                <th data-no-sort>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -57,8 +58,10 @@
                 <td class="actions">
                     <a href="{{ url_for('edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     <a href="{{ url_for('duplicate_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Dupliquer</a>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn }}', '{{ user.displayName or user.cn }}')">Deplacer</button>
                     <form method="post" action="{{ url_for('delete_user', dn=user.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
                     </form>
                 </td>
@@ -96,6 +99,29 @@
 </div>
 {% endif %}
 
+<!-- Modal pour deplacer -->
+<div id="moveModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Deplacer l'utilisateur</h3>
+        <p id="moveUserName"></p>
+        <form method="post" id="moveForm" action="">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="new_ou">Unite d'organisation de destination</label>
+                <select id="new_ou" name="new_ou" required>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Deplacer</button>
+                <button type="button" class="btn btn-secondary" onclick="closeMoveModal()">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% block extra_css %}
 <style>
 .header-actions {
@@ -111,6 +137,29 @@
 }
 .pagination-ellipsis {
     padding: 0.375rem;
+}
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    min-width: 400px;
+    max-width: 90%;
+}
+.modal-content h3 {
+    margin-top: 0;
+    color: #0078d4;
 }
 </style>
 {% endblock %}
@@ -128,6 +177,24 @@ if (searchInput) {
         }, 500);
     });
 }
+
+// Modal pour deplacer un utilisateur
+function showMoveModal(dn, name) {
+    document.getElementById('moveUserName').textContent = 'Utilisateur: ' + name;
+    document.getElementById('moveForm').action = '/users/' + encodeURIComponent(dn) + '/move';
+    document.getElementById('moveModal').style.display = 'flex';
+}
+
+function closeMoveModal() {
+    document.getElementById('moveModal').style.display = 'none';
+}
+
+// Fermer le modal en cliquant a l'exterieur
+document.getElementById('moveModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeMoveModal();
+    }
+});
 </script>
 {% endblock %}
 {% endblock %}

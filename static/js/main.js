@@ -9,7 +9,127 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Vérifier les informations système
     fetchSystemInfo();
+
+    // Initialiser les tableaux triables
+    initSortableTables();
+
+    // Initialiser les raccourcis clavier
+    initKeyboardShortcuts();
 });
+
+/**
+ * Initialiser le tri des tableaux
+ */
+function initSortableTables() {
+    document.querySelectorAll('.data-table.sortable thead th').forEach(th => {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', function() {
+            const table = this.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const index = Array.from(this.parentNode.children).indexOf(this);
+            const isAsc = this.classList.contains('sort-asc');
+
+            // Retirer les classes de tri des autres colonnes
+            table.querySelectorAll('th').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+
+            // Trier les lignes
+            rows.sort((a, b) => {
+                const aVal = a.children[index]?.textContent.trim() || '';
+                const bVal = b.children[index]?.textContent.trim() || '';
+
+                // Detecter si c'est un nombre
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAsc ? bNum - aNum : aNum - bNum;
+                }
+
+                return isAsc
+                    ? bVal.localeCompare(aVal, 'fr')
+                    : aVal.localeCompare(bVal, 'fr');
+            });
+
+            // Ajouter la classe de tri
+            this.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+
+            // Reinserer les lignes triees
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+}
+
+/**
+ * Initialiser les raccourcis clavier
+ */
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Ignorer si on est dans un champ de saisie
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+            return;
+        }
+
+        // Ctrl+K ou Ctrl+F: Focus sur la recherche
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')) {
+            e.preventDefault();
+            const searchInput = document.querySelector('input[name="search"], input[name="q"], #search-query');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+
+        // Ctrl+N: Nouveau (utilisateur, groupe, etc.)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            const newBtn = document.querySelector('a.btn-primary[href*="create"], a.btn-primary[href*="new"]');
+            if (newBtn) {
+                window.location.href = newBtn.href;
+            }
+        }
+
+        // Escape: Fermer les modals
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.style.display = 'none';
+            });
+        }
+
+        // ?: Afficher l'aide des raccourcis
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+            showKeyboardHelp();
+        }
+    });
+}
+
+/**
+ * Afficher l'aide des raccourcis clavier
+ */
+function showKeyboardHelp() {
+    const helpHtml = `
+        <div id="keyboard-help-modal" class="modal" style="display: flex;">
+            <div class="modal-content">
+                <h3>Raccourcis clavier</h3>
+                <table style="width: 100%;">
+                    <tr><td><kbd>Ctrl+K</kbd> ou <kbd>Ctrl+F</kbd></td><td>Rechercher</td></tr>
+                    <tr><td><kbd>Ctrl+N</kbd></td><td>Nouveau</td></tr>
+                    <tr><td><kbd>Escape</kbd></td><td>Fermer</td></tr>
+                    <tr><td><kbd>?</kbd></td><td>Afficher cette aide</td></tr>
+                </table>
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary" style="margin-top: 1rem;">Fermer</button>
+            </div>
+        </div>
+    `;
+
+    // Supprimer l'ancien modal s'il existe
+    const existing = document.getElementById('keyboard-help-modal');
+    if (existing) existing.remove();
+
+    document.body.insertAdjacentHTML('beforeend', helpHtml);
+}
 
 /**
  * Initialiser les gestionnaires de formulaires de recherche
