@@ -10,6 +10,7 @@
 
 <div class="form-container">
     <form method="post" class="user-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if action == 'create' %}
         <div class="form-section">
             <h3>Informations de compte</h3>
@@ -22,8 +23,13 @@
 
             <div class="form-group">
                 <label for="password">Mot de passe *</label>
-                <input type="password" id="password" name="password" required
-                       placeholder="Mot de passe initial">
+                <div class="password-input-group">
+                    <input type="password" id="password" name="password" required
+                           placeholder="Mot de passe initial" minlength="{{ password_requirements.min_length }}">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="generatePassword()">Generer</button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="togglePasswordVisibility('password')">Voir</button>
+                </div>
+                <small class="form-hint">Min. {{ password_requirements.min_length }} caracteres, avec majuscule, minuscule, chiffre ou special</small>
             </div>
 
             {% if ous %}
@@ -132,6 +138,7 @@
             <div class="add-to-group-form">
                 <p><strong>Ajouter a un groupe:</strong></p>
                 <form method="post" action="{{ url_for('add_user_to_group', dn=user.dn) }}" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="form-group">
                         <input type="text" name="group_dn" id="group_search"
                                placeholder="Rechercher un groupe ou entrer le DN..."
@@ -149,6 +156,7 @@
                 <li class="group-item">
                     <span class="group-name">{{ group }}</span>
                     <form method="post" action="{{ url_for('remove_user_from_group', dn=user.dn) }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="group_dn" value="{{ group }}">
                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Retirer de ce groupe ?');">Retirer</button>
                     </form>
@@ -222,11 +230,66 @@
     color: #666;
     font-style: italic;
 }
+.password-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.password-input-group input {
+    flex: 1;
+}
+.form-hint {
+    color: #666;
+    font-size: 0.85em;
+    display: block;
+    margin-top: 0.25rem;
+}
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Generateur de mot de passe
+function generatePassword(length = 12) {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+    // S'assurer d'avoir au moins un de chaque type
+    let password = '';
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += digits[Math.floor(Math.random() * digits.length)];
+    password += special[Math.floor(Math.random() * special.length)];
+
+    // Completer le reste avec des caracteres aleatoires
+    const allChars = uppercase + lowercase + digits + special;
+    for (let i = password.length; i < length; i++) {
+        password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+
+    // Melanger le mot de passe
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+
+    // Mettre dans le champ
+    const pwdField = document.getElementById('password');
+    if (pwdField) {
+        pwdField.value = password;
+        pwdField.type = 'text'; // Montrer le mot de passe genere
+    }
+
+    return password;
+}
+
+// Afficher/masquer le mot de passe
+function togglePasswordVisibility(fieldId) {
+    const field = document.getElementById(fieldId);
+    if (field) {
+        field.type = field.type === 'password' ? 'text' : 'password';
+    }
+}
+
 // Recherche AJAX de groupes
 const groupSearch = document.getElementById('group_search');
 const suggestions = document.getElementById('group-suggestions');

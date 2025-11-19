@@ -19,6 +19,7 @@
 <div class="add-member-section">
     <h3>Ajouter un membre</h3>
     <form method="post" action="{{ url_for('add_group_member', dn=group.dn) }}" class="add-member-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <input type="text" name="member_dn" id="member_search"
                    placeholder="Rechercher un utilisateur ou entrer le DN..."
@@ -61,6 +62,7 @@
                     {% endif %}
                     <form method="post" action="{{ url_for('remove_group_member', dn=group.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Retirer ce membre du groupe ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="member_dn" value="{{ member.dn }}">
                         <button type="submit" class="btn btn-sm btn-danger">Retirer</button>
                     </form>

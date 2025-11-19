@@ -12,6 +12,7 @@
     <p class="info-text">Duplication de: <strong>{{ user.dn }}</strong></p>
 
     <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-section">
             <h3>Nouveau compte</h3>
             <div class="form-group">
