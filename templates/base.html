@@ -17,7 +17,10 @@
 <body class="{% if dark_mode %}dark-mode{% endif %}">
     <nav class="navbar">
         <div class="nav-brand">
-            <a href="{{ url_for('index') }}">AD Web Interface</a>
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+                <span class="nav-title">AD Web Interface</span>
+            </a>
         </div>
         <ul class="nav-links">
             {% if connected %}
@@ -26,11 +29,13 @@
             <li><a href="{{ url_for('users') }}">Utilisateurs</a></li>
             <li><a href="{{ url_for('groups') }}">Groupes</a></li>
             <li><a href="{{ url_for('computers') }}">Ordinateurs</a></li>
-            <li><a href="{{ url_for('ous') }}">Unites d'org.</a></li>
+            <li><a href="{{ url_for('ous') }}">Structure</a></li>
             <li class="nav-dropdown">
                 <a href="#">Plus &#9662;</a>
                 <ul class="dropdown-menu">
-                    <li><a href="{{ url_for('ad_tree') }}">Arborescence</a></li>
+                    <li><a href="{{ url_for('laps_passwords') }}">LAPS</a></li>
+                    <li><a href="{{ url_for('bitlocker_keys') }}">BitLocker</a></li>
+                    <li><a href="{{ url_for('recycle_bin') }}">Corbeille</a></li>
                     <li><a href="{{ url_for('user_templates_page') }}">Modeles</a></li>
                     <li><a href="{{ url_for('favorites_page') }}">Favoris</a></li>
                     <li><a href="{{ url_for('expiring_accounts') }}">Expirations</a></li>
