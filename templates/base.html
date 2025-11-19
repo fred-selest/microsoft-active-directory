@@ -27,6 +27,18 @@
         </ul>
     </nav>
 
+    {% if update_info and update_info.update_available %}
+    <div class="update-notification">
+        <span class="update-icon">&#x26A0;</span>
+        <span class="update-text">
+            Nouvelle version disponible: <strong>{{ update_info.latest_version }}</strong>
+            (actuelle: {{ update_info.current_version }})
+        </span>
+        <a href="{{ url_for('update_page') }}" class="btn btn-sm btn-update">Mettre a jour</a>
+        <button class="update-close" onclick="this.parentElement.style.display='none'">&times;</button>
+    </div>
+    {% endif %}
+
     <main class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
