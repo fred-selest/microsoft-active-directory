@@ -71,11 +71,22 @@
     </div>
 </div>
 
+<div class="charts-grid">
+    <div class="dashboard-section">
+        <h3>Repartition des utilisateurs</h3>
+        <canvas id="usersChart"></canvas>
+    </div>
+    <div class="dashboard-section">
+        <h3>Types de groupes</h3>
+        <canvas id="groupsChart"></canvas>
+    </div>
+</div>
+
 <div class="dashboard-section">
     <h3>Activite recente</h3>
     {% if logs %}
     <div class="table-container">
-        <table class="data-table">
+        <table class="data-table sortable">
             <thead>
                 <tr>
                     <th>Date/Heure</th>
@@ -184,6 +195,66 @@
     color: #666;
     font-style: italic;
 }
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.charts-grid canvas {
+    max-height: 300px;
+}
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Graphique des utilisateurs
+const usersCtx = document.getElementById('usersChart').getContext('2d');
+new Chart(usersCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Actifs', 'Desactives'],
+        datasets: [{
+            data: [{{ stats.active_users }}, {{ stats.disabled_users }}],
+            backgroundColor: ['#28a745', '#dc3545'],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Graphique des groupes
+const groupsCtx = document.getElementById('groupsChart').getContext('2d');
+new Chart(groupsCtx, {
+    type: 'pie',
+    data: {
+        labels: ['Avec membres', 'Vides'],
+        datasets: [{
+            data: [{{ stats.total_groups - stats.empty_groups }}, {{ stats.empty_groups }}],
+            backgroundColor: ['#0078d4', '#ffc107'],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
 {% endblock %}
 {% endblock %}

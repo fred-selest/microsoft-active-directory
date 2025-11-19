@@ -398,6 +398,20 @@ def users():
                 'disabled': is_disabled
             })
 
+        # Recuperer les OUs pour le deplacement
+        ou_list = []
+        conn.search(
+            search_base=base_dn,
+            search_filter='(objectClass=organizationalUnit)',
+            search_scope=SUBTREE,
+            attributes=['name', 'distinguishedName']
+        )
+        for entry in conn.entries:
+            ou_list.append({
+                'name': decode_ldap_value(entry.name),
+                'dn': decode_ldap_value(entry.distinguishedName)
+            })
+
         conn.unbind()
 
         # Pagination
@@ -413,12 +427,13 @@ def users():
                              page=page,
                              total_pages=total_pages,
                              total=total,
+                             ous=ou_list,
                              connected=is_connected())
 
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur de recherche: {str(e)}', 'error')
-        return render_template('users.html', users=[], search=search_query, page=1, total_pages=1, total=0, connected=is_connected())
+        return render_template('users.html', users=[], search=search_query, page=1, total_pages=1, total=0, ous=[], connected=is_connected())
 
 
 @app.route('/users/create', methods=['GET', 'POST'])
@@ -927,6 +942,91 @@ def edit_group(dn):
     return redirect(url_for('groups'))
 
 
+@app.route('/groups/<path:dn>/duplicate', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def duplicate_group(dn):
+    """Dupliquer un groupe existant."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('groups'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    # Recuperer le groupe source
+    try:
+        conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
+                   attributes=['cn', 'description', 'groupType', 'member'])
+
+        if not conn.entries:
+            flash('Groupe non trouve.', 'error')
+            conn.unbind()
+            return redirect(url_for('groups'))
+
+        source_group = conn.entries[0]
+        source_cn = decode_ldap_value(source_group.cn)
+        source_description = decode_ldap_value(source_group.description)
+        source_group_type = int(source_group.groupType.value) if source_group.groupType else -2147483646
+        source_members = source_group.member.values if hasattr(source_group.member, 'values') else []
+
+        if request.method == 'POST':
+            new_name = request.form.get('name')
+            new_description = request.form.get('description', source_description)
+            copy_members = request.form.get('copy_members') == 'on'
+            ou = request.form.get('ou', '')
+
+            if ou:
+                new_dn = f"CN={new_name},{ou}"
+            else:
+                new_dn = f"CN={new_name},CN=Users,{base_dn}"
+
+            group_attrs = {
+                'objectClass': ['top', 'group'],
+                'cn': new_name,
+                'sAMAccountName': new_name,
+                'groupType': source_group_type
+            }
+            if new_description:
+                group_attrs['description'] = new_description
+
+            try:
+                conn.add(new_dn, attributes=group_attrs)
+                if conn.result['result'] == 0:
+                    # Copier les membres si demande
+                    if copy_members and source_members:
+                        for member_dn in source_members:
+                            conn.modify(new_dn, {'member': [(MODIFY_ADD, [member_dn])]})
+
+                    log_action('duplicate_group', session.get('ad_username'),
+                              {'source': dn, 'new_name': new_name, 'copy_members': copy_members},
+                              True, request.remote_addr)
+                    flash(f'Groupe {new_name} cree avec succes!', 'success')
+                    conn.unbind()
+                    return redirect(url_for('groups'))
+                else:
+                    flash(f'Erreur: {conn.result["description"]}', 'error')
+            except LDAPException as e:
+                flash(f'Erreur LDAP: {str(e)}', 'error')
+
+        # Recuperer les OUs pour le formulaire
+        conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
+                   attributes=['name', 'distinguishedName'])
+        ous = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)} for e in conn.entries]
+
+        conn.unbind()
+        return render_template('group_form.html',
+                             group={'cn': source_cn + '_copie', 'description': source_description},
+                             ous=ous,
+                             duplicate=True,
+                             source_members_count=len(source_members),
+                             connected=is_connected())
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return redirect(url_for('groups'))
+
+
 @app.route('/groups/<path:dn>/delete', methods=['POST'])
 @require_connection
 def delete_group(dn):
@@ -1031,6 +1131,110 @@ def export_users():
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
         return redirect(url_for('users'))
+
+
+@app.route('/users/export/excel')
+@require_connection
+def export_users_excel():
+    """Exporter les utilisateurs en Excel (.xlsx)."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill
+    except ImportError:
+        flash('Module openpyxl non installe. Executez: pip install openpyxl', 'error')
+        return redirect(url_for('users'))
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    base_dn = session.get('ad_base_dn', '')
+    try:
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['sAMAccountName', 'givenName', 'sn', 'displayName', 'mail', 'department', 'title', 'telephoneNumber'])
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Utilisateurs"
+
+        # En-tetes avec style
+        headers = ['Identifiant', 'Prenom', 'Nom', 'Nom affiche', 'Email', 'Service', 'Fonction', 'Telephone']
+        header_font = Font(bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='0078D4', end_color='0078D4', fill_type='solid')
+
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+
+        # Donnees
+        for row, entry in enumerate(conn.entries, 2):
+            ws.cell(row=row, column=1, value=decode_ldap_value(entry.sAMAccountName))
+            ws.cell(row=row, column=2, value=decode_ldap_value(entry.givenName))
+            ws.cell(row=row, column=3, value=decode_ldap_value(entry.sn))
+            ws.cell(row=row, column=4, value=decode_ldap_value(entry.displayName))
+            ws.cell(row=row, column=5, value=decode_ldap_value(entry.mail))
+            ws.cell(row=row, column=6, value=decode_ldap_value(entry.department))
+            ws.cell(row=row, column=7, value=decode_ldap_value(entry.title))
+            ws.cell(row=row, column=8, value=decode_ldap_value(entry.telephoneNumber))
+
+        # Ajuster largeur colonnes
+        for col in ws.columns:
+            max_length = max(len(str(cell.value or '')) for cell in col)
+            ws.column_dimensions[col[0].column_letter].width = min(max_length + 2, 50)
+
+        conn.unbind()
+
+        # Sauvegarder en memoire
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        return Response(output.getvalue(),
+                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                       headers={'Content-Disposition': 'attachment; filename=utilisateurs.xlsx'})
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return redirect(url_for('users'))
+
+
+@app.route('/users/<path:dn>/move', methods=['POST'])
+@require_connection
+@require_permission('write')
+def move_user(dn):
+    """Deplacer un utilisateur vers une autre OU."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('users'))
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    new_ou = request.form.get('new_ou')
+    if not new_ou:
+        flash('Aucune OU de destination selectionnee.', 'error')
+        return redirect(url_for('users'))
+
+    # Extraire le CN de l'utilisateur
+    cn = dn.split(',')[0]
+
+    try:
+        conn.modify_dn(dn, cn, new_superior=new_ou)
+        if conn.result['result'] == 0:
+            log_action('move_user', session.get('ad_username'),
+                      {'dn': dn, 'new_ou': new_ou}, True, request.remote_addr)
+            flash('Utilisateur deplace avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    conn.unbind()
+    return redirect(url_for('users'))
 
 
 @app.route('/users/import', methods=['GET', 'POST'])

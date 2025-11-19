@@ -34,14 +34,14 @@
 </div>
 
 <div class="table-container">
-    <table class="data-table">
+    <table class="data-table sortable">
         <thead>
             <tr>
                 <th>Nom du groupe</th>
                 <th>Type</th>
                 <th>Description</th>
                 <th>Membres</th>
-                <th>Actions</th>
+                <th data-no-sort>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -66,6 +66,7 @@
                 <td class="actions">
                     <a href="{{ url_for('group_details', dn=group.dn) }}" class="btn btn-sm btn-secondary">Membres</a>
                     <a href="{{ url_for('edit_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    <a href="{{ url_for('duplicate_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Dupliquer</a>
                     <form method="post" action="{{ url_for('delete_group', dn=group.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer ce groupe ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
