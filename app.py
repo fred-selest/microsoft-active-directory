@@ -26,6 +26,28 @@ from user_templates import get_all_templates, get_template, create_template, upd
 from alerts import add_alert, get_alerts, acknowledge_alert, delete_alert as delete_alert_func, get_alert_counts, check_expiring_accounts, check_inactive_accounts
 from favorites import get_user_favorites, add_favorite, remove_favorite, is_favorite, get_favorites_count
 
+
+def decode_ldap_value(value):
+    """Decoder correctement une valeur LDAP en UTF-8."""
+    if value is None:
+        return ''
+    if hasattr(value, 'value'):
+        val = value.value
+    else:
+        val = value
+
+    if val is None:
+        return ''
+    if isinstance(val, bytes):
+        try:
+            return val.decode('utf-8')
+        except:
+            return val.decode('latin-1')
+    if isinstance(val, list):
+        return [decode_ldap_value(v) for v in val]
+    return str(val)
+
+
 app = Flask(__name__)
 config = get_config()
 
@@ -364,15 +386,15 @@ def users():
             is_disabled = bool(int(uac) & 2) if uac else False
 
             user_list.append({
-                'cn': str(entry.cn) if entry.cn else '',
-                'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
-                'mail': str(entry.mail) if entry.mail else '',
-                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
-                'givenName': str(entry.givenName) if entry.givenName else '',
-                'sn': str(entry.sn) if entry.sn else '',
-                'displayName': str(entry.displayName) if entry.displayName else '',
-                'department': str(entry.department) if entry.department else '',
-                'title': str(entry.title) if entry.title else '',
+                'cn': decode_ldap_value(entry.cn),
+                'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                'mail': decode_ldap_value(entry.mail),
+                'dn': decode_ldap_value(entry.distinguishedName),
+                'givenName': decode_ldap_value(entry.givenName),
+                'sn': decode_ldap_value(entry.sn),
+                'displayName': decode_ldap_value(entry.displayName),
+                'department': decode_ldap_value(entry.department),
+                'title': decode_ldap_value(entry.title),
                 'disabled': is_disabled
             })
 
@@ -596,16 +618,16 @@ def edit_user(dn):
 
             user = {
                 'dn': dn,
-                'cn': str(entry.cn) if entry.cn else '',
-                'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
-                'mail': str(entry.mail) if entry.mail else '',
-                'givenName': str(entry.givenName) if entry.givenName else '',
-                'sn': str(entry.sn) if entry.sn else '',
-                'displayName': str(entry.displayName) if entry.displayName else '',
-                'department': str(entry.department) if entry.department else '',
-                'title': str(entry.title) if entry.title else '',
-                'telephoneNumber': str(entry.telephoneNumber) if entry.telephoneNumber else '',
-                'description': str(entry.description) if entry.description else '',
+                'cn': decode_ldap_value(entry.cn),
+                'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                'mail': decode_ldap_value(entry.mail),
+                'givenName': decode_ldap_value(entry.givenName),
+                'sn': decode_ldap_value(entry.sn),
+                'displayName': decode_ldap_value(entry.displayName),
+                'department': decode_ldap_value(entry.department),
+                'title': decode_ldap_value(entry.title),
+                'telephoneNumber': decode_ldap_value(entry.telephoneNumber),
+                'description': decode_ldap_value(entry.description),
                 'disabled': is_disabled,
                 'memberOf': list(entry.memberOf) if entry.memberOf else []
             }
@@ -684,9 +706,9 @@ def groups():
             members = list(entry.member) if entry.member else []
 
             group_list.append({
-                'cn': str(entry.cn) if entry.cn else '',
-                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
-                'description': str(entry.description) if entry.description else '',
+                'cn': decode_ldap_value(entry.cn),
+                'dn': decode_ldap_value(entry.distinguishedName),
+                'description': decode_ldap_value(entry.description),
                 'member_count': len(members),
                 'groupType': str(entry.groupType) if entry.groupType else ''
             })
@@ -1403,12 +1425,12 @@ def computers():
             is_disabled = bool(int(uac) & 2) if uac else False
 
             computer_list.append({
-                'cn': str(entry.cn) if entry.cn else '',
-                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
-                'os': str(entry.operatingSystem) if entry.operatingSystem else '',
-                'os_version': str(entry.operatingSystemVersion) if entry.operatingSystemVersion else '',
-                'dns_name': str(entry.dNSHostName) if entry.dNSHostName else '',
-                'description': str(entry.description) if entry.description else '',
+                'cn': decode_ldap_value(entry.cn),
+                'dn': decode_ldap_value(entry.distinguishedName),
+                'os': decode_ldap_value(entry.operatingSystem),
+                'os_version': decode_ldap_value(entry.operatingSystemVersion),
+                'dns_name': decode_ldap_value(entry.dNSHostName),
+                'description': decode_ldap_value(entry.description),
                 'disabled': is_disabled
             })
 
@@ -1416,7 +1438,7 @@ def computers():
         ous = []
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['distinguishedName', 'name'])
         for entry in conn.entries:
-            ous.append({'dn': str(entry.distinguishedName), 'name': str(entry.name)})
+            ous.append({'dn': decode_ldap_value(entry.distinguishedName), 'name': decode_ldap_value(entry.name)})
 
         conn.unbind()
         return render_template('computers.html', computers=computer_list, ous=ous, search=search_query, connected=is_connected())
@@ -2026,26 +2048,26 @@ def global_search():
             if 'users' in types:
                 conn.search(base_dn, f'(&(objectClass=user)(objectCategory=person)(|(cn=*{safe_query}*)(sAMAccountName=*{safe_query}*)))',
                            SUBTREE, attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName'])
-                results['users'] = [{'cn': str(e.cn), 'sAMAccountName': str(e.sAMAccountName),
-                                    'mail': str(e.mail) if e.mail else '', 'dn': str(e.distinguishedName)} for e in conn.entries]
+                results['users'] = [{'cn': decode_ldap_value(e.cn), 'sAMAccountName': decode_ldap_value(e.sAMAccountName),
+                                    'mail': decode_ldap_value(e.mail), 'dn': decode_ldap_value(e.distinguishedName)} for e in conn.entries]
 
             if 'groups' in types:
                 conn.search(base_dn, f'(&(objectClass=group)(cn=*{safe_query}*))',
                            SUBTREE, attributes=['cn', 'description', 'distinguishedName'])
-                results['groups'] = [{'cn': str(e.cn), 'description': str(e.description) if e.description else '',
-                                     'dn': str(e.distinguishedName)} for e in conn.entries]
+                results['groups'] = [{'cn': decode_ldap_value(e.cn), 'description': decode_ldap_value(e.description),
+                                     'dn': decode_ldap_value(e.distinguishedName)} for e in conn.entries]
 
             if 'computers' in types:
                 conn.search(base_dn, f'(&(objectClass=computer)(cn=*{safe_query}*))',
                            SUBTREE, attributes=['cn', 'operatingSystem', 'distinguishedName'])
-                results['computers'] = [{'cn': str(e.cn), 'os': str(e.operatingSystem) if e.operatingSystem else '',
-                                        'dn': str(e.distinguishedName)} for e in conn.entries]
+                results['computers'] = [{'cn': decode_ldap_value(e.cn), 'os': decode_ldap_value(e.operatingSystem),
+                                        'dn': decode_ldap_value(e.distinguishedName)} for e in conn.entries]
 
             if 'ous' in types:
                 conn.search(base_dn, f'(&(objectClass=organizationalUnit)(name=*{safe_query}*))',
                            SUBTREE, attributes=['name', 'description', 'distinguishedName'])
-                results['ous'] = [{'name': str(e.name), 'description': str(e.description) if e.description else '',
-                                  'dn': str(e.distinguishedName)} for e in conn.entries]
+                results['ous'] = [{'name': decode_ldap_value(e.name), 'description': decode_ldap_value(e.description),
+                                  'dn': decode_ldap_value(e.distinguishedName)} for e in conn.entries]
 
             conn.unbind()
             total = sum(len(v) for v in results.values())
