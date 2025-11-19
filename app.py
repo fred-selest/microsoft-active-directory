@@ -5,7 +5,9 @@ Fonctionne sur les systèmes Windows et Linux.
 
 import os
 import platform
-from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, session
+import csv
+import io
+from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, session, Response
 from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
 from ldap3.core.exceptions import LDAPException
 from config import get_config, CURRENT_OS, IS_WINDOWS
@@ -555,6 +557,602 @@ def group_details(dn):
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
         return redirect(url_for('groups'))
+
+
+@app.route('/groups/create', methods=['GET', 'POST'])
+@require_connection
+def create_group():
+    """Creer un nouveau groupe."""
+    if request.method == 'POST':
+        conn, error = get_ad_connection()
+        if not conn:
+            flash(f'Erreur de connexion: {error}', 'error')
+            return redirect(url_for('connect'))
+
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        group_scope = request.form.get('group_scope', 'global')
+        group_type = request.form.get('group_type', 'security')
+        ou = request.form.get('ou', '')
+
+        base_dn = session.get('ad_base_dn', '')
+        if ou:
+            group_dn = f"CN={name},{ou}"
+        else:
+            group_dn = f"CN={name},CN=Users,{base_dn}"
+
+        # Calculer groupType
+        # Security: -2147483646 (global), -2147483644 (domain local), -2147483640 (universal)
+        # Distribution: 2 (global), 4 (domain local), 8 (universal)
+        scope_values = {'global': 2, 'domain_local': 4, 'universal': 8}
+        scope_val = scope_values.get(group_scope, 2)
+        if group_type == 'security':
+            group_type_val = -2147483648 + scope_val
+        else:
+            group_type_val = scope_val
+
+        group_attrs = {
+            'objectClass': ['top', 'group'],
+            'cn': name,
+            'sAMAccountName': name,
+            'groupType': group_type_val
+        }
+        if description:
+            group_attrs['description'] = description
+
+        try:
+            conn.add(group_dn, attributes=group_attrs)
+            if conn.result['result'] == 0:
+                flash(f'Groupe {name} cree avec succes!', 'success')
+                conn.unbind()
+                return redirect(url_for('groups'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except LDAPException as e:
+            flash(f'Erreur LDAP: {str(e)}', 'error')
+        conn.unbind()
+
+    # GET: Recuperer les OUs
+    conn, error = get_ad_connection()
+    ous = []
+    if conn:
+        try:
+            base_dn = session.get('ad_base_dn', '')
+            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['distinguishedName', 'name'])
+            for entry in conn.entries:
+                ous.append({'dn': str(entry.distinguishedName), 'name': str(entry.name)})
+            conn.unbind()
+        except:
+            pass
+    return render_template('group_form.html', group=None, ous=ous, action='create', connected=is_connected())
+
+
+@app.route('/groups/<path:dn>/edit', methods=['GET', 'POST'])
+@require_connection
+def edit_group(dn):
+    """Modifier un groupe existant."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    if request.method == 'POST':
+        description = request.form.get('description', '')
+        try:
+            if description:
+                conn.modify(dn, {'description': [(MODIFY_REPLACE, [description])]})
+            else:
+                conn.modify(dn, {'description': [(MODIFY_DELETE, [])]})
+            if conn.result['result'] == 0:
+                flash('Groupe modifie avec succes!', 'success')
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except LDAPException as e:
+            flash(f'Erreur LDAP: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('groups'))
+
+    # GET
+    try:
+        conn.search(dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'description', 'groupType'])
+        if conn.entries:
+            entry = conn.entries[0]
+            group = {
+                'dn': dn,
+                'cn': str(entry.cn) if entry.cn else '',
+                'description': str(entry.description) if entry.description else ''
+            }
+            conn.unbind()
+            return render_template('group_form.html', group=group, action='edit', connected=is_connected())
+        conn.unbind()
+        flash('Groupe non trouve.', 'error')
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+    return redirect(url_for('groups'))
+
+
+@app.route('/groups/<path:dn>/delete', methods=['POST'])
+@require_connection
+def delete_group(dn):
+    """Supprimer un groupe."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('groups'))
+    try:
+        conn.delete(dn)
+        if conn.result['result'] == 0:
+            flash('Groupe supprime avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+    conn.unbind()
+    return redirect(url_for('groups'))
+
+
+@app.route('/groups/<path:dn>/add-member', methods=['POST'])
+@require_connection
+def add_group_member(dn):
+    """Ajouter un membre au groupe."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('group_details', dn=dn))
+
+    member_dn = request.form.get('member_dn')
+    try:
+        conn.modify(dn, {'member': [(MODIFY_ADD, [member_dn])]})
+        if conn.result['result'] == 0:
+            flash('Membre ajoute avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+    conn.unbind()
+    return redirect(url_for('group_details', dn=dn))
+
+
+@app.route('/groups/<path:dn>/remove-member', methods=['POST'])
+@require_connection
+def remove_group_member(dn):
+    """Retirer un membre du groupe."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('group_details', dn=dn))
+
+    member_dn = request.form.get('member_dn')
+    try:
+        conn.modify(dn, {'member': [(MODIFY_DELETE, [member_dn])]})
+        if conn.result['result'] == 0:
+            flash('Membre retire avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+    conn.unbind()
+    return redirect(url_for('group_details', dn=dn))
+
+
+# === OPERATIONS EN MASSE ===
+
+@app.route('/users/export')
+@require_connection
+def export_users():
+    """Exporter les utilisateurs en CSV."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    base_dn = session.get('ad_base_dn', '')
+    try:
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['sAMAccountName', 'givenName', 'sn', 'displayName', 'mail', 'department', 'title', 'telephoneNumber'])
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['sAMAccountName', 'givenName', 'sn', 'displayName', 'mail', 'department', 'title', 'telephoneNumber'])
+
+        for entry in conn.entries:
+            writer.writerow([
+                str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                str(entry.givenName) if entry.givenName else '',
+                str(entry.sn) if entry.sn else '',
+                str(entry.displayName) if entry.displayName else '',
+                str(entry.mail) if entry.mail else '',
+                str(entry.department) if entry.department else '',
+                str(entry.title) if entry.title else '',
+                str(entry.telephoneNumber) if entry.telephoneNumber else ''
+            ])
+
+        conn.unbind()
+        output.seek(0)
+        return Response(output.getvalue(), mimetype='text/csv',
+                       headers={'Content-Disposition': 'attachment; filename=utilisateurs.csv'})
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return redirect(url_for('users'))
+
+
+@app.route('/users/import', methods=['GET', 'POST'])
+@require_connection
+def import_users():
+    """Importer des utilisateurs depuis un CSV."""
+    if request.method == 'POST':
+        conn, error = get_ad_connection()
+        if not conn:
+            flash(f'Erreur de connexion: {error}', 'error')
+            return redirect(url_for('connect'))
+
+        file = request.files.get('csv_file')
+        if not file:
+            flash('Aucun fichier selectionne.', 'error')
+            return redirect(url_for('import_users'))
+
+        default_password = request.form.get('default_password', 'P@ssw0rd123!')
+        ou = request.form.get('ou', '')
+        base_dn = session.get('ad_base_dn', '')
+
+        try:
+            content = file.read().decode('utf-8')
+            reader = csv.DictReader(io.StringIO(content))
+
+            created = 0
+            errors = []
+
+            for row in reader:
+                username = row.get('sAMAccountName', '').strip()
+                if not username:
+                    continue
+
+                first_name = row.get('givenName', '').strip()
+                last_name = row.get('sn', '').strip()
+                display_name = row.get('displayName', '').strip() or f"{first_name} {last_name}"
+
+                if ou:
+                    user_dn = f"CN={display_name},{ou}"
+                else:
+                    user_dn = f"CN={display_name},CN=Users,{base_dn}"
+
+                user_attrs = {
+                    'objectClass': ['top', 'person', 'organizationalPerson', 'user'],
+                    'cn': display_name,
+                    'sAMAccountName': username,
+                    'userPrincipalName': f"{username}@{session.get('ad_server', '')}",
+                    'givenName': first_name,
+                    'sn': last_name,
+                    'displayName': display_name
+                }
+
+                for field in ['mail', 'department', 'title', 'telephoneNumber']:
+                    if row.get(field):
+                        user_attrs[field] = row[field].strip()
+
+                try:
+                    conn.add(user_dn, attributes=user_attrs)
+                    if conn.result['result'] == 0:
+                        # Definir mot de passe et activer
+                        unicode_pwd = f'"{default_password}"'.encode('utf-16-le')
+                        conn.modify(user_dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+                        conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
+                        created += 1
+                    else:
+                        errors.append(f"{username}: {conn.result['description']}")
+                except Exception as e:
+                    errors.append(f"{username}: {str(e)}")
+
+            conn.unbind()
+            flash(f'{created} utilisateur(s) cree(s) avec succes!', 'success')
+            if errors:
+                flash(f'Erreurs: {"; ".join(errors[:5])}', 'error')
+            return redirect(url_for('users'))
+
+        except Exception as e:
+            conn.unbind()
+            flash(f'Erreur: {str(e)}', 'error')
+            return redirect(url_for('import_users'))
+
+    # GET: Recuperer les OUs
+    conn, error = get_ad_connection()
+    ous = []
+    if conn:
+        try:
+            base_dn = session.get('ad_base_dn', '')
+            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['distinguishedName', 'name'])
+            for entry in conn.entries:
+                ous.append({'dn': str(entry.distinguishedName), 'name': str(entry.name)})
+            conn.unbind()
+        except:
+            pass
+    return render_template('import_users.html', ous=ous, connected=is_connected())
+
+
+@app.route('/users/bulk', methods=['GET', 'POST'])
+@require_connection
+def bulk_operations():
+    """Operations en masse sur les utilisateurs."""
+    if request.method == 'POST':
+        conn, error = get_ad_connection()
+        if not conn:
+            flash(f'Erreur de connexion: {error}', 'error')
+            return redirect(url_for('connect'))
+
+        action = request.form.get('action')
+        user_dns = request.form.getlist('user_dns')
+        new_password = request.form.get('new_password', '')
+
+        if not user_dns:
+            flash('Aucun utilisateur selectionne.', 'error')
+            return redirect(url_for('bulk_operations'))
+
+        success = 0
+        for user_dn in user_dns:
+            try:
+                if action == 'enable':
+                    conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
+                elif action == 'disable':
+                    conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [514])]})
+                elif action == 'reset_password' and new_password:
+                    unicode_pwd = f'"{new_password}"'.encode('utf-16-le')
+                    conn.modify(user_dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+                elif action == 'delete':
+                    conn.delete(user_dn)
+
+                if conn.result['result'] == 0:
+                    success += 1
+            except:
+                pass
+
+        conn.unbind()
+        flash(f'Operation effectuee sur {success}/{len(user_dns)} utilisateur(s).', 'success')
+        return redirect(url_for('users'))
+
+    # GET: Liste des utilisateurs
+    conn, error = get_ad_connection()
+    users = []
+    if conn:
+        try:
+            base_dn = session.get('ad_base_dn', '')
+            conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                       attributes=['cn', 'sAMAccountName', 'distinguishedName', 'userAccountControl'])
+            for entry in conn.entries:
+                uac = entry.userAccountControl.value if entry.userAccountControl else 512
+                users.append({
+                    'cn': str(entry.cn) if entry.cn else '',
+                    'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                    'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                    'disabled': bool(int(uac) & 2) if uac else False
+                })
+            conn.unbind()
+        except:
+            pass
+    return render_template('bulk_operations.html', users=users, connected=is_connected())
+
+
+# === GESTION DES OUs ===
+
+@app.route('/ous')
+@require_connection
+def ous():
+    """Liste des unites organisationnelles."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    try:
+        conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
+                   attributes=['name', 'distinguishedName', 'description', 'whenCreated'])
+
+        ou_list = []
+        for entry in conn.entries:
+            ou_list.append({
+                'name': str(entry.name) if entry.name else '',
+                'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                'description': str(entry.description) if entry.description else ''
+            })
+
+        conn.unbind()
+        return render_template('ous.html', ous=ou_list, connected=is_connected())
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+        return render_template('ous.html', ous=[], connected=is_connected())
+
+
+@app.route('/ous/create', methods=['GET', 'POST'])
+@require_connection
+def create_ou():
+    """Creer une nouvelle OU."""
+    if request.method == 'POST':
+        conn, error = get_ad_connection()
+        if not conn:
+            flash(f'Erreur de connexion: {error}', 'error')
+            return redirect(url_for('connect'))
+
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        parent_ou = request.form.get('parent_ou', '')
+        base_dn = session.get('ad_base_dn', '')
+
+        if parent_ou:
+            ou_dn = f"OU={name},{parent_ou}"
+        else:
+            ou_dn = f"OU={name},{base_dn}"
+
+        ou_attrs = {
+            'objectClass': ['top', 'organizationalUnit'],
+            'ou': name
+        }
+        if description:
+            ou_attrs['description'] = description
+
+        try:
+            conn.add(ou_dn, attributes=ou_attrs)
+            if conn.result['result'] == 0:
+                flash(f'OU {name} creee avec succes!', 'success')
+                conn.unbind()
+                return redirect(url_for('ous'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except LDAPException as e:
+            flash(f'Erreur LDAP: {str(e)}', 'error')
+        conn.unbind()
+
+    # GET
+    conn, error = get_ad_connection()
+    parent_ous = []
+    if conn:
+        try:
+            base_dn = session.get('ad_base_dn', '')
+            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['distinguishedName', 'name'])
+            for entry in conn.entries:
+                parent_ous.append({'dn': str(entry.distinguishedName), 'name': str(entry.name)})
+            conn.unbind()
+        except:
+            pass
+    return render_template('ou_form.html', ou=None, parent_ous=parent_ous, action='create', connected=is_connected())
+
+
+@app.route('/ous/<path:dn>/edit', methods=['GET', 'POST'])
+@require_connection
+def edit_ou(dn):
+    """Modifier une OU."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    if request.method == 'POST':
+        description = request.form.get('description', '')
+        try:
+            if description:
+                conn.modify(dn, {'description': [(MODIFY_REPLACE, [description])]})
+            else:
+                conn.modify(dn, {'description': [(MODIFY_DELETE, [])]})
+            if conn.result['result'] == 0:
+                flash('OU modifiee avec succes!', 'success')
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except LDAPException as e:
+            flash(f'Erreur LDAP: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('ous'))
+
+    # GET
+    try:
+        conn.search(dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['name', 'description'])
+        if conn.entries:
+            entry = conn.entries[0]
+            ou = {
+                'dn': dn,
+                'name': str(entry.name) if entry.name else '',
+                'description': str(entry.description) if entry.description else ''
+            }
+            conn.unbind()
+            return render_template('ou_form.html', ou=ou, action='edit', connected=is_connected())
+        conn.unbind()
+        flash('OU non trouvee.', 'error')
+    except LDAPException as e:
+        conn.unbind()
+        flash(f'Erreur: {str(e)}', 'error')
+    return redirect(url_for('ous'))
+
+
+@app.route('/ous/<path:dn>/delete', methods=['POST'])
+@require_connection
+def delete_ou(dn):
+    """Supprimer une OU."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('ous'))
+    try:
+        conn.delete(dn)
+        if conn.result['result'] == 0:
+            flash('OU supprimee avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+    conn.unbind()
+    return redirect(url_for('ous'))
+
+
+@app.route('/users/<path:dn>/move', methods=['POST'])
+@require_connection
+def move_user(dn):
+    """Deplacer un utilisateur vers une autre OU."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('users'))
+
+    new_ou = request.form.get('new_ou')
+    if not new_ou:
+        flash('Aucune OU de destination selectionnee.', 'error')
+        return redirect(url_for('users'))
+
+    # Extraire le CN de l'utilisateur
+    cn = dn.split(',')[0]
+
+    try:
+        conn.modify_dn(dn, cn, new_superior=new_ou)
+        if conn.result['result'] == 0:
+            flash('Utilisateur deplace avec succes!', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except LDAPException as e:
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+    conn.unbind()
+    return redirect(url_for('users'))
+
+
+@app.route('/tree')
+@require_connection
+def ad_tree():
+    """Afficher l'arborescence Active Directory."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur de connexion: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    def build_tree(base, conn):
+        tree = {'name': base.split(',')[0], 'dn': base, 'children': [], 'type': 'container'}
+
+        # Chercher les OUs
+        try:
+            conn.search(base, '(objectClass=organizationalUnit)', SUBTREE,
+                       attributes=['distinguishedName', 'name'])
+            for entry in conn.entries:
+                entry_dn = str(entry.distinguishedName)
+                if entry_dn != base:
+                    # Verifier si c'est un enfant direct
+                    parent = ','.join(entry_dn.split(',')[1:])
+                    if parent == base:
+                        child = {
+                            'name': str(entry.name),
+                            'dn': entry_dn,
+                            'type': 'ou',
+                            'children': []
+                        }
+                        tree['children'].append(child)
+        except:
+            pass
+
+        return tree
+
+    tree = build_tree(base_dn, conn)
+    conn.unbind()
+
+    return render_template('tree.html', tree=tree, connected=is_connected())
 
 
 @app.route('/api/search', methods=['POST'])

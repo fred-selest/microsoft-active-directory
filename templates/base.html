@@ -17,7 +17,8 @@
             {% if connected %}
             <li><a href="{{ url_for('users') }}">Utilisateurs</a></li>
             <li><a href="{{ url_for('groups') }}">Groupes</a></li>
-            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('ous') }}">OUs</a></li>
+            <li><a href="{{ url_for('ad_tree') }}">Arborescence</a></li>
             <li><a href="{{ url_for('disconnect') }}" class="nav-disconnect">Deconnexion</a></li>
             {% else %}
             <li><a href="{{ url_for('connect') }}">Connexion AD</a></li>
