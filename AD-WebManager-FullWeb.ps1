@@ -51,6 +51,28 @@ function New-SessionToken {
     return [System.Guid]::NewGuid().ToString()
 }
 
+# Fonction pour échapper les caractères spéciaux LDAP (protection contre injection)
+function Escape-LDAPFilter {
+    param(
+        [string]$Input
+    )
+
+    if ([string]::IsNullOrEmpty($Input)) {
+        return ""
+    }
+
+    # Échapper les caractères dangereux pour LDAP
+    # ( ) \ * / NUL
+    $escaped = $Input -replace '\\', '\5c'  # Backslash doit être échappé en premier
+    $escaped = $escaped -replace '\*', '\2a'
+    $escaped = $escaped -replace '\(', '\28'
+    $escaped = $escaped -replace '\)', '\29'
+    $escaped = $escaped -replace '/', '\2f'
+    $escaped = $escaped -replace "`0", '\00'
+
+    return $escaped
+}
+
 # Fonction pour envoyer une réponse HTML avec UTF-8
 function Send-HtmlResponse {
     param(
@@ -1582,7 +1604,9 @@ try {
                 $result.message = "Session invalide"
             } else {
                 try {
-                    $searchTerm = "*$($json.query)*"
+                    # Échapper les caractères spéciaux pour éviter l'injection LDAP
+                    $escapedQuery = Escape-LDAPFilter -Input $json.query
+                    $searchTerm = "*$escapedQuery*"
                     $users = Get-ADUser -Filter "SamAccountName -like '$searchTerm' -or Name -like '$searchTerm'" -Properties EmailAddress, Enabled, Department -Server $script:adDomain -Credential $script:adCredential
                     
                     $result.success = $true
@@ -1746,7 +1770,9 @@ try {
                 $result.message = "Session invalide"
             } else {
                 try {
-                    $searchTerm = "*$($json.query)*"
+                    # Échapper les caractères spéciaux pour éviter l'injection LDAP
+                    $escapedQuery = Escape-LDAPFilter -Input $json.query
+                    $searchTerm = "*$escapedQuery*"
                     $groups = Get-ADGroup -Filter "Name -like '$searchTerm'" -Server $script:adDomain -Credential $script:adCredential | Select-Object -ExpandProperty Name | Sort-Object
                     
                     $result.success = $true
