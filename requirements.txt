@@ -1,8 +1,30 @@
-flask>=2.3.0
-ldap3>=2.9.1
-python-dotenv>=1.0.0
-gunicorn>=21.0.0
-waitress>=2.1.2
-reportlab>=4.0.0
-openpyxl>=3.1.0
-requests>=2.31.0
+# ============================================================================
+# DÉPENDANCES PYTHON - AD WEB INTERFACE
+# ============================================================================
+# Versions fixées pour la sécurité et la stabilité
+# Mise à jour: 2025-11-20
+# ============================================================================
+
+# Framework Web
+flask==3.0.0
+Werkzeug==3.0.1
+
+# LDAP pour Active Directory
+ldap3==2.9.1
+
+# Configuration
+python-dotenv==1.0.0
+
+# Serveurs WSGI (production)
+gunicorn==21.2.0
+waitress==2.1.2
+
+# Génération de documents
+reportlab==4.0.7
+openpyxl==3.1.2
+
+# Requêtes HTTP
+requests==2.31.0
+
+# Cryptographie pour le chiffrement des sessions
+cryptography==41.0.7

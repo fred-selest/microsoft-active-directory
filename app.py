@@ -25,6 +25,7 @@ from api import generate_api_key, revoke_api_key, load_api_keys, get_api_documen
 from user_templates import get_all_templates, get_template, create_template, update_template, delete_template, apply_template, init_default_templates
 from alerts import add_alert, get_alerts, acknowledge_alert, delete_alert as delete_alert_func, get_alert_counts, check_expiring_accounts, check_inactive_accounts
 from favorites import get_user_favorites, add_favorite, remove_favorite, is_favorite, get_favorites_count
+from session_crypto import init_crypto, encrypt_password, decrypt_password
 
 
 def decode_ldap_value(value):
@@ -64,6 +65,9 @@ app.config['SESSION_COOKIE_NAME'] = secure_session['SESSION_COOKIE_NAME']
 
 # Initialiser les répertoires
 config.init_directories()
+
+# Initialiser le chiffrement pour les données sensibles en session
+init_crypto(config.SECRET_KEY)
 
 # Configuration RBAC
 ROLE_PERMISSIONS = {
@@ -156,7 +160,14 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if username is None:
         username = session.get('ad_username')
     if password is None:
-        password = session.get('ad_password')
+        encrypted_password = session.get('ad_password')
+        # Déchiffrer le mot de passe s'il vient de la session
+        if encrypted_password:
+            try:
+                password = decrypt_password(encrypted_password)
+            except ValueError:
+                # Si le déchiffrement échoue, la session est invalide
+                return None, "Session invalide - veuillez vous reconnecter"
     if use_ssl is False:
         use_ssl = session.get('ad_use_ssl', False)
     if port is None:
@@ -257,7 +268,8 @@ def connect():
             # Stocker les informations de connexion en session
             session['ad_server'] = server
             session['ad_username'] = username
-            session['ad_password'] = password
+            # Chiffrer le mot de passe avant de le stocker en session
+            session['ad_password'] = encrypt_password(password)
             session['ad_use_ssl'] = use_ssl
             session['ad_port'] = port
             session['ad_base_dn'] = base_dn
