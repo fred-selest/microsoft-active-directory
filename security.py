@@ -3,6 +3,7 @@ Module de securite pour l'interface Web Active Directory.
 Contient les fonctions de protection contre les attaques courantes.
 """
 
+import os
 import re
 import time
 from functools import wraps
@@ -227,6 +228,22 @@ def add_security_headers(response):
     # Politique de referrer
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
+    # HTTP Strict Transport Security (HSTS) - Force HTTPS
+    # Active seulement si la connexion est sécurisée
+    if request.is_secure or os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+    # Permissions-Policy - Restreint les APIs du navigateur
+    response.headers['Permissions-Policy'] = (
+        'geolocation=(), '
+        'microphone=(), '
+        'camera=(), '
+        'payment=(), '
+        'usb=(), '
+        'magnetometer=(), '
+        'gyroscope=()'
+    )
+
     # Content Security Policy
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
@@ -250,9 +267,15 @@ def add_security_headers(response):
 def get_secure_session_config():
     """
     Retourner la configuration securisee pour les sessions Flask.
+    Par défaut, SESSION_COOKIE_SECURE est activé (HTTPS requis).
+    Pour désactiver en développement: SESSION_COOKIE_SECURE=false dans .env
     """
+    import os
+    # Activer par défaut, sauf si explicitement désactivé
+    cookie_secure = os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
+
     return {
-        'SESSION_COOKIE_SECURE': False,  # Mettre True si HTTPS
+        'SESSION_COOKIE_SECURE': cookie_secure,
         'SESSION_COOKIE_HTTPONLY': True,
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'SESSION_COOKIE_NAME': 'ad_session',
