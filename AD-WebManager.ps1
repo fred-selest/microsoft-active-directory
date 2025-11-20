@@ -26,6 +26,28 @@ function New-SessionToken {
     return [System.Guid]::NewGuid().ToString()
 }
 
+# Fonction pour échapper les caractères spéciaux LDAP (protection contre injection)
+function Escape-LDAPFilter {
+    param(
+        [string]$Input
+    )
+
+    if ([string]::IsNullOrEmpty($Input)) {
+        return ""
+    }
+
+    # Échapper les caractères dangereux pour LDAP
+    # ( ) \ * / NUL
+    $escaped = $Input -replace '\\', '\5c'  # Backslash doit être échappé en premier
+    $escaped = $escaped -replace '\*', '\2a'
+    $escaped = $escaped -replace '\(', '\28'
+    $escaped = $escaped -replace '\)', '\29'
+    $escaped = $escaped -replace '/', '\2f'
+    $escaped = $escaped -replace "`0", '\00'
+
+    return $escaped
+}
+
 # Fonction pour écrire dans le journal d'audit
 function Write-AuditLog {
     param(
@@ -1486,7 +1508,9 @@ try {
                 $result.message = "Session invalide"
             } else {
                 try {
-                    $searchTerm = "*$($json.query)*"
+                    # Échapper les caractères spéciaux pour éviter l'injection LDAP
+                    $escapedQuery = Escape-LDAPFilter -Input $json.query
+                    $searchTerm = "*$escapedQuery*"
                     $users = Get-ADUser -Filter "SamAccountName -like '$searchTerm' -or Name -like '$searchTerm'" `
                         -Properties EmailAddress, Enabled `
                         -Server $script:adDomain `
@@ -1705,7 +1729,9 @@ try {
                 $result.message = "Session invalide"
             } else {
                 try {
-                    $searchTerm = "*$($json.query)*"
+                    # Échapper les caractères spéciaux pour éviter l'injection LDAP
+                    $escapedQuery = Escape-LDAPFilter -Input $json.query
+                    $searchTerm = "*$escapedQuery*"
                     $groups = Get-ADGroup -Filter "Name -like '$searchTerm'" `
                         -Server $script:adDomain `
                         -Credential $script:adCredential | 

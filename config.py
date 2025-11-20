@@ -27,6 +27,14 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'changer-ceci-en-production')
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
+    # Vérification de sécurité: empêcher l'utilisation de la SECRET_KEY par défaut en production
+    if not DEBUG and SECRET_KEY == 'changer-ceci-en-production':
+        raise ValueError(
+            "ERREUR DE SÉCURITÉ: Vous devez définir une SECRET_KEY forte via la variable d'environnement SECRET_KEY.\n"
+            "Générez une clé sécurisée avec: python -c 'import secrets; print(secrets.token_hex(32))'\n"
+            "Puis définissez-la dans votre fichier .env: SECRET_KEY=votre_cle_generee"
+        )
+
     # Configuration Active Directory
     AD_SERVER = os.environ.get('AD_SERVER', '')
     AD_PORT = int(os.environ.get('AD_PORT', 389))
@@ -39,8 +47,9 @@ class Config:
 
     # Configuration RBAC (Role-Based Access Control)
     # Roles: admin, operator, reader
-    RBAC_ENABLED = os.environ.get('RBAC_ENABLED', 'False').lower() == 'true'
-    DEFAULT_ROLE = os.environ.get('DEFAULT_ROLE', 'admin')
+    # SÉCURITÉ: RBAC activé par défaut avec rôle 'reader' (privilège minimum)
+    RBAC_ENABLED = os.environ.get('RBAC_ENABLED', 'true').lower() == 'true'
+    DEFAULT_ROLE = os.environ.get('DEFAULT_ROLE', 'reader')
 
     # Pagination
     ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE', 25))
