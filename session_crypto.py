@@ -6,7 +6,7 @@ import base64
 import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 
 
@@ -25,7 +25,7 @@ class SessionCrypto:
         # Note: Dans un système de production avancé, on utiliserait un salt par utilisateur
         salt = b'ad_web_interface_session_salt_v1'
 
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
