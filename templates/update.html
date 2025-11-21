@@ -165,6 +165,22 @@
 
 {% block extra_js %}
 <script>
+// Fonction d'échappement HTML pour prévenir XSS
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+// Afficher un message de manière sécurisée
+function showStatusMessage(container, message, className) {
+    const p = document.createElement('p');
+    p.className = className;
+    p.textContent = message;
+    container.appendChild(p);
+}
+
 function performUpdate() {
     const btn = document.getElementById('btn-update');
     const status = document.getElementById('update-status');
@@ -212,12 +228,16 @@ function performUpdate() {
 
             setTimeout(() => {
                 progressContainer.style.display = 'none';
-                status.innerHTML = '<p class="update-success">' + data.message + '</p>';
+                status.innerHTML = '';
+                showStatusMessage(status, data.message || 'Mise à jour réussie', 'update-success');
 
                 // Si le serveur redémarre, afficher un compte à rebours
                 if (data.restarting) {
                     let countdown = 10;
-                    status.innerHTML += '<p class="restart-countdown">Le serveur redémarre. Rechargement dans <span id="countdown">' + countdown + '</span> secondes...</p>';
+                    const restartP = document.createElement('p');
+                    restartP.className = 'restart-countdown';
+                    restartP.innerHTML = 'Le serveur redémarre. Rechargement dans <span id="countdown">' + countdown + '</span> secondes...';
+                    status.appendChild(restartP);
 
                     const countdownInterval = setInterval(() => {
                         countdown--;
@@ -231,7 +251,8 @@ function performUpdate() {
             }, 500);
         } else {
             progressContainer.style.display = 'none';
-            status.innerHTML = '<p class="update-error">' + data.message + '</p>';
+            status.innerHTML = '';
+            showStatusMessage(status, data.message || 'Erreur lors de la mise à jour', 'update-error');
             btn.disabled = false;
             btn.style.display = 'inline-block';
             btn.textContent = 'Reessayer';
@@ -240,7 +261,8 @@ function performUpdate() {
     .catch(error => {
         clearInterval(progressInterval);
         progressContainer.style.display = 'none';
-        status.innerHTML = '<p class="update-error">Erreur: ' + error.message + '</p>';
+        status.innerHTML = '';
+        showStatusMessage(status, 'Erreur: ' + (error.message || 'Erreur inconnue'), 'update-error');
         btn.disabled = false;
         btn.style.display = 'inline-block';
         btn.textContent = 'Reessayer';

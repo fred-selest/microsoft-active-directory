@@ -3,6 +3,45 @@
  * Fonctionne sur n'importe quel navigateur moderne, quel que soit le système d'exploitation
  */
 
+/**
+ * Échapper les caractères HTML pour prévenir les attaques XSS
+ * @param {string} text - Le texte à échapper
+ * @returns {string} Le texte échappé
+ */
+function escapeHtml(text) {
+    if (text === null || text === undefined) {
+        return '';
+    }
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+/**
+ * Afficher un message d'erreur de manière sécurisée
+ * @param {HTMLElement} container - L'élément conteneur
+ * @param {string} message - Le message d'erreur
+ */
+function showError(container, message) {
+    const p = document.createElement('p');
+    p.style.color = 'red';
+    p.textContent = message;
+    container.innerHTML = '';
+    container.appendChild(p);
+}
+
+/**
+ * Afficher un message d'information de manière sécurisée
+ * @param {HTMLElement} container - L'élément conteneur
+ * @param {string} message - Le message
+ */
+function showMessage(container, message) {
+    const p = document.createElement('p');
+    p.textContent = message;
+    container.innerHTML = '';
+    container.appendChild(p);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialiser les formulaires de recherche
     initSearchForms();
@@ -160,13 +199,13 @@ async function handleSearchSubmit(event) {
     const resultsDiv = document.getElementById('results');
 
     // Afficher l'état de chargement
-    resultsDiv.innerHTML = '<p>Recherche en cours...</p>';
+    showMessage(resultsDiv, 'Recherche en cours...');
 
     // Obtenir les identifiants de connexion depuis la session ou demander à l'utilisateur
     const credentials = getStoredCredentials();
 
     if (!credentials) {
-        resultsDiv.innerHTML = '<p style="color: red;">Veuillez d\'abord vous connecter à Active Directory.</p>';
+        showError(resultsDiv, 'Veuillez d\'abord vous connecter à Active Directory.');
         return;
     }
 
@@ -193,10 +232,12 @@ async function handleSearchSubmit(event) {
         if (data.success) {
             displayResults(data.results);
         } else {
-            resultsDiv.innerHTML = `<p style="color: red;">Erreur: ${data.error}</p>`;
+            // Utiliser showError pour éviter XSS
+            showError(resultsDiv, 'Erreur: ' + (data.error || 'Erreur inconnue'));
         }
     } catch (error) {
-        resultsDiv.innerHTML = `<p style="color: red;">Erreur de connexion: ${error.message}</p>`;
+        // Utiliser showError pour éviter XSS
+        showError(resultsDiv, 'Erreur de connexion: ' + (error.message || 'Erreur inconnue'));
     }
 }
 
@@ -207,7 +248,7 @@ function displayResults(results) {
     const resultsDiv = document.getElementById('results');
 
     if (results.length === 0) {
-        resultsDiv.innerHTML = '<p>Aucun résultat trouvé.</p>';
+        showMessage(resultsDiv, 'Aucun résultat trouvé.');
         return;
     }
 
