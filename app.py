@@ -2849,18 +2849,22 @@ def api_check_update():
         # Fallback vers l'ancien système
         from updater import check_for_updates
         return jsonify(check_for_updates())
+    except Exception as e:
+        return jsonify({
+            'update_available': False,
+            'error': str(e)
+        })
 
 
 @app.route('/api/perform-update', methods=['POST'])
 def api_perform_update():
     """API pour effectuer une mise à jour en arrière-plan (silencieux)."""
-    import threading
-    from updater import restart_server, update_dependencies
-
-    # Utiliser la mise à jour incrémentale rapide par défaut
-    use_fast_update = request.json.get('fast', True) if request.is_json else True
-
     try:
+        import threading
+        from updater import restart_server, update_dependencies
+
+        # Utiliser la mise à jour incrémentale rapide par défaut
+        use_fast_update = request.json.get('fast', True) if request.is_json else True
         if use_fast_update:
             # Mise à jour incrémentale (rapide)
             from updater_fast import check_for_updates_fast, perform_fast_update
