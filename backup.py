@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from config import get_config
+from path_security import validate_dn_for_filename, is_safe_path, sanitize_filename
 
 config = get_config()
 
@@ -38,9 +39,15 @@ def backup_object(obj_type, dn, attributes):
     init_backup_dirs()
 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    safe_dn = dn.replace(',', '_').replace('=', '-').replace(' ', '_')[:100]
-    filename = f"{obj_type}_{safe_dn}_{timestamp}.json"
+    # Utiliser la fonction sécurisée pour valider le DN
+    safe_dn = validate_dn_for_filename(dn)
+    safe_type = sanitize_filename(obj_type, max_length=20)
+    filename = f"{safe_type}_{safe_dn}_{timestamp}.json"
     filepath = BACKUP_DIR / filename
+
+    # Vérification path traversal
+    if not is_safe_path(BACKUP_DIR, filepath):
+        raise ValueError(f"Tentative de path traversal détectée pour: {dn}")
 
     backup_data = {
         'timestamp': datetime.now().isoformat(),
@@ -93,7 +100,14 @@ def get_backups(obj_type=None, dn=None, limit=50):
 
 def get_backup_content(filename):
     """Recuperer le contenu d'un backup specifique."""
-    filepath = BACKUP_DIR / filename
+    # Sanitizer le nom de fichier pour éviter path traversal
+    safe_filename = sanitize_filename(filename)
+    filepath = BACKUP_DIR / safe_filename
+
+    # Vérification path traversal
+    if not is_safe_path(BACKUP_DIR, filepath):
+        return None
+
     if filepath.exists():
         with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -115,9 +129,14 @@ def record_change(obj_type, dn, action, user, old_values=None, new_values=None, 
     """
     init_backup_dirs()
 
-    # Fichier d'historique par objet
-    safe_dn = dn.replace(',', '_').replace('=', '-').replace(' ', '_')[:100]
-    history_file = HISTORY_DIR / f"{obj_type}_{safe_dn}.json"
+    # Fichier d'historique par objet (avec validation path traversal)
+    safe_dn = validate_dn_for_filename(dn)
+    safe_type = sanitize_filename(obj_type, max_length=20)
+    history_file = HISTORY_DIR / f"{safe_type}_{safe_dn}.json"
+
+    # Vérification path traversal
+    if not is_safe_path(HISTORY_DIR, history_file):
+        raise ValueError(f"Tentative de path traversal détectée pour: {dn}")
 
     # Charger l'historique existant
     history = []
@@ -157,8 +176,14 @@ def get_object_history(obj_type, dn):
     """
     init_backup_dirs()
 
-    safe_dn = dn.replace(',', '_').replace('=', '-').replace(' ', '_')[:100]
-    history_file = HISTORY_DIR / f"{obj_type}_{safe_dn}.json"
+    # Validation path traversal
+    safe_dn = validate_dn_for_filename(dn)
+    safe_type = sanitize_filename(obj_type, max_length=20)
+    history_file = HISTORY_DIR / f"{safe_type}_{safe_dn}.json"
+
+    # Vérification path traversal
+    if not is_safe_path(HISTORY_DIR, history_file):
+        return []
 
     if history_file.exists():
         try:
