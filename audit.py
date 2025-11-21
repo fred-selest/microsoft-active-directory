@@ -13,6 +13,9 @@ from config import get_config
 
 config = get_config()
 
+# Créer le répertoire de logs s'il n'existe pas
+config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 # Configuration du logger d'audit
 audit_logger = logging.getLogger('audit')
 audit_logger.setLevel(logging.INFO)
