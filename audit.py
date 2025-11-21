@@ -13,8 +13,17 @@ from config import get_config
 
 config = get_config()
 
-# Créer le répertoire de logs s'il n'existe pas
-config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+# Initialiser les répertoires (avec fallback si permissions insuffisantes)
+config.init_directories()
+
+# Créer le répertoire de logs s'il n'existe pas (sécurité supplémentaire)
+try:
+    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+except PermissionError:
+    # Utiliser un répertoire local si pas de permissions système
+    from pathlib import Path
+    config.LOG_DIR = Path(__file__).parent / 'logs'
+    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Configuration du logger d'audit
 audit_logger = logging.getLogger('audit')
