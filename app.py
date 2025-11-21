@@ -2840,50 +2840,99 @@ def update_page():
 
 @app.route('/api/check-update')
 def api_check_update():
-    """API pour vérifier les mises à jour."""
-    from updater import check_for_updates
-    return jsonify(check_for_updates())
+    """API pour vérifier les mises à jour (avec infos incrémentales)."""
+    try:
+        # Utiliser la version rapide qui donne plus d'infos
+        from updater_fast import check_for_updates_fast
+        return jsonify(check_for_updates_fast())
+    except ImportError:
+        # Fallback vers l'ancien système
+        from updater import check_for_updates
+        return jsonify(check_for_updates())
 
 
 @app.route('/api/perform-update', methods=['POST'])
 def api_perform_update():
     """API pour effectuer une mise à jour en arrière-plan (silencieux)."""
     import threading
-    from updater import download_update, apply_update, update_dependencies, check_for_updates, restart_server
+    from updater import restart_server, update_dependencies
+
+    # Utiliser la mise à jour incrémentale rapide par défaut
+    use_fast_update = request.json.get('fast', True) if request.is_json else True
 
     try:
-        # Vérifier qu'une mise à jour est disponible
-        info = check_for_updates()
-        if not info['update_available']:
-            return jsonify({
-                'success': False,
-                'message': 'Aucune mise à jour disponible'
-            })
+        if use_fast_update:
+            # Mise à jour incrémentale (rapide)
+            from updater_fast import check_for_updates_fast, perform_fast_update
 
-        # Télécharger et appliquer en mode silencieux
-        zip_path, temp_dir = download_update(silent=True)
-        if apply_update(zip_path, temp_dir, silent=True):
-            update_dependencies(silent=True)
+            info = check_for_updates_fast()
+            if not info['update_available']:
+                return jsonify({
+                    'success': False,
+                    'message': 'Aucune mise à jour disponible'
+                })
 
-            # Redémarrer le serveur après un délai
-            def delayed_restart():
-                import time
-                time.sleep(2)
-                restart_server(silent=True)
-                os._exit(0)
+            # Appliquer la mise à jour incrémentale
+            result = perform_fast_update(silent=True)
 
-            threading.Thread(target=delayed_restart, daemon=True).start()
+            if result['success']:
+                # Mettre à jour les dépendances seulement si requirements.txt a changé
+                update_dependencies(silent=True)
 
-            return jsonify({
-                'success': True,
-                'message': f'Mise à jour vers la version {info["latest_version"]} réussie. Le serveur redémarre...',
-                'restarting': True
-            })
+                # Redémarrer le serveur après un délai
+                def delayed_restart():
+                    import time
+                    time.sleep(2)
+                    restart_server(silent=True)
+                    os._exit(0)
+
+                threading.Thread(target=delayed_restart, daemon=True).start()
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Mise à jour réussie ({result["files_updated"]} fichiers, {result["bytes_downloaded"]/1024:.1f} Ko). Redémarrage...',
+                    'restarting': True,
+                    'files_updated': result['files_updated'],
+                    'bytes_downloaded': result['bytes_downloaded']
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Erreur lors de la mise à jour: ' + str(result.get('errors', []))[:200]
+                })
         else:
-            return jsonify({
-                'success': False,
-                'message': 'Erreur lors de l\'application de la mise à jour'
-            })
+            # Mise à jour classique (télécharge tout)
+            from updater import download_update, apply_update, check_for_updates
+
+            info = check_for_updates()
+            if not info['update_available']:
+                return jsonify({
+                    'success': False,
+                    'message': 'Aucune mise à jour disponible'
+                })
+
+            zip_path, temp_dir = download_update(silent=True)
+            if apply_update(zip_path, temp_dir, silent=True):
+                update_dependencies(silent=True)
+
+                def delayed_restart():
+                    import time
+                    time.sleep(2)
+                    restart_server(silent=True)
+                    os._exit(0)
+
+                threading.Thread(target=delayed_restart, daemon=True).start()
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Mise à jour vers {info["latest_version"]} réussie. Redémarrage...',
+                    'restarting': True
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Erreur lors de la mise à jour'
+                })
 
     except Exception as e:
         return jsonify({
