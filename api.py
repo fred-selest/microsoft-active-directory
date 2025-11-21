@@ -6,12 +6,29 @@ Fournit des endpoints pour l'automatisation et l'integration.
 import json
 import secrets
 import os
+import hashlib
+import hmac
 from functools import wraps
 from flask import request, jsonify, session
 from datetime import datetime
 
 # Stockage des cles API (en production, utiliser une base de donnees)
 API_KEYS_FILE = 'data/api_keys.json'
+
+
+def _hash_api_key(key: str) -> str:
+    """
+    Hacher une clé API de manière sécurisée.
+    Utilise SHA-256 avec un salt fixe pour permettre la validation.
+    """
+    # Salt fixe pour les clés API (différent de celui des sessions)
+    salt = b'ad_web_api_key_salt_v1'
+    return hashlib.pbkdf2_hmac('sha256', key.encode(), salt, 100000).hex()
+
+
+def _secure_compare(a: str, b: str) -> bool:
+    """Comparaison sécurisée (timing-safe) de deux chaînes."""
+    return hmac.compare_digest(a, b)
 
 
 def load_api_keys():
@@ -28,42 +45,76 @@ def load_api_keys():
 def save_api_keys(keys):
     """Sauvegarder les cles API dans le fichier."""
     os.makedirs(os.path.dirname(API_KEYS_FILE), exist_ok=True)
+    # Permissions restrictives sur le fichier
     with open(API_KEYS_FILE, 'w') as f:
         json.dump(keys, f, indent=2)
+    # Restreindre les permissions (lecture/écriture propriétaire uniquement)
+    try:
+        os.chmod(API_KEYS_FILE, 0o600)
+    except:
+        pass
 
 
 def generate_api_key(name, permissions=None):
-    """Generer une nouvelle cle API."""
+    """
+    Generer une nouvelle cle API.
+    IMPORTANT: La clé est retournée une seule fois, seul le hash est stocké.
+    """
+    # Générer la clé
     key = secrets.token_urlsafe(32)
+    # Hacher la clé pour stockage sécurisé
+    key_hash = _hash_api_key(key)
+
     keys = load_api_keys()
-    keys[key] = {
+    keys[key_hash] = {
         'name': name,
         'created': datetime.now().isoformat(),
         'permissions': permissions or ['read'],
-        'last_used': None
+        'last_used': None,
+        # Préfixe pour identification (premiers 8 caractères, non secret)
+        'prefix': key[:8]
     }
     save_api_keys(keys)
+    # Retourner la clé en clair (une seule fois)
     return key
 
 
-def revoke_api_key(key):
-    """Revoquer une cle API."""
+def revoke_api_key(key_or_prefix):
+    """
+    Revoquer une cle API.
+    Accepte soit la clé complète soit le préfixe.
+    """
     keys = load_api_keys()
-    if key in keys:
-        del keys[key]
+
+    # Si c'est une clé complète, la hacher
+    key_hash = _hash_api_key(key_or_prefix)
+    if key_hash in keys:
+        del keys[key_hash]
         save_api_keys(keys)
         return True
+
+    # Sinon, chercher par préfixe
+    for stored_hash, info in list(keys.items()):
+        if info.get('prefix') == key_or_prefix[:8]:
+            del keys[stored_hash]
+            save_api_keys(keys)
+            return True
+
     return False
 
 
 def validate_api_key(key):
     """Valider une cle API et retourner ses infos."""
     keys = load_api_keys()
-    if key in keys:
-        # Mettre a jour last_used
-        keys[key]['last_used'] = datetime.now().isoformat()
-        save_api_keys(keys)
-        return keys[key]
+    key_hash = _hash_api_key(key)
+
+    # Recherche sécurisée (timing-safe)
+    for stored_hash, info in keys.items():
+        if _secure_compare(stored_hash, key_hash):
+            # Mettre a jour last_used
+            keys[stored_hash]['last_used'] = datetime.now().isoformat()
+            save_api_keys(keys)
+            return info
     return None
 
 
