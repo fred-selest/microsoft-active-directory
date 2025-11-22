@@ -113,7 +113,7 @@ def get_user_role_from_groups(conn, username):
             search_base=base_dn,
             search_filter=search_filter,
             search_scope=SUBTREE,
-            attributes=['memberOf']
+            attributes=['memberOf', 'primaryGroupID']
         )
 
         if not conn.entries:
@@ -126,26 +126,26 @@ def get_user_role_from_groups(conn, username):
         if hasattr(user_entry, 'memberOf') and user_entry.memberOf:
             for group_dn in user_entry.memberOf.values:
                 # Extraire le CN du DN (ex: CN=Domain Admins,CN=Users,DC=... -> Domain Admins)
-                if group_dn.startswith('CN='):
-                    cn = group_dn.split(',')[0][3:]  # Enlever "CN="
-                    user_groups.append(cn)
+                if str(group_dn).upper().startswith('CN='):
+                    cn = str(group_dn).split(',')[0][3:]  # Enlever "CN="
+                    user_groups.append(cn.lower())  # Normaliser en minuscules
 
         # Vérifier les groupes admin en premier (priorité la plus haute)
         if config.ADMIN_GROUPS:
             for admin_group in config.ADMIN_GROUPS:
-                if admin_group in user_groups:
+                if admin_group.lower() in user_groups:
                     return 'admin'
 
         # Vérifier les groupes operator
         if config.OPERATOR_GROUPS:
             for operator_group in config.OPERATOR_GROUPS:
-                if operator_group in user_groups:
+                if operator_group.lower() in user_groups:
                     return 'operator'
 
         # Vérifier les groupes reader
         if config.READER_GROUPS:
             for reader_group in config.READER_GROUPS:
-                if reader_group in user_groups:
+                if reader_group.lower() in user_groups:
                     return 'reader'
 
         # Rôle par défaut si aucun groupe ne correspond
@@ -183,9 +183,17 @@ def inject_update_info():
     from settings_manager import load_settings, get_menu_items, get_dropdown_items
     settings = load_settings()
 
+    # Fonction pour vérifier les permissions dans les templates
+    def has_permission(permission):
+        if not config.RBAC_ENABLED:
+            return True
+        user_role = session.get('user_role', config.DEFAULT_ROLE)
+        return permission in ROLE_PERMISSIONS.get(user_role, [])
+
     return {
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
+        'has_permission': has_permission,
         'dark_mode': session.get('dark_mode', False),
         'config': config,
         'csrf_token': generate_csrf_token,
