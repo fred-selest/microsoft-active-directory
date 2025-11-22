@@ -5,6 +5,55 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.13.0] - 2025-11-22
+
+### Ajouté
+
+#### Support Docker
+- **Dockerfile** - Image Python 3.11-slim optimisee avec Gunicorn
+- **docker-compose.yml** - Orchestration avec volumes persistants
+- **docker-entrypoint.sh** - Script d'initialisation container
+- **.dockerignore** - Exclusions pour build optimise
+- **DOCKER.md** - Documentation complete pour deploiement Docker
+- **Endpoint /api/health** - Healthcheck pour Docker/Kubernetes
+
+#### CI/CD GitHub Actions
+- **ci.yml** - Tests automatiques Python 3.10/3.11/3.12, lint, scan securite
+- **docker-publish.yml** - Build et push vers ghcr.io (multi-arch amd64/arm64)
+- **release.yml** - Creation automatique de releases avec packages separes
+  - Package Windows (.zip) - sans fichiers Linux
+  - Package Linux (.tar.gz) - sans fichiers Windows
+  - Instructions Docker dans les notes de release
+
+#### Securite
+- **FORCE_HTTPS** - Nouvelle option pour redirection automatique HTTP -> HTTPS
+- **Support X-Forwarded-Proto** - Compatible reverse proxy (Nginx, Traefik)
+- **TRUSTED_PROXIES** - Configuration des proxys de confiance
+
+### Ameliore
+
+- **Gestion erreurs API** - Les endpoints /api/* retournent toujours du JSON (plus de pages HTML d'erreur)
+- **Documentation .env.example** - Ajout options HTTPS et proxys
+
+### Corrige
+
+- **Import PBKDF2HMAC** - Correction du nom de classe dans session_crypto.py
+- **Fallback repertoire logs** - Utilise ./logs si permissions insuffisantes sur Windows
+
+### Notes de Deploiement Docker
+
+```bash
+# Demarrage rapide
+docker-compose up -d
+
+# Ou avec image pre-construite
+docker pull ghcr.io/fred-selest/microsoft-active-directory:1.13.0
+```
+
+Voir [DOCKER.md](DOCKER.md) pour la documentation complete.
+
+---
+
 ## [1.12.0] - 2025-11-21
 
 ### Corrigé
