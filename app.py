@@ -289,12 +289,12 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
         ad_server = Server(
             server,
             port=port,
-            use_ssl=(use_ssl and port == 636),
+            use_ssl=use_ssl,
             tls=tls_config if use_ssl else None,
             get_info=ALL
         )
 
-        # Essayer d'abord l'authentification NTLM
+        # Essayer l'authentification NTLM
         try:
             conn = Connection(
                 ad_server,
@@ -305,29 +305,29 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             )
             return conn, None
         except Exception as ntlm_error:
-            # Si strongerAuthRequired, suggérer SSL
-            if 'strongerAuthRequired' in str(ntlm_error):
-                if not use_ssl:
-                    return None, "Le serveur exige une connexion sécurisée. Activez SSL (port 636)."
-            # Sinon continuer avec simple bind
+            ntlm_err_str = str(ntlm_error)
+            # Si strongerAuthRequired sans SSL, suggérer SSL
+            if 'strongerAuthRequired' in ntlm_err_str and not use_ssl:
+                return None, "Le serveur exige SSL. Activez SSL (port 636)."
 
-        # Essayer simple bind (avec ou sans TLS selon la configuration)
-        if use_ssl and port != 636:
-            # StartTLS sur port 389
-            conn = Connection(
-                ad_server,
-                user=username,
-                password=password,
-                auto_bind='TLS_BEFORE_BIND'
-            )
-        else:
+        # Essayer simple bind avec DN complet
+        try:
             conn = Connection(
                 ad_server,
                 user=username,
                 password=password,
                 auto_bind=True
             )
-        return conn, None
+            return conn, None
+        except Exception:
+            pass
+
+        # Dernière tentative: simple bind sans auto_bind puis bind manuel
+        conn = Connection(ad_server, user=username, password=password)
+        if conn.bind():
+            return conn, None
+        else:
+            return None, f"Échec authentification: {conn.result.get('description', 'erreur inconnue')}"
 
     except LDAPException as e:
         return None, str(e)
