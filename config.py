@@ -51,6 +51,13 @@ class Config:
     RBAC_ENABLED = os.environ.get('RBAC_ENABLED', 'true').lower() == 'true'
     DEFAULT_ROLE = os.environ.get('DEFAULT_ROLE', 'reader')
 
+    # Groupes AD pour attribution automatique des rôles
+    # Noms de groupes AD (CN) séparés par des virgules
+    # Le premier groupe correspondant détermine le rôle (ordre: admin > operator > reader)
+    ADMIN_GROUPS = [g.strip() for g in os.environ.get('RBAC_ADMIN_GROUPS', 'Domain Admins,Administrateurs du domaine').split(',') if g.strip()]
+    OPERATOR_GROUPS = [g.strip() for g in os.environ.get('RBAC_OPERATOR_GROUPS', '').split(',') if g.strip()]
+    READER_GROUPS = [g.strip() for g in os.environ.get('RBAC_READER_GROUPS', '').split(',') if g.strip()]
+
     # Configuration HTTPS
     # Force la redirection HTTP -> HTTPS (recommandé en production)
     FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'false').lower() == 'true'
