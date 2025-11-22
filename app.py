@@ -94,130 +94,50 @@ def require_permission(permission):
 
 def get_user_role_from_groups(conn, username, debug=False):
     """Déterminer le rôle de l'utilisateur en fonction de ses groupes AD."""
-    debug_info = {'groups': [], 'admin_groups_config': [], 'error': None, 'base_dn': '', 'search_user': '', 'method': ''}
+    info = {'groups': [], 'error': None}
 
     if not config.RBAC_ENABLED:
-        return config.DEFAULT_ROLE, debug_info if debug else config.DEFAULT_ROLE
+        return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
     try:
+        # Obtenir le Base DN
         base_dn = session.get('ad_base_dn', '')
-        if not base_dn and conn.server.info:
-            try:
-                naming_contexts = conn.server.info.naming_contexts
-                if naming_contexts:
-                    base_dn = str(naming_contexts[0])
-            except:
-                pass
+        if not base_dn and conn.server.info and conn.server.info.naming_contexts:
+            base_dn = str(conn.server.info.naming_contexts[0])
 
-        debug_info['base_dn'] = base_dn
-        debug_info['admin_groups_config'] = config.ADMIN_GROUPS
+        # Extraire le nom d'utilisateur sans domaine
+        search_user = username.split('\\')[-1].split('@')[0]
 
-        # Méthode 1: Utiliser who_am_i() pour obtenir le DN directement
-        user_dn = None
-        try:
-            whoami = conn.extend.standard.who_am_i()
-            if whoami:
-                # Format: "u:DOMAIN\user" ou "u:user@domain" ou DN direct
-                debug_info['whoami'] = whoami
-                if whoami.startswith('u:'):
-                    whoami = whoami[2:]
-                # Si c'est un DN (contient des virgules et des =)
-                if ',' in whoami and '=' in whoami:
-                    user_dn = whoami
-                    debug_info['method'] = 'who_am_i DN direct'
-        except Exception as e:
-            debug_info['whoami_error'] = str(e)
+        # Rechercher l'utilisateur
+        conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(search_user)})',
+                    search_scope=SUBTREE, attributes=['memberOf'])
 
-        # Méthode 2: Recherche par sAMAccountName si who_am_i n'a pas donné de DN
-        if not user_dn:
-            # Extraire le nom d'utilisateur sans domaine (si format DOMAIN\user ou user@domain)
-            search_username = username
-            if '\\' in username:
-                search_username = username.split('\\')[1]
-            elif '@' in username:
-                search_username = username.split('@')[0]
+        if not conn.entries:
+            info['error'] = f'Utilisateur {search_user} non trouve'
+            return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
-            debug_info['search_user'] = search_username
-            debug_info['method'] = 'sAMAccountName search'
-
-            # Rechercher l'utilisateur et ses groupes
-            search_filter = f'(sAMAccountName={escape_ldap_filter(search_username)})'
-            conn.search(
-                search_base=base_dn,
-                search_filter=search_filter,
-                search_scope=SUBTREE,
-                attributes=['memberOf', 'primaryGroupID', 'distinguishedName']
-            )
-
-            if conn.entries:
-                user_dn = str(conn.entries[0].entry_dn)
-
-        # Méthode 3: Recherche plus large si les deux premières méthodes échouent
-        if not user_dn and debug_info.get('search_user'):
-            search_username = debug_info['search_user']
-            search_filter_alt = f'(|(sAMAccountName={escape_ldap_filter(search_username)})(cn={escape_ldap_filter(search_username)})(userPrincipalName={escape_ldap_filter(username)}))'
-            conn.search(
-                search_base=base_dn,
-                search_filter=search_filter_alt,
-                search_scope=SUBTREE,
-                attributes=['memberOf', 'primaryGroupID', 'distinguishedName']
-            )
-            if conn.entries:
-                user_dn = str(conn.entries[0].entry_dn)
-                debug_info['method'] = 'alternative search'
-
-        if not user_dn:
-            debug_info['error'] = f'Utilisateur non trouve (methodes: who_am_i, sAMAccountName, cn/upn)'
-            return (config.DEFAULT_ROLE, debug_info) if debug else config.DEFAULT_ROLE
-
-        debug_info['user_dn'] = user_dn[:60] + '...' if len(user_dn) > 60 else user_dn
-
-        # Rechercher les groupes avec le DN trouvé
-        conn.search(
-            search_base=user_dn,
-            search_filter='(objectClass=*)',
-            search_scope='BASE',
-            attributes=['memberOf', 'primaryGroupID']
-        )
-
-        user_entry = conn.entries[0]
+        # Extraire les groupes (CN depuis les DN)
         user_groups = []
+        if hasattr(conn.entries[0], 'memberOf') and conn.entries[0].memberOf:
+            for dn in conn.entries[0].memberOf.values:
+                if str(dn).upper().startswith('CN='):
+                    user_groups.append(str(dn).split(',')[0][3:])
 
-        # Extraire les noms des groupes (CN) depuis les DN
-        if hasattr(user_entry, 'memberOf') and user_entry.memberOf:
-            for group_dn in user_entry.memberOf.values:
-                # Extraire le CN du DN (ex: CN=Domain Admins,CN=Users,DC=... -> Domain Admins)
-                if str(group_dn).upper().startswith('CN='):
-                    cn = str(group_dn).split(',')[0][3:]  # Enlever "CN="
-                    user_groups.append(cn)  # Garder la casse originale pour debug
+        info['groups'] = user_groups
+        groups_lower = [g.lower() for g in user_groups]
 
-        debug_info['groups'] = user_groups
-        user_groups_lower = [g.lower() for g in user_groups]
+        # Vérifier les rôles par priorité
+        for role, groups_config in [('admin', config.ADMIN_GROUPS),
+                                     ('operator', config.OPERATOR_GROUPS),
+                                     ('reader', config.READER_GROUPS)]:
+            if any(g.lower() in groups_lower for g in groups_config if g):
+                return (role, info) if debug else role
 
-        # Vérifier les groupes admin en premier (priorité la plus haute)
-        if config.ADMIN_GROUPS:
-            for admin_group in config.ADMIN_GROUPS:
-                if admin_group.lower() in user_groups_lower:
-                    return ('admin', debug_info) if debug else 'admin'
-
-        # Vérifier les groupes operator
-        if config.OPERATOR_GROUPS:
-            for operator_group in config.OPERATOR_GROUPS:
-                if operator_group.lower() in user_groups_lower:
-                    return ('operator', debug_info) if debug else 'operator'
-
-        # Vérifier les groupes reader
-        if config.READER_GROUPS:
-            for reader_group in config.READER_GROUPS:
-                if reader_group.lower() in user_groups_lower:
-                    return ('reader', debug_info) if debug else 'reader'
-
-        # Rôle par défaut si aucun groupe ne correspond
-        return (config.DEFAULT_ROLE, debug_info) if debug else config.DEFAULT_ROLE
+        return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
     except Exception as e:
-        debug_info['error'] = str(e)
-        return (config.DEFAULT_ROLE, debug_info) if debug else config.DEFAULT_ROLE
+        info['error'] = str(e)
+        return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
 
 # Cache pour la vérification des mises à jour (éviter les appels répétés)
@@ -493,24 +413,11 @@ def connect():
             log_action(ACTIONS['LOGIN'], username, {'server': server, 'role': user_role}, True, request.remote_addr)
             flash(f'Connexion réussie! Role: {user_role}', 'success')
 
-            # Afficher les infos de debug sur les groupes
-            if debug_info.get('method'):
-                flash(f'Methode detection: {debug_info["method"]}', 'info')
-
-            if debug_info.get('user_dn'):
-                flash(f'DN utilisateur: {debug_info["user_dn"]}', 'info')
-
+            # Afficher les groupes AD détectés
             if debug_info.get('groups'):
-                groups_list = ', '.join(debug_info['groups'][:10])  # Limiter à 10 groupes
-                if len(debug_info['groups']) > 10:
-                    groups_list += f' ... (+{len(debug_info["groups"]) - 10} autres)'
-                flash(f'Groupes AD: {groups_list}', 'info')
-            else:
-                base_dn_short = debug_info.get('base_dn', '')[:50] + '...' if len(debug_info.get('base_dn', '')) > 50 else debug_info.get('base_dn', 'non defini')
-                flash(f'Aucun groupe AD (Base DN: {base_dn_short})', 'warning')
-
+                flash(f'Groupes AD: {", ".join(debug_info["groups"][:5])}', 'info')
             if debug_info.get('error'):
-                flash(f'Erreur: {debug_info["error"]}', 'warning')
+                flash(f'Erreur groupes: {debug_info["error"]}', 'warning')
             return redirect(url_for('dashboard'))
         else:
             # Enregistrer l'echec pour le rate limiting
