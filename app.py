@@ -534,6 +534,7 @@ def create_user():
         ou = request.form.get('ou', '')
         department = request.form.get('department', '')
         title = request.form.get('title', '')
+        must_change_password = request.form.get('must_change_password') == 'on'
 
         # Valider la force du mot de passe
         if password:
@@ -581,6 +582,10 @@ def create_user():
 
                     # Activer le compte
                     conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
+
+                    # Forcer le changement de mot de passe à la prochaine connexion
+                    if must_change_password:
+                        conn.modify(user_dn, {'pwdLastSet': [(MODIFY_REPLACE, [0])]})
 
                 log_action(ACTIONS['CREATE_USER'], session.get('ad_username'),
                           {'username': username, 'dn': user_dn}, True, request.remote_addr)
