@@ -33,8 +33,10 @@ services:
       - AD_USE_SSL=${AD_USE_SSL:-false}
       - AD_BASE_DN=${AD_BASE_DN:-}
 
-      # Configuration Session
+      # Configuration Session et HTTPS
       - SESSION_TIMEOUT=${SESSION_TIMEOUT:-30}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
+      - FORCE_HTTPS=${FORCE_HTTPS:-false}
 
       # Configuration RBAC
       - RBAC_ENABLED=${RBAC_ENABLED:-true}

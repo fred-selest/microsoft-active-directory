@@ -137,7 +137,16 @@ def inject_update_info():
 
 @app.before_request
 def before_request():
-    """Verifier le timeout de session et rendre la session permanente."""
+    """Verifier le timeout de session, forcer HTTPS et rendre la session permanente."""
+    # Forcer HTTPS si configuré
+    if config.FORCE_HTTPS and not request.is_secure:
+        # Vérifier si derrière un proxy (X-Forwarded-Proto)
+        if request.headers.get('X-Forwarded-Proto', 'http') != 'https':
+            # Ne pas rediriger les health checks
+            if request.endpoint != 'api_health':
+                url = request.url.replace('http://', 'https://', 1)
+                return redirect(url, code=301)
+
     session.permanent = True
     if is_connected():
         session.modified = True
