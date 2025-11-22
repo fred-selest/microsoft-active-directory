@@ -5,6 +5,14 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.16.4] - 2025-11-22
+
+### Corrige
+
+- **Recherche utilisateur AD** - Extraction du nom sans domaine, recherche alternative, affichage Base DN
+
+---
+
 ## [1.16.3] - 2025-11-22
 
 ### Ajouté

@@ -94,7 +94,7 @@ def require_permission(permission):
 
 def get_user_role_from_groups(conn, username, debug=False):
     """Déterminer le rôle de l'utilisateur en fonction de ses groupes AD."""
-    debug_info = {'groups': [], 'admin_groups_config': [], 'error': None}
+    debug_info = {'groups': [], 'admin_groups_config': [], 'error': None, 'base_dn': '', 'search_user': ''}
 
     if not config.RBAC_ENABLED:
         return config.DEFAULT_ROLE, debug_info if debug else config.DEFAULT_ROLE
@@ -109,10 +109,20 @@ def get_user_role_from_groups(conn, username, debug=False):
             except:
                 pass
 
+        debug_info['base_dn'] = base_dn
         debug_info['admin_groups_config'] = config.ADMIN_GROUPS
 
+        # Extraire le nom d'utilisateur sans domaine (si format DOMAIN\user ou user@domain)
+        search_username = username
+        if '\\' in username:
+            search_username = username.split('\\')[1]
+        elif '@' in username:
+            search_username = username.split('@')[0]
+
+        debug_info['search_user'] = search_username
+
         # Rechercher l'utilisateur et ses groupes
-        search_filter = f'(sAMAccountName={escape_ldap_filter(username)})'
+        search_filter = f'(sAMAccountName={escape_ldap_filter(search_username)})'
         conn.search(
             search_base=base_dn,
             search_filter=search_filter,
@@ -121,7 +131,17 @@ def get_user_role_from_groups(conn, username, debug=False):
         )
 
         if not conn.entries:
-            debug_info['error'] = 'Utilisateur non trouve'
+            # Essayer une recherche plus large si la première échoue
+            search_filter_alt = f'(|(sAMAccountName={escape_ldap_filter(search_username)})(cn={escape_ldap_filter(search_username)}))'
+            conn.search(
+                search_base=base_dn,
+                search_filter=search_filter_alt,
+                search_scope=SUBTREE,
+                attributes=['memberOf', 'primaryGroupID']
+            )
+
+        if not conn.entries:
+            debug_info['error'] = f'Utilisateur "{search_username}" non trouve (base: {base_dn[:30]}...)'
             return (config.DEFAULT_ROLE, debug_info) if debug else config.DEFAULT_ROLE
 
         user_entry = conn.entries[0]
@@ -438,16 +458,20 @@ def connect():
             flash(f'Connexion réussie! Role: {user_role}', 'success')
 
             # Afficher les infos de debug sur les groupes
+            if debug_info.get('search_user'):
+                flash(f'Recherche utilisateur: {debug_info["search_user"]}', 'info')
+
             if debug_info.get('groups'):
                 groups_list = ', '.join(debug_info['groups'][:10])  # Limiter à 10 groupes
                 if len(debug_info['groups']) > 10:
                     groups_list += f' ... (+{len(debug_info["groups"]) - 10} autres)'
-                flash(f'Groupes AD detectes: {groups_list}', 'info')
+                flash(f'Groupes AD: {groups_list}', 'info')
             else:
-                flash('Aucun groupe AD detecte pour cet utilisateur', 'warning')
+                base_dn_short = debug_info.get('base_dn', '')[:50] + '...' if len(debug_info.get('base_dn', '')) > 50 else debug_info.get('base_dn', 'non defini')
+                flash(f'Aucun groupe AD (Base DN: {base_dn_short})', 'warning')
 
             if debug_info.get('error'):
-                flash(f'Erreur detection groupes: {debug_info["error"]}', 'warning')
+                flash(f'Erreur: {debug_info["error"]}', 'warning')
             return redirect(url_for('dashboard'))
         else:
             # Enregistrer l'echec pour le rate limiting
