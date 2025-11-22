@@ -5,6 +5,14 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.16.3] - 2025-11-22
+
+### Ajouté
+
+- **Debug groupes AD** - Affichage des groupes detectes et du role attribue a la connexion
+
+---
+
 ## [1.16.2] - 2025-11-22
 
 ### Ameliore
