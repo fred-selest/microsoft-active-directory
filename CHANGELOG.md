@@ -5,6 +5,14 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.14.1] - 2025-11-22
+
+### Corrige
+
+- **Import check_for_updates** - Correction de l'import depuis updater_fast (causait Internal Server Error)
+
+---
+
 ## [1.14.0] - 2025-11-22
 
 ### Ajouté
