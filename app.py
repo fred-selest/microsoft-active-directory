@@ -10,7 +10,8 @@ import io
 from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, session, Response
-from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
+from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE, Tls, NTLM
+import ssl
 from ldap3.core.exceptions import LDAPException
 from config import get_config, CURRENT_OS, IS_WINDOWS
 from audit import log_action, get_audit_logs, ACTIONS
@@ -188,22 +189,69 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if port is None:
         port = 636 if use_ssl else 389
 
+    # Configuration TLS pour accepter les certificats auto-signés
+    tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLS)
+
+    # Préparer le nom d'utilisateur au format NTLM si nécessaire
+    # Format: DOMAIN\username ou username@domain
+    ntlm_user = username
+    if '\\' not in username and '@' not in username:
+        # Extraire le domaine du Base DN si possible
+        domain = None
+        base_dn = session.get('ad_base_dn', '')
+        if base_dn:
+            # Convertir DC=example,DC=com en EXAMPLE
+            parts = [p.split('=')[1] for p in base_dn.upper().split(',') if p.startswith('DC=')]
+            if parts:
+                domain = parts[0]
+        if domain:
+            ntlm_user = f"{domain}\\{username}"
+
     try:
         ad_server = Server(
             server,
             port=port,
-            use_ssl=use_ssl,
+            use_ssl=(use_ssl and port == 636),
+            tls=tls_config if use_ssl else None,
             get_info=ALL
         )
-        conn = Connection(
-            ad_server,
-            user=username,
-            password=password,
-            auto_bind=True
-        )
+
+        # Essayer d'abord l'authentification NTLM (fonctionne sans TLS sur AD moderne)
+        try:
+            conn = Connection(
+                ad_server,
+                user=ntlm_user,
+                password=password,
+                authentication=NTLM,
+                auto_bind=True
+            )
+            return conn, None
+        except Exception:
+            # Si NTLM échoue, essayer simple bind
+            pass
+
+        # Essayer simple bind (avec ou sans TLS selon la configuration)
+        if use_ssl and port != 636:
+            # StartTLS sur port 389
+            conn = Connection(
+                ad_server,
+                user=username,
+                password=password,
+                auto_bind='TLS_BEFORE_BIND'
+            )
+        else:
+            conn = Connection(
+                ad_server,
+                user=username,
+                password=password,
+                auto_bind=True
+            )
         return conn, None
+
     except LDAPException as e:
         return None, str(e)
+    except Exception as e:
+        return None, f"Erreur de connexion: {str(e)}"
 
 
 def is_connected():
@@ -486,6 +534,7 @@ def create_user():
         ou = request.form.get('ou', '')
         department = request.form.get('department', '')
         title = request.form.get('title', '')
+        must_change_password = request.form.get('must_change_password') == 'on'
 
         # Valider la force du mot de passe
         if password:
@@ -533,6 +582,10 @@ def create_user():
 
                     # Activer le compte
                     conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
+
+                    # Forcer le changement de mot de passe à la prochaine connexion
+                    if must_change_password:
+                        conn.modify(user_dn, {'pwdLastSet': [(MODIFY_REPLACE, [0])]})
 
                 log_action(ACTIONS['CREATE_USER'], session.get('ad_username'),
                           {'username': username, 'dn': user_dn}, True, request.remote_addr)
@@ -2839,9 +2892,16 @@ def health():
 @app.route('/update')
 def update_page():
     """Page de mise à jour."""
-    from updater import check_for_updates, get_current_version
-
-    update_info = check_for_updates()
+    try:
+        from updater_fast import check_for_updates_fast
+        update_info = check_for_updates_fast()
+    except Exception as e:
+        update_info = {
+            'update_available': False,
+            'current_version': 'Erreur',
+            'latest_version': None,
+            'error': str(e)
+        }
     return render_template('update.html',
                          update_info=update_info,
                          connected=is_connected())
@@ -2862,15 +2922,10 @@ def api_health():
 
 @app.route('/api/check-update')
 def api_check_update():
-    """API pour vérifier les mises à jour (avec infos incrémentales)."""
+    """API pour vérifier les mises à jour (mise à jour incrémentale rapide)."""
     try:
-        # Utiliser la version rapide qui donne plus d'infos
         from updater_fast import check_for_updates_fast
         return jsonify(check_for_updates_fast())
-    except ImportError:
-        # Fallback vers l'ancien système
-        from updater import check_for_updates
-        return jsonify(check_for_updates())
     except Exception as e:
         return jsonify({
             'update_available': False,
@@ -2880,85 +2935,48 @@ def api_check_update():
 
 @app.route('/api/perform-update', methods=['POST'])
 def api_perform_update():
-    """API pour effectuer une mise à jour en arrière-plan (silencieux)."""
+    """API pour effectuer une mise à jour incrémentale rapide."""
     try:
         import threading
+        from updater_fast import check_for_updates_fast, perform_fast_update
         from updater import restart_server, update_dependencies
 
-        # Utiliser la mise à jour incrémentale rapide par défaut
-        use_fast_update = request.json.get('fast', True) if request.is_json else True
-        if use_fast_update:
-            # Mise à jour incrémentale (rapide)
-            from updater_fast import check_for_updates_fast, perform_fast_update
+        # Vérifier si une mise à jour est disponible
+        info = check_for_updates_fast()
+        if not info['update_available']:
+            return jsonify({
+                'success': False,
+                'message': 'Aucune mise à jour disponible'
+            })
 
-            info = check_for_updates_fast()
-            if not info['update_available']:
-                return jsonify({
-                    'success': False,
-                    'message': 'Aucune mise à jour disponible'
-                })
+        # Appliquer la mise à jour incrémentale (télécharge uniquement les fichiers modifiés)
+        result = perform_fast_update(silent=True)
 
-            # Appliquer la mise à jour incrémentale
-            result = perform_fast_update(silent=True)
+        if result['success']:
+            # Mettre à jour les dépendances si requirements.txt a changé
+            update_dependencies(silent=True)
 
-            if result['success']:
-                # Mettre à jour les dépendances seulement si requirements.txt a changé
-                update_dependencies(silent=True)
+            # Redémarrer le serveur après un délai
+            def delayed_restart():
+                import time
+                time.sleep(2)
+                restart_server(silent=True)
+                os._exit(0)
 
-                # Redémarrer le serveur après un délai
-                def delayed_restart():
-                    import time
-                    time.sleep(2)
-                    restart_server(silent=True)
-                    os._exit(0)
+            threading.Thread(target=delayed_restart, daemon=True).start()
 
-                threading.Thread(target=delayed_restart, daemon=True).start()
-
-                return jsonify({
-                    'success': True,
-                    'message': f'Mise à jour réussie ({result["files_updated"]} fichiers, {result["bytes_downloaded"]/1024:.1f} Ko). Redémarrage...',
-                    'restarting': True,
-                    'files_updated': result['files_updated'],
-                    'bytes_downloaded': result['bytes_downloaded']
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': 'Erreur lors de la mise à jour: ' + str(result.get('errors', []))[:200]
-                })
+            return jsonify({
+                'success': True,
+                'message': f'Mise à jour réussie ({result["files_updated"]} fichiers, {result["bytes_downloaded"]/1024:.1f} Ko). Redémarrage...',
+                'restarting': True,
+                'files_updated': result['files_updated'],
+                'bytes_downloaded': result['bytes_downloaded']
+            })
         else:
-            # Mise à jour classique (télécharge tout)
-            from updater import download_update, apply_update, check_for_updates
-
-            info = check_for_updates()
-            if not info['update_available']:
-                return jsonify({
-                    'success': False,
-                    'message': 'Aucune mise à jour disponible'
-                })
-
-            zip_path, temp_dir = download_update(silent=True)
-            if apply_update(zip_path, temp_dir, silent=True):
-                update_dependencies(silent=True)
-
-                def delayed_restart():
-                    import time
-                    time.sleep(2)
-                    restart_server(silent=True)
-                    os._exit(0)
-
-                threading.Thread(target=delayed_restart, daemon=True).start()
-
-                return jsonify({
-                    'success': True,
-                    'message': f'Mise à jour vers {info["latest_version"]} réussie. Redémarrage...',
-                    'restarting': True
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': 'Erreur lors de la mise à jour'
-                })
+            return jsonify({
+                'success': False,
+                'message': 'Erreur lors de la mise à jour: ' + str(result.get('errors', []))[:200]
+            })
 
     except Exception as e:
         return jsonify({

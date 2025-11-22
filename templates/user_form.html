@@ -32,6 +32,13 @@
                 <small class="form-hint">Min. {{ password_requirements.min_length }} caracteres, avec majuscule, minuscule, chiffre ou special</small>
             </div>
 
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="must_change_password" value="on" checked>
+                    L'utilisateur doit changer son mot de passe a la prochaine connexion
+                </label>
+            </div>
+
             {% if ous %}
             <div class="form-group">
                 <label for="ou">Unite organisationnelle (OU)</label>
