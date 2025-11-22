@@ -5,6 +5,14 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.14.0] - 2025-11-22
+
+### Ajouté
+
+- **Option changement mot de passe obligatoire** - Checkbox pour forcer l'utilisateur a changer son mot de passe a la prochaine connexion (cochee par defaut)
+
+---
+
 ## [1.13.0] - 2025-11-22
 
 ### Ajouté
