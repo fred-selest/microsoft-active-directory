@@ -1,5 +1,5 @@
 // Service Worker for AD Web Interface PWA
-const CACHE_NAME = 'ad-web-interface-v1.7.0';
+const CACHE_NAME = 'ad-web-interface-v1.15.1';
 const urlsToCache = [
   '/',
   '/static/css/style.css',
@@ -68,8 +68,8 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   const options = {
     body: event.data ? event.data.text() : 'Nouvelle notification',
-    icon: '/static/icons/icon-192.png',
-    badge: '/static/icons/icon-72.png',
+    icon: '/static/icons/icon.svg',
+    badge: '/static/icons/icon.svg',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
