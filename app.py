@@ -294,7 +294,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             get_info=ALL
         )
 
-        # Essayer d'abord l'authentification NTLM (fonctionne sans TLS sur AD moderne)
+        # Essayer d'abord l'authentification NTLM
         try:
             conn = Connection(
                 ad_server,
@@ -304,9 +304,12 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 auto_bind=True
             )
             return conn, None
-        except Exception:
-            # Si NTLM échoue, essayer simple bind
-            pass
+        except Exception as ntlm_error:
+            # Si strongerAuthRequired, suggérer SSL
+            if 'strongerAuthRequired' in str(ntlm_error):
+                if not use_ssl:
+                    return None, "Le serveur exige une connexion sécurisée. Activez SSL (port 636)."
+            # Sinon continuer avec simple bind
 
         # Essayer simple bind (avec ou sans TLS selon la configuration)
         if use_ssl and port != 636:
