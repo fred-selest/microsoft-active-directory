@@ -1,0 +1,87 @@
+# =============================================================================
+# Docker Compose pour AD Web Interface
+# =============================================================================
+# Usage:
+#   docker-compose up -d        # Demarrer en arriere-plan
+#   docker-compose logs -f      # Voir les logs
+#   docker-compose down         # Arreter
+# =============================================================================
+
+version: '3.8'
+
+services:
+  ad-web-interface:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ad-web-interface:latest
+    container_name: ad-web-interface
+    restart: unless-stopped
+
+    ports:
+      - "5000:5000"
+
+    environment:
+      # Configuration Flask
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-changez-moi-en-production-avec-une-cle-forte}
+      - FLASK_DEBUG=false
+
+      # Configuration Active Directory
+      - AD_SERVER=${AD_SERVER:-}
+      - AD_PORT=${AD_PORT:-389}
+      - AD_USE_SSL=${AD_USE_SSL:-false}
+      - AD_BASE_DN=${AD_BASE_DN:-}
+
+      # Configuration Session
+      - SESSION_TIMEOUT=${SESSION_TIMEOUT:-30}
+
+      # Configuration RBAC
+      - RBAC_ENABLED=${RBAC_ENABLED:-true}
+      - DEFAULT_ROLE=${DEFAULT_ROLE:-reader}
+
+      # Chemins (internes au container)
+      - AD_LOG_DIR=/app/logs
+      - AD_DATA_DIR=/app/data
+
+    volumes:
+      # Persistance des donnees
+      - ad-logs:/app/logs
+      - ad-data:/app/data
+      # Configuration externe (optionnel)
+      # - ./config/.env:/app/.env:ro
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Limites de ressources (optionnel)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+
+volumes:
+  ad-logs:
+    driver: local
+  ad-data:
+    driver: local
+
+# =============================================================================
+# Configuration avec fichier .env
+# =============================================================================
+# Creez un fichier .env a cote de docker-compose.yml avec:
+#
+# SECRET_KEY=votre-cle-secrete-generee
+# AD_SERVER=dc.example.com
+# AD_PORT=389
+# AD_USE_SSL=false
+# AD_BASE_DN=DC=example,DC=com
+# =============================================================================

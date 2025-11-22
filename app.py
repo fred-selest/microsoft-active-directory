@@ -2838,6 +2838,19 @@ def update_page():
                          connected=is_connected())
 
 
+# === API HEALTH CHECK (pour Docker/Kubernetes) ===
+
+@app.route('/api/health')
+def api_health():
+    """Endpoint de health check pour Docker/Kubernetes."""
+    from updater import get_current_version
+    return jsonify({
+        'status': 'healthy',
+        'version': get_current_version(),
+        'platform': platform.system()
+    })
+
+
 @app.route('/api/check-update')
 def api_check_update():
     """API pour vérifier les mises à jour (avec infos incrémentales)."""
