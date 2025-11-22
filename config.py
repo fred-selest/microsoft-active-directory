@@ -51,6 +51,12 @@ class Config:
     RBAC_ENABLED = os.environ.get('RBAC_ENABLED', 'true').lower() == 'true'
     DEFAULT_ROLE = os.environ.get('DEFAULT_ROLE', 'reader')
 
+    # Configuration HTTPS
+    # Force la redirection HTTP -> HTTPS (recommandé en production)
+    FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'false').lower() == 'true'
+    # Liste des proxys de confiance (pour X-Forwarded-Proto)
+    TRUSTED_PROXIES = os.environ.get('TRUSTED_PROXIES', '127.0.0.1,::1').split(',')
+
     # Pagination
     ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE', 25))
 
