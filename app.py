@@ -189,25 +189,41 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if port is None:
         port = 636 if use_ssl else 389
 
-    try:
-        # Configuration TLS pour accepter les certificats auto-signés
-        tls_config = None
-        if use_ssl:
-            tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLS)
+    # Configuration TLS pour accepter les certificats auto-signés
+    tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLS)
 
-        ad_server = Server(
-            server,
-            port=port,
-            use_ssl=use_ssl,
-            tls=tls_config,
-            get_info=ALL
-        )
-        conn = Connection(
-            ad_server,
-            user=username,
-            password=password,
-            auto_bind=True
-        )
+    try:
+        if use_ssl and port == 636:
+            # LDAPS sur port 636
+            ad_server = Server(
+                server,
+                port=port,
+                use_ssl=True,
+                tls=tls_config,
+                get_info=ALL
+            )
+            conn = Connection(
+                ad_server,
+                user=username,
+                password=password,
+                auto_bind=True
+            )
+        else:
+            # StartTLS sur port 389 (recommandé quand LDAPS n'est pas disponible)
+            ad_server = Server(
+                server,
+                port=389,
+                use_ssl=False,
+                tls=tls_config,
+                get_info=ALL
+            )
+            # Utiliser auto_bind='TLS_BEFORE_BIND' pour StartTLS
+            conn = Connection(
+                ad_server,
+                user=username,
+                password=password,
+                auto_bind='TLS_BEFORE_BIND' if use_ssl else True
+            )
         return conn, None
     except LDAPException as e:
         return None, str(e)
