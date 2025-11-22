@@ -72,27 +72,36 @@ def update_dependencies(silent=False):
 
 
 def restart_server(silent=False):
-    """Redemarrer le serveur automatiquement."""
+    """Redemarrer le serveur automatiquement (en mode silencieux sur Windows)."""
     app_dir = Path(__file__).parent
 
     if platform.system() == "Windows":
-        # Sur Windows, utiliser run.bat
-        script_path = app_dir / "run.bat"
-        if script_path.exists():
+        # Sur Windows, utiliser run-silent.vbs pour eviter la fenetre de console
+        silent_script = app_dir / "run-silent.vbs"
+        if silent_script.exists():
             subprocess.Popen(
-                ['cmd', '/c', 'start', '', str(script_path)],
+                ['wscript.exe', str(silent_script)],
                 cwd=str(app_dir),
-                creationflags=subprocess.CREATE_NEW_CONSOLE
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
         else:
-            # Fallback: lancer directement python
-            python_path = app_dir / "venv" / "Scripts" / "python.exe"
+            # Fallback: lancer pythonw (sans console)
+            pythonw_path = app_dir / "venv" / "Scripts" / "pythonw.exe"
             run_py = app_dir / "run.py"
-            subprocess.Popen(
-                [str(python_path), str(run_py)],
-                cwd=str(app_dir),
-                creationflags=subprocess.CREATE_NEW_CONSOLE
-            )
+            if pythonw_path.exists():
+                subprocess.Popen(
+                    [str(pythonw_path), str(run_py)],
+                    cwd=str(app_dir),
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+            else:
+                # Dernier recours: python.exe sans nouvelle console
+                python_path = app_dir / "venv" / "Scripts" / "python.exe"
+                subprocess.Popen(
+                    [str(python_path), str(run_py)],
+                    cwd=str(app_dir),
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
     else:
         # Sur Linux/macOS, utiliser run.sh
         script_path = app_dir / "run.sh"
