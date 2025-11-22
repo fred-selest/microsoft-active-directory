@@ -54,7 +54,7 @@ class Config:
     # Groupes AD pour attribution automatique des rôles
     # Noms de groupes AD (CN) séparés par des virgules
     # Le premier groupe correspondant détermine le rôle (ordre: admin > operator > reader)
-    ADMIN_GROUPS = [g.strip() for g in os.environ.get('RBAC_ADMIN_GROUPS', 'Domain Admins,Administrateurs du domaine').split(',') if g.strip()]
+    ADMIN_GROUPS = [g.strip() for g in os.environ.get('RBAC_ADMIN_GROUPS', 'Domain Admins,Administrateurs du domaine,Administrateurs,Administrateurs de l\'entreprise,Admins du domaine').split(',') if g.strip()]
     OPERATOR_GROUPS = [g.strip() for g in os.environ.get('RBAC_OPERATOR_GROUPS', '').split(',') if g.strip()]
     READER_GROUPS = [g.strip() for g in os.environ.get('RBAC_READER_GROUPS', '').split(',') if g.strip()]
 
