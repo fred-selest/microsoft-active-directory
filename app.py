@@ -3082,8 +3082,17 @@ def api_perform_update():
 @require_permission('admin')
 def admin_page():
     """Page d'administration pour configurer l'application."""
-    from settings_manager import load_settings
-    settings = load_settings()
+    try:
+        from settings_manager import load_settings
+        settings = load_settings()
+    except Exception as e:
+        flash(f'Erreur chargement parametres: {str(e)}', 'error')
+        settings = {
+            'site': {'title': 'AD Web Interface', 'logo': '', 'footer': '', 'theme_color': '#0078d4'},
+            'menu': {'items': [], 'dropdown_items': []},
+            'features': {'dark_mode': True, 'language_switch': False, 'update_check': True, 'pwa_enabled': True},
+            'security': {'session_timeout': 30, 'max_login_attempts': 5, 'require_https': False}
+        }
     return render_template('admin.html', settings=settings, connected=is_connected())
 
 
