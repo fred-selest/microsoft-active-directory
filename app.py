@@ -10,7 +10,7 @@ import io
 from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, session, Response
-from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE, Tls
+from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE, Tls, NTLM
 import ssl
 from ldap3.core.exceptions import LDAPException
 from config import get_config, CURRENT_OS, IS_WINDOWS
@@ -192,39 +192,62 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     # Configuration TLS pour accepter les certificats auto-signés
     tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLS)
 
+    # Préparer le nom d'utilisateur au format NTLM si nécessaire
+    # Format: DOMAIN\username ou username@domain
+    ntlm_user = username
+    if '\\' not in username and '@' not in username:
+        # Extraire le domaine du Base DN si possible
+        domain = None
+        base_dn = session.get('ad_base_dn', '')
+        if base_dn:
+            # Convertir DC=example,DC=com en EXAMPLE
+            parts = [p.split('=')[1] for p in base_dn.upper().split(',') if p.startswith('DC=')]
+            if parts:
+                domain = parts[0]
+        if domain:
+            ntlm_user = f"{domain}\\{username}"
+
     try:
-        if use_ssl and port == 636:
-            # LDAPS sur port 636
-            ad_server = Server(
-                server,
-                port=port,
-                use_ssl=True,
-                tls=tls_config,
-                get_info=ALL
+        ad_server = Server(
+            server,
+            port=port,
+            use_ssl=(use_ssl and port == 636),
+            tls=tls_config if use_ssl else None,
+            get_info=ALL
+        )
+
+        # Essayer d'abord l'authentification NTLM (fonctionne sans TLS sur AD moderne)
+        try:
+            conn = Connection(
+                ad_server,
+                user=ntlm_user,
+                password=password,
+                authentication=NTLM,
+                auto_bind=True
             )
+            return conn, None
+        except Exception:
+            # Si NTLM échoue, essayer simple bind
+            pass
+
+        # Essayer simple bind (avec ou sans TLS selon la configuration)
+        if use_ssl and port != 636:
+            # StartTLS sur port 389
+            conn = Connection(
+                ad_server,
+                user=username,
+                password=password,
+                auto_bind='TLS_BEFORE_BIND'
+            )
+        else:
             conn = Connection(
                 ad_server,
                 user=username,
                 password=password,
                 auto_bind=True
             )
-        else:
-            # StartTLS sur port 389 (recommandé quand LDAPS n'est pas disponible)
-            ad_server = Server(
-                server,
-                port=389,
-                use_ssl=False,
-                tls=tls_config,
-                get_info=ALL
-            )
-            # Utiliser auto_bind='TLS_BEFORE_BIND' pour StartTLS
-            conn = Connection(
-                ad_server,
-                user=username,
-                password=password,
-                auto_bind='TLS_BEFORE_BIND' if use_ssl else True
-            )
         return conn, None
+
     except LDAPException as e:
         return None, str(e)
     except Exception as e:
