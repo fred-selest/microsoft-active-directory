@@ -1,0 +1,77 @@
+# =============================================================================
+# Docker Ignore - AD Web Interface
+# =============================================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Fichiers Windows (non necessaires pour Docker/Linux)
+*.bat
+*.vbs
+*.ps1
+*.exe
+*.dll
+
+# Logs et donnees locales
+logs/
+data/
+*.log
+
+# Configuration locale
+.env
+.env.local
+.env.*.local
+
+# Tests
+tests/
+test_*.py
+*_test.py
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Autres
+Thumbs.db
+.DS_Store
+*.pem
+*.key
