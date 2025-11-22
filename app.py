@@ -92,6 +92,70 @@ def require_permission(permission):
         return decorated_function
     return decorator
 
+def get_user_role_from_groups(conn, username):
+    """Déterminer le rôle de l'utilisateur en fonction de ses groupes AD."""
+    if not config.RBAC_ENABLED:
+        return config.DEFAULT_ROLE
+
+    try:
+        base_dn = session.get('ad_base_dn', '')
+        if not base_dn and conn.server.info:
+            try:
+                naming_contexts = conn.server.info.naming_contexts
+                if naming_contexts:
+                    base_dn = str(naming_contexts[0])
+            except:
+                pass
+
+        # Rechercher l'utilisateur et ses groupes
+        search_filter = f'(sAMAccountName={escape_ldap_filter(username)})'
+        conn.search(
+            search_base=base_dn,
+            search_filter=search_filter,
+            search_scope=SUBTREE,
+            attributes=['memberOf']
+        )
+
+        if not conn.entries:
+            return config.DEFAULT_ROLE
+
+        user_entry = conn.entries[0]
+        user_groups = []
+
+        # Extraire les noms des groupes (CN) depuis les DN
+        if hasattr(user_entry, 'memberOf') and user_entry.memberOf:
+            for group_dn in user_entry.memberOf.values:
+                # Extraire le CN du DN (ex: CN=Domain Admins,CN=Users,DC=... -> Domain Admins)
+                if group_dn.startswith('CN='):
+                    cn = group_dn.split(',')[0][3:]  # Enlever "CN="
+                    user_groups.append(cn)
+
+        # Vérifier les groupes admin en premier (priorité la plus haute)
+        if config.ADMIN_GROUPS:
+            for admin_group in config.ADMIN_GROUPS:
+                if admin_group in user_groups:
+                    return 'admin'
+
+        # Vérifier les groupes operator
+        if config.OPERATOR_GROUPS:
+            for operator_group in config.OPERATOR_GROUPS:
+                if operator_group in user_groups:
+                    return 'operator'
+
+        # Vérifier les groupes reader
+        if config.READER_GROUPS:
+            for reader_group in config.READER_GROUPS:
+                if reader_group in user_groups:
+                    return 'reader'
+
+        # Rôle par défaut si aucun groupe ne correspond
+        return config.DEFAULT_ROLE
+
+    except Exception as e:
+        # En cas d'erreur, utiliser le rôle par défaut
+        return config.DEFAULT_ROLE
+
+
 # Cache pour la vérification des mises à jour (éviter les appels répétés)
 _update_cache = {'last_check': 0, 'result': None}
 
@@ -340,9 +404,12 @@ def connect():
                 except:
                     pass
 
+            # Déterminer le rôle en fonction des groupes AD
+            user_role = get_user_role_from_groups(conn, username)
+            session['user_role'] = user_role
+
             conn.unbind()
-            session['user_role'] = config.DEFAULT_ROLE
-            log_action(ACTIONS['LOGIN'], username, {'server': server}, True, request.remote_addr)
+            log_action(ACTIONS['LOGIN'], username, {'server': server, 'role': user_role}, True, request.remote_addr)
             flash('Connexion réussie à Active Directory!', 'success')
             return redirect(url_for('dashboard'))
         else:

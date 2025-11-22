@@ -5,6 +5,18 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.15.0] - 2025-11-22
+
+### Ajouté
+
+- **Attribution roles basee sur groupes AD** - Les roles (admin, operator, reader) sont automatiquement attribues en fonction des groupes AD de l'utilisateur
+  - `RBAC_ADMIN_GROUPS` - Groupes AD donnant le role admin (defaut: Domain Admins)
+  - `RBAC_OPERATOR_GROUPS` - Groupes AD donnant le role operator
+  - `RBAC_READER_GROUPS` - Groupes AD donnant le role reader
+  - Le role par defaut s'applique si aucun groupe ne correspond
+
+---
+
 ## [1.14.1] - 2025-11-22
 
 ### Corrige
