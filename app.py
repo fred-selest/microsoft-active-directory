@@ -100,16 +100,16 @@ _update_cache = {'last_check': 0, 'result': None}
 def inject_update_info():
     """Injecter les infos de mise à jour dans tous les templates."""
     import time
-    from updater import check_for_updates
 
     # Vérifier toutes les 5 minutes maximum
     current_time = time.time()
     if _update_cache['result'] is None or (current_time - _update_cache['last_check']) > 300:
         try:
-            _update_cache['result'] = check_for_updates()
+            from updater_fast import check_for_updates_fast
+            _update_cache['result'] = check_for_updates_fast()
             _update_cache['last_check'] = current_time
-        except:
-            _update_cache['result'] = {'update_available': False}
+        except Exception:
+            _update_cache['result'] = {'update_available': False, 'error': 'check_failed'}
 
     # Traductions
     lang = session.get('language', 'fr')
