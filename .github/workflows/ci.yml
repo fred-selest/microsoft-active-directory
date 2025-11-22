@@ -52,6 +52,8 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Test imports
+        env:
+          SECRET_KEY: test-secret-key-for-ci-only-not-for-production
         run: |
           python -c "from app import app; print('Flask app OK')"
           python -c "from config import get_config; print('Config OK')"
