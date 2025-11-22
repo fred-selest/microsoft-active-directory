@@ -24,8 +24,6 @@ def _make_key(prefix, *args, **kwargs):
 
 def cache_get(key):
     """Recuperer une valeur du cache."""
-    global _cache_stats
-
     if key in _cache:
         entry = _cache[key]
         if entry['expires'] > time.time():

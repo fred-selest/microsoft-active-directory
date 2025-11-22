@@ -83,6 +83,39 @@
         <h3>Historique des versions</h3>
 
         <div class="version-entry">
+            <h4>Version 1.15.0 - Attribution roles basee sur groupes AD</h4>
+            <ul>
+                <li><strong>RBAC:</strong> Les roles (admin, operator, reader) sont attribues automatiquement selon les groupes AD</li>
+                <li><strong>Configuration:</strong> RBAC_ADMIN_GROUPS, RBAC_OPERATOR_GROUPS, RBAC_READER_GROUPS</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.14.0 - Option changement mot de passe</h4>
+            <ul>
+                <li><strong>Utilisateurs:</strong> Checkbox pour forcer le changement de mot de passe a la prochaine connexion</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.13.0 - Support Docker et CI/CD</h4>
+            <ul>
+                <li><strong>Docker:</strong> Dockerfile, docker-compose.yml, documentation complete</li>
+                <li><strong>CI/CD:</strong> GitHub Actions (tests, build Docker, releases automatiques)</li>
+                <li><strong>Securite:</strong> Option FORCE_HTTPS, support reverse proxy</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.11.0 - Securite majeure</h4>
+            <ul>
+                <li><strong>Chiffrement:</strong> Mots de passe AD chiffres en session (AES-128)</li>
+                <li><strong>Protection:</strong> Injection LDAP, XSS, Path Traversal</li>
+                <li><strong>RBAC:</strong> Controle d'acces active par defaut</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
             <h4>Version 1.10.0 - Ameliorations mise a jour</h4>
             <ul>
                 <li><strong>Interface:</strong> Barre de progression animee pendant la mise a jour</li>
