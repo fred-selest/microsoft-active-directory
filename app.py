@@ -2839,9 +2839,16 @@ def health():
 @app.route('/update')
 def update_page():
     """Page de mise à jour."""
-    from updater import check_for_updates, get_current_version
-
-    update_info = check_for_updates()
+    try:
+        from updater_fast import check_for_updates_fast
+        update_info = check_for_updates_fast()
+    except Exception as e:
+        update_info = {
+            'update_available': False,
+            'current_version': 'Erreur',
+            'latest_version': None,
+            'error': str(e)
+        }
     return render_template('update.html',
                          update_info=update_info,
                          connected=is_connected())
