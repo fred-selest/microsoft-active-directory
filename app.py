@@ -163,9 +163,16 @@ def inject_update_info():
     lang = session.get('language', 'fr')
     translator = Translator(lang)
 
-    # Charger les paramètres dynamiques
-    from settings_manager import load_settings, get_menu_items, get_dropdown_items
-    settings = load_settings()
+    # Charger les paramètres dynamiques (avec gestion d'erreur)
+    try:
+        from settings_manager import load_settings, get_menu_items, get_dropdown_items
+        settings = load_settings()
+        menu_items = get_menu_items()
+        dropdown_items = get_dropdown_items()
+    except Exception:
+        settings = {}
+        menu_items = []
+        dropdown_items = {}
 
     # Fonction pour vérifier les permissions dans les templates
     def has_permission(permission):
@@ -173,6 +180,12 @@ def inject_update_info():
             return True
         user_role = session.get('user_role', config.DEFAULT_ROLE)
         return permission in ROLE_PERMISSIONS.get(user_role, [])
+
+    # Alertes (avec gestion d'erreur)
+    try:
+        alert_counts = get_alert_counts()
+    except Exception:
+        alert_counts = {'total': 0, 'critical': 0, 'warning': 0, 'info': 0}
 
     return {
         'update_info': _update_cache['result'],
@@ -184,10 +197,10 @@ def inject_update_info():
         'password_requirements': get_password_requirements(),
         't': translator,
         'current_lang': lang,
-        'alert_counts': get_alert_counts(),
+        'alert_counts': alert_counts,
         'site_settings': settings.get('site', {}),
-        'menu_items': get_menu_items(),
-        'dropdown_items': get_dropdown_items(),
+        'menu_items': menu_items,
+        'dropdown_items': dropdown_items,
         'feature_settings': settings.get('features', {})
     }
 
