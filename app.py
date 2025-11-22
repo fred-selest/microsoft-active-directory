@@ -92,10 +92,12 @@ def require_permission(permission):
         return decorated_function
     return decorator
 
-def get_user_role_from_groups(conn, username):
+def get_user_role_from_groups(conn, username, debug=False):
     """Déterminer le rôle de l'utilisateur en fonction de ses groupes AD."""
+    debug_info = {'groups': [], 'admin_groups_config': [], 'error': None}
+
     if not config.RBAC_ENABLED:
-        return config.DEFAULT_ROLE
+        return config.DEFAULT_ROLE, debug_info if debug else config.DEFAULT_ROLE
 
     try:
         base_dn = session.get('ad_base_dn', '')
@@ -107,6 +109,8 @@ def get_user_role_from_groups(conn, username):
             except:
                 pass
 
+        debug_info['admin_groups_config'] = config.ADMIN_GROUPS
+
         # Rechercher l'utilisateur et ses groupes
         search_filter = f'(sAMAccountName={escape_ldap_filter(username)})'
         conn.search(
@@ -117,7 +121,8 @@ def get_user_role_from_groups(conn, username):
         )
 
         if not conn.entries:
-            return config.DEFAULT_ROLE
+            debug_info['error'] = 'Utilisateur non trouve'
+            return (config.DEFAULT_ROLE, debug_info) if debug else config.DEFAULT_ROLE
 
         user_entry = conn.entries[0]
         user_groups = []
@@ -128,32 +133,35 @@ def get_user_role_from_groups(conn, username):
                 # Extraire le CN du DN (ex: CN=Domain Admins,CN=Users,DC=... -> Domain Admins)
                 if str(group_dn).upper().startswith('CN='):
                     cn = str(group_dn).split(',')[0][3:]  # Enlever "CN="
-                    user_groups.append(cn.lower())  # Normaliser en minuscules
+                    user_groups.append(cn)  # Garder la casse originale pour debug
+
+        debug_info['groups'] = user_groups
+        user_groups_lower = [g.lower() for g in user_groups]
 
         # Vérifier les groupes admin en premier (priorité la plus haute)
         if config.ADMIN_GROUPS:
             for admin_group in config.ADMIN_GROUPS:
-                if admin_group.lower() in user_groups:
-                    return 'admin'
+                if admin_group.lower() in user_groups_lower:
+                    return ('admin', debug_info) if debug else 'admin'
 
         # Vérifier les groupes operator
         if config.OPERATOR_GROUPS:
             for operator_group in config.OPERATOR_GROUPS:
-                if operator_group.lower() in user_groups:
-                    return 'operator'
+                if operator_group.lower() in user_groups_lower:
+                    return ('operator', debug_info) if debug else 'operator'
 
         # Vérifier les groupes reader
         if config.READER_GROUPS:
             for reader_group in config.READER_GROUPS:
-                if reader_group.lower() in user_groups:
-                    return 'reader'
+                if reader_group.lower() in user_groups_lower:
+                    return ('reader', debug_info) if debug else 'reader'
 
         # Rôle par défaut si aucun groupe ne correspond
-        return config.DEFAULT_ROLE
+        return (config.DEFAULT_ROLE, debug_info) if debug else config.DEFAULT_ROLE
 
     except Exception as e:
-        # En cas d'erreur, utiliser le rôle par défaut
-        return config.DEFAULT_ROLE
+        debug_info['error'] = str(e)
+        return (config.DEFAULT_ROLE, debug_info) if debug else config.DEFAULT_ROLE
 
 
 # Cache pour la vérification des mises à jour (éviter les appels répétés)
@@ -421,13 +429,25 @@ def connect():
                 except:
                     pass
 
-            # Déterminer le rôle en fonction des groupes AD
-            user_role = get_user_role_from_groups(conn, username)
+            # Déterminer le rôle en fonction des groupes AD (mode debug activé)
+            user_role, debug_info = get_user_role_from_groups(conn, username, debug=True)
             session['user_role'] = user_role
 
             conn.unbind()
             log_action(ACTIONS['LOGIN'], username, {'server': server, 'role': user_role}, True, request.remote_addr)
-            flash('Connexion réussie à Active Directory!', 'success')
+            flash(f'Connexion réussie! Role: {user_role}', 'success')
+
+            # Afficher les infos de debug sur les groupes
+            if debug_info.get('groups'):
+                groups_list = ', '.join(debug_info['groups'][:10])  # Limiter à 10 groupes
+                if len(debug_info['groups']) > 10:
+                    groups_list += f' ... (+{len(debug_info["groups"]) - 10} autres)'
+                flash(f'Groupes AD detectes: {groups_list}', 'info')
+            else:
+                flash('Aucun groupe AD detecte pour cet utilisateur', 'warning')
+
+            if debug_info.get('error'):
+                flash(f'Erreur detection groupes: {debug_info["error"]}', 'warning')
             return redirect(url_for('dashboard'))
         else:
             # Enregistrer l'echec pour le rate limiting
