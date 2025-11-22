@@ -5,6 +5,20 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.16.0] - 2025-11-22
+
+### Ajouté
+
+- **Menus conditionnels** - Les menus sont masques selon les permissions de l'utilisateur
+- **Fonction has_permission** - Disponible dans les templates pour verifier les droits
+
+### Corrige
+
+- **Detection groupes AD** - Comparaison insensible a la casse pour les noms de groupes
+- **PWA** - Correction manifest.json et service worker (icones manquantes)
+
+---
+
 ## [1.15.1] - 2025-11-22
 
 ### Corrige
