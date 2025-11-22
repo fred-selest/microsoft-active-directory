@@ -10,7 +10,8 @@ import io
 from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, session, Response
-from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
+from ldap3 import Server, Connection, ALL, SUBTREE, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE, Tls
+import ssl
 from ldap3.core.exceptions import LDAPException
 from config import get_config, CURRENT_OS, IS_WINDOWS
 from audit import log_action, get_audit_logs, ACTIONS
@@ -189,10 +190,16 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
         port = 636 if use_ssl else 389
 
     try:
+        # Configuration TLS pour accepter les certificats auto-signés
+        tls_config = None
+        if use_ssl:
+            tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLS)
+
         ad_server = Server(
             server,
             port=port,
             use_ssl=use_ssl,
+            tls=tls_config,
             get_info=ALL
         )
         conn = Connection(
@@ -204,6 +211,8 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
         return conn, None
     except LDAPException as e:
         return None, str(e)
+    except Exception as e:
+        return None, f"Erreur de connexion: {str(e)}"
 
 
 def is_connected():
