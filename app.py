@@ -268,14 +268,23 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     # Format: DOMAIN\username ou username@domain
     ntlm_user = username
     if '\\' not in username and '@' not in username:
-        # Extraire le domaine du Base DN si possible
+        # Extraire le domaine du serveur ou du Base DN
         domain = None
-        base_dn = session.get('ad_base_dn', '')
-        if base_dn:
-            # Convertir DC=example,DC=com en EXAMPLE
-            parts = [p.split('=')[1] for p in base_dn.upper().split(',') if p.startswith('DC=')]
-            if parts:
-                domain = parts[0]
+
+        # 1. Essayer d'extraire du serveur (ex: dc.example.com -> EXAMPLE)
+        if server and '.' in server:
+            server_parts = server.split('.')
+            if len(server_parts) >= 2:
+                domain = server_parts[1].upper()  # Prendre la partie après le premier point
+
+        # 2. Sinon, essayer depuis le Base DN
+        if not domain:
+            base_dn = session.get('ad_base_dn', '')
+            if base_dn:
+                parts = [p.split('=')[1] for p in base_dn.upper().split(',') if p.startswith('DC=')]
+                if parts:
+                    domain = parts[0]
+
         if domain:
             ntlm_user = f"{domain}\\{username}"
 
