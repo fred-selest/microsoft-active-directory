@@ -5,7 +5,7 @@ Version simplifiée avec Blueprints.
 import os
 import platform
 from datetime import timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 
 from config import get_config
 from security import generate_csrf_token, validate_csrf_token, add_security_headers, get_secure_session_config, check_rate_limit, record_login_attempt
@@ -276,6 +276,81 @@ def global_search():
     """Recherche globale."""
     query = request.args.get('q', '')
     return render_template('search.html', query=query, results=[], connected=is_connected())
+
+
+# === MISE A JOUR ===
+@app.route('/update')
+def update_page():
+    """Page de mise à jour."""
+    try:
+        from updater_fast import check_for_updates_fast
+        update_info = check_for_updates_fast()
+    except Exception as e:
+        update_info = {
+            'update_available': False,
+            'current_version': 'Erreur',
+            'latest_version': None,
+            'error': str(e)
+        }
+    return render_template('update.html', update_info=update_info, connected=is_connected())
+
+
+@app.route('/api/health')
+def api_health():
+    """Endpoint de health check pour Docker/Kubernetes."""
+    from updater import get_current_version
+    return jsonify({
+        'status': 'healthy',
+        'version': get_current_version(),
+        'platform': platform.system()
+    })
+
+
+@app.route('/api/check-update')
+def api_check_update():
+    """API pour vérifier les mises à jour."""
+    try:
+        from updater_fast import check_for_updates_fast
+        return jsonify(check_for_updates_fast())
+    except Exception as e:
+        return jsonify({'update_available': False, 'error': str(e)})
+
+
+@app.route('/api/perform-update', methods=['POST'])
+def api_perform_update():
+    """API pour effectuer une mise à jour incrémentale."""
+    try:
+        import threading
+        from updater_fast import check_for_updates_fast, perform_fast_update
+        from updater import restart_server, update_dependencies
+
+        info = check_for_updates_fast()
+        if not info['update_available']:
+            return jsonify({'success': False, 'message': 'Aucune mise à jour disponible'})
+
+        result = perform_fast_update(silent=True)
+
+        if result['success']:
+            update_dependencies(silent=True)
+
+            def delayed_restart():
+                import time
+                time.sleep(2)
+                restart_server(silent=True)
+                os._exit(0)
+
+            threading.Thread(target=delayed_restart, daemon=True).start()
+
+            return jsonify({
+                'success': True,
+                'message': f'Mise à jour réussie ({result["files_updated"]} fichiers). Redémarrage...',
+                'restarting': True
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Erreur: ' + str(result.get('errors', []))[:200]})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 
 def run_server():
