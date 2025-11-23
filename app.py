@@ -200,7 +200,7 @@ def dashboard():
     from ldap3 import SUBTREE
     conn, error = get_ad_connection()
     stats = {'total_users': 0, 'active_users': 0, 'disabled_users': 0,
-             'total_groups': 0, 'total_ous': 0}
+             'total_groups': 0, 'empty_groups': 0, 'total_ous': 0}
 
     if conn:
         base_dn = session.get('ad_base_dn', '')
@@ -216,9 +216,13 @@ def dashboard():
                 else:
                     stats['active_users'] += 1
 
-            # Compter groupes
-            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn'])
+            # Compter groupes et groupes vides
+            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member'])
             stats['total_groups'] = len(conn.entries)
+            for e in conn.entries:
+                members = e.member.values if hasattr(e, 'member') and e.member else []
+                if not members:
+                    stats['empty_groups'] += 1
 
             # Compter OUs
             conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['name'])
