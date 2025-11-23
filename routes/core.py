@@ -127,38 +127,49 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             return None, str(e)
 
     def try_ssl_connection(srv_host, ntlm_usr, simple_usr, pwd):
-        """Tenter connexion SSL sur port 636."""
-        ssl_port = 636
-        ad_server_ssl = Server(srv_host, port=ssl_port, use_ssl=True,
-                              tls=tls_config, get_info=ALL)
+        """Tenter connexion sécurisée: STARTTLS d'abord, puis LDAPS."""
+        errors = []
 
-        # Essayer NTLM avec SSL
-        conn, ssl_err = try_connection(ad_server_ssl, ntlm_usr, pwd, NTLM)
-        if conn:
-            session['ad_use_ssl'] = True
-            session['ad_port'] = ssl_port
-            return conn, None
-
-        # Essayer simple bind avec SSL
-        conn, ssl_err2 = try_connection(ad_server_ssl, simple_usr, pwd, SIMPLE)
-        if conn:
-            session['ad_use_ssl'] = True
-            session['ad_port'] = ssl_port
-            return conn, None
-
-        # Essayer STARTTLS sur le port 389
+        # 1. Essayer STARTTLS sur le port 389 (plus couramment supporté)
         try:
             ad_server_tls = Server(srv_host, port=389, get_info=ALL)
-            conn = Connection(ad_server_tls, user=ntlm_usr, password=pwd, authentication=NTLM)
-            conn.start_tls()
+            conn = Connection(ad_server_tls, user=ntlm_usr, password=pwd,
+                            authentication=NTLM, auto_bind=False)
+            conn.start_tls(tls_config)
             if conn.bind():
                 session['ad_use_ssl'] = False
                 session['ad_port'] = 389
                 return conn, None
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"STARTTLS: {str(e)[:100]}")
 
-        return None, f"SSL/TLS requis. Erreur: {ssl_err or ssl_err2}"
+        # 2. Essayer LDAPS sur le port 636
+        ssl_port = 636
+        try:
+            ad_server_ssl = Server(srv_host, port=ssl_port, use_ssl=True,
+                                  tls=tls_config, get_info=ALL)
+
+            # NTLM avec SSL
+            conn, ssl_err = try_connection(ad_server_ssl, ntlm_usr, pwd, NTLM)
+            if conn:
+                session['ad_use_ssl'] = True
+                session['ad_port'] = ssl_port
+                return conn, None
+            if ssl_err:
+                errors.append(f"LDAPS NTLM: {ssl_err[:100]}")
+
+            # Simple bind avec SSL
+            conn, ssl_err2 = try_connection(ad_server_ssl, simple_usr, pwd, SIMPLE)
+            if conn:
+                session['ad_use_ssl'] = True
+                session['ad_port'] = ssl_port
+                return conn, None
+            if ssl_err2:
+                errors.append(f"LDAPS Simple: {ssl_err2[:100]}")
+        except Exception as e:
+            errors.append(f"LDAPS: {str(e)[:100]}")
+
+        return None, f"SSL/TLS requis mais non disponible. Vérifiez la config du serveur AD. Erreurs: {'; '.join(errors)}"
 
     try:
         ad_server = Server(server, port=port, use_ssl=use_ssl,
