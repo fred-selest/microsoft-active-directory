@@ -4,7 +4,7 @@ Fonctions core partagées entre tous les blueprints.
 import ssl
 from functools import wraps
 from flask import session, redirect, url_for, flash, request
-from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM
+from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE
 from ldap3.core.exceptions import LDAPException
 
 from config import get_config
@@ -118,25 +118,61 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
         if domain:
             ntlm_user = f"{domain}\\{username}"
 
+    def try_connection(srv, usr, pwd, auth_type=NTLM):
+        """Tenter une connexion avec les paramètres donnés."""
+        try:
+            conn = Connection(srv, user=usr, password=pwd, authentication=auth_type, auto_bind=True)
+            return conn, None
+        except Exception as e:
+            return None, str(e)
+
     try:
         ad_server = Server(server, port=port, use_ssl=use_ssl,
                           tls=tls_config if use_ssl else None, get_info=ALL)
 
         # NTLM auth
-        try:
-            conn = Connection(ad_server, user=ntlm_user, password=password,
-                            authentication=NTLM, auto_bind=True)
+        conn, ntlm_err = try_connection(ad_server, ntlm_user, password, NTLM)
+        if conn:
             return conn, None
-        except Exception as e:
-            if 'strongerAuthRequired' in str(e) and not use_ssl:
-                return None, "SSL requis (port 636)"
+
+        # Si strongerAuthRequired sans SSL, réessayer automatiquement avec SSL
+        if ntlm_err and 'strongerAuthRequired' in ntlm_err and not use_ssl:
+            ssl_port = 636
+            ad_server_ssl = Server(server, port=ssl_port, use_ssl=True,
+                                  tls=tls_config, get_info=ALL)
+
+            # Essayer NTLM avec SSL
+            conn, ssl_err = try_connection(ad_server_ssl, ntlm_user, password, NTLM)
+            if conn:
+                session['ad_use_ssl'] = True
+                session['ad_port'] = ssl_port
+                return conn, None
+
+            # Essayer simple bind avec SSL
+            conn, ssl_err2 = try_connection(ad_server_ssl, username, password, SIMPLE)
+            if conn:
+                session['ad_use_ssl'] = True
+                session['ad_port'] = ssl_port
+                return conn, None
+
+            # Essayer STARTTLS sur le port 389
+            try:
+                ad_server_tls = Server(server, port=389, get_info=ALL)
+                conn = Connection(ad_server_tls, user=ntlm_user, password=password, authentication=NTLM)
+                conn.start_tls()
+                if conn.bind():
+                    session['ad_use_ssl'] = False
+                    session['ad_port'] = 389
+                    return conn, None
+            except Exception:
+                pass
+
+            return None, f"SSL/TLS requis. Erreur: {ssl_err or ssl_err2}"
 
         # Simple bind fallback
-        try:
-            conn = Connection(ad_server, user=username, password=password, auto_bind=True)
+        conn, simple_err = try_connection(ad_server, username, password, SIMPLE)
+        if conn:
             return conn, None
-        except:
-            pass
 
         conn = Connection(ad_server, user=username, password=password)
         if conn.bind():
