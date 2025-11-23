@@ -255,3 +255,75 @@ def api_documentation():
     """Documentation de l'API."""
     flash('Documentation API disponible dans la version complète.', 'info')
     return redirect(url_for('dashboard'))
+
+
+# === POLITIQUE DE MOTS DE PASSE ===
+@tools_bp.route('/password-policy')
+@require_connection
+def password_policy():
+    """Afficher la politique de mots de passe du domaine."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    policy = {}
+
+    try:
+        # Lire la politique de mot de passe par défaut du domaine
+        conn.search(base_dn, '(objectClass=domain)', 'BASE',
+                   attributes=['minPwdLength', 'pwdHistoryLength', 'maxPwdAge',
+                              'minPwdAge', 'lockoutThreshold', 'lockoutDuration',
+                              'lockoutObservationWindow', 'pwdProperties'])
+
+        if conn.entries:
+            entry = conn.entries[0]
+
+            # Conversion des valeurs
+            def get_value(attr):
+                if hasattr(entry, attr) and getattr(entry, attr).value is not None:
+                    return getattr(entry, attr).value
+                return None
+
+            policy = {
+                'minPwdLength': get_value('minPwdLength') or 0,
+                'pwdHistoryLength': get_value('pwdHistoryLength') or 0,
+                'maxPwdAge': get_value('maxPwdAge'),
+                'minPwdAge': get_value('minPwdAge'),
+                'lockoutThreshold': get_value('lockoutThreshold') or 0,
+                'lockoutDuration': get_value('lockoutDuration'),
+                'lockoutObservationWindow': get_value('lockoutObservationWindow'),
+                'pwdProperties': get_value('pwdProperties') or 0
+            }
+
+            # Convertir les durées (format Windows: -valeur * 100ns)
+            def convert_duration(val):
+                if val is None or val == 0:
+                    return "Non défini"
+                # Valeur négative en intervalles de 100ns
+                seconds = abs(int(val)) / 10000000
+                if seconds < 60:
+                    return f"{int(seconds)} secondes"
+                elif seconds < 3600:
+                    return f"{int(seconds/60)} minutes"
+                elif seconds < 86400:
+                    return f"{int(seconds/3600)} heures"
+                else:
+                    return f"{int(seconds/86400)} jours"
+
+            policy['maxPwdAge_display'] = convert_duration(policy['maxPwdAge'])
+            policy['minPwdAge_display'] = convert_duration(policy['minPwdAge'])
+            policy['lockoutDuration_display'] = convert_duration(policy['lockoutDuration'])
+            policy['lockoutObservationWindow_display'] = convert_duration(policy['lockoutObservationWindow'])
+
+            # Propriétés du mot de passe
+            pwd_props = int(policy['pwdProperties'])
+            policy['complexity_enabled'] = bool(pwd_props & 1)
+            policy['reversible_encryption'] = bool(pwd_props & 16)
+
+        conn.unbind()
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+
+    return render_template('password_policy.html', policy=policy, connected=is_connected())
