@@ -78,7 +78,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in settings.menu.items %}
+                        {% for item in settings.menu['items'] %}
                         <tr>
                             <td>
                                 <input type="checkbox" name="menu_{{ item.id }}_enabled" {% if item.enabled %}checked{% endif %}>
@@ -108,7 +108,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in settings.menu.dropdown_items %}
+                        {% for item in settings.menu['dropdown_items'] %}
                         <tr>
                             <td>
                                 <input type="checkbox" name="dropdown_{{ item.id }}_enabled" {% if item.enabled %}checked{% endif %}>
