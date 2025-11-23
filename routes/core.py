@@ -4,7 +4,7 @@ Fonctions core partagées entre tous les blueprints.
 import ssl
 from functools import wraps
 from flask import session, redirect, url_for, flash, request
-from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE
+from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, SASL, KERBEROS
 from ldap3.core.exceptions import LDAPException
 
 from config import get_config
@@ -127,10 +127,23 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             return None, str(e)
 
     def try_ssl_connection(srv_host, ntlm_usr, simple_usr, pwd):
-        """Tenter connexion sécurisée: STARTTLS d'abord, puis LDAPS."""
+        """Tenter connexion sécurisée: SASL, STARTTLS, puis LDAPS."""
         errors = []
 
-        # 1. Essayer STARTTLS sur le port 389 (plus couramment supporté)
+        # 1. Essayer NTLM avec sign/seal sur port 389 (LDAP Signing)
+        try:
+            ad_server_sign = Server(srv_host, port=389, get_info=ALL)
+            # NTLM avec session_security pour le signing
+            conn = Connection(ad_server_sign, user=ntlm_usr, password=pwd,
+                            authentication=NTLM, auto_bind=True)
+            if conn.bound:
+                session['ad_use_ssl'] = False
+                session['ad_port'] = 389
+                return conn, None
+        except Exception as e:
+            errors.append(f"NTLM Sign: {str(e)[:80]}")
+
+        # 2. Essayer STARTTLS sur le port 389
         try:
             ad_server_tls = Server(srv_host, port=389, get_info=ALL)
             conn = Connection(ad_server_tls, user=ntlm_usr, password=pwd,
@@ -141,35 +154,31 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 session['ad_port'] = 389
                 return conn, None
         except Exception as e:
-            errors.append(f"STARTTLS: {str(e)[:100]}")
+            errors.append(f"STARTTLS: {str(e)[:80]}")
 
-        # 2. Essayer LDAPS sur le port 636
+        # 3. Essayer LDAPS sur le port 636
         ssl_port = 636
         try:
             ad_server_ssl = Server(srv_host, port=ssl_port, use_ssl=True,
                                   tls=tls_config, get_info=ALL)
 
-            # NTLM avec SSL
             conn, ssl_err = try_connection(ad_server_ssl, ntlm_usr, pwd, NTLM)
             if conn:
                 session['ad_use_ssl'] = True
                 session['ad_port'] = ssl_port
                 return conn, None
             if ssl_err:
-                errors.append(f"LDAPS NTLM: {ssl_err[:100]}")
-
-            # Simple bind avec SSL
-            conn, ssl_err2 = try_connection(ad_server_ssl, simple_usr, pwd, SIMPLE)
-            if conn:
-                session['ad_use_ssl'] = True
-                session['ad_port'] = ssl_port
-                return conn, None
-            if ssl_err2:
-                errors.append(f"LDAPS Simple: {ssl_err2[:100]}")
+                errors.append(f"LDAPS: {ssl_err[:80]}")
         except Exception as e:
-            errors.append(f"LDAPS: {str(e)[:100]}")
+            errors.append(f"LDAPS: {str(e)[:80]}")
 
-        return None, f"SSL/TLS requis mais non disponible. Vérifiez la config du serveur AD. Erreurs: {'; '.join(errors)}"
+        # Message d'aide pour l'utilisateur
+        help_msg = ("Connexion sécurisée impossible. Options:\n"
+                   "1. Cochez 'Utiliser SSL' et port 636\n"
+                   "2. Ou activez LDAPS sur votre serveur AD\n"
+                   "3. Ou désactivez 'Domain controller: LDAP server signing requirements' dans les GPO")
+
+        return None, f"{help_msg}\nErreurs: {'; '.join(errors)}"
 
     try:
         ad_server = Server(server, port=port, use_ssl=use_ssl,
