@@ -126,63 +126,83 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
         except Exception as e:
             return None, str(e)
 
+    def try_ssl_connection(srv_host, ntlm_usr, simple_usr, pwd):
+        """Tenter connexion SSL sur port 636."""
+        ssl_port = 636
+        ad_server_ssl = Server(srv_host, port=ssl_port, use_ssl=True,
+                              tls=tls_config, get_info=ALL)
+
+        # Essayer NTLM avec SSL
+        conn, ssl_err = try_connection(ad_server_ssl, ntlm_usr, pwd, NTLM)
+        if conn:
+            session['ad_use_ssl'] = True
+            session['ad_port'] = ssl_port
+            return conn, None
+
+        # Essayer simple bind avec SSL
+        conn, ssl_err2 = try_connection(ad_server_ssl, simple_usr, pwd, SIMPLE)
+        if conn:
+            session['ad_use_ssl'] = True
+            session['ad_port'] = ssl_port
+            return conn, None
+
+        # Essayer STARTTLS sur le port 389
+        try:
+            ad_server_tls = Server(srv_host, port=389, get_info=ALL)
+            conn = Connection(ad_server_tls, user=ntlm_usr, password=pwd, authentication=NTLM)
+            conn.start_tls()
+            if conn.bind():
+                session['ad_use_ssl'] = False
+                session['ad_port'] = 389
+                return conn, None
+        except Exception:
+            pass
+
+        return None, f"SSL/TLS requis. Erreur: {ssl_err or ssl_err2}"
+
     try:
         ad_server = Server(server, port=port, use_ssl=use_ssl,
                           tls=tls_config if use_ssl else None, get_info=ALL)
+
+        all_errors = []
 
         # NTLM auth
         conn, ntlm_err = try_connection(ad_server, ntlm_user, password, NTLM)
         if conn:
             return conn, None
-
-        # Si strongerAuthRequired sans SSL, réessayer automatiquement avec SSL
-        if ntlm_err and 'strongerAuthRequired' in ntlm_err and not use_ssl:
-            ssl_port = 636
-            ad_server_ssl = Server(server, port=ssl_port, use_ssl=True,
-                                  tls=tls_config, get_info=ALL)
-
-            # Essayer NTLM avec SSL
-            conn, ssl_err = try_connection(ad_server_ssl, ntlm_user, password, NTLM)
-            if conn:
-                session['ad_use_ssl'] = True
-                session['ad_port'] = ssl_port
-                return conn, None
-
-            # Essayer simple bind avec SSL
-            conn, ssl_err2 = try_connection(ad_server_ssl, username, password, SIMPLE)
-            if conn:
-                session['ad_use_ssl'] = True
-                session['ad_port'] = ssl_port
-                return conn, None
-
-            # Essayer STARTTLS sur le port 389
-            try:
-                ad_server_tls = Server(server, port=389, get_info=ALL)
-                conn = Connection(ad_server_tls, user=ntlm_user, password=password, authentication=NTLM)
-                conn.start_tls()
-                if conn.bind():
-                    session['ad_use_ssl'] = False
-                    session['ad_port'] = 389
-                    return conn, None
-            except Exception:
-                pass
-
-            return None, f"SSL/TLS requis. Erreur: {ssl_err or ssl_err2}"
+        if ntlm_err:
+            all_errors.append(ntlm_err)
 
         # Simple bind fallback
         conn, simple_err = try_connection(ad_server, username, password, SIMPLE)
         if conn:
             return conn, None
+        if simple_err:
+            all_errors.append(simple_err)
 
+        # Dernière tentative sans auto_bind
         conn = Connection(ad_server, user=username, password=password)
         if conn.bind():
             return conn, None
-        return None, f"Échec: {conn.result.get('description', 'erreur')}"
+        last_err = conn.result.get('description', 'erreur inconnue')
+        all_errors.append(last_err)
+
+        # Si strongerAuthRequired dans une des erreurs et pas déjà en SSL, réessayer avec SSL
+        if not use_ssl and any('strongerAuthRequired' in str(e) for e in all_errors):
+            return try_ssl_connection(server, ntlm_user, username, password)
+
+        return None, f"Échec authentification: {last_err}"
 
     except LDAPException as e:
-        return None, str(e)
+        err_str = str(e)
+        if 'strongerAuthRequired' in err_str and not use_ssl:
+            return try_ssl_connection(server, ntlm_user, username, password)
+        return None, err_str
     except Exception as e:
-        return None, f"Erreur: {str(e)}"
+        err_str = str(e)
+        if 'strongerAuthRequired' in err_str and not use_ssl:
+            return try_ssl_connection(server, ntlm_user, username, password)
+        return None, f"Erreur: {err_str}"
 
 
 def get_user_role_from_groups(conn, username, debug=False):
