@@ -200,3 +200,75 @@ def delete_group(dn):
         conn.unbind()
 
     return redirect(url_for('groups.list_groups'))
+
+
+@groups_bp.route('/create', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def create_group():
+    """Créer un nouveau groupe."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('groups.list_groups'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    # Récupérer les OUs pour le formulaire
+    try:
+        conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
+                   attributes=['name', 'distinguishedName'])
+        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+                   for e in conn.entries]
+    except:
+        ou_list = []
+
+    if request.method == 'POST':
+        if not validate_csrf_token(request.form.get('csrf_token')):
+            flash('Token CSRF invalide.', 'error')
+            return render_template('create_group.html', ous=ou_list, connected=is_connected())
+
+        group_name = request.form.get('group_name', '').strip()
+        description = request.form.get('description', '').strip()
+        target_ou = request.form.get('target_ou', base_dn)
+        group_scope = request.form.get('group_scope', 'global')
+
+        if not group_name:
+            flash('Nom du groupe requis.', 'error')
+            return render_template('create_group.html', ous=ou_list, connected=is_connected())
+
+        group_dn = f"CN={group_name},{target_ou}"
+
+        # Calcul du groupType selon le scope
+        # Global=-2147483646, DomainLocal=-2147483644, Universal=-2147483640
+        group_types = {
+            'global': -2147483646,
+            'domainlocal': -2147483644,
+            'universal': -2147483640
+        }
+        group_type = group_types.get(group_scope, -2147483646)
+
+        attributes = {
+            'objectClass': ['top', 'group'],
+            'cn': group_name,
+            'sAMAccountName': group_name,
+            'groupType': group_type
+        }
+        if description:
+            attributes['description'] = description
+
+        try:
+            conn.add(group_dn, attributes=attributes)
+            if conn.result['result'] == 0:
+                log_action(ACTIONS.get('CREATE_GROUP', 'create_group'), session.get('ad_username'),
+                          {'dn': group_dn, 'name': group_name}, True, request.remote_addr)
+                flash(f'Groupe {group_name} créé.', 'success')
+                return redirect(url_for('groups.list_groups'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except Exception as e:
+            flash(f'Erreur: {str(e)}', 'error')
+        finally:
+            conn.unbind()
+
+    return render_template('create_group.html', ous=ou_list, connected=is_connected())
