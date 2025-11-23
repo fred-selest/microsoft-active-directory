@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Recherche - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Recherche</h2>
+</div>
+
+<div class="search-container">
+    <form method="get" action="{{ url_for('global_search') }}" class="search-form">
+        <div class="search-input-group">
+            <input type="text" name="q" placeholder="Rechercher..." value="{{ query }}" class="form-control" autofocus>
+            <button type="submit" class="btn btn-primary">Rechercher</button>
+        </div>
+    </form>
+</div>
+
+{% if query %}
+<div class="search-results">
+    {% if results %}
+    <p class="results-summary">{{ results|length }} resultat(s) pour "{{ query }}"</p>
+    <div class="result-list">
+        {% for result in results %}
+        <div class="result-item">
+            <span class="result-name">{{ result.name or result.cn or result }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="no-results">Aucun resultat pour "{{ query }}"</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% block extra_css %}
+<style>
+.search-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+.search-input-group {
+    display: flex;
+    gap: 1rem;
+}
+.search-input-group input {
+    flex: 1;
+    padding: 1rem;
+    font-size: 1.1rem;
+}
+.results-summary {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+.result-item {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+}
+.no-results {
+    text-align: center;
+    color: #666;
+    padding: 2rem;
+}
+</style>
+{% endblock %}
+{% endblock %}
