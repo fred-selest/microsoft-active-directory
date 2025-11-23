@@ -132,3 +132,59 @@ def reset_settings():
         flash('Erreur de réinitialisation.', 'error')
 
     return redirect(url_for('admin.admin_page'))
+
+
+@admin_bp.route('/save/menu', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def save_menu():
+    """Sauvegarder les paramètres de menu."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('admin.admin_page'))
+
+    from settings_manager import load_settings, save_settings
+
+    settings = load_settings()
+
+    # Mettre à jour les items du menu principal
+    if 'menu' not in settings:
+        settings['menu'] = {'items': [], 'dropdown_items': []}
+
+    for item in settings['menu'].get('items', []):
+        item_id = item.get('id', '')
+        item['enabled'] = request.form.get(f'menu_{item_id}_enabled') == 'on'
+        item['label'] = request.form.get(f'menu_{item_id}_label', item.get('label', ''))
+        item['order'] = int(request.form.get(f'menu_{item_id}_order', item.get('order', 1)))
+
+    # Mettre à jour les items dropdown
+    for item in settings['menu'].get('dropdown_items', []):
+        item_id = item.get('id', '')
+        item['enabled'] = request.form.get(f'dropdown_{item_id}_enabled') == 'on'
+        item['label'] = request.form.get(f'dropdown_{item_id}_label', item.get('label', ''))
+        item['order'] = int(request.form.get(f'dropdown_{item_id}_order', item.get('order', 1)))
+
+    if save_settings(settings):
+        flash('Menu enregistré!', 'success')
+    else:
+        flash('Erreur de sauvegarde.', 'error')
+
+    return redirect(url_for('admin.admin_page'))
+
+
+@admin_bp.route('/export')
+@require_connection
+@require_permission('admin')
+def export_settings():
+    """Exporter les paramètres en JSON."""
+    import json
+    from flask import Response
+    from settings_manager import load_settings
+
+    settings = load_settings()
+
+    return Response(
+        json.dumps(settings, indent=2, ensure_ascii=False),
+        mimetype='application/json',
+        headers={'Content-Disposition': 'attachment;filename=ad_settings.json'}
+    )
