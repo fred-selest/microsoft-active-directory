@@ -35,6 +35,7 @@ class FastUpdater:
     def __init__(self, app_dir: Path = None, silent: bool = False):
         self.app_dir = app_dir or Path(__file__).parent
         self.silent = silent
+        self.last_error = None
         self.session = requests.Session()
         self.session.headers['Accept'] = 'application/vnd.github.v3+json'
         # Token optionnel pour éviter les limites de rate
@@ -63,7 +64,16 @@ class FastUpdater:
             # Obtenir le SHA du commit le plus récent
             url = f"https://api.github.com/repos/{GITHUB_REPO}/branches/{GITHUB_BRANCH}"
             response = self.session.get(url, timeout=10)
-            if response.status_code != 200:
+
+            if response.status_code == 403:
+                # Rate limit atteint
+                self.last_error = "Limite de requêtes GitHub atteinte (60/h). Réessayez plus tard ou définissez GITHUB_TOKEN."
+                return None
+            elif response.status_code == 404:
+                self.last_error = f"Dépôt ou branche non trouvé: {GITHUB_REPO}/{GITHUB_BRANCH}"
+                return None
+            elif response.status_code != 200:
+                self.last_error = f"Erreur GitHub API: HTTP {response.status_code}"
                 return None
 
             commit_sha = response.json()['commit']['sha']
@@ -71,11 +81,23 @@ class FastUpdater:
             # Obtenir l'arbre complet (récursif)
             tree_url = f"https://api.github.com/repos/{GITHUB_REPO}/git/trees/{commit_sha}?recursive=1"
             tree_response = self.session.get(tree_url, timeout=30)
-            if tree_response.status_code != 200:
+
+            if tree_response.status_code == 403:
+                self.last_error = "Limite de requêtes GitHub atteinte. Réessayez plus tard."
+                return None
+            elif tree_response.status_code != 200:
+                self.last_error = f"Erreur récupération arbre: HTTP {tree_response.status_code}"
                 return None
 
             return tree_response.json()
+        except requests.exceptions.ConnectionError:
+            self.last_error = "Impossible de se connecter à GitHub. Vérifiez votre connexion Internet."
+            return None
+        except requests.exceptions.Timeout:
+            self.last_error = "Timeout lors de la connexion à GitHub."
+            return None
         except Exception as e:
+            self.last_error = f"Erreur API GitHub: {e}"
             self.log(f"Erreur API GitHub: {e}")
             return None
 
@@ -116,7 +138,8 @@ class FastUpdater:
 
         tree = self.get_github_tree()
         if not tree:
-            raise Exception("Impossible de récupérer la liste des fichiers depuis GitHub")
+            error_msg = self.last_error or "Impossible de récupérer la liste des fichiers depuis GitHub"
+            raise Exception(error_msg)
 
         cache = self.load_cache()
         files_to_download = []
