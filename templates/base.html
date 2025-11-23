@@ -30,23 +30,23 @@
             {% if connected %}
             <li><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
             <li><a href="{{ url_for('global_search') }}">Recherche</a></li>
-            <li><a href="{{ url_for('users') }}">Utilisateurs</a></li>
-            <li><a href="{{ url_for('groups') }}">Groupes</a></li>
-            <li><a href="{{ url_for('computers') }}">Ordinateurs</a></li>
+            <li><a href="{{ url_for('users.list_users') }}">Utilisateurs</a></li>
+            <li><a href="{{ url_for('groups.list_groups') }}">Groupes</a></li>
+            <li><a href="{{ url_for('computers.list_computers') }}">Ordinateurs</a></li>
             <li><a href="{{ url_for('ous') }}">Structure</a></li>
             <li class="nav-dropdown">
                 <a href="#">Plus &#9662;</a>
                 <ul class="dropdown-menu">
-                    {% if has_permission('admin') %}<li><a href="{{ url_for('laps_passwords') }}">LAPS</a></li>{% endif %}
-                    {% if has_permission('admin') %}<li><a href="{{ url_for('bitlocker_keys') }}">BitLocker</a></li>{% endif %}
-                    {% if has_permission('write') %}<li><a href="{{ url_for('recycle_bin') }}">Corbeille</a></li>{% endif %}
-                    {% if has_permission('write') %}<li><a href="{{ url_for('user_templates_page') }}">Modeles</a></li>{% endif %}
-                    <li><a href="{{ url_for('favorites_page') }}">Favoris</a></li>
-                    <li><a href="{{ url_for('expiring_accounts') }}">Expirations</a></li>
-                    <li><a href="{{ url_for('alerts_page') }}">Alertes {% if alert_counts and alert_counts.unacknowledged > 0 %}<span class="badge badge-warning">{{ alert_counts.unacknowledged }}</span>{% endif %}</a></li>
+                    {% if has_permission('admin') %}<li><a href="{{ url_for('tools.laps_passwords') }}">LAPS</a></li>{% endif %}
+                    {% if has_permission('admin') %}<li><a href="{{ url_for('tools.bitlocker_keys') }}">BitLocker</a></li>{% endif %}
+                    {% if has_permission('write') %}<li><a href="{{ url_for('tools.recycle_bin') }}">Corbeille</a></li>{% endif %}
+                    {% if has_permission('write') %}<li><a href="{{ url_for('tools.user_templates') }}">Modeles</a></li>{% endif %}
+                    <li><a href="{{ url_for('tools.favorites') }}">Favoris</a></li>
+                    <li><a href="{{ url_for('tools.expiring_accounts') }}">Expirations</a></li>
+                    <li><a href="{{ url_for('tools.alerts') }}">Alertes {% if alert_counts and alert_counts.unacknowledged > 0 %}<span class="badge badge-warning">{{ alert_counts.unacknowledged }}</span>{% endif %}</a></li>
                     {% if has_permission('admin') %}<li><a href="{{ url_for('audit_logs') }}">Audit</a></li>{% endif %}
-                    {% if has_permission('admin') %}<li><a href="{{ url_for('api_documentation_page') }}">API</a></li>{% endif %}
-                    {% if has_permission('admin') %}<li><a href="{{ url_for('admin_page') }}">Administration</a></li>{% endif %}
+                    {% if has_permission('admin') %}<li><a href="{{ url_for('tools.api_documentation') }}">API</a></li>{% endif %}
+                    {% if has_permission('admin') %}<li><a href="{{ url_for('admin.admin_page') }}">Administration</a></li>{% endif %}
                 </ul>
             </li>
             <li><a href="{{ url_for('disconnect') }}" class="nav-disconnect">Deconnexion</a></li>
