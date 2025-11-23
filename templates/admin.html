@@ -17,7 +17,7 @@
 
     <!-- Onglet General -->
     <div id="tab-general" class="admin-tab-content active">
-        <form method="post" action="{{ url_for('admin_save_general') }}" enctype="multipart/form-data">
+        <form method="post" action="{{ url_for('admin.save_general') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="admin-section">
@@ -62,7 +62,7 @@
 
     <!-- Onglet Menus -->
     <div id="tab-menu" class="admin-tab-content">
-        <form method="post" action="{{ url_for('admin_save_menu') }}">
+        <form method="post" action="{{ url_for('admin.save_menu') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="admin-section">
@@ -133,7 +133,7 @@
 
     <!-- Onglet Fonctionnalites -->
     <div id="tab-features" class="admin-tab-content">
-        <form method="post" action="{{ url_for('admin_save_features') }}">
+        <form method="post" action="{{ url_for('admin.save_features') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="admin-section">
@@ -176,7 +176,7 @@
 
     <!-- Onglet Securite -->
     <div id="tab-security" class="admin-tab-content">
-        <form method="post" action="{{ url_for('admin_save_security') }}">
+        <form method="post" action="{{ url_for('admin.save_security') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="admin-section">
@@ -210,13 +210,13 @@
     <div class="admin-section">
         <h3>Actions</h3>
         <div class="admin-actions">
-            <form method="post" action="{{ url_for('admin_reset_settings') }}" style="display: inline;">
+            <form method="post" action="{{ url_for('admin.reset_settings') }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-danger" onclick="return confirm('Reinitialiser tous les parametres?');">
                     Reinitialiser par defaut
                 </button>
             </form>
-            <a href="{{ url_for('admin_export_settings') }}" class="btn btn-secondary">Exporter les parametres</a>
+            <a href="{{ url_for('admin.export_settings') }}" class="btn btn-secondary">Exporter les parametres</a>
         </div>
     </div>
 </div>
