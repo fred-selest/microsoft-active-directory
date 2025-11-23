@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 """
 Utilitaires de mise a jour pour l'interface Web Active Directory.
-Le systeme de mise a jour principal est dans updater_fast.py (mise a jour incrementale).
-Ce module fournit les fonctions utilitaires: version, redemarrage, dependances.
+Le systeme de mise a jour principal est dans updater_fast.py.
 """
 
-import os
 import sys
 import json
 import platform
 import subprocess
 from pathlib import Path
 
-# Configuration du depot GitHub
-GITHUB_REPO = "fred-selest/microsoft-active-directory"
-GITHUB_BRANCH = "main"
 VERSION_FILE = "VERSION"
 
 
