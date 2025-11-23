@@ -91,13 +91,25 @@ def _get_upn_user(server, username):
 
 def _get_ntlm_user(server, username):
     """Construire le format NTLM (DOMAIN\\user)."""
-    if '\\' in username or '@' in username:
+    # Si déjà en format NTLM, retourner tel quel
+    if '\\' in username:
         return username
+
+    # Extraire le nom d'utilisateur simple
+    if '@' in username:
+        # Format UPN: user@domain.local -> extraire user et domain
+        simple_user = username.split('@')[0]
+        upn_domain = username.split('@')[1]
+        # Extraire le premier composant du domaine (werny.local -> WERNY)
+        domain = upn_domain.split('.')[0].upper()
+        return f"{domain}\\{simple_user}"
+
+    # Pas de domaine spécifié, essayer de le deviner
     domain = None
     if server and '.' in server:
         parts = server.split('.')
         if len(parts) >= 2:
-            domain = parts[1].upper()
+            domain = parts[0].upper()  # Utiliser le premier composant (hostname ou domaine)
     if not domain:
         base_dn = session.get('ad_base_dn', '')
         if base_dn:
@@ -120,6 +132,7 @@ def _try_secure_connection(server, ntlm_user, username, password):
     """Tenter connexion sécurisée avec fallback MD4."""
     errors = []
     md4_error = False
+    upn = _get_upn_user(server, username)
 
     # 1. NTLM sur port 389
     try:
@@ -133,51 +146,34 @@ def _try_secure_connection(server, ntlm_user, username, password):
         errors.append(f"NTLM: {str(e)[:60]}")
         md4_error = _is_md4_error(str(e))
 
-    # 2. Si MD4, essayer SIMPLE sur LDAPS
-    if md4_error:
-        upn = _get_upn_user(server, username)
-        try:
-            srv = Server(server, port=636, use_ssl=True, tls=_tls_config, get_info=ALL)
-            conn = Connection(srv, user=upn, password=password, authentication=SIMPLE, auto_bind=True)
-            if conn.bound:
-                session['ad_use_ssl'] = True
-                session['ad_port'] = 636
-                return conn, None
-        except Exception as e:
-            errors.append(f"SIMPLE LDAPS: {str(e)[:60]}")
+    # 2. STARTTLS avec SIMPLE bind (port 389 + TLS)
+    try:
+        srv = Server(server, port=389, get_info=ALL)
+        conn = Connection(srv, user=upn, password=password, authentication=SIMPLE, auto_bind=False)
+        conn.start_tls()
+        if conn.bind():
+            session['ad_use_ssl'] = False
+            session['ad_port'] = 389
+            return conn, None
+    except Exception as e:
+        errors.append(f"STARTTLS: {str(e)[:60]}")
 
-    # 3. LDAPS avec NTLM
+    # 3. SIMPLE sur LDAPS (port 636)
     try:
         srv = Server(server, port=636, use_ssl=True, tls=_tls_config, get_info=ALL)
-        conn, err = _try_bind(srv, ntlm_user, password, NTLM)
-        if conn:
+        conn = Connection(srv, user=upn, password=password, authentication=SIMPLE, auto_bind=True)
+        if conn.bound:
             session['ad_use_ssl'] = True
             session['ad_port'] = 636
             return conn, None
-        if err:
-            errors.append(f"LDAPS: {err[:60]}")
-            md4_error = md4_error or _is_md4_error(err)
     except Exception as e:
         errors.append(f"LDAPS: {str(e)[:60]}")
 
-    # 4. Fallback final SIMPLE sur LDAPS
-    if md4_error:
-        upn = _get_upn_user(server, username)
-        try:
-            srv = Server(server, port=636, use_ssl=True, tls=_tls_config, get_info=ALL)
-            conn = Connection(srv, user=upn, password=password, authentication=SIMPLE, auto_bind=True)
-            if conn.bound:
-                session['ad_use_ssl'] = True
-                session['ad_port'] = 636
-                return conn, None
-        except Exception as e:
-            errors.append(f"SIMPLE fallback: {str(e)[:60]}")
-
     # Message d'erreur
     if md4_error:
-        msg = "Erreur MD4 (Python 3.12+). Activez LDAPS ou utilisez user@domain.com"
+        msg = "Erreur MD4 (Python 3.12+). Activez LDAPS (port 636) sur le serveur AD"
     else:
-        msg = "Connexion sécurisée impossible. Activez LDAPS ou désactivez LDAP signing dans GPO"
+        msg = "Connexion securisee impossible. Activez LDAPS ou desactivez LDAP signing dans GPO"
     return None, f"{msg}\nErreurs: {'; '.join(errors)}"
 
 
