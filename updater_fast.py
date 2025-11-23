@@ -7,13 +7,9 @@ Télécharge uniquement les fichiers modifiés depuis GitHub.
 import os
 import sys
 import json
-import hashlib
 import requests
-import tempfile
-import shutil
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Tuple, Optional
 
 # Configuration
 GITHUB_REPO = "fred-selest/microsoft-active-directory"
@@ -24,9 +20,6 @@ MAX_WORKERS = 5  # Téléchargements parallèles
 
 # Fichiers à ne jamais mettre à jour
 PRESERVE_FILES = {'.env', 'logs', 'data', 'venv', '__pycache__', '.git'}
-
-# Extensions binaires (ne pas comparer le contenu)
-BINARY_EXTENSIONS = {'.zip', '.exe', '.dll', '.so', '.png', '.jpg', '.ico', '.pdf'}
 
 
 class FastUpdater:
@@ -48,17 +41,7 @@ class FastUpdater:
         if not self.silent:
             print(message)
 
-    def get_local_file_hash(self, filepath: Path) -> Optional[str]:
-        """Calculer le hash SHA-256 d'un fichier local."""
-        if not filepath.exists():
-            return None
-        try:
-            with open(filepath, 'rb') as f:
-                return hashlib.sha256(f.read()).hexdigest()
-        except:
-            return None
-
-    def get_github_tree(self) -> Optional[Dict]:
+    def get_github_tree(self):
         """Récupérer l'arbre des fichiers depuis GitHub API."""
         try:
             # Obtenir le SHA du commit le plus récent
