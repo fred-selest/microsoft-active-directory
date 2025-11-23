@@ -126,9 +126,29 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
         except Exception as e:
             return None, str(e)
 
+    def is_md4_error(error_msg):
+        """Vérifier si l'erreur est liée à MD4 (Python 3.12+)."""
+        md4_indicators = ['MD4', 'unsupported hash', 'md4']
+        return any(ind in str(error_msg) for ind in md4_indicators)
+
+    def get_simple_bind_user(srv_host, usr):
+        """Construire le nom d'utilisateur pour SIMPLE bind (format UPN)."""
+        # Si déjà en format UPN (user@domain), retourner tel quel
+        if '@' in usr:
+            return usr
+        # Extraire le nom d'utilisateur simple
+        simple_user = usr.split('\\')[-1] if '\\' in usr else usr
+        # Construire le domaine depuis le serveur
+        if '.' in srv_host:
+            parts = srv_host.split('.')
+            domain = '.'.join(parts[1:]) if len(parts) > 1 else srv_host
+            return f"{simple_user}@{domain}"
+        return simple_user
+
     def try_ssl_connection(srv_host, ntlm_usr, simple_usr, pwd):
-        """Tenter connexion sécurisée: SASL, STARTTLS, puis LDAPS."""
+        """Tenter connexion sécurisée: SIMPLE, NTLM, STARTTLS, puis LDAPS."""
         errors = []
+        md4_detected = False
 
         # 1. Essayer NTLM avec sign/seal sur port 389 (LDAP Signing)
         try:
@@ -141,9 +161,28 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 session['ad_port'] = 389
                 return conn, None
         except Exception as e:
-            errors.append(f"NTLM Sign: {str(e)[:80]}")
+            err_str = str(e)
+            errors.append(f"NTLM Sign: {err_str[:80]}")
+            if is_md4_error(err_str):
+                md4_detected = True
 
-        # 2. Essayer STARTTLS sur le port 389
+        # 2. Si MD4 détecté, essayer SIMPLE bind avec UPN sur LDAPS (contourne MD4)
+        if md4_detected:
+            upn_user = get_simple_bind_user(srv_host, simple_usr)
+            ssl_port = 636
+            try:
+                ad_server_ssl = Server(srv_host, port=ssl_port, use_ssl=True,
+                                      tls=tls_config, get_info=ALL)
+                conn = Connection(ad_server_ssl, user=upn_user, password=pwd,
+                                authentication=SIMPLE, auto_bind=True)
+                if conn.bound:
+                    session['ad_use_ssl'] = True
+                    session['ad_port'] = ssl_port
+                    return conn, None
+            except Exception as e:
+                errors.append(f"SIMPLE LDAPS: {str(e)[:80]}")
+
+        # 3. Essayer STARTTLS sur le port 389
         try:
             ad_server_tls = Server(srv_host, port=389, get_info=ALL)
             conn = Connection(ad_server_tls, user=ntlm_usr, password=pwd,
@@ -154,9 +193,12 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 session['ad_port'] = 389
                 return conn, None
         except Exception as e:
-            errors.append(f"STARTTLS: {str(e)[:80]}")
+            err_str = str(e)
+            errors.append(f"STARTTLS: {err_str[:80]}")
+            if is_md4_error(err_str):
+                md4_detected = True
 
-        # 3. Essayer LDAPS sur le port 636
+        # 4. Essayer LDAPS sur le port 636 avec NTLM
         ssl_port = 636
         try:
             ad_server_ssl = Server(srv_host, port=ssl_port, use_ssl=True,
@@ -168,17 +210,53 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 session['ad_port'] = ssl_port
                 return conn, None
             if ssl_err:
-                errors.append(f"LDAPS: {ssl_err[:80]}")
+                errors.append(f"LDAPS NTLM: {ssl_err[:80]}")
+                if is_md4_error(ssl_err):
+                    md4_detected = True
         except Exception as e:
-            errors.append(f"LDAPS: {str(e)[:80]}")
+            err_str = str(e)
+            errors.append(f"LDAPS NTLM: {err_str[:80]}")
+            if is_md4_error(err_str):
+                md4_detected = True
+
+        # 5. Si MD4 toujours un problème, essayer SIMPLE bind sur LDAPS
+        if md4_detected:
+            upn_user = get_simple_bind_user(srv_host, simple_usr)
+            try:
+                ad_server_ssl = Server(srv_host, port=ssl_port, use_ssl=True,
+                                      tls=tls_config, get_info=ALL)
+                conn = Connection(ad_server_ssl, user=upn_user, password=pwd,
+                                authentication=SIMPLE, auto_bind=True)
+                if conn.bound:
+                    session['ad_use_ssl'] = True
+                    session['ad_port'] = ssl_port
+                    return conn, None
+            except Exception as e:
+                errors.append(f"SIMPLE LDAPS (fallback): {str(e)[:80]}")
 
         # Message d'aide pour l'utilisateur
-        help_msg = ("Connexion sécurisée impossible. Options:\n"
-                   "1. Cochez 'Utiliser SSL' et port 636\n"
-                   "2. Ou activez LDAPS sur votre serveur AD\n"
-                   "3. Ou désactivez 'Domain controller: LDAP server signing requirements' dans les GPO")
+        if md4_detected:
+            help_msg = ("Erreur MD4 détectée (Python 3.12+). Solutions:\n"
+                       "1. Activez LDAPS sur le serveur AD (port 636)\n"
+                       "2. Utilisez un format UPN: user@domain.com\n"
+                       "3. Ou configurez OpenSSL: legacy = legacy_sect dans openssl.cnf")
+        else:
+            help_msg = ("Connexion sécurisée impossible. Options:\n"
+                       "1. Cochez 'Utiliser SSL' et port 636\n"
+                       "2. Ou activez LDAPS sur votre serveur AD\n"
+                       "3. Ou désactivez 'LDAP server signing requirements' dans les GPO")
 
         return None, f"{help_msg}\nErreurs: {'; '.join(errors)}"
+
+    def should_try_ssl_fallback(errors):
+        """Vérifier si on doit essayer le fallback SSL."""
+        for e in errors:
+            err_str = str(e)
+            if 'strongerAuthRequired' in err_str:
+                return True
+            if is_md4_error(err_str):
+                return True
+        return False
 
     try:
         ad_server = Server(server, port=port, use_ssl=use_ssl,
@@ -192,6 +270,9 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             return conn, None
         if ntlm_err:
             all_errors.append(ntlm_err)
+            # Si MD4 détecté immédiatement, essayer SSL avec SIMPLE bind
+            if is_md4_error(ntlm_err) and not use_ssl:
+                return try_ssl_connection(server, ntlm_user, username, password)
 
         # Simple bind fallback
         conn, simple_err = try_connection(ad_server, username, password, SIMPLE)
@@ -207,20 +288,20 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
         last_err = conn.result.get('description', 'erreur inconnue')
         all_errors.append(last_err)
 
-        # Si strongerAuthRequired dans une des erreurs et pas déjà en SSL, réessayer avec SSL
-        if not use_ssl and any('strongerAuthRequired' in str(e) for e in all_errors):
+        # Si strongerAuthRequired ou MD4 dans une des erreurs et pas déjà en SSL
+        if not use_ssl and should_try_ssl_fallback(all_errors):
             return try_ssl_connection(server, ntlm_user, username, password)
 
         return None, f"Échec authentification: {last_err}"
 
     except LDAPException as e:
         err_str = str(e)
-        if 'strongerAuthRequired' in err_str and not use_ssl:
+        if not use_ssl and ('strongerAuthRequired' in err_str or is_md4_error(err_str)):
             return try_ssl_connection(server, ntlm_user, username, password)
         return None, err_str
     except Exception as e:
         err_str = str(e)
-        if 'strongerAuthRequired' in err_str and not use_ssl:
+        if not use_ssl and ('strongerAuthRequired' in err_str or is_md4_error(err_str)):
             return try_ssl_connection(server, ntlm_user, username, password)
         return None, f"Erreur: {err_str}"
 
