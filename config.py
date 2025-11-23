@@ -67,13 +67,9 @@ class Config:
     # Pagination
     ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE', 25))
 
-    # Chemins multi-plateformes
-    if IS_WINDOWS:
-        LOG_DIR = Path(os.environ.get('AD_LOG_DIR', 'C:/ProgramData/ADWebInterface/logs'))
-        DATA_DIR = Path(os.environ.get('AD_DATA_DIR', 'C:/ProgramData/ADWebInterface/data'))
-    else:
-        LOG_DIR = Path(os.environ.get('AD_LOG_DIR', '/var/log/ad-web-interface'))
-        DATA_DIR = Path(os.environ.get('AD_DATA_DIR', '/var/lib/ad-web-interface'))
+    # Chemins multi-plateformes - par défaut dans le dossier de l'application
+    LOG_DIR = Path(os.environ.get('AD_LOG_DIR', str(BASE_DIR / 'logs')))
+    DATA_DIR = Path(os.environ.get('AD_DATA_DIR', str(BASE_DIR / 'data')))
 
     # Création des répertoires nécessaires
     @classmethod
