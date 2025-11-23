@@ -186,3 +186,72 @@ def locked_accounts():
 
     return render_template('locked_accounts.html', accounts=locked,
                          connected=is_connected())
+
+
+# === MODELES UTILISATEURS ===
+@tools_bp.route('/templates')
+@require_connection
+def user_templates():
+    """Gestion des modèles utilisateurs."""
+    flash('Fonctionnalité modèles disponible dans la version complète.', 'info')
+    return redirect(url_for('dashboard'))
+
+
+# === FAVORIS ===
+@tools_bp.route('/favorites')
+@require_connection
+def favorites():
+    """Gestion des favoris."""
+    flash('Fonctionnalité favoris disponible dans la version complète.', 'info')
+    return redirect(url_for('dashboard'))
+
+
+# === COMPTES EXPIRANT ===
+@tools_bp.route('/expiring')
+@require_connection
+def expiring_accounts():
+    """Comptes expirant bientôt."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('connect'))
+
+    base_dn = session.get('ad_base_dn', '')
+    expiring = []
+
+    try:
+        # Chercher les comptes avec une date d'expiration
+        conn.search(base_dn, '(&(objectClass=user)(accountExpires>=1))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'accountExpires'])
+
+        for entry in conn.entries:
+            expiring.append({
+                'cn': decode_ldap_value(entry.cn),
+                'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                'accountExpires': decode_ldap_value(entry.accountExpires)
+            })
+        conn.unbind()
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+
+    return render_template('expiring_accounts.html', accounts=expiring,
+                         connected=is_connected())
+
+
+# === ALERTES ===
+@tools_bp.route('/alerts')
+@require_connection
+def alerts():
+    """Gestion des alertes."""
+    flash('Fonctionnalité alertes disponible dans la version complète.', 'info')
+    return redirect(url_for('dashboard'))
+
+
+# === DOCUMENTATION API ===
+@tools_bp.route('/api-docs')
+@require_connection
+@require_permission('admin')
+def api_documentation():
+    """Documentation de l'API."""
+    flash('Documentation API disponible dans la version complète.', 'info')
+    return redirect(url_for('dashboard'))
