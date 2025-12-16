@@ -19,8 +19,12 @@ ROLE_PERMISSIONS = {
     'reader': ['read']
 }
 
-# Configuration TLS partagée
-_tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLS)
+# Configuration TLS sécurisée
+_tls_config = Tls(
+    validate=ssl.CERT_NONE,
+    version=ssl.PROTOCOL_TLS,
+    ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
+)
 
 
 def decode_ldap_value(value):
@@ -73,16 +77,30 @@ def require_permission(permission):
 
 # === Helpers pour connexion AD ===
 
-def _is_md4_error(error_msg):
-    """Vérifier si l'erreur est liée à MD4 (Python 3.12+)."""
-    return any(x in str(error_msg) for x in ['MD4', 'unsupported hash', 'md4'])
+def _extract_username(username):
+    """Extraire le nom d'utilisateur simple."""
+    return username.split('\\')[-1].split('@')[0]
+
+
+def _extract_domain(server, username):
+    """Extraire le domaine depuis le serveur ou username."""
+    if '@' in username:
+        return username.split('@')[1].split('.')[0].upper()
+    if server and '.' in server:
+        return server.split('.')[0].upper()
+    base_dn = session.get('ad_base_dn', '')
+    if base_dn:
+        dc_parts = [p.split('=')[1] for p in base_dn.upper().split(',') if p.startswith('DC=')]
+        if dc_parts:
+            return dc_parts[0]
+    return None
 
 
 def _get_upn_user(server, username):
-    """Construire le format UPN (user@domain) pour SIMPLE bind."""
+    """Construire le format UPN (user@domain)."""
     if '@' in username:
         return username
-    simple_user = username.split('\\')[-1] if '\\' in username else username
+    simple_user = _extract_username(username)
     if '.' in server:
         domain = '.'.join(server.split('.')[1:])
         return f"{simple_user}@{domain}"
@@ -91,95 +109,66 @@ def _get_upn_user(server, username):
 
 def _get_ntlm_user(server, username):
     """Construire le format NTLM (DOMAIN\\user)."""
-    # Si déjà en format NTLM, retourner tel quel
     if '\\' in username:
         return username
-
-    # Extraire le nom d'utilisateur simple
-    if '@' in username:
-        # Format UPN: user@domain.local -> extraire user et domain
-        simple_user = username.split('@')[0]
-        upn_domain = username.split('@')[1]
-        # Extraire le premier composant du domaine (werny.local -> WERNY)
-        domain = upn_domain.split('.')[0].upper()
-        return f"{domain}\\{simple_user}"
-
-    # Pas de domaine spécifié, essayer de le deviner
-    domain = None
-    if server and '.' in server:
-        parts = server.split('.')
-        if len(parts) >= 2:
-            domain = parts[0].upper()  # Utiliser le premier composant (hostname ou domaine)
-    if not domain:
-        base_dn = session.get('ad_base_dn', '')
-        if base_dn:
-            dc_parts = [p.split('=')[1] for p in base_dn.upper().split(',') if p.startswith('DC=')]
-            if dc_parts:
-                domain = dc_parts[0]
-    return f"{domain}\\{username}" if domain else username
+    domain = _extract_domain(server, username)
+    simple_user = _extract_username(username)
+    return f"{domain}\\{simple_user}" if domain else simple_user
 
 
-def _try_bind(server_obj, user, password, auth_type=NTLM):
-    """Tenter une connexion LDAP."""
-    try:
-        conn = Connection(server_obj, user=user, password=password, authentication=auth_type, auto_bind=True)
-        return conn, None
-    except Exception as e:
-        return None, str(e)
+def _is_md4_error(error_msg):
+    """Vérifier si l'erreur est liée à MD4."""
+    return 'MD4' in str(error_msg) or 'unsupported hash' in str(error_msg)
 
 
-def _try_secure_connection(server, ntlm_user, username, password):
-    """Tenter connexion sécurisée avec fallback MD4."""
+def _try_connection_methods(server, username, password):
+    """Essayer différentes méthodes de connexion."""
     errors = []
-    md4_error = False
-    upn = _get_upn_user(server, username)
+    ntlm_user = _get_ntlm_user(server, username)
+    upn_user = _get_upn_user(server, username)
 
-    # 1. NTLM sur port 389
-    try:
-        srv = Server(server, port=389, get_info=ALL)
-        conn = Connection(srv, user=ntlm_user, password=password, authentication=NTLM, auto_bind=True)
-        if conn.bound:
-            session['ad_use_ssl'] = False
-            session['ad_port'] = 389
-            return conn, None
-    except Exception as e:
-        errors.append(f"NTLM: {str(e)[:60]}")
-        md4_error = _is_md4_error(str(e))
+    # Méthodes à essayer : (port, use_ssl, user, auth_type, label)
+    methods = [
+        (389, False, ntlm_user, NTLM, "NTLM"),
+        (389, False, upn_user, SIMPLE, "STARTTLS", True),  # True = use STARTTLS
+        (636, True, upn_user, SIMPLE, "LDAPS"),
+    ]
 
-    # 2. STARTTLS avec SIMPLE bind (port 389 + TLS)
-    try:
-        srv = Server(server, port=389, get_info=ALL)
-        conn = Connection(srv, user=upn, password=password, authentication=SIMPLE, auto_bind=False)
-        conn.start_tls()
-        if conn.bind():
-            session['ad_use_ssl'] = False
-            session['ad_port'] = 389
-            return conn, None
-    except Exception as e:
-        errors.append(f"STARTTLS: {str(e)[:60]}")
+    for method in methods:
+        port, use_ssl, user, auth_type, label = method[:5]
+        use_starttls = len(method) > 5 and method[5]
 
-    # 3. SIMPLE sur LDAPS (port 636)
-    try:
-        srv = Server(server, port=636, use_ssl=True, tls=_tls_config, get_info=ALL)
-        conn = Connection(srv, user=upn, password=password, authentication=SIMPLE, auto_bind=True)
-        if conn.bound:
-            session['ad_use_ssl'] = True
-            session['ad_port'] = 636
-            return conn, None
-    except Exception as e:
-        errors.append(f"LDAPS: {str(e)[:60]}")
+        try:
+            srv = Server(server, port=port, use_ssl=use_ssl,
+                        tls=_tls_config if use_ssl else None, get_info=ALL)
 
-    # Message d'erreur
-    if md4_error:
-        msg = "Erreur MD4 (Python 3.12+). Activez LDAPS (port 636) sur le serveur AD"
-    else:
-        msg = "Connexion securisee impossible. Activez LDAPS ou desactivez LDAP signing dans GPO"
-    return None, f"{msg}\nErreurs: {'; '.join(errors)}"
+            if use_starttls:
+                conn = Connection(srv, user=user, password=password,
+                                authentication=auth_type, auto_bind=False)
+                conn.start_tls(_tls_config)
+                if conn.bind():
+                    session['ad_use_ssl'] = False
+                    session['ad_port'] = port
+                    return conn, None
+            else:
+                conn = Connection(srv, user=user, password=password,
+                                authentication=auth_type, auto_bind=True)
+                if conn.bound:
+                    session['ad_use_ssl'] = use_ssl
+                    session['ad_port'] = port
+                    return conn, None
+        except Exception as e:
+            errors.append(f"{label}: {str(e)[:50]}")
+            if label == "NTLM" and _is_md4_error(str(e)):
+                # Passer directement aux méthodes SIMPLE
+                continue
+
+    return None, '; '.join(errors)
 
 
 def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None):
     """Créer une connexion à Active Directory."""
-    # Récupérer les paramètres depuis la session si non fournis
+    # Récupérer depuis la session
     server = server or session.get('ad_server')
     username = username or session.get('ad_username')
     if password is None:
@@ -195,48 +184,27 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if not all([server, username, password]):
         return None, "Non connecté"
 
-    ntlm_user = _get_ntlm_user(server, username)
+    # Connexion simple si port/SSL spécifiés
+    if port != 389 or use_ssl:
+        try:
+            srv = Server(server, port=port, use_ssl=use_ssl,
+                        tls=_tls_config if use_ssl else None, get_info=ALL)
+            user = _get_upn_user(server, username) if use_ssl else _get_ntlm_user(server, username)
+            auth = SIMPLE if use_ssl else NTLM
+            conn = Connection(srv, user=user, password=password,
+                            authentication=auth, auto_bind=True)
+            if conn.bound:
+                return conn, None
+        except Exception as e:
+            if not _is_md4_error(str(e)):
+                return None, str(e)
 
-    try:
-        srv = Server(server, port=port, use_ssl=use_ssl,
-                     tls=_tls_config if use_ssl else None, get_info=ALL)
+    # Essayer toutes les méthodes
+    conn, errors = _try_connection_methods(server, username, password)
+    if conn:
+        return conn, None
 
-        # Essayer NTLM
-        conn, err = _try_bind(srv, ntlm_user, password, NTLM)
-        if conn:
-            return conn, None
-
-        # Si MD4, basculer vers connexion sécurisée
-        if err and _is_md4_error(err) and not use_ssl:
-            return _try_secure_connection(server, ntlm_user, username, password)
-
-        # Essayer SIMPLE
-        conn, err2 = _try_bind(srv, username, password, SIMPLE)
-        if conn:
-            return conn, None
-
-        # Dernière tentative
-        conn = Connection(srv, user=username, password=password)
-        if conn.bind():
-            return conn, None
-
-        last_err = conn.result.get('description', 'erreur inconnue')
-
-        # Si strongerAuthRequired ou MD4
-        if not use_ssl and ('strongerAuthRequired' in str(err) + str(err2) + last_err or
-                           _is_md4_error(str(err) + str(err2))):
-            return _try_secure_connection(server, ntlm_user, username, password)
-
-        return None, f"Échec authentification: {last_err}"
-
-    except LDAPException as e:
-        if not use_ssl and ('strongerAuthRequired' in str(e) or _is_md4_error(str(e))):
-            return _try_secure_connection(server, ntlm_user, username, password)
-        return None, str(e)
-    except Exception as e:
-        if not use_ssl and ('strongerAuthRequired' in str(e) or _is_md4_error(str(e))):
-            return _try_secure_connection(server, ntlm_user, username, password)
-        return None, f"Erreur: {e}"
+    return None, f"Connexion impossible. Verifiez: 1) LDAPS active (port 636), 2) run_legacy.bat pour MD4, 3) Credentials corrects\n{errors}"
 
 
 def get_user_role_from_groups(conn, username, debug=False):
@@ -251,7 +219,7 @@ def get_user_role_from_groups(conn, username, debug=False):
         if not base_dn and conn.server.info and conn.server.info.naming_contexts:
             base_dn = str(conn.server.info.naming_contexts[0])
 
-        search_user = username.split('\\')[-1].split('@')[0]
+        search_user = _extract_username(username)
         conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(search_user)})',
                     search_scope=SUBTREE, attributes=['memberOf'])
 
