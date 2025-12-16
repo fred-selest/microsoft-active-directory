@@ -57,12 +57,13 @@ echo.
 
 REM Creer .env si absent
 if not exist .env (
-    echo SECRET_KEY=CHANGEME-PRODUCTION> .env
+    echo Generation de SECRET_KEY securisee...
+    for /f %%i in ('python -c "import secrets; print(secrets.token_hex(32))"') do set SECRET_KEY=%%i
+    echo SECRET_KEY=%SECRET_KEY%> .env
     echo FLASK_ENV=production>> .env
     echo HOST=0.0.0.0>> .env
     echo PORT=5000>> .env
-    echo [OK] Fichier .env cree
-    echo IMPORTANT: Modifiez SECRET_KEY dans .env
+    echo [OK] Fichier .env cree avec SECRET_KEY aleatoire
 ) else (
     echo [INFO] Fichier .env existe deja
 )
