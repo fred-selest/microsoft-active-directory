@@ -64,6 +64,7 @@ echo
 
 # Creer .env
 if [ ! -f ".env" ]; then
+    echo "Generation de SECRET_KEY securisee..."
     SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
     cat > .env << EOF
 SECRET_KEY=$SECRET
@@ -71,7 +72,7 @@ FLASK_ENV=production
 HOST=0.0.0.0
 PORT=5000
 EOF
-    echo "[OK] Fichier .env cree"
+    echo "[OK] Fichier .env cree avec SECRET_KEY aleatoire"
 else
     echo "[INFO] Fichier .env existe deja"
 fi
