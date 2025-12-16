@@ -9,7 +9,7 @@ echo
 
 # Variables
 GITHUB_REPO="fred-selest/microsoft-active-directory"
-BRANCH="claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2"
+BRANCH="main"
 PROJECT_DIR="microsoft-active-directory"
 
 # Fonction pour demander confirmation
