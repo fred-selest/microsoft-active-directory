@@ -6,9 +6,10 @@ Python 3.12+ a désactivé le hash MD4 par défaut, ce qui bloque l'authentifica
 
 ## Solutions
 
-### Solution 1: Utiliser run_legacy.bat (Recommandé pour Windows)
+### Solution 1: Utiliser run.bat (Automatique sur Windows)
 
-Double-cliquez sur `run_legacy.bat` pour lancer l'application avec le support MD4 activé.
+`run.bat` détecte automatiquement Python 3.12+ et active le support MD4/NTLM via `openssl_legacy.cnf`.
+Il suffit de lancer `run.bat` normalement, aucune action supplémentaire n'est nécessaire.
 
 ### Solution 2: Configuration manuelle
 
@@ -29,8 +30,7 @@ Python 3.11 supporte encore MD4 nativement.
 
 ## Fichiers
 
-- `openssl_legacy.cnf` - Configuration OpenSSL avec support legacy
-- `run_legacy.bat` - Script de lancement Windows avec MD4
+- `openssl_legacy.cnf` - Configuration OpenSSL avec support legacy (chargée automatiquement par `run.bat`)
 - `run.py` - Script de lancement standard
 
 ## Note de sécurité
