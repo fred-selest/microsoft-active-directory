@@ -1,39 +1,55 @@
 @echo off
 REM Script de demarrage Windows pour l'interface Web AD
 
-REM Se placer dans le repertoire du script
 cd /d "%~dp0"
 
-echo Demarrage de l'interface Web AD sur Windows...
-echo Repertoire: %cd%
+echo ======================================
+echo   Interface Web Active Directory
+echo ======================================
 echo.
 
 REM Verifier si Python est disponible
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo Erreur: Python n'est pas installe ou n'est pas dans le PATH
-    echo Veuillez installer Python depuis https://python.org
+    echo Erreur: Python n'est pas installe ou n'est pas dans le PATH.
+    echo.
+    echo Telechargez et installez Python depuis: https://python.org
+    echo Cochez "Add Python to PATH" pendant l'installation.
     pause
     exit /b 1
 )
 
-REM Verifier si l'environnement virtuel existe
-if exist venv\Scripts\activate.bat (
-    call venv\Scripts\activate.bat
-    echo Environnement virtuel active
-) else (
-    echo Note: Aucun environnement virtuel trouve. Utilisation du Python systeme.
-    echo Pour creer un venv: python -m venv venv
+REM Creer l'environnement virtuel s'il est absent
+if not exist "venv\Scripts\activate.bat" (
+    echo Creation de l'environnement virtuel...
+    python -m venv venv
+    if errorlevel 1 (
+        echo Erreur lors de la creation du venv.
+        pause
+        exit /b 1
+    )
+    echo Environnement virtuel cree.
+    echo.
 )
 
-REM Installer les dependances si necessaire
-pip show flask >nul 2>&1
+REM Activer le venv
+call venv\Scripts\activate.bat
+
+REM Installer les dependances si Flask est absent
+python -c "import flask" >nul 2>&1
 if errorlevel 1 (
-    echo Installation des dependances...
-    pip install -r requirements.txt
+    echo Installation des dependances Python...
+    pip install -r requirements.txt --quiet
+    if errorlevel 1 (
+        echo Erreur lors de l'installation des dependances.
+        pause
+        exit /b 1
+    )
+    echo Dependances installees.
+    echo.
 )
 
-REM Demarrer l'application
+REM Demarrer l'application (cree .env automatiquement si absent)
 python run.py
 
 pause
