@@ -27,13 +27,21 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'changer-ceci-en-production')
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
-    # Vérification de sécurité: empêcher l'utilisation de la SECRET_KEY par défaut en production
-    if not DEBUG and SECRET_KEY == 'changer-ceci-en-production':
-        raise ValueError(
-            "ERREUR DE SÉCURITÉ: Vous devez définir une SECRET_KEY forte via la variable d'environnement SECRET_KEY.\n"
-            "Générez une clé sécurisée avec: python -c 'import secrets; print(secrets.token_hex(32))'\n"
-            "Puis définissez-la dans votre fichier .env: SECRET_KEY=votre_cle_generee"
-        )
+    # Vérification et correction de la SECRET_KEY
+    _DEFAULT_KEY = 'changer-ceci-en-production'
+    if not SECRET_KEY or SECRET_KEY == _DEFAULT_KEY:
+        if DEBUG:
+            import secrets as _secrets
+            SECRET_KEY = _secrets.token_hex(32)
+            print("[ATTENTION] SECRET_KEY non définie — clé temporaire générée.")
+            print("[ATTENTION] Les sessions seront réinitialisées à chaque redémarrage.")
+            print("[INFO] Pour fixer: ajoutez SECRET_KEY=<valeur> dans le fichier .env")
+        else:
+            raise ValueError(
+                "ERREUR DE SÉCURITÉ: Vous devez définir une SECRET_KEY forte.\n"
+                "Générez une clé: python -c 'import secrets; print(secrets.token_hex(32))'\n"
+                "Puis ajoutez dans .env: SECRET_KEY=votre_cle_generee"
+            )
 
     # Configuration Active Directory
     AD_SERVER = os.environ.get('AD_SERVER', '')
