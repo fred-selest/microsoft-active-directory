@@ -19,174 +19,179 @@ L'interface fonctionne sur **tous les systèmes** (Windows, Linux, macOS, tablet
 
 ---
 
-## Pour les administrateurs (installation du serveur)
+## Installation rapide
 
-### Prérequis
+### 🪟 Windows
 
-- Un serveur (Windows ou Linux)
-- Accès réseau au serveur Active Directory
+1. Téléchargez le projet : https://github.com/fred-selest/microsoft-active-directory/archive/refs/heads/main.zip
+2. Décompressez
+3. Double-cliquez sur `setup_windows.bat`
+4. Lancez avec `run.bat` (ou `run_legacy.bat` si Python 3.12+)
 
-### Installation en une commande (recommandé)
-
-Téléchargez et exécutez le script d'installation. Il téléchargera automatiquement tout le projet et installera Python si nécessaire.
-
-**Windows :**
-
-1. Téléchargez [install.bat](https://raw.githubusercontent.com/fred-selest/microsoft-active-directory/claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2/install.bat)
-2. Double-cliquez sur `install.bat`
-
-Ou en PowerShell :
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fred-selest/microsoft-active-directory/claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2/install.bat" -OutFile "install.bat"; .\install.bat
-```
-
-**Linux/macOS :**
+### 🐧 Linux / Ubuntu
 
 ```bash
-curl -O https://raw.githubusercontent.com/fred-selest/microsoft-active-directory/claude/cross-platform-web-interface-017bbfitWFZ7Ndcg51ZZUzC2/install.sh && chmod +x install.sh && ./install.sh
-```
-
-Le script va :
-- Télécharger tout le projet depuis GitHub
-- Installer Python si nécessaire
-- Créer l'environnement virtuel
-- Installer les dépendances
-- Configurer le serveur (port, Active Directory, etc.)
-
-### Installation manuelle
-
-```bash
-# 1. Cloner le projet
+# Cloner le projet
 git clone https://github.com/fred-selest/microsoft-active-directory.git
 cd microsoft-active-directory
 
-# 2. Créer un environnement virtuel
-python -m venv venv
+# Installer
+chmod +x setup_linux.sh
+./setup_linux.sh
 
-# 3. Activer l'environnement
-# Linux/macOS:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
-
-# 4. Installer les dépendances
-pip install -r requirements.txt
-
-# 5. Configurer
-cp .env.example .env
-# Éditer .env selon vos besoins
-
-# 6. Démarrer le serveur
-python run.py
-```
-
-### Démarrage automatique
-
-**Linux/macOS :**
-```bash
+# Lancer
 ./run.sh
 ```
 
-**Windows :**
-```cmd
-run.bat
-```
-
-### Configuration du serveur
-
-Créez un fichier `.env` à partir de l'exemple :
+**Ou installation manuelle rapide :**
 
 ```bash
-cp .env.example .env
+cd microsoft-active-directory
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Créer .env avec SECRET_KEY sécurisée
+python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))" > .env
+echo "FLASK_ENV=production" >> .env
+echo "HOST=0.0.0.0" >> .env
+echo "PORT=5000" >> .env
+
+# Lancer
+python3 run.py
 ```
 
-| Variable | Description | Défaut |
-|----------|-------------|--------|
-| `AD_WEB_HOST` | Adresse d'écoute (`0.0.0.0` = tous) | `0.0.0.0` |
-| `AD_WEB_PORT` | Port d'écoute | `5000` |
-| `SECRET_KEY` | Clé secrète (à changer !) | (défaut) |
+---
 
-### Trouver l'adresse du serveur
+## Accès
 
-**Linux :**
+Une fois lancé, ouvrez votre navigateur :
+- **Local :** http://localhost:5000
+- **Réseau :** http://VOTRE_IP:5000
+
+Trouvez votre IP :
+- **Linux :** `hostname -I` ou `ip addr`
+- **Windows :** `ipconfig`
+
+---
+
+## Configuration
+
+Le fichier `.env` contient la configuration :
+
+```ini
+SECRET_KEY=votre-cle-secrete-aleatoire-64-caracteres
+FLASK_ENV=production
+HOST=0.0.0.0
+PORT=5000
+```
+
+**⚠️ IMPORTANT :** Changez `SECRET_KEY` en production !
+
+Générez une clé sécurisée :
 ```bash
-ip addr
-# ou
-hostname -I
+python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-**Windows :**
-```cmd
-ipconfig
+---
+
+## Problèmes courants
+
+### Erreur MD4 (Python 3.12+)
+
+**Windows :** Utilisez `run_legacy.bat`
+
+**Linux :** Consultez `README_MD4.md`
+
+### Port 5000 déjà utilisé
+
+Modifiez `PORT=8080` dans `.env`
+
+### python3-venv introuvable (Ubuntu)
+
+```bash
+sudo apt install python3-venv
 ```
 
-Communiquez cette adresse à vos utilisateurs : `http://VOTRE_IP:5000`
+---
 
-### Déploiement en production
+## Déploiement production
 
-#### Linux (avec Gunicorn)
+### Avec Gunicorn (Linux)
 
 ```bash
 pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
+gunicorn -w 4 -b 0.0.0.0:5000 'app:app'
 ```
 
-#### Windows (avec Waitress)
+### Avec reverse proxy NGINX + HTTPS
 
-```bash
-pip install waitress
-set FLASK_ENV=production
-python run.py
-```
-
-#### Avec un nom de domaine (recommandé)
-
-Configurez un reverse proxy (nginx ou Apache) pour :
-- Utiliser HTTPS (certificat SSL)
-- Utiliser un nom de domaine convivial
-- Exemple : `https://ad.monentreprise.com`
-
-**Exemple nginx :**
 ```nginx
 server {
     listen 443 ssl;
     server_name ad.monentreprise.com;
 
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
+    ssl_certificate /chemin/vers/cert.pem;
+    ssl_certificate_key /chemin/vers/key.pem;
 
     location / {
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
+---
+
 ## Fonctionnalités
 
-- **Connexion LDAP/LDAPS** à Active Directory
-- **Recherche** d'utilisateurs, groupes et ordinateurs
-- **Interface responsive** (desktop, tablette, mobile)
-- **Multi-plateforme** (serveur Windows ou Linux)
+- ✅ Connexion LDAP/LDAPS à Active Directory
+- ✅ Gestion utilisateurs, groupes, ordinateurs
+- ✅ Recherche avancée
+- ✅ Interface responsive (desktop, tablette, mobile)
+- ✅ Multi-plateforme (Windows, Linux)
+- ✅ Support Python 3.12+ (avec run_legacy.bat)
+
+---
 
 ## Sécurité
 
-- Définissez un `SECRET_KEY` sécurisé en production
-- Utilisez HTTPS avec un reverse proxy
-- Utilisez LDAPS (port 636) pour les connexions AD sécurisées
+- 🔒 Utilisez HTTPS en production (reverse proxy)
+- 🔒 Changez `SECRET_KEY` (64 caractères minimum)
+- 🔒 Utilisez LDAPS (port 636) pour Active Directory
+- 🔒 Activez le pare-feu et limitez l'accès réseau
+
+---
+
+## Documentation
+
+- `INSTALLATION.md` - Guide d'installation détaillé
+- `INSTALL_UBUNTU.md` - Installation Linux spécifique
+- `README_MD4.md` - Correction erreur MD4 Python 3.12+
+
+---
 
 ## Structure du projet
 
 ```
 microsoft-active-directory/
-├── app.py              # Application principale
-├── config.py           # Configuration
-├── run.py / run.sh / run.bat  # Scripts de démarrage
-├── requirements.txt    # Dépendances
-├── templates/          # Pages HTML
-└── static/             # CSS et JavaScript
+├── app.py                  # Application Flask principale
+├── run.py                  # Point d'entrée
+├── config.py               # Configuration
+├── requirements.txt        # Dépendances Python
+├── routes/                 # Routes Flask (blueprints)
+├── templates/              # Pages HTML (Jinja2)
+├── static/                 # CSS, JavaScript, images
+├── setup_windows.bat       # Installation Windows
+├── setup_linux.sh          # Installation Linux
+├── run.bat / run.sh        # Scripts de lancement
+└── run_legacy.bat          # Lancement avec MD4 (Python 3.12+)
 ```
+
+---
 
 ## Licence
 
