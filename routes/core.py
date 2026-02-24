@@ -4,7 +4,7 @@ Fonctions core partagées entre tous les blueprints.
 import ssl
 from functools import wraps
 from flask import session, redirect, url_for, flash
-from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE
+from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4_PREFERRED
 from ldap3.core.exceptions import LDAPException
 
 from config import get_config
@@ -121,6 +121,18 @@ def _is_md4_error(error_msg):
     return 'MD4' in str(error_msg) or 'unsupported hash' in str(error_msg)
 
 
+def _is_winapi1_error(error_msg):
+    """Vérifier si l'erreur est WinError 1 (IPv6 non supporté sur ce réseau)."""
+    return 'WinError 1' in str(error_msg)
+
+
+def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
+    """Créer un objet Server ldap3 avec le mode IP donné."""
+    return Server(server, port=port, use_ssl=use_ssl,
+                  tls=_tls_config if use_ssl else None,
+                  get_info=ALL, mode=ip_mode)
+
+
 def _try_connection_methods(server, username, password):
     """Essayer différentes méthodes de connexion."""
     errors = []
@@ -139,12 +151,12 @@ def _try_connection_methods(server, username, password):
         use_starttls = len(method) > 5 and method[5]
 
         try:
-            srv = Server(server, port=port, use_ssl=use_ssl,
-                        tls=_tls_config if use_ssl else None, get_info=ALL)
+            srv = _make_server(server, port, use_ssl)
 
             if use_starttls:
                 conn = Connection(srv, user=user, password=password,
                                 authentication=auth_type, auto_bind=False)
+                conn.open()
                 conn.start_tls(_tls_config)
                 if conn.bind():
                     session['ad_use_ssl'] = False
@@ -158,9 +170,32 @@ def _try_connection_methods(server, username, password):
                     session['ad_port'] = port
                     return conn, None
         except Exception as e:
-            errors.append(f"{label}: {str(e)[:50]}")
-            if label == "NTLM" and _is_md4_error(str(e)):
-                # Passer directement aux méthodes SIMPLE
+            err_str = str(e)
+            # WinError 1 = IPv6 non supporté sur ce réseau, réessayer en IPv4 strict
+            if _is_winapi1_error(err_str):
+                try:
+                    from ldap3 import IP_V4_ONLY
+                    srv = _make_server(server, port, use_ssl, ip_mode=IP_V4_ONLY)
+                    if use_starttls:
+                        conn = Connection(srv, user=user, password=password,
+                                        authentication=auth_type, auto_bind=False)
+                        conn.open()
+                        conn.start_tls(_tls_config)
+                        if conn.bind():
+                            session['ad_use_ssl'] = False
+                            session['ad_port'] = port
+                            return conn, None
+                    else:
+                        conn = Connection(srv, user=user, password=password,
+                                        authentication=auth_type, auto_bind=True)
+                        if conn.bound:
+                            session['ad_use_ssl'] = use_ssl
+                            session['ad_port'] = port
+                            return conn, None
+                except Exception as e2:
+                    err_str = str(e2)
+            errors.append(f"{label}: {err_str[:80]}")
+            if label == "NTLM" and _is_md4_error(err_str):
                 continue
 
     return None, '; '.join(errors)
@@ -187,8 +222,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     # Connexion simple si port/SSL spécifiés
     if port != 389 or use_ssl:
         try:
-            srv = Server(server, port=port, use_ssl=use_ssl,
-                        tls=_tls_config if use_ssl else None, get_info=ALL)
+            srv = _make_server(server, port, use_ssl)
             user = _get_upn_user(server, username) if use_ssl else _get_ntlm_user(server, username)
             auth = SIMPLE if use_ssl else NTLM
             conn = Connection(srv, user=user, password=password,
@@ -204,7 +238,12 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if conn:
         return conn, None
 
-    return None, f"Connexion impossible. Verifiez: 1) LDAPS active (port 636), 2) run.bat gere automatiquement le support MD4 pour Python 3.12+, 3) Credentials corrects\n{errors}"
+    hint = ""
+    if _is_winapi1_error(errors):
+        hint = " [WinError 1: adresse du serveur incorrecte ou ports 389/636 bloques par le pare-feu]"
+    elif _is_md4_error(errors):
+        hint = " [MD4: lancez l'application via run.bat pour activer le support NTLM automatiquement]"
+    return None, f"Connexion impossible.{hint} Verifiez: 1) adresse du serveur AD, 2) ports 389/636 ouverts, 3) identifiants corrects\n{errors}"
 
 
 def get_user_role_from_groups(conn, username, debug=False):
