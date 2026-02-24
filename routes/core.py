@@ -204,7 +204,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if conn:
         return conn, None
 
-    return None, f"Connexion impossible. Verifiez: 1) LDAPS active (port 636), 2) run_legacy.bat pour MD4, 3) Credentials corrects\n{errors}"
+    return None, f"Connexion impossible. Verifiez: 1) LDAPS active (port 636), 2) run.bat gere automatiquement le support MD4 pour Python 3.12+, 3) Credentials corrects\n{errors}"
 
 
 def get_user_role_from_groups(conn, username, debug=False):

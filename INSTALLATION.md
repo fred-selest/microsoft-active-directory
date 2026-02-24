@@ -13,42 +13,35 @@ Ou téléchargez le ZIP: https://github.com/fred-selest/microsoft-active-directo
 
 ## 🪟 Windows
 
-**Installation automatique:**
-```cmd
-setup_windows.bat
-```
-
-**Lancement:**
+**Lancement (installation automatique incluse):**
 ```cmd
 run.bat
 ```
 
-**Si erreur MD4 (Python 3.12+):**
-```cmd
-run_legacy.bat
-```
+- Installe Python 3 automatiquement s'il est absent
+- Crée le venv et installe les dépendances
+- Génère le fichier `.env` au premier lancement
+- Active le support MD4/NTLM automatiquement pour Python 3.12+
 
 ---
 
-## 🐧 Linux / Ubuntu
+## 🐧 Linux / macOS
 
-**Installation automatique:**
-```bash
-chmod +x setup_linux.sh
-./setup_linux.sh
-```
-
-**Lancement:**
+**Lancement (installation automatique incluse):**
 ```bash
 ./run.sh
 ```
+
+- Propose d'installer Python 3 automatiquement s'il est absent (apt/dnf/pacman/brew)
+- Crée le venv et installe les dépendances
+- Génère le fichier `.env` au premier lancement
 
 ---
 
 ## 📚 Autres ressources
 
 - **Installation avancée Linux:** `INSTALL_UBUNTU.md`
-- **Correction MD4 Python 3.12+:** `README_MD4.md`
+- **Correction MD4 Python 3.12+:** `README_MD4.md` (géré automatiquement par `run.bat`)
 - **Installation interactive:** `python3 install.py` (Windows/Linux)
 
 ---
@@ -65,22 +58,21 @@ Une fois lancé, ouvrez votre navigateur:
 ## ⚠️ Problèmes courants
 
 ### Windows
-- **Python non trouvé:** Téléchargez depuis https://www.python.org et cochez "Add to PATH"
-- **Erreur MD4:** Utilisez `run_legacy.bat`
+- **Python non installé:** `run.bat` propose de l'installer automatiquement
+- **Erreur MD4:** Déjà gérée automatiquement par `run.bat` pour Python 3.12+
 
 ### Linux
-- **python3-venv introuvable:** `sudo apt install python3-venv`
-- **Permission refusée:** `chmod +x setup_linux.sh run.sh`
+- **Python absent:** `run.sh` propose de l'installer via le gestionnaire de paquets
+- **Permission refusée:** `chmod +x run.sh`
 
 ---
 
 ## 🔧 Configuration
 
-Modifiez le fichier `.env`:
+Le fichier `.env` est généré automatiquement au premier lancement.
+Pour personnaliser, modifiez `.env` :
 ```ini
-SECRET_KEY=votre-cle-secrete-aleatoire
-HOST=0.0.0.0
-PORT=5000
+AD_SERVER=votre-serveur-ad
+AD_BASE_DN=DC=exemple,DC=com
+SECRET_KEY=votre-cle-secrete
 ```
-
-**⚠️ IMPORTANT:** Changez `SECRET_KEY` en production!
