@@ -571,7 +571,7 @@ def main():
     print("\n\nPour démarrer le serveur:\n")
 
     if platform.system() == "Windows":
-        print("  run.bat")
+        print("  run_legacy.bat")
         print("\n  ou manuellement:")
         print(f"  {paths['activate']}")
         print("  python run.py")
