@@ -5,6 +5,14 @@ title Interface Web Active Directory
 
 echo ============================================
 echo   Interface Web Active Directory
+echo   Mode autonome (serveur + navigateur)
+echo ============================================
+echo.
+echo  Pour un deploiement multi-postes :
+echo    Serveur  : run_server.bat  (machine serveur)
+echo    Clients  : run_client.bat  (postes utilisateurs)
+echo.
+echo  Ce script lance les deux en une seule fois.
 echo ============================================
 echo.
 
@@ -150,8 +158,9 @@ echo.
 
 start http://localhost:5000
 
-echo  Pour arreter le serveur  : Gestionnaire des taches ^> python
-echo  Pour relancer l'interface : double-cliquez sur run_legacy.bat
+echo  Pour arreter le serveur   : Gestionnaire des taches ^> python
+echo  Pour relancer             : run_legacy.bat  ^(mode autonome^)
+echo  Mode multi-postes         : run_server.bat + run_client.bat
 echo.
 timeout /t 5 /nobreak >nul
 exit /b 0
