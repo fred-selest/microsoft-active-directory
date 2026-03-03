@@ -242,7 +242,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if _is_winapi1_error(errors):
         hint = " [WinError 1: adresse du serveur incorrecte ou ports 389/636 bloques par le pare-feu]"
     elif _is_md4_error(errors):
-        hint = " [MD4: lancez l'application via run.bat pour activer le support NTLM automatiquement]"
+        hint = " [MD4: lancez l'application via run_legacy.bat pour activer le support NTLM automatiquement]"
     return None, f"Connexion impossible.{hint} Verifiez: 1) adresse du serveur AD, 2) ports 389/636 ouverts, 3) identifiants corrects\n{errors}"
 
 
