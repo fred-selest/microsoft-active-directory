@@ -140,16 +140,13 @@ def restart_server(silent=False):
     """Redemarrer le serveur."""
     app_dir = Path(__file__).parent
     if platform.system() == "Windows":
-        silent_script = app_dir / "run-silent.vbs"
-        if silent_script.exists():
-            subprocess.Popen(['wscript.exe', str(silent_script)], cwd=str(app_dir),
+        python_path = app_dir / "venv" / "Scripts" / "pythonw.exe"
+        if not python_path.exists():
+            python_path = app_dir / "venv" / "Scripts" / "python.exe"
+        run_py = app_dir / "run.py"
+        if python_path.exists():
+            subprocess.Popen([str(python_path), str(run_py)], cwd=str(app_dir),
                            creationflags=subprocess.CREATE_NO_WINDOW)
-        else:
-            python_path = app_dir / "venv" / "Scripts" / "pythonw.exe"
-            run_py = app_dir / "run.py"
-            if python_path.exists():
-                subprocess.Popen([str(python_path), str(run_py)], cwd=str(app_dir),
-                               creationflags=subprocess.CREATE_NO_WINDOW)
     else:
         script_path = app_dir / "run.sh"
         if script_path.exists():
