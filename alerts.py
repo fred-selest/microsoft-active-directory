@@ -4,8 +4,11 @@ Detecte et signale les problemes potentiels.
 """
 
 import json
+import logging
 import os
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 ALERTS_FILE = 'data/alerts.json'
 
@@ -16,8 +19,8 @@ def load_alerts():
         if os.path.exists(ALERTS_FILE):
             with open(ALERTS_FILE, 'r') as f:
                 return json.load(f)
-    except:
-        pass
+    except Exception:
+        logger.warning("Impossible de charger les alertes depuis %s", ALERTS_FILE, exc_info=True)
     return []
 
 
@@ -192,8 +195,8 @@ def check_expiring_accounts(conn, base_dn, days=30):
                 'accountExpires': str(entry.accountExpires) if entry.accountExpires else ''
             })
 
-    except Exception as e:
-        pass
+    except Exception:
+        logger.warning("Erreur lors de la verification des comptes expirants", exc_info=True)
 
     return expiring
 
@@ -223,6 +226,9 @@ def check_password_expiring(conn, base_dn, days=14):
             attributes=['cn', 'sAMAccountName', 'mail', 'pwdLastSet', 'distinguishedName']
         )
 
+        # Sauvegarder les entrees avant la prochaine recherche qui ecraserait conn.entries
+        user_entries = list(conn.entries)
+
         # Obtenir la politique de mot de passe du domaine
         conn.search(base_dn, '(objectClass=domain)', SUBTREE, attributes=['maxPwdAge'])
 
@@ -233,10 +239,35 @@ def check_password_expiring(conn, base_dn, days=14):
                 # Convertir en jours (valeur negative en 100-nanosecond intervals)
                 max_pwd_age_days = abs(int(max_pwd_age)) / (10000000 * 60 * 60 * 24)
 
-        # Note: Implementation simplifiee, necessite plus de logique pour pwdLastSet
+        # Identifier les utilisateurs dont le mot de passe expire dans la fenetre
+        now = datetime.now()
+        expiry_window = now + timedelta(days=days)
 
-    except Exception as e:
-        pass
+        for entry in user_entries:
+            if not entry.pwdLastSet or not entry.pwdLastSet.value:
+                continue
+
+            pwd_last_set = entry.pwdLastSet.value
+            # ldap3 peut retourner un datetime ou un entier Windows FILETIME
+            if isinstance(pwd_last_set, datetime):
+                pwd_set_date = pwd_last_set.replace(tzinfo=None)
+            else:
+                # Convertir depuis Windows FILETIME (100-nanoseconde intervals depuis 1601-01-01)
+                pwd_set_date = datetime(1601, 1, 1) + timedelta(microseconds=int(pwd_last_set) / 10)
+
+            expiry_date = pwd_set_date + timedelta(days=max_pwd_age_days)
+
+            if now <= expiry_date <= expiry_window:
+                expiring.append({
+                    'cn': str(entry.cn) if entry.cn else '',
+                    'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                    'mail': str(entry.mail) if entry.mail else '',
+                    'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                    'pwdExpires': expiry_date.strftime('%Y-%m-%d %H:%M:%S')
+                })
+
+    except Exception:
+        logger.warning("Erreur lors de la verification des mots de passe expirants", exc_info=True)
 
     return expiring
 
@@ -263,10 +294,13 @@ def check_inactive_accounts(conn, base_dn, days=90):
         # Convertir en format AD
         ad_timestamp = int((limit_date - datetime(1601, 1, 1)).total_seconds() * 10000000)
 
-        # Rechercher les comptes avec lastLogonTimestamp ancien
+        # Rechercher les comptes avec lastLogonTimestamp ancien OU jamais connectes
+        # Note: lastLogonTimestamp est replique toutes les ~14 jours entre DCs,
+        # ce qui est suffisant pour detecter une inactivite >= days (defaut 90j).
         conn.search(
             base_dn,
-            f'(&(objectClass=user)(objectCategory=person)(lastLogonTimestamp<={ad_timestamp}))',
+            f'(&(objectClass=user)(objectCategory=person)'
+            f'(|(lastLogonTimestamp<={ad_timestamp})(!(lastLogonTimestamp=*))))',
             SUBTREE,
             attributes=['cn', 'sAMAccountName', 'mail', 'lastLogonTimestamp', 'distinguishedName']
         )
@@ -277,10 +311,10 @@ def check_inactive_accounts(conn, base_dn, days=90):
                 'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
                 'mail': str(entry.mail) if entry.mail else '',
                 'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
-                'lastLogon': str(entry.lastLogonTimestamp) if entry.lastLogonTimestamp else ''
+                'lastLogon': str(entry.lastLogonTimestamp) if entry.lastLogonTimestamp else 'Jamais'
             })
 
-    except Exception as e:
-        pass
+    except Exception:
+        logger.warning("Erreur lors de la verification des comptes inactifs", exc_info=True)
 
     return inactive

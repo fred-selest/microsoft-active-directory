@@ -4,10 +4,27 @@ Utilise Fernet (AES-128 en mode CBC) pour chiffrer les mots de passe.
 """
 import base64
 import os
+from pathlib import Path
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
+
+_SALT_FILE = Path(__file__).resolve().parent / 'data' / 'crypto_salt.bin'
+
+
+def _load_or_create_salt() -> bytes:
+    """
+    Charge le salt de chiffrement depuis le fichier data/crypto_salt.bin.
+    Si le fichier n'existe pas, génère un salt aléatoire de 32 octets et le persiste.
+    Cela garantit un salt unique par déploiement, stable entre les redémarrages.
+    """
+    if _SALT_FILE.exists():
+        return _SALT_FILE.read_bytes()
+    salt = os.urandom(32)
+    _SALT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _SALT_FILE.write_bytes(salt)
+    return salt
 
 
 class SessionCrypto:
@@ -15,15 +32,13 @@ class SessionCrypto:
 
     def __init__(self, secret_key: str):
         """
-        Initialise le chiffreur avec une clé dérivée du SECRET_KEY.
+        Initialise le chiffreur avec une clé dérivée du SECRET_KEY et d'un salt
+        propre à ce déploiement (généré une fois, stocké dans data/crypto_salt.bin).
 
         Args:
-            secret_key: La SECRET_KEY de Flask (sera utilisée pour dériver la clé de chiffrement)
+            secret_key: La SECRET_KEY de Flask
         """
-        # Dériver une clé de chiffrement à partir de la SECRET_KEY
-        # Utilisation d'un salt fixe pour que la même SECRET_KEY donne toujours la même clé
-        # Note: Dans un système de production avancé, on utiliserait un salt par utilisateur
-        salt = b'ad_web_interface_session_salt_v1'
+        salt = _load_or_create_salt()
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
