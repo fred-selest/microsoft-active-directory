@@ -223,6 +223,9 @@ def check_password_expiring(conn, base_dn, days=14):
             attributes=['cn', 'sAMAccountName', 'mail', 'pwdLastSet', 'distinguishedName']
         )
 
+        # Sauvegarder les entrees avant la prochaine recherche qui ecraserait conn.entries
+        user_entries = list(conn.entries)
+
         # Obtenir la politique de mot de passe du domaine
         conn.search(base_dn, '(objectClass=domain)', SUBTREE, attributes=['maxPwdAge'])
 
@@ -233,7 +236,32 @@ def check_password_expiring(conn, base_dn, days=14):
                 # Convertir en jours (valeur negative en 100-nanosecond intervals)
                 max_pwd_age_days = abs(int(max_pwd_age)) / (10000000 * 60 * 60 * 24)
 
-        # Note: Implementation simplifiee, necessite plus de logique pour pwdLastSet
+        # Identifier les utilisateurs dont le mot de passe expire dans la fenetre
+        now = datetime.now()
+        expiry_window = now + timedelta(days=days)
+
+        for entry in user_entries:
+            if not entry.pwdLastSet or not entry.pwdLastSet.value:
+                continue
+
+            pwd_last_set = entry.pwdLastSet.value
+            # ldap3 peut retourner un datetime ou un entier Windows FILETIME
+            if isinstance(pwd_last_set, datetime):
+                pwd_set_date = pwd_last_set.replace(tzinfo=None)
+            else:
+                # Convertir depuis Windows FILETIME (100-nanoseconde intervals depuis 1601-01-01)
+                pwd_set_date = datetime(1601, 1, 1) + timedelta(microseconds=int(pwd_last_set) / 10)
+
+            expiry_date = pwd_set_date + timedelta(days=max_pwd_age_days)
+
+            if now <= expiry_date <= expiry_window:
+                expiring.append({
+                    'cn': str(entry.cn) if entry.cn else '',
+                    'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                    'mail': str(entry.mail) if entry.mail else '',
+                    'dn': str(entry.distinguishedName) if entry.distinguishedName else '',
+                    'pwdExpires': expiry_date.strftime('%Y-%m-%d %H:%M:%S')
+                })
 
     except Exception as e:
         pass
