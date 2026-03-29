@@ -115,6 +115,27 @@ set PYTHON_EXE=%APP_DIR%venv\Scripts\python.exe
 set RUN_PY=%APP_DIR%run.py
 
 REM =====================================================================
+REM ETAPE 5b : Generer le fichier .env si absent
+REM  - Genere une SECRET_KEY cryptographique unique (32 octets hex)
+REM  - Configure le mode production et le mode silencieux (pas de console)
+REM  - Ne jamais ecraser un .env existant (contiendrait deja la config)
+REM =====================================================================
+if not exist "%APP_DIR%.env" (
+    echo Generation du fichier .env ^(configuration initiale^)...
+    for /f "tokens=*" %%k in ('"%PYTHON_EXE%" -c "import secrets; print(secrets.token_hex(32))"') do set SECRET_KEY=%%k
+    (
+        echo SECRET_KEY=!SECRET_KEY!
+        echo FLASK_ENV=production
+        echo AD_SILENT=true
+    ) > "%APP_DIR%.env"
+    echo [OK] Fichier .env cree avec une SECRET_KEY securisee.
+    echo.
+) else (
+    echo [OK] Fichier .env existant conserve.
+    echo.
+)
+
+REM =====================================================================
 REM ETAPE 6 : Obtenir NSSM (Non-Sucking Service Manager)
 REM  - NSSM enregistre n'importe quel executable comme service Windows
 REM  - Gere le demarrage auto, les logs, le redemarrage sur crash
