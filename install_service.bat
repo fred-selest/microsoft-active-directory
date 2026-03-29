@@ -115,6 +115,27 @@ set PYTHON_EXE=%APP_DIR%venv\Scripts\python.exe
 set RUN_PY=%APP_DIR%run.py
 
 REM =====================================================================
+REM ETAPE 5b : Generer le fichier .env si absent
+REM  - Genere une SECRET_KEY cryptographique unique (32 octets hex)
+REM  - Configure le mode production et le mode silencieux (pas de console)
+REM  - Ne jamais ecraser un .env existant (contiendrait deja la config)
+REM =====================================================================
+if not exist "%APP_DIR%.env" (
+    echo Generation du fichier .env ^(configuration initiale^)...
+    for /f "tokens=*" %%k in ('"%PYTHON_EXE%" -c "import secrets; print(secrets.token_hex(32))"') do set SECRET_KEY=%%k
+    (
+        echo SECRET_KEY=!SECRET_KEY!
+        echo FLASK_ENV=production
+        echo AD_SILENT=true
+    ) > "%APP_DIR%.env"
+    echo [OK] Fichier .env cree avec une SECRET_KEY securisee.
+    echo.
+) else (
+    echo [OK] Fichier .env existant conserve.
+    echo.
+)
+
+REM =====================================================================
 REM ETAPE 6 : Obtenir NSSM (Non-Sucking Service Manager)
 REM  - NSSM enregistre n'importe quel executable comme service Windows
 REM  - Gere le demarrage auto, les logs, le redemarrage sur crash
@@ -232,6 +253,32 @@ if defined OPENSSL_CONF_PATH (
     "%NSSM_EXE%" set "%SERVICE_NAME%" AppEnvironmentExtra "OPENSSL_CONF=%OPENSSL_CONF_PATH%"
     echo [INFO] OPENSSL_CONF configure ^(support MD4/NTLM^).
 )
+
+REM =====================================================================
+REM ETAPE 8b : Ouverture du port dans le pare-feu Windows
+REM  - Sans cette regle, les postes clients du reseau ne peuvent pas
+REM    acceder a l'interface (connexion refusee meme si le service tourne)
+REM  - Supprime l'ancienne regle si elle existe, puis la recrée
+REM  - N'affecte que le trafic entrant sur le port de l'application
+REM =====================================================================
+
+REM Lire le port depuis le .env si defini, sinon utiliser 5000 par defaut
+set APP_PORT=5000
+for /f "tokens=1,2 delims==" %%a in ('type "%APP_DIR%.env" 2^>nul ^| findstr /i "AD_WEB_PORT"') do (
+    if /i "%%a"=="AD_WEB_PORT" set APP_PORT=%%b
+)
+
+echo Configuration du pare-feu Windows ^(port !APP_PORT!^)...
+netsh advfirewall firewall delete rule name="AD Web Interface" >nul 2>&1
+netsh advfirewall firewall add rule name="AD Web Interface" dir=in action=allow protocol=TCP localport=!APP_PORT! >nul 2>&1
+if errorlevel 1 (
+    echo [AVERTISSEMENT] Impossible d'ouvrir le port !APP_PORT! dans le pare-feu.
+    echo   Ouvrez-le manuellement si les clients ne peuvent pas se connecter :
+    echo   netsh advfirewall firewall add rule name="AD Web Interface" dir=in action=allow protocol=TCP localport=!APP_PORT!
+) else (
+    echo [OK] Pare-feu : port !APP_PORT! ouvert pour les connexions entrantes.
+)
+echo.
 
 REM =====================================================================
 REM ETAPE 9 : Demarrage du service

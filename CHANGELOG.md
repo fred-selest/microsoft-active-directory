@@ -5,6 +5,35 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.17.0] - 2026-03-29
+
+### Amélioré
+
+- **Détection mots de passe expirants** - `check_password_expiring` traite désormais réellement les entrées LDAP et retourne les utilisateurs dont le mot de passe expire dans la fenêtre configurée
+- **Comptes inactifs** - `check_inactive_accounts` inclut maintenant les comptes n'ayant jamais eu de `lastLogonTimestamp` (comptes jamais connectés)
+- **Cache thread-safe** - Protection du cache mémoire via `threading.Lock` pour éviter les race conditions sous Waitress/Gunicorn multi-thread
+- **Connexion AD** - Court-circuit immédiat sur erreur LDAP 49 (identifiants incorrects) sans essayer les autres méthodes d'authentification
+- **Installation Windows** - `install_service.bat` génère automatiquement le `.env` avec `SECRET_KEY` aléatoire et ouvre le port pare-feu Windows
+
+### Sécurité
+
+- **Salt PBKDF2 par déploiement** - Remplacement du salt hardcodé par un salt aléatoire de 32 octets persisté dans `data/crypto_salt.bin`, unique par installation
+
+### Logging
+
+- Remplacement de tous les `except: pass` silencieux par des `logger.warning()` avec traceback pour faciliter le diagnostic en production
+
+### Supprimé
+
+- Fichiers Docker (`Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh`, `.dockerignore`, `DOCKER.md`, workflow `docker-publish.yml`) — non utilisés en déploiement Windows service
+- Wizards d'installation (`install.py`, `install.sh`) — remplacés par `install_service.bat`
+
+### Ajouté
+
+- **`GUIDE_INSTALLATION_WINDOWS.md`** - Guide complet en français pour l'installation sur Windows Server (service automatique, accès navigateur, pare-feu, dépannage)
+
+---
+
 ## [1.16.4] - 2025-11-22
 
 ### Corrige
