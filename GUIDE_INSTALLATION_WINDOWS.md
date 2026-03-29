@@ -166,7 +166,8 @@ AD_WEB_PORT=8080
 Puis redémarrez le service.
 
 ### Le service démarre mais l'interface est inaccessible depuis d'autres postes
-Vérifiez que le **pare-feu Windows** autorise le port 5000 en entrée :
+La règle de pare-feu est créée automatiquement par `install_service.bat`.
+Si elle a été supprimée manuellement, recréez-la :
 ```bat
 netsh advfirewall firewall add rule name="AD Web Interface" dir=in action=allow protocol=TCP localport=5000
 ```

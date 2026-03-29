@@ -255,6 +255,32 @@ if defined OPENSSL_CONF_PATH (
 )
 
 REM =====================================================================
+REM ETAPE 8b : Ouverture du port dans le pare-feu Windows
+REM  - Sans cette regle, les postes clients du reseau ne peuvent pas
+REM    acceder a l'interface (connexion refusee meme si le service tourne)
+REM  - Supprime l'ancienne regle si elle existe, puis la recrée
+REM  - N'affecte que le trafic entrant sur le port de l'application
+REM =====================================================================
+
+REM Lire le port depuis le .env si defini, sinon utiliser 5000 par defaut
+set APP_PORT=5000
+for /f "tokens=1,2 delims==" %%a in ('type "%APP_DIR%.env" 2^>nul ^| findstr /i "AD_WEB_PORT"') do (
+    if /i "%%a"=="AD_WEB_PORT" set APP_PORT=%%b
+)
+
+echo Configuration du pare-feu Windows ^(port !APP_PORT!^)...
+netsh advfirewall firewall delete rule name="AD Web Interface" >nul 2>&1
+netsh advfirewall firewall add rule name="AD Web Interface" dir=in action=allow protocol=TCP localport=!APP_PORT! >nul 2>&1
+if errorlevel 1 (
+    echo [AVERTISSEMENT] Impossible d'ouvrir le port !APP_PORT! dans le pare-feu.
+    echo   Ouvrez-le manuellement si les clients ne peuvent pas se connecter :
+    echo   netsh advfirewall firewall add rule name="AD Web Interface" dir=in action=allow protocol=TCP localport=!APP_PORT!
+) else (
+    echo [OK] Pare-feu : port !APP_PORT! ouvert pour les connexions entrantes.
+)
+echo.
+
+REM =====================================================================
 REM ETAPE 9 : Demarrage du service
 REM =====================================================================
 echo.
