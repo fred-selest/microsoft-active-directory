@@ -126,6 +126,13 @@ def _is_winapi1_error(error_msg):
     return 'WinError 1' in str(error_msg)
 
 
+def _is_invalid_credentials_error(error_msg):
+    """Vérifier si l'erreur indique des identifiants incorrects (LDAP code 49).
+    Dans ce cas, inutile d'essayer d'autres méthodes d'auth : le mot de passe est faux."""
+    msg = str(error_msg).lower()
+    return 'invalidcredentials' in msg or 'error 49' in msg or '80090308' in msg
+
+
 def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
     """Créer un objet Server ldap3 avec le mode IP donné."""
     return Server(server, port=port, use_ssl=use_ssl,
@@ -171,6 +178,10 @@ def _try_connection_methods(server, username, password):
                     return conn, None
         except Exception as e:
             err_str = str(e)
+            # Identifiants incorrects (LDAP 49) : inutile d'essayer les autres méthodes
+            if _is_invalid_credentials_error(err_str):
+                errors.append(f"{label}: identifiants incorrects")
+                break
             # WinError 1 = IPv6 non supporté sur ce réseau, réessayer en IPv4 strict
             if _is_winapi1_error(err_str):
                 try:
