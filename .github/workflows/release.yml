@@ -1,6 +1,6 @@
 # =============================================================================
 # GitHub Actions - Release Automatique
-# Cree des releases avec packages Windows/Linux/Docker separes
+# Cree des releases avec packages Windows/Linux separes
 # =============================================================================
 
 name: Release
@@ -8,6 +8,12 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.17.0)'
+        required: true
+        default: '1.17.0'
 
 jobs:
   # ===========================================================================
@@ -27,32 +33,38 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Read CHANGELOG
         id: changelog
         run: |
+          VERSION=${{ steps.get_version.outputs.version }}
           if [ -f CHANGELOG.md ]; then
-            # Extraire la section de la version actuelle
-            NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1 || cat CHANGELOG.md | head -50)
+            NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+            if [ -z "$NOTES" ]; then
+              NOTES=$(head -50 CHANGELOG.md)
+            fi
           else
-            NOTES="Release version ${{ steps.get_version.outputs.version }}"
+            NOTES="Release version ${VERSION}"
           fi
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-        env:
-          VERSION: ${{ steps.get_version.outputs.version }}
 
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.get_version.outputs.version }}
           name: AD Web Interface v${{ steps.get_version.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
           draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          prerelease: ${{ contains(steps.get_version.outputs.version, 'alpha') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -75,13 +87,8 @@ jobs:
 
           mkdir -p dist/${PACKAGE_NAME}
 
-          # Copier les fichiers (exclure fichiers Linux/Docker)
           rsync -av --exclude='.git' \
                     --exclude='*.sh' \
-                    --exclude='Dockerfile' \
-                    --exclude='docker-compose.yml' \
-                    --exclude='docker-entrypoint.sh' \
-                    --exclude='.dockerignore' \
                     --exclude='__pycache__' \
                     --exclude='*.pyc' \
                     --exclude='venv' \
@@ -91,13 +98,13 @@ jobs:
                     --exclude='dist' \
                     . dist/${PACKAGE_NAME}/
 
-          # Creer le ZIP
           cd dist
           zip -r ${PACKAGE_NAME}.zip ${PACKAGE_NAME}
 
       - name: Upload Windows package
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ needs.create-release.outputs.version }}
           files: dist/AD-WebInterface-${{ needs.create-release.outputs.version }}-Windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -121,7 +128,6 @@ jobs:
 
           mkdir -p dist/${PACKAGE_NAME}
 
-          # Copier les fichiers (exclure fichiers Windows)
           rsync -av --exclude='.git' \
                     --exclude='*.bat' \
                     --exclude='*.vbs' \
@@ -136,49 +142,15 @@ jobs:
                     --exclude='dist' \
                     . dist/${PACKAGE_NAME}/
 
-          # Rendre les scripts executables
           chmod +x dist/${PACKAGE_NAME}/*.sh 2>/dev/null || true
-          chmod +x dist/${PACKAGE_NAME}/docker-entrypoint.sh 2>/dev/null || true
 
-          # Creer le tar.gz
           cd dist
           tar -czvf ${PACKAGE_NAME}.tar.gz ${PACKAGE_NAME}
 
       - name: Upload Linux package
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ needs.create-release.outputs.version }}
           files: dist/AD-WebInterface-${{ needs.create-release.outputs.version }}-Linux.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ===========================================================================
-  # Package Docker (info seulement)
-  # ===========================================================================
-  docker-info:
-    name: Docker Image Info
-    runs-on: ubuntu-latest
-    needs: [create-release, build-windows, build-linux]
-
-    steps:
-      - name: Add Docker instructions to release
-        uses: softprops/action-gh-release@v1
-        with:
-          append_body: true
-          body: |
-
-            ---
-
-            ## Docker
-
-            ```bash
-            # Telecharger l'image
-            docker pull ghcr.io/${{ github.repository }}:${{ needs.create-release.outputs.version }}
-
-            # Ou utiliser latest
-            docker pull ghcr.io/${{ github.repository }}:latest
-
-            # Demarrer avec docker-compose
-            docker-compose up -d
-            ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
