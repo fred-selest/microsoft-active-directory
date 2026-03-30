@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Diagnostic et Dépannage - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>🔧 Diagnostic et Dépannage Automatique</h2>
+    <p class="text-muted">Vérifiez l'état de votre installation et obtenez des solutions automatiques</p>
+
+    <!-- Bouton de lancement -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Lancer le diagnostic</h5>
+            <p class="card-text">
+                Cliquez sur le bouton ci-dessous pour analyser votre configuration et détecter les problèmes.
+            </p>
+            <button class="btn btn-primary" onclick="runDiagnostic()">
+                🚀 Lancer le diagnostic complet
+            </button>
+        </div>
+    </div>
+
+    <!-- Résultats du diagnostic -->
+    <div id="diagnostic-results" style="display:none;">
+        <!-- Rapport -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📊 Rapport de Diagnostic</h5>
+            </div>
+            <div class="card-body">
+                <div id="diagnostic-summary"></div>
+            </div>
+        </div>
+
+        <!-- Vérifications -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">✅ Vérifications</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Test</th>
+                            <th>Statut</th>
+                            <th>Détails</th>
+                        </tr>
+                    </thead>
+                    <tbody id="diagnostic-checks">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Suggestions -->
+        <div class="card mb-4" id="suggestions-card" style="display:none;">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">💡 Suggestions</h5>
+            </div>
+            <div class="card-body">
+                <ul id="diagnostic-suggestions"></ul>
+            </div>
+        </div>
+
+        <!-- Actions correctives -->
+        <div class="card mb-4" id="actions-card" style="display:none;">
+            <div class="card-header bg-danger">
+                <h5 class="mb-0">🔧 Actions Correctives</h5>
+            </div>
+            <div class="card-body">
+                <div id="diagnostic-actions"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+    function runDiagnostic() {
+        // Afficher le chargement
+        document.getElementById('diagnostic-results').style.display = 'block';
+        document.getElementById('diagnostic-summary').innerHTML = '<div class="alert alert-info">Exécution du diagnostic...</div>';
+        
+        fetch('/api/diagnostic')
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data);
+            })
+            .catch(error => {
+                document.getElementById('diagnostic-summary').innerHTML = 
+                    '<div class="alert alert-danger">Erreur: ' + error + '</div>';
+            });
+    }
+
+    function displayResults(data) {
+        // Résumé
+        const statusClass = data.status === 'healthy' ? 'success' : 
+                           data.status === 'warning' ? 'warning' : 'danger';
+        const statusIcon = data.status === 'healthy' ? '✅' : 
+                          data.status === 'warning' ? '⚠️' : '❌';
+        
+        const passed = data.checks.filter(c => c.passed).length;
+        const total = data.checks.length;
+        
+        document.getElementById('diagnostic-summary').innerHTML = `
+            <div class="alert alert-${statusClass}">
+                <strong>${statusIcon} Statut: ${data.status.toUpperCase()}</strong><br>
+                ${passed}/${total} vérifications passées<br>
+                ${data.errors.length > 0 ? data.errors.length + ' erreur(s) détectée(s)' : ''}
+            </div>
+            <p><strong>Date:</strong> ${data.timestamp}</p>
+        `;
+        
+        // Vérifications
+        const checksHtml = data.checks.map(check => `
+            <tr>
+                <td>${check.name}</td>
+                <td>
+                    <span class="badge badge-${check.passed ? 'success' : 'danger'}">
+                        ${check.passed ? '✅' : '❌'}
+                    </span>
+                </td>
+                <td>
+                    ${check.message || ''}
+                    ${check.details ? '<br><small class="text-muted">' + check.details + '</small>' : ''}
+                </td>
+            </tr>
+        `).join('');
+        document.getElementById('diagnostic-checks').innerHTML = checksHtml;
+        
+        // Suggestions
+        if (data.suggestions && data.suggestions.length > 0) {
+            document.getElementById('suggestions-card').style.display = 'block';
+            const suggestionsHtml = data.suggestions.map(sug => `
+                <li>
+                    <strong>${sug.title || 'Action requise'}</strong><br>
+                    ${sug.description || ''}
+                    ${sug.command ? '<br><code>' + sug.command + '</code>' : ''}
+                </li>
+            `).join('');
+            document.getElementById('diagnostic-suggestions').innerHTML = suggestionsHtml;
+        } else {
+            document.getElementById('suggestions-card').style.display = 'none';
+        }
+        
+        // Actions correctives (pour les erreurs critiques)
+        const criticalErrors = data.checks.filter(c => !c.passed);
+        if (criticalErrors.length > 0) {
+            document.getElementById('actions-card').style.display = 'block';
+            const actionsHtml = criticalErrors.map(err => `
+                <div class="alert alert-danger mb-2">
+                    <strong>❌ ${err.name}</strong><br>
+                    ${err.message}
+                    ${err.details ? '<br><small>' + err.details + '</small>' : ''}
+                </div>
+            `).join('');
+            document.getElementById('diagnostic-actions').innerHTML = actionsHtml;
+        } else {
+            document.getElementById('actions-card').style.display = 'none';
+        }
+        
+        // Scroll vers les résultats
+        document.getElementById('diagnostic-results').scrollIntoView({ behavior: 'smooth' });
+    }
+    </script>
+
+    <style>
+    .badge {
+        padding: 0.5em 0.75em;
+        font-size: 0.875em;
+    }
+    .badge-success {
+        background-color: #28a745;
+        color: white;
+    }
+    .badge-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+    .badge-warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    code {
+        background-color: #f8f9fa;
+        padding: 0.2em 0.4em;
+        border-radius: 0.25rem;
+    }
+    </style>
+</div>
+{% endblock %}

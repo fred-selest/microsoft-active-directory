@@ -311,6 +311,68 @@ def api_health():
     })
 
 
+@app.route('/diagnostic')
+@require_connection
+def diagnostic_page():
+    """Page de diagnostic et dépannage."""
+    return render_template('diagnostic.html', connected=is_connected())
+
+
+@app.route('/api/diagnostic')
+def api_diagnostic():
+    """API de diagnostic automatique."""
+    from diagnostic import run_full_diagnostic
+    from ldap3 import SUBTREE
+    
+    # Récupérer les infos de connexion AD si disponible
+    server = session.get('ad_server', 'localhost')
+    port = session.get('ad_port', 389)
+    
+    # Exécuter le diagnostic
+    results = run_full_diagnostic(server, port)
+    
+    # Ajouter des checks supplémentaires si connecté
+    if is_connected():
+        try:
+            from routes.core import get_ad_connection
+            conn, error = get_ad_connection()
+            if conn:
+                # Tester une recherche simple
+                try:
+                    conn.search(session.get('ad_base_dn', ''), 
+                               '(objectClass=domain)', 
+                               SUBTREE, 
+                               attributes=['name'])
+                    if conn.entries:
+                        results['checks'].append({
+                            'name': 'Recherche AD',
+                            'passed': True,
+                            'message': 'Recherche LDAP fonctionnelle'
+                        })
+                    else:
+                        results['checks'].append({
+                            'name': 'Recherche AD',
+                            'passed': False,
+                            'message': 'Aucun résultat de recherche'
+                        })
+                except Exception as e:
+                    results['checks'].append({
+                        'name': 'Recherche AD',
+                        'passed': False,
+                        'message': f'Erreur de recherche: {str(e)}'
+                    })
+                conn.unbind()
+        except Exception as e:
+            results['checks'].append({
+                'name': 'Connexion AD',
+                'passed': False,
+                'message': f'Impossible de se connecter: {str(e)}'
+            })
+            results['errors'].append(f'Connexion AD: {str(e)}')
+    
+    return jsonify(results)
+
+
 @app.route('/api/check-update')
 def api_check_update():
     """API pour vérifier les mises à jour."""
