@@ -387,21 +387,19 @@ def run_server():
         print(f"Accès depuis n'importe quel appareil: http://<votre-ip>:{port}")
         print(f"{'='*50}\n")
 
-    if os.environ.get('FLASK_ENV') == 'production':
-        if IS_WINDOWS:
-            # Utiliser Waitress sur Windows (serveur WSGI multi-plateforme)
+    if IS_WINDOWS and not config.DEBUG:
+        # Utiliser Waitress sur Windows (serveur WSGI de production, démarrage rapide)
+        try:
             from waitress import serve
             if not silent_mode:
                 print("Démarrage avec Waitress (serveur de production Windows)...")
             serve(app, host=host, port=port)
-        else:
-            # Sur Linux, recommander d'utiliser gunicorn en externe
-            if not silent_mode:
-                print("Pour la production sur Linux, utilisez: gunicorn -w 4 -b 0.0.0.0:5000 app:app")
-            app.run(host=host, port=port, debug=False)
-    else:
-        # Serveur de développement
-        app.run(host=host, port=port, debug=config.DEBUG)
+            return
+        except ImportError:
+            logger.warning("Waitress non disponible, bascule sur le serveur Flask")
+
+    # Serveur Flask (développement ou Linux)
+    app.run(host=host, port=port, debug=config.DEBUG, use_reloader=config.DEBUG)
 
 
 if __name__ == '__main__':
