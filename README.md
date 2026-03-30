@@ -1,10 +1,14 @@
 # Interface Web Active Directory
 
-Interface web pour Microsoft Active Directory. Les utilisateurs accèdent simplement via leur navigateur web.
+Interface web pour Microsoft Active Directory. Gérez vos utilisateurs, groupes et ordinateurs directement depuis votre navigateur — aucune installation requise côté client.
 
-## Pour les utilisateurs (clients)
+> **Version actuelle : 1.17.1** — [Voir les releases](https://github.com/fred-selest/microsoft-active-directory/releases)
 
-**Aucune installation requise !** Ouvrez simplement votre navigateur et accédez à :
+---
+
+## Pour les utilisateurs
+
+**Aucune installation requise.** Ouvrez votre navigateur et accédez à :
 
 ```
 http://ADRESSE_DU_SERVEUR:5000
@@ -13,118 +17,140 @@ http://ADRESSE_DU_SERVEUR:5000
 Exemples :
 - Réseau local : `http://192.168.1.100:5000`
 - Nom d'hôte : `http://serveur-ad.entreprise.local:5000`
-- Avec domaine : `https://ad.monentreprise.com`
+- Avec HTTPS : `https://ad.monentreprise.com`
 
-L'interface fonctionne sur **tous les systèmes** (Windows, Linux, macOS, tablettes, smartphones).
+Fonctionne sur tous les systèmes et navigateurs (Windows, Linux, macOS, tablettes, smartphones).
 
 ---
 
-## Installation rapide
+## Installation sur Windows Server (recommandé)
 
-### 🪟 Windows
+> Consultez le guide complet : **[GUIDE_INSTALLATION_WINDOWS.md](GUIDE_INSTALLATION_WINDOWS.md)**
 
-1. Téléchargez le projet : https://github.com/fred-selest/microsoft-active-directory/archive/refs/heads/main.zip
-2. Décompressez
-3. Double-cliquez sur `setup_windows.bat`
-4. Lancez avec `run.bat` (ou `run_legacy.bat` si Python 3.12+)
+### En 3 étapes
 
-### 🐧 Linux / Ubuntu
+**1. Télécharger**
+
+Téléchargez la dernière release Windows depuis :
+```
+https://github.com/fred-selest/microsoft-active-directory/releases/latest
+```
+Décompressez dans un dossier sans accent ni espace, par exemple `C:\AD-Web\`.
+
+**2. Installer le service**
+
+Clic droit sur `install_service.bat` → **Exécuter en tant qu'administrateur**
+
+Le script gère automatiquement :
+- Installation de Python si absent
+- Création du venv et des dépendances
+- Génération du fichier `.env` avec `SECRET_KEY` aléatoire
+- Installation du service Windows (démarrage automatique, redémarrage sur crash)
+- Ouverture du port 5000 dans le pare-feu Windows
+
+**3. Accéder**
+
+L'adresse réseau est affichée à la fin de l'installation. Communiquez-la à vos utilisateurs.
+
+### Gestion du service
+
+```bat
+net start ADWebInterface    # Démarrer
+net stop ADWebInterface     # Arrêter
+sc query ADWebInterface     # Statut
+uninstall_service.bat       # Désinstaller (en admin)
+```
+
+---
+
+## Installation sur Linux
 
 ```bash
-# Cloner le projet
 git clone https://github.com/fred-selest/microsoft-active-directory.git
 cd microsoft-active-directory
 
-# Installer
-chmod +x setup_linux.sh
-./setup_linux.sh
-
-# Lancer
-./run.sh
-```
-
-**Ou installation manuelle rapide :**
-
-```bash
-cd microsoft-active-directory
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# Créer .env avec SECRET_KEY sécurisée
+# Générer la configuration
 python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))" > .env
 echo "FLASK_ENV=production" >> .env
-echo "HOST=0.0.0.0" >> .env
-echo "PORT=5000" >> .env
 
-# Lancer
 python3 run.py
 ```
 
----
-
-## Accès
-
-Une fois lancé, ouvrez votre navigateur :
-- **Local :** http://localhost:5000
-- **Réseau :** http://VOTRE_IP:5000
-
-Trouvez votre IP :
-- **Linux :** `hostname -I` ou `ip addr`
-- **Windows :** `ipconfig`
+Production avec Gunicorn :
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 'app:app'
+```
 
 ---
 
 ## Configuration
 
-Le fichier `.env` contient la configuration :
+Le fichier `.env` est généré automatiquement au premier démarrage. Principales options :
 
 ```ini
-SECRET_KEY=votre-cle-secrete-aleatoire-64-caracteres
+SECRET_KEY=votre-cle-secrete          # Généré automatiquement
 FLASK_ENV=production
-HOST=0.0.0.0
-PORT=5000
+AD_WEB_HOST=0.0.0.0
+AD_WEB_PORT=5000
+
+# Active Directory (optionnel — configurable via l'interface)
+AD_SERVER=dc01.entreprise.local
+AD_PORT=389
+AD_USE_SSL=false
+AD_BASE_DN=DC=entreprise,DC=local
+
+# Contrôle d'accès (RBAC)
+RBAC_ENABLED=true
+DEFAULT_ROLE=reader
+RBAC_ADMIN_GROUPS=Domain Admins,Administrateurs du domaine
 ```
 
-**⚠️ IMPORTANT :** Changez `SECRET_KEY` en production !
-
-Générez une clé sécurisée :
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
+Voir `.env.example` pour toutes les options documentées.
 
 ---
 
-## Problèmes courants
+## Fonctionnalités
 
-### Erreur MD4 (Python 3.12+)
-
-**Windows :** Utilisez `run_legacy.bat`
-
-**Linux :** Consultez `README_MD4.md`
-
-### Port 5000 déjà utilisé
-
-Modifiez `PORT=8080` dans `.env`
-
-### python3-venv introuvable (Ubuntu)
-
-```bash
-sudo apt install python3-venv
-```
+- Connexion LDAP / LDAPS à Active Directory
+- Gestion des utilisateurs (créer, modifier, désactiver, déplacer, supprimer)
+- Gestion des groupes et des membres
+- Gestion des ordinateurs et des OUs
+- Recherche globale
+- Export CSV
+- Contrôle d'accès basé sur les rôles AD (admin / operator / reader)
+- Audit log de toutes les actions
+- Alertes : comptes expirants, mots de passe expirants, comptes inactifs
+- Interface responsive (desktop, tablette, mobile)
+- Mises à jour depuis l'interface web (détection automatique)
+- Support Python 3.12+ (NTLM/MD4 géré automatiquement)
 
 ---
 
-## Déploiement production
+## Sécurité
 
-### Avec Gunicorn (Linux)
+- Mots de passe chiffrés en session (AES-128 Fernet)
+- Protection injection LDAP
+- Tokens CSRF sur tous les formulaires
+- Rate limiting sur la connexion
+- `SECRET_KEY` unique par déploiement, générée automatiquement
+- Salt PBKDF2 unique par installation (`data/crypto_salt.bin`)
+- RBAC activé par défaut (rôle `reader` minimum)
+- Support LDAPS (port 636) recommandé en production
+- Compatible reverse proxy HTTPS (nginx, IIS)
 
-```bash
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 'app:app'
-```
+---
 
-### Avec reverse proxy NGINX + HTTPS
+## Mises à jour
+
+L'interface affiche automatiquement une notification quand une mise à jour est disponible.
+Cliquer sur le bouton déclenche le téléchargement, la mise à jour des dépendances et le redémarrage du service. Les fichiers `.env` et `data/` sont toujours préservés.
+
+---
+
+## Déploiement production avec HTTPS (nginx)
 
 ```nginx
 server {
@@ -146,31 +172,14 @@ server {
 
 ---
 
-## Fonctionnalités
+## Problèmes courants
 
-- ✅ Connexion LDAP/LDAPS à Active Directory
-- ✅ Gestion utilisateurs, groupes, ordinateurs
-- ✅ Recherche avancée
-- ✅ Interface responsive (desktop, tablette, mobile)
-- ✅ Multi-plateforme (Windows, Linux)
-- ✅ Support Python 3.12+ (avec run_legacy.bat)
-
----
-
-## Sécurité
-
-- 🔒 Utilisez HTTPS en production (reverse proxy)
-- 🔒 Changez `SECRET_KEY` (64 caractères minimum)
-- 🔒 Utilisez LDAPS (port 636) pour Active Directory
-- 🔒 Activez le pare-feu et limitez l'accès réseau
-
----
-
-## Documentation
-
-- `INSTALLATION.md` - Guide d'installation détaillé
-- `INSTALL_UBUNTU.md` - Installation Linux spécifique
-- `README_MD4.md` - Correction erreur MD4 Python 3.12+
+| Problème | Solution |
+|----------|----------|
+| Port 5000 déjà utilisé | `AD_WEB_PORT=8080` dans `.env` |
+| Erreur MD4 / NTLM (Python 3.12+) | Géré automatiquement par `install_service.bat` ; sinon utiliser `run_legacy.bat` |
+| Interface inaccessible depuis le réseau | Vérifier la règle pare-feu (créée automatiquement par `install_service.bat`) |
+| `python3-venv` introuvable (Ubuntu) | `sudo apt install python3-venv` |
 
 ---
 
@@ -178,17 +187,22 @@ server {
 
 ```
 microsoft-active-directory/
-├── app.py                  # Application Flask principale
-├── run.py                  # Point d'entrée
-├── config.py               # Configuration
-├── requirements.txt        # Dépendances Python
-├── routes/                 # Routes Flask (blueprints)
-├── templates/              # Pages HTML (Jinja2)
-├── static/                 # CSS, JavaScript, images
-├── setup_windows.bat       # Installation Windows
-├── setup_linux.sh          # Installation Linux
-├── run.bat / run.sh        # Scripts de lancement
-└── run_legacy.bat          # Lancement avec MD4 (Python 3.12+)
+├── app.py                        # Application Flask principale
+├── run.py                        # Point d'entrée
+├── config.py                     # Configuration
+├── requirements.txt              # Dépendances Python
+├── routes/                       # Blueprints Flask
+├── templates/                    # Pages HTML (Jinja2)
+├── static/                       # CSS, JavaScript, icônes
+├── install_service.bat           # Installation service Windows (recommandé)
+├── uninstall_service.bat         # Désinstallation service Windows
+├── run_server.bat                # Démarrage manuel Windows
+├── run_legacy.bat                # Démarrage avec support MD4
+├── run_client.bat                # Raccourci navigateur client
+├── run.sh                        # Démarrage Linux
+├── openssl_legacy.cnf            # Support NTLM/MD4 Python 3.12+
+├── GUIDE_INSTALLATION_WINDOWS.md # Guide installation Windows Server
+└── .env.example                  # Modèle de configuration
 ```
 
 ---
