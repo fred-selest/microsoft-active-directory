@@ -5,30 +5,6 @@
 Application web pour gérer Microsoft Active Directory depuis un navigateur. Aucune installation client requise.
 
 ---
-# Rôle
-Tu es mon Lead Developer intégré dans VS Code. Tu as accès au contexte de mon workspace.
-
-# Objectif
-Améliorer le code actuel, éliminer les bugs et optimiser les performances par itérations successives jusqu'à stabilité complète.
-
-# Contexte
-Je travaille sur ce projet dans VS Code. Utilise tes capacités de lecture de fichiers pour analyser le code pertinent.
-
-# Processus de Travail (Boucle)
-1. **Analyse du Contexte** : Scan les fichiers ouverts ou référencés. Identifie les bugs, la dette technique et les risques.
-2. **Proposition de Code** : Génère les corrections directement sous forme de blocs de code applicables ou de "diffs".
-3. **Stratégie de Test** : Propose les commandes exactes à lancer dans le terminal VS Code pour tester la correction (ex: `npm test`, `python pytest`, etc.).
-4. **Validation** : Attends que je lance les tests et te donne le retour (succès ou logs d'erreur).
-5. **Itération** : Si erreur, analyse les logs, corrige le code, et recommence à l'étape 1.
-
-# Contraintes
-- Ne suppose pas que le code fonctionne sans test.
-- Si tu modifies un fichier, indique clairement le chemin du fichier.
-- Priorise la sécurité et la lisibilité.
-- Si tu détectes un bug critique, signale-le en gras avant de proposer la fix.
-
-# Démarrage
-Commence par me demander quels sont les fichiers principaux ou la fonctionnalité sur laquelle je veux travailler aujourd'hui, puis lance l'analyse.
 
 ## 📋 Table des matières
 
@@ -69,7 +45,28 @@ python3 run.py
 
 ## 📦 Installation
 
-### Windows Server (Recommandé)
+### Installation Rapide (Sur le contrôleur de domaine)
+
+**PowerShell (en administrateur) :**
+
+```powershell
+# Télécharger et installer automatiquement
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fred-selest/microsoft-active-directory/main/install_ad.ps1" -OutFile "install_ad.ps1"
+.\install_ad.ps1
+```
+
+**Le script fait tout automatiquement :**
+- ✅ Vérifie les droits administrateur
+- ✅ Installe Python 3.12 si absent
+- ✅ Crée l'environnement virtuel
+- ✅ Installe les dépendances
+- ✅ Génère `.env` avec SECRET_KEY
+- ✅ Configure le support NTLM/MD4
+- ✅ Installe le service Windows
+- ✅ Ouvre le port dans le pare-feu
+- ✅ Démarre le service
+
+### Windows Server (Service automatique)
 
 **Prérequis :**
 - Windows Server 2016/2019/2022 ou Windows 10/11
@@ -363,6 +360,8 @@ microsoft-active-directory/
 ├── translations.py               # Multi-langue (fr/en)
 ├── settings_manager.py           # Paramètres utilisateurs
 ├── updater.py / updater_fast.py  # Mises à jour automatiques
+├── favorites.py                  # Gestion favoris
+├── user_templates.py             # Templates utilisateurs
 ├── install_service.bat           # Installation service Windows
 ├── uninstall_service.bat         # Désinstallation service
 ├── run_server.bat                # Démarrage manuel Windows

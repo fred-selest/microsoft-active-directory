@@ -122,60 +122,26 @@ def index():
 
 @app.route('/connect', methods=['GET', 'POST'])
 def connect():
-    """Connexion au serveur AD avec detection automatique."""
-    from ad_detect import detect_ad_config, find_working_server
-    
-    # Detection automatique de la configuration AD
-    auto_config = detect_ad_config()
-    
-    # Trouver un serveur fonctionnel
-    if auto_config['servers_found']:
-        working_server = find_working_server(auto_config['servers_found'])
-        if working_server:
-            auto_config['server'] = working_server
-    
+    """Connexion au serveur AD."""
     if request.method == 'POST':
         if not validate_csrf_token(request.form.get('csrf_token')):
             flash('Token invalide.', 'error')
-            return render_template('connect.html', 
-                                 connected=is_connected(),
-                                 auto_detected=auto_config['auto_detected'],
-                                 auto_domain=auto_config['domain'],
-                                 auto_server=auto_config['server'],
-                                 server=auto_config['server'],
-                                 port=auto_config['port'],
-                                 base_dn=auto_config['base_dn'],
-                                 use_ssl=auto_config['use_ssl'])
+            return render_template('connect.html', connected=is_connected())
 
         ip = request.remote_addr
         allowed, remaining = check_rate_limit(ip)
         if not allowed:
             flash(f'Trop de tentatives. Réessayez dans {remaining}s.', 'error')
-            return render_template('connect.html',
-                                 connected=is_connected(),
-                                 auto_detected=auto_config['auto_detected'],
-                                 auto_domain=auto_config['domain'],
-                                 auto_server=auto_config['server'],
-                                 server=auto_config['server'],
-                                 port=auto_config['port'],
-                                 base_dn=auto_config['base_dn'],
-                                 use_ssl=auto_config['use_ssl'])
+            return render_template('connect.html', connected=is_connected())
 
-        server = request.form.get('server') or auto_config['server']
+        server = request.form.get('server')
         username = request.form.get('username')
         password = request.form.get('password')
-        use_ssl = request.form.get('use_ssl') == 'on' or auto_config['use_ssl']
-        port = request.form.get('port') or auto_config['port']
-        base_dn = request.form.get('base_dn') or auto_config['base_dn']
+        use_ssl = request.form.get('use_ssl') == 'on'
+        port = request.form.get('port', '')
+        base_dn = request.form.get('base_dn', '')
 
-        if not server:
-            flash('Aucun serveur AD detecte. Configurez manuellement.', 'error')
-            return render_template('connect.html',
-                                 connected=is_connected(),
-                                 auto_detected=False,
-                                 server='', port=389, base_dn='', use_ssl=False)
-
-        port = int(port) if port else 389
+        port = int(port) if port else None
         conn, error = get_ad_connection(server, username, password, use_ssl, port)
 
         if conn:
@@ -208,15 +174,7 @@ def connect():
             log_action(ACTIONS['LOGIN'], username, {'error': error}, False, ip)
             flash(f'Erreur: {error}', 'error')
 
-    return render_template('connect.html',
-                         connected=is_connected(),
-                         auto_detected=auto_config['auto_detected'],
-                         auto_domain=auto_config['domain'],
-                         auto_server=auto_config['server'],
-                         server=auto_config['server'],
-                         port=auto_config['port'],
-                         base_dn=auto_config['base_dn'],
-                         use_ssl=auto_config['use_ssl'])
+    return render_template('connect.html', connected=is_connected())
 
 
 @app.route('/disconnect')
