@@ -2,6 +2,14 @@
 Interface Web Multi-Plateforme pour Microsoft Active Directory.
 Version simplifiée avec Blueprints.
 """
+
+# IMPORTANT: Initialiser OpenSSL AVANT tout autre import pour MD4/NTLM
+import sys
+import os
+openssl_conf = os.path.join(os.path.dirname(__file__), 'openssl_legacy.cnf')
+if os.path.exists(openssl_conf):
+    os.environ['OPENSSL_CONF'] = openssl_conf
+
 import os
 import platform
 from datetime import timedelta

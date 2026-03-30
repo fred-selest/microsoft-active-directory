@@ -1,10 +1,17 @@
 """
 Fonctions core partagées entre tous les blueprints.
 """
+
+# IMPORTANT: Initialiser OpenSSL AVANT ldap3 pour MD4/NTLM
+import os
+openssl_conf = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'openssl_legacy.cnf')
+if os.path.exists(openssl_conf):
+    os.environ['OPENSSL_CONF'] = openssl_conf
+
 import ssl
 from functools import wraps
 from flask import session, redirect, url_for, flash
-from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4_PREFERRED
+from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4.PREFERRED
 from ldap3.core.exceptions import LDAPException
 
 from config import get_config
