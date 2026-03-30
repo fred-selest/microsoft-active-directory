@@ -5,6 +5,21 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.17.2] - 2026-03-30
+
+### Corrigé
+
+- **Installation NSSM** - Résolution des cas d'échec d'installation sur serveurs sans accès internet direct :
+  - Après `winget install NSSM.NSSM`, rafraîchissement du PATH depuis le registre Windows et recherche dans `%PROGRAMFILES%\NSSM\` si `where nssm` ne trouve pas l'exécutable
+  - Ajout du CDN Chocolatey comme 4e source de téléchargement (`community.chocolatey.org/api/v2/package/nssm`)
+  - Gestion des deux structures d'archive : `nssm-2.24\win64\nssm.exe` (nssm.cc) et `tools\nssm-2.24\win64\nssm.exe` (nupkg Chocolatey)
+
+### Amélioré
+
+- **Package Windows** - NSSM est désormais téléchargé et inclus directement dans le ZIP de release via GitHub Actions, éliminant le besoin de téléchargement lors de l'installation sur le serveur
+
+---
+
 ## [1.17.1] - 2026-03-29
 
 ### Corrigé

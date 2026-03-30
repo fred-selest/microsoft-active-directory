@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g. 1.17.1)'
+        description: 'Version to release (e.g. 1.17.2)'
         required: true
-        default: '1.17.1'
+        default: '1.17.2'
 
 permissions:
   contents: write
@@ -55,6 +55,34 @@ jobs:
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Bundle NSSM for Windows package
+        run: |
+          echo "Bundling NSSM (Non-Sucking Service Manager) into Windows package..."
+          mkdir -p nssm
+          DOWNLOADED=0
+
+          # Source 1 : nssm.cc officiel
+          if curl -sL --max-time 30 "https://nssm.cc/release/nssm-2.24.zip" -o /tmp/nssm.zip 2>/dev/null && [ -s /tmp/nssm.zip ]; then
+            DOWNLOADED=1
+            echo "Source: nssm.cc"
+          fi
+
+          # Source 2 : miroir GitHub
+          if [ $DOWNLOADED -eq 0 ]; then
+            if curl -sL --max-time 30 "https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip" -o /tmp/nssm.zip 2>/dev/null && [ -s /tmp/nssm.zip ]; then
+              DOWNLOADED=1
+              echo "Source: GitHub mirror"
+            fi
+          fi
+
+          if [ $DOWNLOADED -eq 1 ]; then
+            unzip -q /tmp/nssm.zip -d /tmp/nssm-extract
+            cp /tmp/nssm-extract/nssm-2.24/win64/nssm.exe nssm/nssm.exe
+            echo "[OK] NSSM bundled: $(du -sh nssm/nssm.exe)"
+          else
+            echo "[WARN] Could not download NSSM during CI - users will need internet access at install time"
+          fi
 
       - name: Build Windows package
         id: build_windows
