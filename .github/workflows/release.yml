@@ -18,6 +18,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     name: Build and Release
@@ -54,6 +57,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build Windows package
+        id: build_windows
         run: |
           VERSION=${{ steps.get_version.outputs.version }}
           PACKAGE_NAME="AD-WebInterface-${VERSION}-Windows"
@@ -70,9 +74,9 @@ jobs:
                    . dist/${PACKAGE_NAME}/
           cd dist && zip -r ${PACKAGE_NAME}.zip ${PACKAGE_NAME}
           echo "windows_zip=dist/${PACKAGE_NAME}.zip" >> $GITHUB_OUTPUT
-        id: build_windows
 
       - name: Build Linux package
+        id: build_linux
         run: |
           VERSION=${{ steps.get_version.outputs.version }}
           PACKAGE_NAME="AD-WebInterface-${VERSION}-Linux"
@@ -93,7 +97,6 @@ jobs:
           chmod +x dist/${PACKAGE_NAME}/*.sh 2>/dev/null || true
           cd dist && tar -czf ${PACKAGE_NAME}.tar.gz ${PACKAGE_NAME}
           echo "linux_tar=dist/${PACKAGE_NAME}.tar.gz" >> $GITHUB_OUTPUT
-        id: build_linux
 
       - name: Create Release with assets
         uses: softprops/action-gh-release@v2
