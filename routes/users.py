@@ -91,8 +91,15 @@ def delete_user(dn):
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('users.list_users'))
 
+    base_dn = session.get('ad_base_dn', '')
+
     try:
-        backup_object(conn, dn)
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE, attributes=['*'])
+        attributes = {}
+        if conn.entries:
+            entry = conn.entries[0]
+            attributes = {attr: str(entry[attr].value) for attr in entry.entry_attributes}
+        backup_object('user', dn, attributes)
         conn.delete(dn)
         if conn.result['result'] == 0:
             log_action(ACTIONS['DELETE_USER'], session.get('ad_username'),
