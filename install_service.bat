@@ -122,9 +122,13 @@ REM  - Ne jamais ecraser un .env existant (contiendrait deja la config)
 REM =====================================================================
 if not exist "%APP_DIR%.env" (
     echo Generation du fichier .env ^(configuration initiale^)...
-    for /f "tokens=*" %%k in ('"%PYTHON_EXE%" -c "import secrets; print(secrets.token_hex(32))"') do set SECRET_KEY=%%k
+    REM Ecrire la cle dans un fichier temporaire pour eviter les problemes
+    REM de guillemets imbriques dans FOR /F avec des chemins contenant des espaces
+    "%PYTHON_EXE%" -c "import secrets; print(secrets.token_hex(32))" > "%TEMP%\ad_secret.tmp"
+    set /p AD_SECRET=<"%TEMP%\ad_secret.tmp"
+    del "%TEMP%\ad_secret.tmp" >nul 2>&1
     (
-        echo SECRET_KEY=!SECRET_KEY!
+        echo SECRET_KEY=!AD_SECRET!
         echo FLASK_ENV=production
         echo AD_SILENT=true
     ) > "%APP_DIR%.env"
@@ -156,17 +160,42 @@ if exist "%NSSM_EXE%" (
     goto :nssm_ready
 )
 
-echo Telechargement de NSSM depuis nssm.cc...
 if not exist "%APP_DIR%nssm" mkdir "%APP_DIR%nssm"
 
-powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://nssm.cc/release/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[ERREUR] ' $_.Exception.Message; exit 1 } }"
+REM Methode 1 : winget (disponible sur Windows 10 1709+ et Windows Server 2019+)
+echo Tentative d'installation de NSSM via winget...
+winget --version >nul 2>&1
+if not errorlevel 1 (
+    winget install NSSM.NSSM --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
+    where nssm >nul 2>&1
+    if not errorlevel 1 (
+        for /f "tokens=*" %%i in ('where nssm') do set NSSM_EXE=%%i
+        echo [OK] NSSM installe via winget.
+        echo.
+        goto :nssm_ready
+    )
+)
+
+REM Methode 2 : telechargement depuis nssm.cc (source officielle)
+echo Telechargement de NSSM depuis nssm.cc...
+powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://nssm.cc/release/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] nssm.cc inaccessible, tentative miroir...' } }"
+
+REM Methode 3 : miroir GitHub si nssm.cc indisponible
+if not exist "%TEMP%\nssm.zip" (
+    echo Telechargement depuis le miroir GitHub...
+    powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] Miroir inaccessible.' } }"
+)
 
 if not exist "%TEMP%\nssm.zip" (
     echo.
-    echo [ERREUR] Impossible de telecharger NSSM.
+    echo [ERREUR] Impossible de telecharger NSSM automatiquement.
     echo.
-    echo   Telechargez NSSM manuellement : https://nssm.cc/download
-    echo   Placez nssm.exe dans : %APP_DIR%nssm\nssm.exe
+    echo   Solutions :
+    echo   1. Telechargez NSSM manuellement : https://nssm.cc/download
+    echo      Placez nssm.exe dans : %APP_DIR%nssm\nssm.exe
+    echo   2. Ou installez-le via winget :
+    echo      winget install NSSM.NSSM
+    echo.
     echo   Puis relancez ce script.
     echo.
     pause
