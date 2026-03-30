@@ -143,7 +143,7 @@ REM =====================================================================
 REM ETAPE 6 : Obtenir NSSM (Non-Sucking Service Manager)
 REM  - NSSM enregistre n'importe quel executable comme service Windows
 REM  - Gere le demarrage auto, les logs, le redemarrage sur crash
-REM  - Telechargement automatique si absent
+REM  - Inclus dans le package Windows ; telechargement auto si absent
 REM =====================================================================
 set NSSM_EXE=%APP_DIR%nssm\nssm.exe
 
@@ -155,6 +155,7 @@ if not errorlevel 1 (
     goto :nssm_ready
 )
 
+REM NSSM dans le dossier de l'application (inclus dans le package Windows) ?
 if exist "%NSSM_EXE%" (
     echo [OK] NSSM detecte dans nssm\
     goto :nssm_ready
@@ -162,11 +163,13 @@ if exist "%NSSM_EXE%" (
 
 if not exist "%APP_DIR%nssm" mkdir "%APP_DIR%nssm"
 
-REM Methode 1 : winget (disponible sur Windows 10 1709+ et Windows Server 2019+)
+REM Methode 1 : winget (Windows 10 1709+ et Windows Server 2019+)
 echo Tentative d'installation de NSSM via winget...
 winget --version >nul 2>&1
 if not errorlevel 1 (
     winget install NSSM.NSSM --silent --accept-source-agreements --accept-package-agreements >nul 2>&1
+    REM Rafraichir le PATH depuis le registre (winget ne met pas a jour le PATH courant)
+    for /f "delims=" %%i in ('powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%i"
     where nssm >nul 2>&1
     if not errorlevel 1 (
         for /f "tokens=*" %%i in ('where nssm') do set NSSM_EXE=%%i
@@ -174,16 +177,36 @@ if not errorlevel 1 (
         echo.
         goto :nssm_ready
     )
+    REM winget installe parfois dans Program Files sans mettre a jour PATH immediatement
+    if exist "%PROGRAMFILES%\NSSM\nssm.exe" (
+        set "NSSM_EXE=%PROGRAMFILES%\NSSM\nssm.exe"
+        echo [OK] NSSM installe via winget.
+        echo.
+        goto :nssm_ready
+    )
+    if exist "%PROGRAMFILES(X86)%\NSSM\nssm.exe" (
+        set "NSSM_EXE=%PROGRAMFILES(X86)%\NSSM\nssm.exe"
+        echo [OK] NSSM installe via winget.
+        echo.
+        goto :nssm_ready
+    )
+    echo [INFO] winget n'a pas pu installer NSSM, passage au telechargement direct...
 )
 
 REM Methode 2 : telechargement depuis nssm.cc (source officielle)
 echo Telechargement de NSSM depuis nssm.cc...
-powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://nssm.cc/release/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] nssm.cc inaccessible, tentative miroir...' } }"
+powershell -NoProfile -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://nssm.cc/release/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] nssm.cc inaccessible.' } }"
 
-REM Methode 3 : miroir GitHub si nssm.cc indisponible
+REM Methode 3 : miroir GitHub
 if not exist "%TEMP%\nssm.zip" (
-    echo Telechargement depuis le miroir GitHub...
-    powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] Miroir inaccessible.' } }"
+    echo Telechargement depuis miroir GitHub...
+    powershell -NoProfile -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] Miroir inaccessible.' } }"
+)
+
+REM Methode 4 : Chocolatey CDN (paquet NuGet = archive ZIP avec nssm.exe)
+if not exist "%TEMP%\nssm.zip" (
+    echo Telechargement depuis Chocolatey CDN...
+    powershell -NoProfile -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://community.chocolatey.org/api/v2/package/nssm/2.24.101.20180116' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 60 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] Chocolatey CDN inaccessible.' } }"
 )
 
 if not exist "%TEMP%\nssm.zip" (
@@ -203,8 +226,13 @@ if not exist "%TEMP%\nssm.zip" (
 )
 
 echo Extraction de NSSM...
-powershell -Command "Expand-Archive -Path '%TEMP%\nssm.zip' -DestinationPath '%TEMP%\nssm-extract' -Force"
+powershell -NoProfile -Command "Expand-Archive -Path '%TEMP%\nssm.zip' -DestinationPath '%TEMP%\nssm-extract' -Force"
+REM Structure nssm.cc / miroir GitHub : nssm-2.24\win64\nssm.exe
 copy "%TEMP%\nssm-extract\nssm-2.24\win64\nssm.exe" "%NSSM_EXE%" >nul 2>&1
+REM Structure Chocolatey nupkg : tools\nssm-2.24\win64\nssm.exe
+if not exist "%NSSM_EXE%" (
+    copy "%TEMP%\nssm-extract\tools\nssm-2.24\win64\nssm.exe" "%NSSM_EXE%" >nul 2>&1
+)
 del "%TEMP%\nssm.zip" >nul 2>&1
 rmdir /s /q "%TEMP%\nssm-extract" >nul 2>&1
 
