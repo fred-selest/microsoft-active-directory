@@ -56,52 +56,13 @@ jobs:
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Bundle NSSM for Windows package
-        continue-on-error: true
-        run: |
-          echo "Bundling NSSM (Non-Sucking Service Manager) into Windows package..."
-          mkdir -p nssm
-          DOWNLOADED=0
-
-          # Source 1 : Chocolatey CDN (plus fiable)
-          if curl -sL --max-time 30 "https://community.chocolatey.org/api/v2/package/nssm/2.24" -o /tmp/nssm.zip 2>/dev/null && [ -s /tmp/nssm.zip ]; then
-            DOWNLOADED=1
-            echo "Source: Chocolatey CDN"
-            unzip -q /tmp/nssm.zip -d /tmp/nssm-extract
-            if [ -f /tmp/nssm-extract/tools/nssm-2.24/win64/nssm.exe ]; then
-              cp /tmp/nssm-extract/tools/nssm-2.24/win64/nssm.exe nssm/nssm.exe
-            elif [ -f /tmp/nssm-extract/nssm.exe ]; then
-              cp /tmp/nssm-extract/nssm.exe nssm/nssm.exe
-            fi
-          fi
-
-          # Source 2 : nssm.cc officiel
-          if [ $DOWNLOADED -eq 0 ]; then
-            if curl -sL --max-time 30 "https://nssm.cc/release/nssm-2.24.zip" -o /tmp/nssm2.zip 2>/dev/null && [ -s /tmp/nssm2.zip ]; then
-              DOWNLOADED=1
-              echo "Source: nssm.cc"
-              unzip -q /tmp/nssm2.zip -d /tmp/nssm-extract2
-              cp /tmp/nssm-extract2/nssm-2.24/win64/nssm.exe nssm/nssm.exe 2>/dev/null || \
-              find /tmp/nssm-extract2 -name nssm.exe -exec cp {} nssm/nssm.exe \;
-            fi
-          fi
-
-          # Source 3 : miroir GitHub
-          if [ $DOWNLOADED -eq 0 ]; then
-            if curl -sL --max-time 30 "https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip" -o /tmp/nssm3.zip 2>/dev/null && [ -s /tmp/nssm3.zip ]; then
-              DOWNLOADED=1
-              echo "Source: GitHub mirror"
-              unzip -q /tmp/nssm3.zip -d /tmp/nssm-extract3
-              cp /tmp/nssm-extract3/nssm-2.24/win64/nssm.exe nssm/nssm.exe 2>/dev/null || \
-              find /tmp/nssm-extract3 -name nssm.exe -exec cp {} nssm/nssm.exe \;
-            fi
-          fi
-
-          if [ $DOWNLOADED -eq 1 ] && [ -f nssm/nssm.exe ]; then
-            echo "[OK] NSSM bundled: $(ls -lh nssm/nssm.exe | awk '{print $5}')"
-          else
-            echo "[WARN] Could not download NSSM - users will need internet at install time"
-          fi
+      # NSSM n'est plus inclus dans le package - téléchargé à l'installation
+      # - name: Bundle NSSM for Windows package
+      #   continue-on-error: true
+      #   run: |
+      #     echo "Bundling NSSM..."
+      #     mkdir -p nssm
+      #     ...
 
       - name: Build Windows package
         id: build_windows
