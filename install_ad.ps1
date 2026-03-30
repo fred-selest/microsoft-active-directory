@@ -4,6 +4,7 @@
 # ============================================================================
 # Ce script installe automatiquement l'interface web AD sur le DC
 # Exécuter en tant qu'administrateur
+# Peut être placé dans N'IMPORTE QUEL RÉPERTOIRE
 # ============================================================================
 
 [CmdletBinding()]
@@ -14,9 +15,23 @@ param(
     [Parameter(HelpMessage="Installer Python si absent")]
     [switch]$InstallPython = $true,
     
-    [Parameter(HelpMessage="Dossier d'installation")]
-    [string]$InstallDir = "C:\AD-Web\microsoft-active-directory"
+    [Parameter(HelpMessage="Dossier d'installation (par défaut: dossier du script)")]
+    [string]$InstallDir
 )
+
+# ============================================================================
+# DÉTERMINER LE DOSSIER D'INSTALLATION
+# ============================================================================
+
+# Si InstallDir n'est pas spécifié, utiliser le dossier où se trouve ce script
+if (-not $InstallDir -or $InstallDir -eq "") {
+    $InstallDir = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
+}
+
+# S'assurer que le chemin est absolu
+if (-not [System.IO.Path]::IsPathRooted($InstallDir)) {
+    $InstallDir = Resolve-Path $InstallDir
+}
 
 # ============================================================================
 # FONCTIONS
@@ -263,6 +278,30 @@ if (-not (Test-Administrator)) {
     exit 1
 }
 Write-Log "Droits administrateur confirmés" "SUCCESS"
+
+# Vérifier que ce script est dans le bon dossier (avec les fichiers requis)
+Write-Log "Vérification des fichiers requis..."
+$requiredFiles = @('requirements.txt', 'app.py', 'run.py')
+$missingFiles = @()
+
+foreach ($file in $requiredFiles) {
+    $filePath = Join-Path $InstallDir $file
+    if (-not (Test-Path $filePath)) {
+        $missingFiles += $file
+    }
+}
+
+if ($missingFiles.Count -gt 0) {
+    Write-Log "Fichiers requis introuvables dans : $InstallDir" "ERROR"
+    Write-Log "Fichiers manquants : $($missingFiles -join ', ')" "ERROR"
+    Write-Log "" "INFO"
+    Write-Log "Ce script doit être placé dans le dossier de l'application." "INFO"
+    Write-Log "Exemple : C:\AD-WebInterface\install_ad.ps1" "INFO"
+    Write-Log "" "INFO"
+    pause
+    exit 1
+}
+Write-Log "Fichiers requis vérifiés" "SUCCESS"
 
 # Vérifier si c'est un DC
 Test-DomainController
