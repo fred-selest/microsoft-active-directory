@@ -396,7 +396,7 @@ def run_server():
             serve(app, host=host, port=port)
             return
         except ImportError:
-            logger.warning("Waitress non disponible, bascule sur le serveur Flask")
+            print("[AVERTISSEMENT] Waitress non disponible, bascule sur le serveur Flask")
 
     # Serveur Flask (développement ou Linux)
     app.run(host=host, port=port, debug=config.DEBUG, use_reloader=config.DEBUG)
