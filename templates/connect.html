@@ -5,43 +5,113 @@
 {% block content %}
 <div class="form-container">
     <h2>Connexion à Active Directory</h2>
+    
+    {% if auto_detected %}
+    <div class="alert alert-info">
+        <strong>Domaine detecté :</strong> {{ auto_domain }}<br>
+        <strong>Serveur :</strong> {{ auto_server }}
+    </div>
+    {% endif %}
+    
     <form method="POST" action="{{ url_for('connect') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
         <div class="form-group">
-            <label for="server">Serveur AD</label>
-            <input type="text" id="server" name="server" required
-                   placeholder="ad.exemple.com ou 192.168.1.100">
-        </div>
-
-        <div class="form-group">
-            <label for="port">Port (optionnel)</label>
-            <input type="number" id="port" name="port"
-                   placeholder="389 (LDAP) ou 636 (LDAPS)">
-        </div>
-
-        <div class="form-group">
-            <label for="username">Nom d'utilisateur</label>
+            <label for="username">Identifiant</label>
             <input type="text" id="username" name="username" required
-                   placeholder="DOMAIN\username ou user@domain.com">
+                   placeholder="votre.identifiant ou DOMAIN\utilisateur"
+                   autocomplete="username">
+            <small class="form-text">Votre identifiant de session Windows</small>
         </div>
 
         <div class="form-group">
             <label for="password">Mot de passe</label>
-            <input type="password" id="password" name="password" required>
+            <input type="password" id="password" name="password" required
+                   autocomplete="current-password">
         </div>
 
-        <div class="form-group checkbox">
-            <input type="checkbox" id="use_ssl" name="use_ssl">
-            <label for="use_ssl">Utiliser SSL/TLS (LDAPS)</label>
-        </div>
+        <input type="hidden" id="server" name="server" value="{{ server }}">
+        <input type="hidden" id="port" name="port" value="{{ port }}">
+        <input type="hidden" id="base_dn" name="base_dn" value="{{ base_dn }}">
+        <input type="hidden" id="use_ssl" name="use_ssl" value="{{ 'on' if use_ssl else '' }}">
 
-        <div class="form-group">
-            <label for="base_dn">Base DN (optionnel)</label>
-            <input type="text" id="base_dn" name="base_dn"
-                   placeholder="DC=exemple,DC=com (detecte automatiquement si vide)">
-        </div>
-
-        <button type="submit" class="btn btn-primary">Se connecter</button>
+        <button type="submit" class="btn btn-primary btn-block">
+            Se connecter
+        </button>
     </form>
+    
+    {% if not auto_detected %}
+    <div class="alert alert-warning mt-3">
+        <small>
+            <strong>Configuration manuelle :</strong> 
+            La détection automatique n'a pas fonctionné. 
+            <a href="#" onclick="document.getElementById('manual-config').style.display='block'; return false;">
+                Afficher les options avancées
+            </a>
+        </small>
+    </div>
+    
+    <div id="manual-config" style="display:none;" class="mt-3">
+        <hr>
+        <h4>Configuration manuelle</h4>
+        <form method="POST" action="{{ url_for('connect') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-group">
+                <label for="server_manual">Serveur AD</label>
+                <input type="text" id="server_manual" name="server" 
+                       placeholder="ad.exemple.com ou 192.168.1.100">
+            </div>
+
+            <div class="form-group">
+                <label for="port_manual">Port</label>
+                <input type="number" id="port_manual" name="port"
+                       placeholder="389 (LDAP) ou 636 (LDAPS)" value="389">
+            </div>
+
+            <div class="form-group checkbox">
+                <input type="checkbox" id="use_ssl_manual" name="use_ssl">
+                <label for="use_ssl_manual">Utiliser SSL/TLS (LDAPS)</label>
+            </div>
+
+            <div class="form-group">
+                <label for="base_dn_manual">Base DN</label>
+                <input type="text" id="base_dn_manual" name="base_dn"
+                       placeholder="DC=exemple,DC=com">
+                <small class="form-text">Laissez vide pour détection automatique</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="username_manual">Identifiant</label>
+                <input type="text" id="username_manual" name="username" required
+                       placeholder="DOMAIN\username">
+            </div>
+
+            <div class="form-group">
+                <label for="password_manual">Mot de passe</label>
+                <input type="password" id="password_manual" name="password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Se connecter</button>
+        </form>
+    </div>
+    {% endif %}
 </div>
+
+<script>
+// Transférer les valeurs du formulaire manuel vers le formulaire principal
+document.querySelectorAll('#manual-config input').forEach(input => {
+    input.addEventListener('change', function() {
+        const manualId = this.id.replace('_manual', '');
+        const mainInput = document.getElementById(manualId);
+        if (mainInput) {
+            if (this.type === 'checkbox') {
+                mainInput.value = this.checked ? 'on' : '';
+            } else {
+                mainInput.value = this.value;
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
