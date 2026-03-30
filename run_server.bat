@@ -115,17 +115,21 @@ if not exist "data" mkdir data >nul 2>&1
 
 REM ======================================================
 REM ETAPE 7 : Demarrage du serveur Flask en arriere-plan
-REM  - pythonw.exe = python sans fenetre console visible
-REM  - Herite OPENSSL_CONF de ce processus (etape 3)
-REM  - start /B lance en arriere-plan dans le meme contexte
+REM  - Mode production (Waitress) : demarrage rapide, pas de rechargeur
+REM  - Les variables d'env definies ici priment sur .env (dotenv n'ecrase pas)
+REM  - Sortie redirigee vers logs\server.log (pythonw.exe ne loggue pas sinon)
 REM ======================================================
 echo Demarrage du serveur Flask...
 
-if exist "venv\Scripts\pythonw.exe" (
-    start "" /B "venv\Scripts\pythonw.exe" "%~dp0run.py"
-) else (
-    start /min "" "venv\Scripts\python.exe" "%~dp0run.py"
-)
+if not exist "%~dp0logs" mkdir "%~dp0logs" >nul 2>&1
+
+REM Force mode production : utilise Waitress sur Windows (demarrage rapide, pas de rechargeur)
+REM Les variables definies ici priment sur .env (dotenv ne surcharge pas les vars existantes)
+set FLASK_ENV=production
+set FLASK_DEBUG=false
+
+REM python.exe fenetree minimisee : run.py redirige lui-meme les logs vers logs\server.log
+start /min "" "venv\Scripts\python.exe" "%~dp0run.py"
 
 REM ======================================================
 REM ETAPE 8 : Attendre que le serveur soit pret

@@ -5,6 +5,16 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.17.4] - 2026-03-30
+
+### Corrigé
+
+- **Démarrage lent (60+ s)** — `run_server.bat` et `run_legacy.bat` forcent désormais `FLASK_ENV=production` avant de lancer Python ; Waitress (WSGI) remplace le serveur de développement Flask avec rechargeur automatique → démarrage en ~3 secondes
+- **Logs vides** — `run.py` configure `logging.FileHandler` vers `logs/server.log` au démarrage, capturant Flask/Waitress même avec `pythonw.exe` (pas de console)
+- **`.env` auto-généré** — valeurs par défaut corrigées : `FLASK_ENV=production`, `FLASK_DEBUG=false`
+
+---
+
 ## [1.17.3] - 2026-03-30
 
 ### Corrigé

@@ -8,6 +8,7 @@ import os
 import sys
 import platform
 import secrets
+import logging
 
 
 def ensure_env_file():
@@ -25,8 +26,8 @@ def ensure_env_file():
             "# et activez FORCE_HTTPS=true avec un reverse proxy HTTPS.\n"
             "\n"
             f"SECRET_KEY={secret_key}\n"
-            "FLASK_DEBUG=true\n"
-            "FLASK_ENV=development\n"
+            "FLASK_DEBUG=false\n"
+            "FLASK_ENV=production\n"
             "\n"
             "AD_WEB_HOST=0.0.0.0\n"
             "AD_WEB_PORT=5000\n"
@@ -84,6 +85,19 @@ def main():
                 print(f"Configuration chargée depuis {env_file} (encodage latin-1)")
             except Exception as e:
                 print(f"Erreur lors du chargement de .env: {e}")
+
+    # Configurer le logging vers fichier (capture stdout/stderr même avec pythonw.exe)
+    log_dir = os.path.join(script_dir, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, 'server.log')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(name)s: %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout),
+        ]
+    )
 
     # Importer et démarrer l'application
     from app import run_server
