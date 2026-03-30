@@ -5,6 +5,22 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.18.2] - 2026-03-30
+
+### Corrigé
+
+- **Backup avant suppression d'utilisateur** — `backup_object(conn, dn)` passait la connexion LDAP à la place du type d'objet et omettait l'argument `attributes`, levant un `TypeError` qui empêchait toute suppression. Les attributs sont désormais récupérés via `conn.search()` avant la suppression, puis `backup_object('user', dn, attributes)` est appelé correctement.
+- **run_legacy.bat** — simplification et correction d'erreur de syntaxe
+- **install_ad.ps1** — fonctionne désormais dans n'importe quel répertoire
+
+### Ajouté
+
+- **Diagnostic automatique** (`diagnostic.py`, `templates/diagnostic.html`) — système de diagnostic et de dépannage accessible depuis l'interface
+- **Support MD4/NTLM Python 3.12+** — scripts `fix_md4.ps1`, `fix_md4_final.ps1` et `configure_service.ps1` pour configurer OpenSSL legacy sur Windows ; initialisation OpenSSL centralisée dans `_openssl_init.py`
+- **Installation AD** (`install_ad.ps1`) — script d'installation automatique sur contrôleur de domaine
+
+---
+
 ## [1.17.5] - 2026-03-30
 
 ### Corrigé
