@@ -140,28 +140,30 @@ if not exist "%APP_DIR%.env" (
 )
 
 REM =====================================================================
-REM ETAPE 6 : Obtenir NSSM (Non-Sucking Service Manager)
-REM  - NSSM enregistre n'importe quel executable comme service Windows
-REM  - Gere le demarrage auto, les logs, le redemarrage sur crash
-REM  - Inclus dans le package Windows ; telechargement auto si absent
+REM ETAPE 6 : Obtenir un gestionnaire de service Windows
+REM  - Priorite 1 : NSSM (Non-Sucking Service Manager)
+REM  - Priorite 2 : WinSW (Windows Service Wrapper, github.com/winsw/winsw)
+REM  - NSSM est inclus dans le package Windows ; telechargement auto si absent
 REM =====================================================================
 set NSSM_EXE=%APP_DIR%nssm\nssm.exe
+set WINSW_EXE=%APP_DIR%nssm\WinSW.exe
+set SERVICE_MGR=nssm
+
+if not exist "%APP_DIR%nssm" mkdir "%APP_DIR%nssm"
 
 REM NSSM deja dans le PATH ?
 where nssm >nul 2>&1
 if not errorlevel 1 (
     for /f "tokens=*" %%i in ('where nssm') do set NSSM_EXE=%%i
     echo [OK] NSSM detecte dans le PATH.
-    goto :nssm_ready
+    goto :svc_mgr_ready
 )
 
 REM NSSM dans le dossier de l'application (inclus dans le package Windows) ?
 if exist "%NSSM_EXE%" (
     echo [OK] NSSM detecte dans nssm\
-    goto :nssm_ready
+    goto :svc_mgr_ready
 )
-
-if not exist "%APP_DIR%nssm" mkdir "%APP_DIR%nssm"
 
 REM Methode 1 : winget (Windows 10 1709+ et Windows Server 2019+)
 echo Tentative d'installation de NSSM via winget...
@@ -175,20 +177,20 @@ if not errorlevel 1 (
         for /f "tokens=*" %%i in ('where nssm') do set NSSM_EXE=%%i
         echo [OK] NSSM installe via winget.
         echo.
-        goto :nssm_ready
+        goto :svc_mgr_ready
     )
-    REM winget installe parfois dans Program Files sans mettre a jour PATH immediatement
-    if exist "%PROGRAMFILES%\NSSM\nssm.exe" (
-        set "NSSM_EXE=%PROGRAMFILES%\NSSM\nssm.exe"
-        echo [OK] NSSM installe via winget.
-        echo.
-        goto :nssm_ready
-    )
-    if exist "%PROGRAMFILES(X86)%\NSSM\nssm.exe" (
-        set "NSSM_EXE=%PROGRAMFILES(X86)%\NSSM\nssm.exe"
-        echo [OK] NSSM installe via winget.
-        echo.
-        goto :nssm_ready
+    REM Recherche recursive dans les emplacements d'installation courants de winget
+    set NSSM_FOUND=
+    for /f "delims=" %%f in ('dir /s /b "%PROGRAMFILES%\nssm.exe" 2^>nul') do if not defined NSSM_FOUND set NSSM_FOUND=%%f
+    if not defined NSSM_FOUND for /f "delims=" %%f in ('dir /s /b "%PROGRAMFILES(X86)%\nssm.exe" 2^>nul') do if not defined NSSM_FOUND set NSSM_FOUND=%%f
+    if not defined NSSM_FOUND for /f "delims=" %%f in ('dir /s /b "%LOCALAPPDATA%\Microsoft\WinGet\nssm.exe" 2^>nul') do if not defined NSSM_FOUND set NSSM_FOUND=%%f
+    if defined NSSM_FOUND (
+        copy "!NSSM_FOUND!" "!NSSM_EXE!" >nul 2>&1
+        if exist "!NSSM_EXE!" (
+            echo [OK] NSSM installe via winget.
+            echo.
+            goto :svc_mgr_ready
+        )
     )
     echo [INFO] winget n'a pas pu installer NSSM, passage au telechargement direct...
 )
@@ -197,54 +199,61 @@ REM Methode 2 : telechargement depuis nssm.cc (source officielle)
 echo Telechargement de NSSM depuis nssm.cc...
 powershell -NoProfile -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://nssm.cc/release/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] nssm.cc inaccessible.' } }"
 
-REM Methode 3 : miroir GitHub
+REM Methode 3 : miroir GitHub nssm
 if not exist "%TEMP%\nssm.zip" (
-    echo Telechargement depuis miroir GitHub...
+    echo Telechargement depuis miroir GitHub nssm...
     powershell -NoProfile -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 30 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] Miroir inaccessible.' } }"
 )
 
-REM Methode 4 : Chocolatey CDN (paquet NuGet = archive ZIP avec nssm.exe)
-if not exist "%TEMP%\nssm.zip" (
-    echo Telechargement depuis Chocolatey CDN...
-    powershell -NoProfile -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://community.chocolatey.org/api/v2/package/nssm/2.24.101.20180116' -OutFile '%TEMP%\nssm.zip' -TimeoutSec 60 -ErrorAction Stop; Write-Host '[OK] Telechargement termine.' } catch { Write-Host '[INFO] Chocolatey CDN inaccessible.' } }"
+REM Extraction de l'archive NSSM si telechargee
+if exist "%TEMP%\nssm.zip" (
+    echo Extraction de NSSM...
+    powershell -NoProfile -Command "Expand-Archive -Path '$env:TEMP\nssm.zip' -DestinationPath '$env:TEMP\nssm-extract' -Force -ErrorAction SilentlyContinue"
+    del "%TEMP%\nssm.zip" >nul 2>&1
+    REM Recherche recursive de nssm.exe (win64 prioritaire) dans l'arborescence extraite
+    set NSSM_FOUND=
+    for /f "delims=" %%f in ('dir /s /b "%TEMP%\nssm-extract\nssm.exe" 2^>nul ^| findstr /i "win64"') do if not defined NSSM_FOUND set NSSM_FOUND=%%f
+    if not defined NSSM_FOUND for /f "delims=" %%f in ('dir /s /b "%TEMP%\nssm-extract\nssm.exe" 2^>nul') do if not defined NSSM_FOUND set NSSM_FOUND=%%f
+    rmdir /s /q "%TEMP%\nssm-extract" >nul 2>&1
+    if defined NSSM_FOUND (
+        copy "!NSSM_FOUND!" "!NSSM_EXE!" >nul 2>&1
+        if exist "!NSSM_EXE!" (
+            echo [OK] NSSM pret.
+            echo.
+            goto :svc_mgr_ready
+        )
+    )
+    echo [INFO] nssm.exe absent de l'archive, passage a WinSW...
 )
 
-if not exist "%TEMP%\nssm.zip" (
+REM Methode 4 : WinSW (Windows Service Wrapper) depuis github.com/winsw/winsw
+REM  Alternative a NSSM si toutes les sources NSSM sont inaccessibles.
+REM  WinSW est heberge sur GitHub officiel Microsoft/winsw, tres fiable.
+echo Telechargement de WinSW depuis GitHub (alternative a NSSM)...
+powershell -NoProfile -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe' -OutFile '%APP_DIR%nssm\WinSW.exe' -TimeoutSec 60 -ErrorAction Stop; Write-Host '[OK] WinSW telecharge.' } catch { Write-Host '[INFO] WinSW inaccessible :' $_.Exception.Message } }"
+
+if exist "!WINSW_EXE!" (
+    set SERVICE_MGR=winsw
+    echo [OK] WinSW pret ^(remplace NSSM^).
     echo.
-    echo [ERREUR] Impossible de telecharger NSSM automatiquement.
-    echo.
-    echo   Solutions :
-    echo   1. Telechargez NSSM manuellement : https://nssm.cc/download
-    echo      Placez nssm.exe dans : %APP_DIR%nssm\nssm.exe
-    echo   2. Ou installez-le via winget :
-    echo      winget install NSSM.NSSM
-    echo.
-    echo   Puis relancez ce script.
-    echo.
-    pause
-    exit /b 1
+    goto :svc_mgr_ready
 )
 
-echo Extraction de NSSM...
-powershell -NoProfile -Command "Expand-Archive -Path '%TEMP%\nssm.zip' -DestinationPath '%TEMP%\nssm-extract' -Force"
-REM Structure nssm.cc / miroir GitHub : nssm-2.24\win64\nssm.exe
-copy "%TEMP%\nssm-extract\nssm-2.24\win64\nssm.exe" "%NSSM_EXE%" >nul 2>&1
-REM Structure Chocolatey nupkg : tools\nssm-2.24\win64\nssm.exe
-if not exist "%NSSM_EXE%" (
-    copy "%TEMP%\nssm-extract\tools\nssm-2.24\win64\nssm.exe" "%NSSM_EXE%" >nul 2>&1
-)
-del "%TEMP%\nssm.zip" >nul 2>&1
-rmdir /s /q "%TEMP%\nssm-extract" >nul 2>&1
-
-if not exist "%NSSM_EXE%" (
-    echo [ERREUR] Echec de l'extraction. Installez NSSM manuellement.
-    pause
-    exit /b 1
-)
-echo [OK] NSSM pret.
 echo.
+echo [ERREUR] Impossible d'obtenir un gestionnaire de service ^(NSSM ou WinSW^).
+echo.
+echo   Solutions :
+echo   1. Telechargez NSSM manuellement : https://nssm.cc/download
+echo      Placez nssm.exe dans : %APP_DIR%nssm\nssm.exe
+echo   2. Ou installez-le via winget :
+echo      winget install NSSM.NSSM
+echo.
+echo   Puis relancez ce script.
+echo.
+pause
+exit /b 1
 
-:nssm_ready
+:svc_mgr_ready
 
 REM =====================================================================
 REM ETAPE 7 : Gestion du service existant
@@ -263,53 +272,86 @@ if not errorlevel 1 (
     echo Arret et suppression du service existant...
     net stop "%SERVICE_NAME%" >nul 2>&1
     timeout /t 2 /nobreak >nul
-    "%NSSM_EXE%" remove "%SERVICE_NAME%" confirm
+    if "!SERVICE_MGR!"=="winsw" (
+        sc delete "%SERVICE_NAME%" >nul 2>&1
+    ) else (
+        "%NSSM_EXE%" remove "%SERVICE_NAME%" confirm >nul 2>&1
+    )
     timeout /t 1 /nobreak >nul
     echo.
 )
 
 REM =====================================================================
-REM ETAPE 8 : Installation du service avec NSSM
-REM  - Enregistre python.exe (venv) comme service Windows
-REM  - Configure les logs, le demarrage auto, le redemarrage sur crash
+REM ETAPE 8 : Installation du service
+REM  - Chemin A : NSSM (commandes nssm install + nssm set)
+REM  - Chemin B : WinSW (fichier XML de configuration)
+REM  - Les deux gerent : demarrage auto, logs, redemarrage sur crash
 REM =====================================================================
 echo Installation du service Windows "%SERVICE_NAME%"...
 echo.
 
-REM Enregistrement du service
+if not exist "%APP_DIR%logs" mkdir "%APP_DIR%logs" >nul 2>&1
+
+if "!SERVICE_MGR!"=="winsw" goto :install_with_winsw
+
+REM === Chemin A : Installation avec NSSM ===
 "%NSSM_EXE%" install "%SERVICE_NAME%" "%PYTHON_EXE%" "%RUN_PY%"
 if errorlevel 1 (
-    echo [ERREUR] Echec de l'installation du service.
+    echo [ERREUR] Echec de l'installation du service avec NSSM.
     pause
     exit /b 1
 )
-
-REM Repertoire de travail (important pour les chemins relatifs de run.py)
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppDirectory "%APP_DIR%"
-
-REM Informations affichees dans services.msc
 "%NSSM_EXE%" set "%SERVICE_NAME%" DisplayName "%SERVICE_DISPLAY%"
 "%NSSM_EXE%" set "%SERVICE_NAME%" Description "%SERVICE_DESC%"
-
-REM Demarrage automatique avec Windows
 "%NSSM_EXE%" set "%SERVICE_NAME%" Start SERVICE_AUTO_START
-
-REM Logs du service (stdout et stderr separes, rotation a 10 Mo)
-if not exist "%APP_DIR%logs" mkdir "%APP_DIR%logs" >nul 2>&1
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppStdout "%APP_DIR%logs\service.log"
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppStderr "%APP_DIR%logs\service_error.log"
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppRotateFiles 1
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppRotateBytes 10485760
-
-REM Redemarrage automatique 5 secondes apres un crash
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppExit Default Restart
 "%NSSM_EXE%" set "%SERVICE_NAME%" AppRestartDelay 5000
-
-REM Variable OPENSSL_CONF pour le support NTLM/MD4 (Python 3.12+)
 if defined OPENSSL_CONF_PATH (
     "%NSSM_EXE%" set "%SERVICE_NAME%" AppEnvironmentExtra "OPENSSL_CONF=%OPENSSL_CONF_PATH%"
     echo [INFO] OPENSSL_CONF configure ^(support MD4/NTLM^).
 )
+set SVC_LOG_OUT=%APP_DIR%logs\service.log
+set SVC_LOG_ERR=%APP_DIR%logs\service_error.log
+goto :service_install_done
+
+REM === Chemin B : Installation avec WinSW ===
+:install_with_winsw
+REM WinSW requiert que l'exe et le XML partagent le meme nom de base
+copy "!WINSW_EXE!" "%APP_DIR%nssm\%SERVICE_NAME%.exe" >nul 2>&1
+REM Generation du fichier de configuration XML
+(
+    echo ^<?xml version="1.0" encoding="UTF-8"?^>
+    echo ^<service^>
+    echo   ^<id^>%SERVICE_NAME%^</id^>
+    echo   ^<name^>%SERVICE_DISPLAY%^</name^>
+    echo   ^<description^>%SERVICE_DESC%^</description^>
+    echo   ^<executable^>!PYTHON_EXE!^</executable^>
+    echo   ^<arguments^>"!RUN_PY!"^</arguments^>
+    echo   ^<workingdirectory^>%APP_DIR%^</workingdirectory^>
+    echo   ^<startmode^>Automatic^</startmode^>
+    echo   ^<logpath^>%APP_DIR%logs^</logpath^>
+    echo   ^<log mode="roll-by-size"^>^<sizeThreshold^>10240^</sizeThreshold^>^<keepFiles^>8^</keepFiles^>^</log^>
+    echo   ^<onfailure action="restart" delay="5000 ms"/^>
+) > "%APP_DIR%nssm\%SERVICE_NAME%.xml"
+if defined OPENSSL_CONF_PATH (
+    powershell -NoProfile -Command "$f='%APP_DIR%nssm\%SERVICE_NAME%.xml'; (Get-Content $f -Raw) -replace '</service>', ('  <env name=""OPENSSL_CONF"" value=""!OPENSSL_CONF_PATH!""/>'+[char]13+[char]10+'</service>') | Set-Content $f"
+    echo [INFO] OPENSSL_CONF configure ^(support MD4/NTLM^).
+)
+"%APP_DIR%nssm\%SERVICE_NAME%.exe" install
+if errorlevel 1 (
+    echo [ERREUR] Echec de l'installation du service avec WinSW.
+    pause
+    exit /b 1
+)
+set SVC_LOG_OUT=%APP_DIR%logs\%SERVICE_NAME%.out.log
+set SVC_LOG_ERR=%APP_DIR%logs\%SERVICE_NAME%.err.log
+
+:service_install_done
 
 REM =====================================================================
 REM ETAPE 8b : Ouverture du port dans le pare-feu Windows
@@ -349,7 +391,7 @@ if errorlevel 1 (
     echo.
     echo   Consultez l'Observateur d'evenements Windows :
     echo   Evenements Windows ^> Application ^> filtre : ADWebInterface
-    echo   Ou : %APP_DIR%logs\service_error.log
+    echo   Ou : !SVC_LOG_ERR!
     echo.
     pause
     exit /b 1
@@ -390,8 +432,8 @@ echo     Statut     : sc query %SERVICE_NAME%
 echo     Desinstall : uninstall_service.bat  ^(en admin^)
 echo     Interface  : services.msc
 echo.
-echo   Logs : %APP_DIR%logs\service.log
-echo          %APP_DIR%logs\service_error.log
+echo   Logs : !SVC_LOG_OUT!
+echo          !SVC_LOG_ERR!
 echo =====================================================================
 echo.
 pause
