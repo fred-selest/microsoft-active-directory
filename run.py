@@ -86,18 +86,22 @@ def main():
             except Exception as e:
                 print(f"Erreur lors du chargement de .env: {e}")
 
-    # Configurer le logging vers fichier (capture stdout/stderr même avec pythonw.exe)
+    # Configurer le logging vers fichier (fonctionne aussi avec pythonw.exe sans console)
     log_dir = os.path.join(script_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, 'server.log')
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(name)s: %(message)s',
-        handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-            logging.StreamHandler(sys.stdout),
-        ]
-    )
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        root_logger.setLevel(logging.INFO)
+        fmt = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
+        fh = logging.FileHandler(log_file, encoding='utf-8')
+        fh.setFormatter(fmt)
+        root_logger.addHandler(fh)
+        if sys.stdout is not None:
+            sh = logging.StreamHandler(sys.stdout)
+            sh.setFormatter(fmt)
+            root_logger.addHandler(sh)
+    logging.info("=== Démarrage serveur AD Web Interface ===")
 
     # Importer et démarrer l'application
     from app import run_server
