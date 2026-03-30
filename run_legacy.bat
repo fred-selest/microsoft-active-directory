@@ -108,13 +108,11 @@ REM  7. Demarrer le serveur (sans fenetre)
 REM ==========================================
 echo Demarrage du serveur...
 
-REM pythonw.exe = python sans console (herite OPENSSL_CONF du processus courant)
-if exist "venv\Scripts\pythonw.exe" (
-    start "" /B "venv\Scripts\pythonw.exe" "%~dp0run.py"
-) else (
-    REM Fallback : python.exe minimise
-    start /min "" "venv\Scripts\python.exe" "%~dp0run.py"
-)
+if not exist "%~dp0logs" mkdir "%~dp0logs" >nul 2>&1
+set FLASK_ENV=production
+set FLASK_DEBUG=false
+
+start /min "" "venv\Scripts\python.exe" "%~dp0run.py"
 
 REM ==========================================
 REM  8. Attendre que le serveur soit pret
