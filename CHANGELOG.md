@@ -5,6 +5,17 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.19.1] - 2026-03-30
+
+### Corrigé
+
+- **`import os` manquant dans `app.py`** — `os._exit(0)` appelé lors du redémarrage post-mise à jour levait un `NameError` ; `import os` ajouté en tête de fichier.
+- **`IP_V4_ONLY` inexistant dans `routes/core.py`** — cette constante n'existe pas dans ldap3 ; remplacée par `IP_V4_PREFERRED` (déjà importée) dans le fallback IPv4.
+- **`reset_to_defaults` introuvable dans `routes/admin.py`** — la fonction s'appelle `reset_settings` dans `settings_manager.py` ; l'import corrigé évite un `ImportError` sur la réinitialisation des paramètres.
+- **`get_audit_logs(page=, per_page=)` dans `app.py`** — paramètres inexistants dans la signature de la fonction ; remplacés par `limit=50`, supprimant le `TypeError` sur la page `/audit`.
+
+---
+
 ## [1.19.0] - 2026-03-30
 
 ### Corrigé
