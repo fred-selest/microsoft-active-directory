@@ -57,6 +57,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Bundle NSSM for Windows package
+        continue-on-error: true
         run: |
           echo "Bundling NSSM (Non-Sucking Service Manager) into Windows package..."
           mkdir -p nssm
