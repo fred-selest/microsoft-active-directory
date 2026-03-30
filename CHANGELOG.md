@@ -5,6 +5,15 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.17.5] - 2026-03-30
+
+### Corrigé
+
+- **Démarrage lent (60+ s) — cause racine** — `app.py` utilisait `FLASK_ENV == 'production'` pour choisir Waitress ; si le `.env` existant contenait `FLASK_ENV=development`, Waitress était ignoré et le serveur Flask avec rechargeur automatique démarrait (60+ s). La détection utilise désormais `not config.DEBUG` (lu depuis `FLASK_DEBUG=false`) — indépendant du `.env` existant. Ajout de `use_reloader=False` sur le chemin Flask.
+- **Logs vides** — `logging.basicConfig` avec `StreamHandler(sys.stdout)` échouait silencieusement sous `pythonw.exe` (`sys.stdout is None`) et n'ajoutait aucun handler, y compris le `FileHandler`. Remplacement par une configuration manuelle : `FileHandler` toujours ajouté, `StreamHandler` uniquement si stdout disponible.
+
+---
+
 ## [1.17.4] - 2026-03-30
 
 ### Corrigé
