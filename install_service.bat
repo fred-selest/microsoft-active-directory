@@ -402,7 +402,7 @@ echo | set /p ="Initialisation Flask"
 set /a ATTEMPTS=0
 :svc_wait
 set /a ATTEMPTS+=1
-if !ATTEMPTS! GTR 20 ( echo. & goto :svc_done )
+if !ATTEMPTS! GTR 40 ( echo. & goto :svc_done )
 powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:5000' -TimeoutSec 1 -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
 if errorlevel 1 ( echo | set /p ="." & timeout /t 1 /nobreak >nul & goto :svc_wait )
 

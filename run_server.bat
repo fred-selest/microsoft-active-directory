@@ -130,31 +130,31 @@ if exist "venv\Scripts\pythonw.exe" (
 REM ======================================================
 REM ETAPE 8 : Attendre que le serveur soit pret
 REM  - Poll http://localhost:5000 toutes les secondes
-REM  - Abandonne apres 30 tentatives (~30 secondes)
+REM  - Abandonne apres 60 tentatives (~60 secondes)
 REM ======================================================
 echo | set /p ="Initialisation du serveur"
 set /a ATTEMPTS=0
 
 :wait_loop
 set /a ATTEMPTS+=1
-if !ATTEMPTS! GTR 30 (
-    echo.
-    echo.
-    echo [AVERTISSEMENT] Le serveur met du temps a demarrer.
-    echo Consultez logs\server.log si le probleme persiste.
-    goto :show_addresses
-)
+if !ATTEMPTS! GTR 60 goto :svc_timeout
 powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:5000' -TimeoutSec 1 -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
 if errorlevel 1 (
     echo | set /p ="."
     timeout /t 1 /nobreak >nul
     goto :wait_loop
 )
-
-:show_addresses
 echo.
 echo [OK] Serveur demarre et pret.
+goto :show_addresses
+
+:svc_timeout
 echo.
+echo.
+echo [AVERTISSEMENT] Le serveur met du temps a demarrer.
+echo Consultez les logs dans : %~dp0logs\
+
+:show_addresses
 
 REM Recuperer l'IP locale (premiere interface non-loopback)
 for /f "tokens=*" %%i in ('powershell -Command "try { (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.PrefixOrigin -ne 'WellKnown' } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress } catch { '' }"') do set LOCAL_IP=%%i
