@@ -3,14 +3,9 @@ Interface Web Multi-Plateforme pour Microsoft Active Directory.
 Version simplifiée avec Blueprints.
 """
 
-# IMPORTANT: Initialiser OpenSSL AVANT tout autre import pour MD4/NTLM
-import sys
-import os
-openssl_conf = os.path.join(os.path.dirname(__file__), 'openssl_legacy.cnf')
-if os.path.exists(openssl_conf):
-    os.environ['OPENSSL_CONF'] = openssl_conf
+# IMPORTANT: OpenSSL MD4/NTLM init (DOIT ÊTRE LE PREMIER IMPORT)
+import _openssl_init
 
-import os
 import platform
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
@@ -21,8 +16,6 @@ from translations import Translator
 from audit import log_action, ACTIONS
 from alerts import get_alert_counts
 from session_crypto import init_crypto, encrypt_password
-
-# Import des blueprints
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
                          require_connection, get_user_role_from_groups, ROLE_PERMISSIONS)
 from routes.users import users_bp

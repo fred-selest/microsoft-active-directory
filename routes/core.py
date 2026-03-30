@@ -2,18 +2,14 @@
 Fonctions core partagées entre tous les blueprints.
 """
 
-# IMPORTANT: Initialiser OpenSSL AVANT ldap3 pour MD4/NTLM
-import os
-openssl_conf = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'openssl_legacy.cnf')
-if os.path.exists(openssl_conf):
-    os.environ['OPENSSL_CONF'] = openssl_conf
+# IMPORTANT: OpenSSL MD4/NTLM init (DOIT ÊTRE LE PREMIER IMPORT)
+import _openssl_init
 
 import ssl
 from functools import wraps
 from flask import session, redirect, url_for, flash
-from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4.PREFERRED
+from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4_PREFERRED
 from ldap3.core.exceptions import LDAPException
-
 from config import get_config
 from security import escape_ldap_filter
 from session_crypto import decrypt_password
@@ -108,10 +104,7 @@ def _get_upn_user(server, username):
     if '@' in username:
         return username
     simple_user = _extract_username(username)
-    if '.' in server:
-        domain = '.'.join(server.split('.')[1:])
-        return f"{simple_user}@{domain}"
-    return simple_user
+    return f"{simple_user}@{server.split('.', 1)[1]}" if '.' in server else simple_user
 
 
 def _get_ntlm_user(server, username):
@@ -119,8 +112,7 @@ def _get_ntlm_user(server, username):
     if '\\' in username:
         return username
     domain = _extract_domain(server, username)
-    simple_user = _extract_username(username)
-    return f"{domain}\\{simple_user}" if domain else simple_user
+    return f"{domain}\\{_extract_username(username)}" if domain else _extract_username(username)
 
 
 def _is_md4_error(error_msg):
@@ -128,14 +120,8 @@ def _is_md4_error(error_msg):
     return 'MD4' in str(error_msg) or 'unsupported hash' in str(error_msg)
 
 
-def _is_winapi1_error(error_msg):
-    """Vérifier si l'erreur est WinError 1 (IPv6 non supporté sur ce réseau)."""
-    return 'WinError 1' in str(error_msg)
-
-
 def _is_invalid_credentials_error(error_msg):
-    """Vérifier si l'erreur indique des identifiants incorrects (LDAP code 49).
-    Dans ce cas, inutile d'essayer d'autres méthodes d'auth : le mot de passe est faux."""
+    """Vérifier si l'erreur indique des identifiants incorrects (LDAP code 49)."""
     msg = str(error_msg).lower()
     return 'invalidcredentials' in msg or 'error 49' in msg or '80090308' in msg
 
@@ -147,74 +133,56 @@ def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
                   get_info=ALL, mode=ip_mode)
 
 
-def _try_connection_methods(server, username, password):
-    """Essayer différentes méthodes de connexion."""
+def _try_connection(server, username, password):
+    """Essayer différentes méthodes de connexion AD."""
     errors = []
     ntlm_user = _get_ntlm_user(server, username)
     upn_user = _get_upn_user(server, username)
-
-    # Méthodes à essayer : (port, use_ssl, user, auth_type, label)
+    
+    # Méthodes: (port, ssl, user, auth, label, starttls)
     methods = [
-        (389, False, ntlm_user, NTLM, "NTLM"),
-        (389, False, upn_user, SIMPLE, "STARTTLS", True),  # True = use STARTTLS
-        (636, True, upn_user, SIMPLE, "LDAPS"),
+        (389, False, ntlm_user, NTLM, "NTLM", False),
+        (389, False, upn_user, SIMPLE, "STARTTLS", True),
+        (636, True, upn_user, SIMPLE, "LDAPS", False),
     ]
 
-    for method in methods:
-        port, use_ssl, user, auth_type, label = method[:5]
-        use_starttls = len(method) > 5 and method[5]
-
+    for port, use_ssl, user, auth, label, starttls in methods:
         try:
             srv = _make_server(server, port, use_ssl)
-
-            if use_starttls:
-                conn = Connection(srv, user=user, password=password,
-                                authentication=auth_type, auto_bind=False)
+            conn = Connection(srv, user=user, password=password, authentication=auth, auto_bind=False)
+            
+            if starttls:
                 conn.open()
                 conn.start_tls(_tls_config)
-                if conn.bind():
-                    session['ad_use_ssl'] = False
-                    session['ad_port'] = port
-                    return conn, None
-            else:
-                conn = Connection(srv, user=user, password=password,
-                                authentication=auth_type, auto_bind=True)
-                if conn.bound:
-                    session['ad_use_ssl'] = use_ssl
-                    session['ad_port'] = port
-                    return conn, None
+            
+            if conn.bind():
+                session['ad_use_ssl'] = use_ssl
+                session['ad_port'] = port
+                return conn, None
+                
         except Exception as e:
             err_str = str(e)
-            # Identifiants incorrects (LDAP 49) : inutile d'essayer les autres méthodes
             if _is_invalid_credentials_error(err_str):
-                errors.append(f"{label}: identifiants incorrects")
-                break
-            # WinError 1 = IPv6 non supporté sur ce réseau, réessayer en IPv4 strict
-            if _is_winapi1_error(err_str):
+                return None, f"{label}: identifiants incorrects"
+            
+            # IPv6 non supporté → réessayer en IPv4
+            if 'WinError 1' in err_str:
                 try:
-                    from ldap3 import IP_V4_ONLY
-                    srv = _make_server(server, port, use_ssl, ip_mode=IP_V4_ONLY)
-                    if use_starttls:
-                        conn = Connection(srv, user=user, password=password,
-                                        authentication=auth_type, auto_bind=False)
+                    srv = _make_server(server, port, use_ssl, IP_V4_ONLY)
+                    conn = Connection(srv, user=user, password=password, authentication=auth, auto_bind=False)
+                    if starttls:
                         conn.open()
                         conn.start_tls(_tls_config)
-                        if conn.bind():
-                            session['ad_use_ssl'] = False
-                            session['ad_port'] = port
-                            return conn, None
-                    else:
-                        conn = Connection(srv, user=user, password=password,
-                                        authentication=auth_type, auto_bind=True)
-                        if conn.bound:
-                            session['ad_use_ssl'] = use_ssl
-                            session['ad_port'] = port
-                            return conn, None
+                    if conn.bind():
+                        session['ad_use_ssl'] = use_ssl
+                        session['ad_port'] = port
+                        return conn, None
                 except Exception as e2:
                     err_str = str(e2)
+            
             errors.append(f"{label}: {err_str[:80]}")
             if label == "NTLM" and _is_md4_error(err_str):
-                continue
+                continue  # Essayer STARTTLS
 
     return None, '; '.join(errors)
 
@@ -237,14 +205,13 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if not all([server, username, password]):
         return None, "Non connecté"
 
-    # Connexion simple si port/SSL spécifiés
+    # Connexion directe si port/SSL spécifiés
     if port != 389 or use_ssl:
         try:
             srv = _make_server(server, port, use_ssl)
             user = _get_upn_user(server, username) if use_ssl else _get_ntlm_user(server, username)
-            auth = SIMPLE if use_ssl else NTLM
             conn = Connection(srv, user=user, password=password,
-                            authentication=auth, auto_bind=True)
+                            authentication=SIMPLE if use_ssl else NTLM, auto_bind=True)
             if conn.bound:
                 return conn, None
         except Exception as e:
@@ -252,16 +219,12 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 return None, str(e)
 
     # Essayer toutes les méthodes
-    conn, errors = _try_connection_methods(server, username, password)
+    conn, errors = _try_connection(server, username, password)
     if conn:
         return conn, None
 
-    hint = ""
-    if _is_winapi1_error(errors):
-        hint = " [WinError 1: adresse du serveur incorrecte ou ports 389/636 bloques par le pare-feu]"
-    elif _is_md4_error(errors):
-        hint = " [MD4: lancez l'application via run_legacy.bat pour activer le support NTLM automatiquement]"
-    return None, f"Connexion impossible.{hint} Verifiez: 1) adresse du serveur AD, 2) ports 389/636 ouverts, 3) identifiants corrects\n{errors}"
+    hint = " [MD4: executez fix_md4.ps1 pour activer le support NTLM]" if _is_md4_error(errors) else ""
+    return None, f"Connexion impossible.{hint} Verifiez: 1) serveur AD, 2) ports 389/636, 3) identifiants\n{errors}"
 
 
 def get_user_role_from_groups(conn, username, debug=False):
