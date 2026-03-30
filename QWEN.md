@@ -339,8 +339,6 @@ microsoft-active-directory/
 ├── translations.py               # Multi-langue (fr/en)
 ├── settings_manager.py           # Paramètres utilisateurs
 ├── updater.py / updater_fast.py  # Mises à jour automatiques
-├── favorites.py                  # Gestion favoris
-├── user_templates.py             # Templates utilisateurs
 ├── install_service.bat           # Installation service Windows
 ├── uninstall_service.bat         # Désinstallation service
 ├── run_server.bat                # Démarrage manuel Windows
