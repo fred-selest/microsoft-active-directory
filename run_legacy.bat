@@ -124,24 +124,25 @@ set /a ATTEMPTS=0
 
 :wait_loop
 set /a ATTEMPTS+=1
-if !ATTEMPTS! GTR 30 (
-    echo.
-    echo.
-    echo [AVERTISSEMENT] Le demarrage prend plus de 30 secondes.
-    echo Consultez logs\server.log pour diagnostiquer le probleme.
-    echo.
-    goto :open_browser
-)
+if !ATTEMPTS! GTR 60 goto :svc_timeout
 powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:5000' -TimeoutSec 1 -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
 if errorlevel 1 (
     echo | set /p ="."
     timeout /t 1 /nobreak >nul
     goto :wait_loop
 )
-
-:open_browser
 echo.
 echo [OK] Pret !
+goto :open_browser
+
+:svc_timeout
+echo.
+echo.
+echo [AVERTISSEMENT] Le demarrage prend plus de 60 secondes.
+echo Consultez les logs dans : %~dp0logs\
+echo.
+
+:open_browser
 echo.
 
 REM Recuperer l'IP locale pour le partage reseau
