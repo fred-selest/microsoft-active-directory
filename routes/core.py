@@ -168,7 +168,7 @@ def _try_connection(server, username, password):
             # IPv6 non supporté → réessayer en IPv4
             if 'WinError 1' in err_str:
                 try:
-                    srv = _make_server(server, port, use_ssl, IP_V4_ONLY)
+                    srv = _make_server(server, port, use_ssl, IP_V4_PREFERRED)
                     conn = Connection(srv, user=user, password=password, authentication=auth, auto_bind=False)
                     if starttls:
                         conn.open()

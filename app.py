@@ -6,6 +6,7 @@ Version simplifiée avec Blueprints.
 # IMPORTANT: OpenSSL MD4/NTLM init (DOIT ÊTRE LE PREMIER IMPORT)
 import _openssl_init
 
+import os
 import platform
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
@@ -271,7 +272,7 @@ def audit_logs():
     """Logs d'audit."""
     from audit import get_audit_logs
     page = request.args.get('page', 1, type=int)
-    logs = get_audit_logs(page=page, per_page=50)
+    logs = get_audit_logs(limit=50)
     return render_template('audit.html', logs=logs, page=page, connected=is_connected())
 
 

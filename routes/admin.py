@@ -124,7 +124,7 @@ def reset_settings():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import reset_to_defaults
+    from settings_manager import reset_settings as reset_to_defaults
 
     if reset_to_defaults():
         flash('Paramètres réinitialisés!', 'success')
