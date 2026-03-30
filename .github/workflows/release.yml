@@ -62,26 +62,44 @@ jobs:
           mkdir -p nssm
           DOWNLOADED=0
 
-          # Source 1 : nssm.cc officiel
-          if curl -sL --max-time 30 "https://nssm.cc/release/nssm-2.24.zip" -o /tmp/nssm.zip 2>/dev/null && [ -s /tmp/nssm.zip ]; then
+          # Source 1 : Chocolatey CDN (plus fiable)
+          if curl -sL --max-time 30 "https://community.chocolatey.org/api/v2/package/nssm/2.24" -o /tmp/nssm.zip 2>/dev/null && [ -s /tmp/nssm.zip ]; then
             DOWNLOADED=1
-            echo "Source: nssm.cc"
-          fi
-
-          # Source 2 : miroir GitHub
-          if [ $DOWNLOADED -eq 0 ]; then
-            if curl -sL --max-time 30 "https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip" -o /tmp/nssm.zip 2>/dev/null && [ -s /tmp/nssm.zip ]; then
-              DOWNLOADED=1
-              echo "Source: GitHub mirror"
+            echo "Source: Chocolatey CDN"
+            unzip -q /tmp/nssm.zip -d /tmp/nssm-extract
+            if [ -f /tmp/nssm-extract/tools/nssm-2.24/win64/nssm.exe ]; then
+              cp /tmp/nssm-extract/tools/nssm-2.24/win64/nssm.exe nssm/nssm.exe
+            elif [ -f /tmp/nssm-extract/nssm.exe ]; then
+              cp /tmp/nssm-extract/nssm.exe nssm/nssm.exe
             fi
           fi
 
-          if [ $DOWNLOADED -eq 1 ]; then
-            unzip -q /tmp/nssm.zip -d /tmp/nssm-extract
-            cp /tmp/nssm-extract/nssm-2.24/win64/nssm.exe nssm/nssm.exe
-            echo "[OK] NSSM bundled: $(du -sh nssm/nssm.exe)"
+          # Source 2 : nssm.cc officiel
+          if [ $DOWNLOADED -eq 0 ]; then
+            if curl -sL --max-time 30 "https://nssm.cc/release/nssm-2.24.zip" -o /tmp/nssm2.zip 2>/dev/null && [ -s /tmp/nssm2.zip ]; then
+              DOWNLOADED=1
+              echo "Source: nssm.cc"
+              unzip -q /tmp/nssm2.zip -d /tmp/nssm-extract2
+              cp /tmp/nssm-extract2/nssm-2.24/win64/nssm.exe nssm/nssm.exe 2>/dev/null || \
+              find /tmp/nssm-extract2 -name nssm.exe -exec cp {} nssm/nssm.exe \;
+            fi
+          fi
+
+          # Source 3 : miroir GitHub
+          if [ $DOWNLOADED -eq 0 ]; then
+            if curl -sL --max-time 30 "https://github.com/nicholasgondra/nssm/releases/download/nssm-2.24/nssm-2.24.zip" -o /tmp/nssm3.zip 2>/dev/null && [ -s /tmp/nssm3.zip ]; then
+              DOWNLOADED=1
+              echo "Source: GitHub mirror"
+              unzip -q /tmp/nssm3.zip -d /tmp/nssm-extract3
+              cp /tmp/nssm-extract3/nssm-2.24/win64/nssm.exe nssm/nssm.exe 2>/dev/null || \
+              find /tmp/nssm-extract3 -name nssm.exe -exec cp {} nssm/nssm.exe \;
+            fi
+          fi
+
+          if [ $DOWNLOADED -eq 1 ] && [ -f nssm/nssm.exe ]; then
+            echo "[OK] NSSM bundled: $(ls -lh nssm/nssm.exe | awk '{print $5}')"
           else
-            echo "[WARN] Could not download NSSM during CI - users will need internet access at install time"
+            echo "[WARN] Could not download NSSM - users will need internet at install time"
           fi
 
       - name: Build Windows package
