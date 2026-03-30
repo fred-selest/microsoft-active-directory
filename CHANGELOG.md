@@ -5,6 +5,21 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.17.3] - 2026-03-30
+
+### Corrigé
+
+- **Démarrage serveur** (`run_server.bat`, `run_legacy.bat`) — timeout d'attente 30 s → 60 s ; message `[OK]` conditionnel au fait que le serveur ait réellement répondu ; message d'avertissement pointe vers `logs\` au lieu de `logs\server.log`
+- **Démarrage service** (`install_service.bat`) — vérification post-démarrage 20 s → 40 s
+
+### Nettoyage
+
+- Suppression des fichiers orphelins jamais utilisés : `api.py`, `smtp_service.py`, `powershell_export.py`, `webhooks.py`, `uninstall.py`
+- CI (`ci.yml`) : suppression du job `docker-build` (Dockerfile retiré en v1.17.0)
+- `templates/update.html` : liste des modules mise à jour
+
+---
+
 ## [1.17.2] - 2026-03-30
 
 ### Corrigé
