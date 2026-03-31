@@ -7,11 +7,11 @@ Version simplifiée avec Blueprints.
 import _openssl_init
 
 import os
+import hashlib
 import platform
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from ad_detect import get_local_domain, detect_ad_config
-
 from config import get_config
 from security import generate_csrf_token, validate_csrf_token, add_security_headers, get_secure_session_config, check_rate_limit, record_login_attempt
 from translations import Translator
@@ -147,27 +147,26 @@ def connect():
         base_dn = request.form.get('base_dn', '')
         domain = request.form.get('domain', '').strip()
 
-        # Si l'utilisateur a saisi juste un nom (sans \ ni @), préfixer avec le domaine
+        # Préfixer le domaine si besoin
         if domain and '\\' not in username and '@' not in username:
             username = f"{domain}\\{username}"
 
-        # Serveur manquant : essayer de déduire depuis le domaine
-        if not server and domain:
-            ad_config = detect_ad_config()
-            server = ad_config.get('server', '')
+        # Serveur manquant : essayer auto-détection
+        if not server:
+            ad_cfg = detect_ad_config()
+            server = ad_cfg.get('server', '')
             if not server:
-                # Dernier recours : utiliser le domaine FQDN directement
                 full_domain = get_local_domain() or ''
                 server = full_domain if full_domain else domain
 
         if not server:
             flash('Adresse du serveur AD requise. Veuillez la saisir dans les options avancées.', 'error')
-            ad_cfg = detect_ad_config()
-            detected_domain = ad_cfg['domain'].split('.')[0].upper() if ad_cfg['domain'] else domain
+            ad_cfg2 = detect_ad_config()
+            detected_domain2 = ad_cfg2['domain'].split('.')[0].upper() if ad_cfg2.get('domain') else domain
             return render_template('connect.html', connected=is_connected(),
-                                   auto_domain=detected_domain,
-                                   auto_detected=False,
-                                   server='', port=389, base_dn=ad_cfg.get('base_dn', ''), use_ssl=False)
+                                   auto_domain=detected_domain2, auto_detected=False,
+                                   server='', port=389,
+                                   base_dn=ad_cfg2.get('base_dn', ''), use_ssl=False)
 
         port = int(port) if port else None
         conn, error = get_ad_connection(server, username, password, use_ssl, port)
@@ -202,10 +201,10 @@ def connect():
             log_action(ACTIONS['LOGIN'], username, {'error': error}, False, ip)
             flash(f'Erreur: {error}', 'error')
 
-    # Détecter la configuration AD complète
+    # GET : pré-remplir les champs via auto-détection
     ad_cfg = detect_ad_config()
-    detected_domain = ad_cfg['domain'].split('.')[0].upper() if ad_cfg['domain'] else ''
-    auto_detected = ad_cfg['auto_detected'] and bool(ad_cfg.get('server', ''))
+    detected_domain = ad_cfg['domain'].split('.')[0].upper() if ad_cfg.get('domain') else ''
+    auto_detected = ad_cfg.get('auto_detected', False) and bool(ad_cfg.get('server', ''))
     return render_template('connect.html', connected=is_connected(),
                            auto_domain=detected_domain,
                            auto_detected=auto_detected,
@@ -335,6 +334,27 @@ def update_page():
             'error': str(e)
         }
     return render_template('update.html', update_info=update_info, connected=is_connected())
+
+
+@app.route('/api/system-info')
+def api_system_info():
+    """Informations système pour le dashboard JS."""
+    from updater import get_current_version
+    try:
+        md4_ok = True
+        hashlib.new('md4', b'test')
+    except Exception:
+        md4_ok = False
+    return jsonify({
+        'version': get_current_version(),
+        'platform': platform.system(),
+        'platform_version': platform.release(),
+        'hostname': platform.node(),
+        'python_version': platform.python_version(),
+        'connected': is_connected(),
+        'ad_server': session.get('ad_server', ''),
+        'md4_support': md4_ok,
+    })
 
 
 @app.route('/api/health')

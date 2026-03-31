@@ -5,6 +5,16 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.20.2] - 2026-03-31
+
+### Corrigé
+
+- **MD4/NTLM non supporté (Python 3.12+ / OpenSSL 3.0)** — `_openssl_init.py` injecte maintenant un monkey-patch `hashlib.new` via `pycryptodome` quand MD4 n'est pas disponible nativement. Ajout de `pycryptodome==3.20.0` dans `requirements.txt`.
+- **`/api/system-info` introuvable (404)** — route créée dans `app.py`, retourne version, plateforme, hostname, version Python, statut connexion AD et `md4_support`.
+- **`logo.png` introuvable (404)** — `base.html` référençait `static/images/logo.png` inexistant ; remplacé par `static/icons/icon.svg` déjà présent.
+
+---
+
 ## [1.20.1] - 2026-03-31
 
 ### Corrigé
