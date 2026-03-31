@@ -228,6 +228,324 @@ def create_user():
     return render_template('create_user.html', ous=ou_list, connected=is_connected())
 
 
+@users_bp.route('/<path:dn>/edit', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def edit_user(dn):
+    """Modifier les attributs d'un utilisateur."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('users.list_users'))
+
+    base_dn = session.get('ad_base_dn', '')
+    user = None
+
+    try:
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                   attributes=['cn', 'givenName', 'sn', 'displayName', 'mail',
+                               'telephoneNumber', 'department', 'title', 'description',
+                               'userAccountControl', 'sAMAccountName', 'distinguishedName'])
+        if not conn.entries:
+            flash('Utilisateur introuvable.', 'error')
+            conn.unbind()
+            return redirect(url_for('users.list_users'))
+        entry = conn.entries[0]
+        uac = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 512
+        user = {
+            'dn': dn,
+            'cn': decode_ldap_value(entry.cn),
+            'givenName': decode_ldap_value(entry.givenName),
+            'sn': decode_ldap_value(entry.sn),
+            'displayName': decode_ldap_value(entry.displayName),
+            'mail': decode_ldap_value(entry.mail),
+            'telephoneNumber': decode_ldap_value(entry.telephoneNumber),
+            'department': decode_ldap_value(entry.department),
+            'title': decode_ldap_value(entry.title),
+            'description': decode_ldap_value(entry.description),
+            'disabled': bool(int(uac) & 2) if uac else False,
+        }
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('users.list_users'))
+
+    if request.method == 'POST':
+        if not validate_csrf_token(request.form.get('csrf_token')):
+            flash('Token CSRF invalide.', 'error')
+            return render_template('user_form.html', action='edit', user=user,
+                                   password_requirements={'min_length': 8}, connected=is_connected())
+
+        changes = {}
+        for attr in ('givenName', 'sn', 'displayName', 'mail', 'telephoneNumber',
+                     'department', 'title', 'description'):
+            val = request.form.get(attr, '').strip()
+            changes[attr] = [(MODIFY_REPLACE, [val] if val else [])]
+
+        new_password = request.form.get('new_password', '').strip()
+        enable_account = request.form.get('enable_account') == 'on'
+
+        try:
+            conn.modify(dn, changes)
+            if new_password:
+                unicode_pwd = f'"{new_password}"'.encode('utf-16-le')
+                conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+            current_uac = int(user['disabled']) * 2 + 512
+            new_uac = 512 if enable_account else 514
+            conn.modify(dn, {'userAccountControl': [(MODIFY_REPLACE, [new_uac])]})
+            log_action(ACTIONS.get('EDIT_USER', 'edit_user'), session.get('ad_username'),
+                      {'dn': dn}, True, request.remote_addr)
+            flash('Utilisateur modifié.', 'success')
+            conn.unbind()
+            return redirect(url_for('users.list_users'))
+        except Exception as e:
+            flash(f'Erreur: {str(e)}', 'error')
+        finally:
+            try:
+                conn.unbind()
+            except Exception:
+                pass
+
+    return render_template('user_form.html', action='edit', user=user,
+                           password_requirements={'min_length': 8}, connected=is_connected())
+
+
+@users_bp.route('/<path:dn>/reset-password', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def reset_password(dn):
+    """Réinitialiser le mot de passe d'un utilisateur."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('users.list_users'))
+
+    base_dn = session.get('ad_base_dn', '')
+    user = None
+
+    try:
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                   attributes=['cn', 'displayName', 'sAMAccountName'])
+        if not conn.entries:
+            flash('Utilisateur introuvable.', 'error')
+            conn.unbind()
+            return redirect(url_for('users.list_users'))
+        entry = conn.entries[0]
+        user = {
+            'dn': dn,
+            'cn': decode_ldap_value(entry.cn),
+            'displayName': decode_ldap_value(entry.displayName),
+            'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+        }
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('users.list_users'))
+
+    if request.method == 'POST':
+        if not validate_csrf_token(request.form.get('csrf_token')):
+            flash('Token CSRF invalide.', 'error')
+            return render_template('reset_password.html', user=user,
+                                   password_requirements={'min_length': 8,
+                                   'require_uppercase': True, 'require_lowercase': True,
+                                   'require_digit': True, 'require_special': False},
+                                   connected=is_connected())
+
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        must_change = request.form.get('must_change') == 'on'
+
+        if new_password != confirm_password:
+            flash('Les mots de passe ne correspondent pas.', 'error')
+            return render_template('reset_password.html', user=user,
+                                   password_requirements={'min_length': 8,
+                                   'require_uppercase': True, 'require_lowercase': True,
+                                   'require_digit': True, 'require_special': False},
+                                   connected=is_connected())
+
+        try:
+            unicode_pwd = f'"{new_password}"'.encode('utf-16-le')
+            conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+            if conn.result['result'] == 0:
+                if must_change:
+                    conn.modify(dn, {'pwdLastSet': [(MODIFY_REPLACE, [0])]})
+                log_action(ACTIONS.get('RESET_PASSWORD', 'reset_password'), session.get('ad_username'),
+                          {'dn': dn}, True, request.remote_addr)
+                flash('Mot de passe réinitialisé.', 'success')
+                conn.unbind()
+                return redirect(url_for('users.list_users'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except Exception as e:
+            flash(f'Erreur: {str(e)}', 'error')
+        finally:
+            try:
+                conn.unbind()
+            except Exception:
+                pass
+
+    return render_template('reset_password.html', user=user,
+                           password_requirements={'min_length': 8,
+                           'require_uppercase': True, 'require_lowercase': True,
+                           'require_digit': True, 'require_special': False},
+                           connected=is_connected())
+
+
+@users_bp.route('/<path:dn>/toggle', methods=['POST'])
+@require_connection
+@require_permission('write')
+def toggle_user(dn):
+    """Activer ou désactiver un compte utilisateur."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('users.list_users'))
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('users.list_users'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    try:
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                   attributes=['userAccountControl'])
+        if not conn.entries:
+            flash('Utilisateur introuvable.', 'error')
+            conn.unbind()
+            return redirect(url_for('users.list_users'))
+
+        uac = conn.entries[0].userAccountControl.value
+        uac = int(uac) if uac else 512
+        action = request.form.get('action', '')
+        if action == 'enable':
+            new_uac = uac & ~2
+        else:
+            new_uac = uac | 2
+
+        conn.modify(dn, {'userAccountControl': [(MODIFY_REPLACE, [new_uac])]})
+        if conn.result['result'] == 0:
+            label = 'activé' if action == 'enable' else 'désactivé'
+            log_action(ACTIONS.get('TOGGLE_USER', 'toggle_user'), session.get('ad_username'),
+                      {'dn': dn, 'action': action}, True, request.remote_addr)
+            flash(f'Utilisateur {label}.', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+    finally:
+        conn.unbind()
+
+    return redirect(url_for('users.list_users'))
+
+
+@users_bp.route('/<path:dn>/duplicate', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def duplicate_user(dn):
+    """Dupliquer un utilisateur existant."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('users.list_users'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    try:
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                   attributes=['cn', 'givenName', 'sn', 'displayName', 'department',
+                               'title', 'memberOf'])
+        if not conn.entries:
+            flash('Utilisateur introuvable.', 'error')
+            conn.unbind()
+            return redirect(url_for('users.list_users'))
+        entry = conn.entries[0]
+        member_of = entry.memberOf.values if hasattr(entry, 'memberOf') and entry.memberOf else []
+        user = {
+            'dn': dn,
+            'cn': decode_ldap_value(entry.cn),
+            'givenName': decode_ldap_value(entry.givenName),
+            'sn': decode_ldap_value(entry.sn),
+            'displayName': decode_ldap_value(entry.displayName),
+            'department': decode_ldap_value(entry.department),
+            'title': decode_ldap_value(entry.title),
+            'memberOf': [decode_ldap_value(g) for g in member_of],
+        }
+        conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
+                   attributes=['name', 'distinguishedName'])
+        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+                   for e in conn.entries]
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('users.list_users'))
+
+    if request.method == 'POST':
+        if not validate_csrf_token(request.form.get('csrf_token')):
+            flash('Token CSRF invalide.', 'error')
+            return render_template('duplicate_user.html', user=user, ous=ou_list, connected=is_connected())
+
+        username = request.form.get('sAMAccountName', '').strip()
+        password = request.form.get('password', '')
+        target_ou = request.form.get('ou', base_dn) or base_dn
+        first_name = request.form.get('givenName', '').strip()
+        last_name = request.form.get('sn', '').strip()
+        display_name = request.form.get('displayName', '').strip()
+        department = request.form.get('department', '').strip()
+        title = request.form.get('title', '').strip()
+        copy_groups = request.form.get('copy_groups') == '1'
+
+        if not username:
+            flash("Identifiant requis.", 'error')
+            conn.unbind()
+            return render_template('duplicate_user.html', user=user, ous=ou_list, connected=is_connected())
+
+        cn = display_name or f"{first_name} {last_name}".strip() or username
+        new_dn = f"CN={cn},{target_ou}"
+        attributes = {
+            'objectClass': ['top', 'person', 'organizationalPerson', 'user'],
+            'sAMAccountName': username,
+            'cn': cn,
+            'displayName': cn,
+        }
+        if first_name:
+            attributes['givenName'] = first_name
+        if last_name:
+            attributes['sn'] = last_name
+        if department:
+            attributes['department'] = department
+        if title:
+            attributes['title'] = title
+
+        try:
+            conn.add(new_dn, attributes=attributes)
+            if conn.result['result'] == 0:
+                if password:
+                    unicode_pwd = f'"{password}"'.encode('utf-16-le')
+                    conn.modify(new_dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+                conn.modify(new_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
+                if copy_groups:
+                    from ldap3 import MODIFY_ADD
+                    for group_dn in user['memberOf']:
+                        conn.modify(group_dn, {'member': [(MODIFY_ADD, [new_dn])]})
+                log_action(ACTIONS.get('CREATE_USER', 'create_user'), session.get('ad_username'),
+                          {'dn': new_dn, 'source': dn}, True, request.remote_addr)
+                flash(f'Utilisateur {username} créé.', 'success')
+                conn.unbind()
+                return redirect(url_for('users.list_users'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except Exception as e:
+            flash(f'Erreur: {str(e)}', 'error')
+        finally:
+            try:
+                conn.unbind()
+            except Exception:
+                pass
+
+    return render_template('duplicate_user.html', user=user, ous=ou_list, connected=is_connected())
+
+
 @users_bp.route('/import', methods=['GET', 'POST'])
 @require_connection
 @require_permission('write')

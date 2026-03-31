@@ -5,6 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h2>Structure Active Directory</h2>
+    <a href="{{ url_for('ous_bp.create_ou') }}" class="btn btn-primary">+ Nouvelle OU</a>
 </div>
 
 <div class="tabs">
@@ -20,6 +21,7 @@
                     <th>Nom</th>
                     <th>Description</th>
                     <th>Chemin (DN)</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -28,10 +30,18 @@
                     <td>{{ ou.name }}</td>
                     <td>{{ ou.description }}</td>
                     <td class="dn-cell">{{ ou.dn }}</td>
+                    <td class="actions-cell">
+                        <a href="{{ url_for('ous_bp.edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <form method="post" action="{{ url_for('ous_bp.delete_ou', dn=ou.dn) }}" style="display:inline;"
+                              onsubmit="return confirm('Supprimer l\'OU {{ ou.name }} ? Cette action est irréversible.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                        </form>
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="3" class="text-center">Aucune unite d'organisation trouvee.</td>
+                    <td colspan="4" class="text-center">Aucune unite d'organisation trouvee.</td>
                 </tr>
                 {% endfor %}
             </tbody>
