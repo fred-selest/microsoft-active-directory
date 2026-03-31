@@ -36,7 +36,8 @@ def list_computers():
     try:
         conn.search(base_dn, search_filter, SUBTREE,
                    attributes=['cn', 'description', 'distinguishedName',
-                              'operatingSystem', 'lastLogon', 'userAccountControl'])
+                              'operatingSystem', 'lastLogon', 'userAccountControl',
+                              'dNSHostName', 'operatingSystemVersion'])
 
         computer_list = []
         for entry in conn.entries:
@@ -47,8 +48,16 @@ def list_computers():
                 'description': decode_ldap_value(entry.description),
                 'dn': decode_ldap_value(entry.distinguishedName),
                 'os': decode_ldap_value(entry.operatingSystem),
+                'os_version': decode_ldap_value(entry.operatingSystemVersion),
+                'dns_name': decode_ldap_value(entry.dNSHostName),
                 'disabled': is_disabled
             })
+
+        # OUs pour déplacement
+        conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
+                   attributes=['name', 'distinguishedName'])
+        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+                   for e in conn.entries]
         conn.unbind()
 
         # Pagination
@@ -59,12 +68,12 @@ def list_computers():
 
         return render_template('computers.html', computers=paginated, search=search_query,
                              page=page, total_pages=total_pages, total=total,
-                             connected=is_connected())
+                             ous=ou_list, connected=is_connected())
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
         return render_template('computers.html', computers=[], search=search_query,
-                             page=1, total_pages=1, total=0, connected=is_connected())
+                             page=1, total_pages=1, total=0, ous=[], connected=is_connected())
 
 
 @computers_bp.route('/<path:dn>/toggle', methods=['POST'])
@@ -123,6 +132,40 @@ def delete_computer(dn):
         conn.delete(dn)
         if conn.result['result'] == 0:
             flash('Ordinateur supprimé.', 'success')
+        else:
+            flash(f'Erreur: {conn.result["description"]}', 'error')
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+    finally:
+        conn.unbind()
+
+    return redirect(url_for('computers.list_computers'))
+
+
+@computers_bp.route('/<path:dn>/move', methods=['POST'])
+@require_connection
+@require_permission('write')
+def move_computer(dn):
+    """Déplacer un ordinateur vers une autre OU."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('computers.list_computers'))
+
+    target_ou = request.form.get('new_ou')
+    if not target_ou:
+        flash('OU cible requise.', 'error')
+        return redirect(url_for('computers.list_computers'))
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('computers.list_computers'))
+
+    try:
+        cn = dn.split(',')[0]
+        conn.modify_dn(dn, cn, new_superior=target_ou)
+        if conn.result['result'] == 0:
+            flash('Ordinateur déplacé.', 'success')
         else:
             flash(f'Erreur: {conn.result["description"]}', 'error')
     except Exception as e:

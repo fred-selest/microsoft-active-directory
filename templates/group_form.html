@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h2>{% if duplicate %}Dupliquer le groupe{% elif action == 'create' %}Nouveau groupe{% else %}Modifier le groupe{% endif %}</h2>
-    <a href="{{ url_for('groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+    <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Retour aux groupes</a>
 </div>
 
 <div class="form-container">
@@ -76,7 +76,7 @@
             <button type="submit" class="btn btn-primary">
                 {% if duplicate %}Dupliquer{% elif action == 'create' %}Creer le groupe{% else %}Enregistrer{% endif %}
             </button>
-            <a href="{{ url_for('groups') }}" class="btn btn-secondary">Annuler</a>
+            <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
 </div>
