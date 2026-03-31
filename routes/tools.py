@@ -329,6 +329,14 @@ def password_policy():
     return render_template('password_policy.html', policy=policy, connected=is_connected())
 
 
+# === AUDIT MOTS DE PASSE ===
+@tools_bp.route('/password-audit')
+@require_connection
+@require_permission('admin')
+def password_audit():
+    """Page d'audit des mots de passe."""
+    return render_template('password_audit.html', connected=is_connected())
+
 
 # === BACKUPS ===
 @tools_bp.route('/backups')

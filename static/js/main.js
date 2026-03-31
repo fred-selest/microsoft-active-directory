@@ -324,33 +324,38 @@ function clearCredentials() {
 function initMobileMenu() {
     const menuToggle = document.querySelector('.menu-toggle');
     const navLinks = document.querySelector('.nav-links');
+    const menuIcon = document.querySelector('.menu-icon');
 
     if (menuToggle && navLinks) {
         menuToggle.addEventListener('click', function() {
+            const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
+            menuToggle.setAttribute('aria-expanded', !isExpanded);
             navLinks.classList.toggle('active');
             
-            // Changer l'icône du menu burger
-            const icon = menuToggle.querySelector('span');
-            if (navLinks.classList.contains('active')) {
-                menuToggle.setAttribute('aria-expanded', 'true');
-                if (icon) icon.textContent = '×';
-            } else {
-                menuToggle.setAttribute('aria-expanded', 'false');
-                if (icon) icon.textContent = '☰';
+            if (menuIcon) {
+                menuIcon.textContent = isExpanded ? '☰' : '×';
             }
         });
 
-        // Fermer le menu quand on clique sur un lien
+        // Fermer le menu quand on clique sur un lien (sauf dropdown)
         navLinks.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', function() {
-                // Ne pas fermer si c'est un dropdown
                 if (!this.parentElement.classList.contains('nav-dropdown')) {
                     navLinks.classList.remove('active');
-                    const icon = menuToggle.querySelector('span');
-                    if (icon) icon.textContent = '☰';
                     menuToggle.setAttribute('aria-expanded', 'false');
+                    if (menuIcon) menuIcon.textContent = '☰';
                 }
             });
+        });
+
+        // Fermer avec Échap
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && navLinks.classList.contains('active')) {
+                navLinks.classList.remove('active');
+                menuToggle.setAttribute('aria-expanded', 'false');
+                if (menuIcon) menuIcon.textContent = '☰';
+                menuToggle.focus();
+            }
         });
     }
 }
@@ -362,21 +367,62 @@ function initMobileDropdowns() {
     const dropdowns = document.querySelectorAll('.nav-dropdown');
 
     dropdowns.forEach(dropdown => {
-        const toggle = dropdown.querySelector('a');
+        const toggle = dropdown.querySelector('.dropdown-toggle');
+        const menu = dropdown.querySelector('.dropdown-menu');
+        const arrow = dropdown.querySelector('.dropdown-arrow');
         
-        if (toggle) {
+        if (toggle && menu) {
             toggle.addEventListener('click', function(e) {
                 // Seulement sur mobile
                 if (window.innerWidth <= 768) {
                     e.preventDefault();
+                    const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+                    
+                    // Fermer les autres dropdowns
+                    document.querySelectorAll('.nav-dropdown .dropdown-toggle').forEach(other => {
+                        if (other !== toggle) {
+                            other.setAttribute('aria-expanded', 'false');
+                            other.parentElement.classList.remove('active');
+                        }
+                    });
+                    
+                    toggle.setAttribute('aria-expanded', !isExpanded);
                     dropdown.classList.toggle('active');
                     
-                    const arrow = toggle.querySelector('.dropdown-arrow');
                     if (arrow) {
-                        arrow.textContent = dropdown.classList.contains('active') ? '▲' : '▼';
+                        arrow.textContent = !isExpanded ? '▲' : '▼';
                     }
+                }
+            });
+
+            // Navigation clavier pour dropdown
+            toggle.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.click();
                 }
             });
         }
     });
+}
+
+/**
+ * Gestion du loading overlay
+ */
+function showLoading(message) {
+    const overlay = document.getElementById('loading-overlay');
+    const text = overlay ? overlay.querySelector('.loading-text') : null;
+    if (overlay) {
+        if (message && text) text.textContent = message;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
 }

@@ -426,6 +426,34 @@ def api_diagnostic():
     return jsonify(results)
 
 
+@app.route('/api/password-audit')
+@require_connection
+def api_password_audit():
+    """API d'audit des mots de passe."""
+    from password_audit import run_password_audit
+    from audit import log_action, ACTIONS
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'error': error}), 500
+    
+    base_dn = session.get('ad_base_dn', '')
+    max_age = 90  # Jours
+    
+    audit_result = run_password_audit(conn, base_dn, max_age)
+    
+    # Journaliser l'audit
+    log_action(
+        ACTIONS['OTHER'],
+        session.get('ad_username', 'unknown'),
+        {'action': 'password_audit', 'issues_found': audit_result['summary']['total_issues']},
+        True
+    )
+    
+    conn.unbind()
+    return jsonify(audit_result)
+
+
 @app.route('/api/check-update')
 def api_check_update():
     """API pour vérifier les mises à jour."""
