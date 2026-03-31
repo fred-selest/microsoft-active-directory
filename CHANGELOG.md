@@ -5,6 +5,26 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.20.2] - 2026-03-31
+
+### Corrigé
+
+- **Logo manquant (404)** — remplacement de `logo.png` par `static/icons/icon.svg` dans `templates/base.html`.
+
+### Ajouté
+
+- **Dépendance `pycryptodome`** — ajout de `pycryptodome==3.20.0` dans `requirements.txt` pour le support MD4/NTLM Python 3.12+.
+
+---
+
+## [1.20.1] - 2026-03-31
+
+### Corrigé
+
+- **Route `/api/system-info` manquante** — ajout de l'endpoint API retournant version, plateforme, hostname, version Python, état connexion AD et support MD4.
+
+---
+
 ## [1.20.0] - 2026-03-31
 
 ### Ajouté

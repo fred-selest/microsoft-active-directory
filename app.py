@@ -324,6 +324,46 @@ def api_health():
     })
 
 
+@app.route('/api/system-info')
+def api_system_info():
+    """Endpoint pour les informations système complètes."""
+    from updater import get_current_version
+    from routes.core import get_ad_connection
+    
+    # Vérifier la connexion AD
+    ad_connected = False
+    ad_error = None
+    if is_connected():
+        try:
+            conn, error = get_ad_connection()
+            if conn:
+                ad_connected = True
+                conn.unbind()
+            else:
+                ad_error = str(error)
+        except Exception as e:
+            ad_error = str(e)
+    
+    # Vérifier le support MD4/NTLM
+    md4_supported = True
+    try:
+        import hashlib
+        hashlib.new('md4')
+    except ValueError:
+        md4_supported = False
+    
+    return jsonify({
+        'version': get_current_version(),
+        'platform': platform.system(),
+        'platform_release': platform.release(),
+        'hostname': platform.node(),
+        'python_version': platform.python_version(),
+        'ad_connected': ad_connected,
+        'ad_error': ad_error,
+        'md4_supported': md4_supported
+    })
+
+
 @app.route('/diagnostic')
 @require_connection
 def diagnostic_page():
