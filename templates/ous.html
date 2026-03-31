@@ -5,7 +5,6 @@
 {% block content %}
 <div class="page-header">
     <h2>Structure Active Directory</h2>
-    <a href="{{ url_for('create_ou') }}" class="btn btn-primary">Nouvelle unite d'organisation</a>
 </div>
 
 <div class="tabs">
@@ -21,7 +20,6 @@
                     <th>Nom</th>
                     <th>Description</th>
                     <th>Chemin (DN)</th>
-                    <th data-no-sort>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -30,18 +28,10 @@
                     <td>{{ ou.name }}</td>
                     <td>{{ ou.description }}</td>
                     <td class="dn-cell">{{ ou.dn }}</td>
-                    <td class="actions">
-                        <a href="{{ url_for('edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
-                        <form method="post" action="{{ url_for('delete_ou', dn=ou.dn) }}"
-                              style="display: inline;" onsubmit="return confirm('Supprimer cette unite d\'organisation ?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
-                        </form>
-                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="4" class="text-center">Aucune unite d'organisation trouvee.</td>
+                    <td colspan="3" class="text-center">Aucune unite d'organisation trouvee.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -96,7 +86,6 @@
     gap: 0.5rem;
     margin-bottom: 1rem;
 }
-
 .tab-btn {
     padding: 0.75rem 1.5rem;
     border: none;
@@ -105,27 +94,22 @@
     border-radius: 4px 4px 0 0;
     font-size: 1rem;
 }
-
 .tab-btn.active {
     background: white;
     border-bottom: 2px solid #0078d4;
 }
-
 .tab-content {
     display: none;
 }
-
 .tab-content.active {
     display: block;
 }
-
 .dn-cell {
     font-size: 0.85rem;
     color: #666;
     word-break: break-all;
     max-width: 300px;
 }
-
 .tree-container {
     background: white;
     padding: 1.5rem;
@@ -133,20 +117,16 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     overflow-x: auto;
 }
-
 .tree-view {
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.9rem;
 }
-
 .tree-node {
     margin-left: 1.5rem;
 }
-
 .tree-node:first-child {
     margin-left: 0;
 }
-
 .node-content {
     padding: 0.5rem;
     display: flex;
@@ -154,31 +134,25 @@
     gap: 0.5rem;
     border-radius: 4px;
 }
-
 .node-content:hover {
     background: #f5f5f5;
 }
-
 .node-icon {
     font-size: 1rem;
 }
-
 .node-name {
     font-weight: 600;
 }
-
 .node-dn {
     color: #666;
     font-size: 0.75rem;
     margin-left: auto;
 }
-
 .tree-children {
     border-left: 2px solid #ddd;
     margin-left: 0.5rem;
     padding-left: 0.5rem;
 }
-
 .tree-legend {
     background: white;
     padding: 1rem;
@@ -186,16 +160,13 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin-top: 1rem;
 }
-
 .tree-legend h4 {
     color: #0078d4;
     margin: 0 0 0.5rem;
 }
-
 .tree-legend p {
     margin: 0.25rem 0;
 }
-
 .text-muted {
     color: #666;
     font-style: italic;
@@ -206,15 +177,12 @@
 {% block extra_js %}
 <script>
 function showTab(tabName) {
-    // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-
-    // Show selected tab
     document.getElementById('tab-' + tabName).classList.add('active');
     event.target.classList.add('active');
 }

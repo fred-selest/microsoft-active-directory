@@ -6,24 +6,21 @@
 <div class="page-header">
     <h2>Utilisateurs Active Directory</h2>
     <div class="header-actions">
-        <a href="{{ url_for('create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
-        <a href="{{ url_for('import_users') }}" class="btn btn-secondary">Importer</a>
-        <a href="{{ url_for('export_users') }}" class="btn btn-secondary">CSV</a>
-        <a href="{{ url_for('export_users_excel') }}" class="btn btn-secondary">Excel</a>
-        <a href="{{ url_for('compare_users') }}" class="btn btn-secondary">Comparer</a>
-        <a href="{{ url_for('advanced_search') }}" class="btn btn-secondary">Recherche</a>
+        <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
+        <a href="{{ url_for('users.import_users') }}" class="btn btn-secondary">Importer</a>
+        <a href="{{ url_for('users.export_users') }}" class="btn btn-secondary">CSV</a>
     </div>
 </div>
 
 <div class="search-box">
-    <form method="get" action="{{ url_for('users') }}">
+    <form method="get" action="{{ url_for('users.list_users') }}">
         <div class="form-group">
             <input type="text" name="search" placeholder="Rechercher un utilisateur..."
                    value="{{ search }}" class="form-control">
         </div>
         <button type="submit" class="btn btn-secondary">Rechercher</button>
         {% if search %}
-        <a href="{{ url_for('users') }}" class="btn btn-secondary">Effacer</a>
+        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Effacer</a>
         {% endif %}
     </form>
 </div>
@@ -57,11 +54,8 @@
                     {% endif %}
                 </td>
                 <td class="actions">
-                    <a href="{{ url_for('edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
-                    <a href="{{ url_for('reset_password', dn=user.dn) }}" class="btn btn-sm btn-warning">MDP</a>
-                    <a href="{{ url_for('user_login_history', dn=user.dn) }}" class="btn btn-sm btn-info">Hist.</a>
                     <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn }}', '{{ user.displayName or user.cn }}')">Deplacer</button>
-                    <form method="post" action="{{ url_for('delete_user', dn=user.dn) }}"
+                    <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
@@ -82,21 +76,21 @@
 {% if total_pages > 1 %}
 <div class="pagination">
     {% if page > 1 %}
-    <a href="{{ url_for('users', search=search, page=page-1) }}" class="btn btn-sm btn-secondary">&laquo; Precedent</a>
+    <a href="{{ url_for('users.list_users', search=search, page=page-1) }}" class="btn btn-sm btn-secondary">&laquo; Precedent</a>
     {% endif %}
 
     {% for p in range(1, total_pages + 1) %}
         {% if p == page %}
         <span class="btn btn-sm btn-primary">{{ p }}</span>
         {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
-        <a href="{{ url_for('users', search=search, page=p) }}" class="btn btn-sm btn-secondary">{{ p }}</a>
+        <a href="{{ url_for('users.list_users', search=search, page=p) }}" class="btn btn-sm btn-secondary">{{ p }}</a>
         {% elif p == 4 or p == total_pages - 3 %}
         <span class="pagination-ellipsis">...</span>
         {% endif %}
     {% endfor %}
 
     {% if page < total_pages %}
-    <a href="{{ url_for('users', search=search, page=page+1) }}" class="btn btn-sm btn-secondary">Suivant &raquo;</a>
+    <a href="{{ url_for('users.list_users', search=search, page=page+1) }}" class="btn btn-sm btn-secondary">Suivant &raquo;</a>
     {% endif %}
 </div>
 {% endif %}
@@ -168,7 +162,6 @@
 
 {% block extra_js %}
 <script>
-// Recherche AJAX en temps reel
 const searchInput = document.querySelector('input[name="search"]');
 if (searchInput) {
     let timeout;
@@ -180,7 +173,6 @@ if (searchInput) {
     });
 }
 
-// Modal pour deplacer un utilisateur
 function showMoveModal(dn, name) {
     document.getElementById('moveUserName').textContent = 'Utilisateur: ' + name;
     document.getElementById('moveForm').action = '/users/' + encodeURIComponent(dn) + '/move';
@@ -191,7 +183,6 @@ function closeMoveModal() {
     document.getElementById('moveModal').style.display = 'none';
 }
 
-// Fermer le modal en cliquant a l'exterieur
 document.getElementById('moveModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeMoveModal();
