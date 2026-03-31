@@ -21,7 +21,7 @@
                 {% if site_settings.logo %}
                 <img src="{{ url_for('static', filename='images/' + site_settings.logo) }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
                 {% else %}
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+                <img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="Logo" class="nav-logo">
                 {% endif %}
                 <span class="nav-title">{{ site_settings.title or 'AD Web Interface' }}</span>
             </a>

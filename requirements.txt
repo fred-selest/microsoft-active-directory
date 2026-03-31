@@ -28,3 +28,6 @@ requests==2.31.0
 
 # Cryptographie pour le chiffrement des sessions
 cryptography==41.0.7
+
+# MD4/NTLM support (Python 3.12+ / OpenSSL 3.0 sans legacy provider)
+pycryptodome==3.20.0
