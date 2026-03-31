@@ -10,7 +10,7 @@ import os
 import platform
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-from ad_detect import get_local_domain
+from ad_detect import get_local_domain, detect_ad_config
 
 from config import get_config
 from security import generate_csrf_token, validate_csrf_token, add_security_headers, get_secure_session_config, check_rate_limit, record_login_attempt
@@ -139,7 +139,7 @@ def connect():
             flash(f'Trop de tentatives. Réessayez dans {remaining}s.', 'error')
             return render_template('connect.html', connected=is_connected())
 
-        server = request.form.get('server')
+        server = request.form.get('server', '').strip()
         username = request.form.get('username', '').strip()
         password = request.form.get('password')
         use_ssl = request.form.get('use_ssl') == 'on'
@@ -150,6 +150,24 @@ def connect():
         # Si l'utilisateur a saisi juste un nom (sans \ ni @), préfixer avec le domaine
         if domain and '\\' not in username and '@' not in username:
             username = f"{domain}\\{username}"
+
+        # Serveur manquant : essayer de déduire depuis le domaine
+        if not server and domain:
+            ad_config = detect_ad_config()
+            server = ad_config.get('server', '')
+            if not server:
+                # Dernier recours : utiliser le domaine FQDN directement
+                full_domain = get_local_domain() or ''
+                server = full_domain if full_domain else domain
+
+        if not server:
+            flash('Adresse du serveur AD requise. Veuillez la saisir dans les options avancées.', 'error')
+            ad_cfg = detect_ad_config()
+            detected_domain = ad_cfg['domain'].split('.')[0].upper() if ad_cfg['domain'] else domain
+            return render_template('connect.html', connected=is_connected(),
+                                   auto_domain=detected_domain,
+                                   auto_detected=False,
+                                   server='', port=389, base_dn=ad_cfg.get('base_dn', ''), use_ssl=False)
 
         port = int(port) if port else None
         conn, error = get_ad_connection(server, username, password, use_ssl, port)
@@ -184,11 +202,17 @@ def connect():
             log_action(ACTIONS['LOGIN'], username, {'error': error}, False, ip)
             flash(f'Erreur: {error}', 'error')
 
-    # Détecter le domaine local pour pré-remplir le champ
-    detected_domain_full = get_local_domain()  # ex: SELEST.local
-    detected_domain = detected_domain_full.split('.')[0].upper() if detected_domain_full else ''
+    # Détecter la configuration AD complète
+    ad_cfg = detect_ad_config()
+    detected_domain = ad_cfg['domain'].split('.')[0].upper() if ad_cfg['domain'] else ''
+    auto_detected = ad_cfg['auto_detected'] and bool(ad_cfg.get('server', ''))
     return render_template('connect.html', connected=is_connected(),
-                           auto_domain=detected_domain)
+                           auto_domain=detected_domain,
+                           auto_detected=auto_detected,
+                           server=ad_cfg.get('server', ''),
+                           port=ad_cfg.get('port', 389),
+                           base_dn=ad_cfg.get('base_dn', ''),
+                           use_ssl=ad_cfg.get('use_ssl', False))
 
 
 @app.route('/disconnect')

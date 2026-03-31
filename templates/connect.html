@@ -45,88 +45,107 @@
                    autocomplete="current-password">
         </div>
 
-        <input type="hidden" id="server" name="server" value="{{ server }}">
-        <input type="hidden" id="port" name="port" value="{{ port }}">
-        <input type="hidden" id="base_dn" name="base_dn" value="{{ base_dn }}">
-        <input type="hidden" id="use_ssl" name="use_ssl" value="{{ 'on' if use_ssl else '' }}">
+        {% if auto_detected %}
+        {# Serveur détecté : champs cachés #}
+        <input type="hidden" name="server" value="{{ server }}">
+        <input type="hidden" name="port" value="{{ port }}">
+        <input type="hidden" name="base_dn" value="{{ base_dn }}">
+        <input type="hidden" name="use_ssl" value="{{ 'on' if use_ssl else '' }}">
+        {% else %}
+        {# Serveur non détecté : champ visible obligatoire #}
+        <div class="form-group">
+            <label for="server">Serveur Active Directory *</label>
+            <input type="text" id="server" name="server" required
+                   value="{{ server }}"
+                   placeholder="192.168.10.252 ou ad.exemple.com"
+                   autocomplete="off">
+            <small class="form-text">Adresse IP ou nom DNS du contrôleur de domaine</small>
+        </div>
+        <div class="advanced-row">
+            <div class="form-group">
+                <label for="port">Port</label>
+                <input type="number" id="port" name="port"
+                       value="{{ port or 389 }}" placeholder="389">
+            </div>
+            <div class="form-group">
+                <label for="base_dn">Base DN</label>
+                <input type="text" id="base_dn" name="base_dn"
+                       value="{{ base_dn }}"
+                       placeholder="DC=SELEST,DC=local">
+                <small class="form-text">Laisser vide pour auto-détection</small>
+            </div>
+        </div>
+        <div class="form-group checkbox">
+            <input type="checkbox" id="use_ssl" name="use_ssl" {% if use_ssl %}checked{% endif %}>
+            <label for="use_ssl">SSL/TLS (LDAPS — port 636)</label>
+        </div>
+        {% endif %}
 
         <button type="submit" class="btn btn-primary btn-block">
             Se connecter
         </button>
     </form>
-    
-    {% if not auto_detected %}
-    <div class="alert alert-warning mt-3">
+
+    {% if auto_detected %}
+    <div class="alert alert-info mt-3">
         <small>
-            <strong>Configuration manuelle :</strong> 
-            La détection automatique n'a pas fonctionné. 
-            <a href="#" onclick="document.getElementById('manual-config').style.display='block'; return false;">
+            <strong>Configuration manuelle :</strong>
+            <a href="#" onclick="document.getElementById('manual-config').style.display='block'; this.parentElement.style.display='none'; return false;">
                 Afficher les options avancées
             </a>
         </small>
     </div>
-    
     <div id="manual-config" style="display:none;" class="mt-3">
         <hr>
-        <h4>Configuration manuelle</h4>
+        <h4>Remplacer la configuration détectée</h4>
         <form method="POST" action="{{ url_for('connect') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
             <div class="form-group">
-                <label for="server_manual">Serveur AD</label>
-                <input type="text" id="server_manual" name="server" 
-                       placeholder="ad.exemple.com ou 192.168.1.100">
+                <label>Serveur AD</label>
+                <input type="text" name="server" value="{{ server }}"
+                       placeholder="192.168.10.252 ou ad.exemple.com">
             </div>
-
             <div class="form-group">
-                <label for="port_manual">Port</label>
-                <input type="number" id="port_manual" name="port"
-                       placeholder="389 (LDAP) ou 636 (LDAPS)" value="389">
+                <label>Port</label>
+                <input type="number" name="port" value="{{ port or 389 }}">
             </div>
-
             <div class="form-group checkbox">
-                <input type="checkbox" id="use_ssl_manual" name="use_ssl">
-                <label for="use_ssl_manual">Utiliser SSL/TLS (LDAPS)</label>
+                <input type="checkbox" name="use_ssl" {% if use_ssl %}checked{% endif %}>
+                <label>SSL/TLS (LDAPS)</label>
             </div>
-
             <div class="form-group">
-                <label for="base_dn_manual">Base DN</label>
-                <input type="text" id="base_dn_manual" name="base_dn"
-                       placeholder="DC=exemple,DC=com">
-                <small class="form-text">Laissez vide pour détection automatique</small>
+                <label>Base DN</label>
+                <input type="text" name="base_dn" value="{{ base_dn }}"
+                       placeholder="DC=SELEST,DC=local">
             </div>
-            
             <div class="form-group">
-                <label for="username_manual">Identifiant</label>
-                <input type="text" id="username_manual" name="username" required
-                       placeholder="DOMAIN\username">
+                <label>Domaine</label>
+                <input type="text" name="domain" value="{{ auto_domain }}">
             </div>
-
             <div class="form-group">
-                <label for="password_manual">Mot de passe</label>
-                <input type="password" id="password_manual" name="password" required>
+                <label>Identifiant</label>
+                <input type="text" name="username" required placeholder="admin">
             </div>
-
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <input type="password" name="password" required>
+            </div>
             <button type="submit" class="btn btn-primary">Se connecter</button>
         </form>
     </div>
     {% endif %}
 </div>
 
-<script>
-// Transférer les valeurs du formulaire manuel vers le formulaire principal
-document.querySelectorAll('#manual-config input').forEach(input => {
-    input.addEventListener('change', function() {
-        const manualId = this.id.replace('_manual', '');
-        const mainInput = document.getElementById(manualId);
-        if (mainInput) {
-            if (this.type === 'checkbox') {
-                mainInput.value = this.checked ? 'on' : '';
-            } else {
-                mainInput.value = this.value;
-            }
-        }
-    });
-});
-</script>
+{% block extra_css %}
+<style>
+.advanced-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+}
+@media (max-width: 600px) {
+    .advanced-row { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
 {% endblock %}
