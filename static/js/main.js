@@ -49,6 +49,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Vérifier les informations système
     fetchSystemInfo();
 
+    // Menu burger pour mobile
+    initMobileMenu();
+
+    // Dropdown mobile
+    initMobileDropdowns();
+
     // Initialiser les tableaux triables
     initSortableTables();
 
@@ -310,4 +316,67 @@ async function fetchSystemInfo() {
 function clearCredentials() {
     sessionStorage.removeItem('ad_credentials');
     alert('Identifiants effacés.');
+}
+
+/**
+ * Initialiser le menu burger pour mobile
+ */
+function initMobileMenu() {
+    const menuToggle = document.querySelector('.menu-toggle');
+    const navLinks = document.querySelector('.nav-links');
+
+    if (menuToggle && navLinks) {
+        menuToggle.addEventListener('click', function() {
+            navLinks.classList.toggle('active');
+            
+            // Changer l'icône du menu burger
+            const icon = menuToggle.querySelector('span');
+            if (navLinks.classList.contains('active')) {
+                menuToggle.setAttribute('aria-expanded', 'true');
+                if (icon) icon.textContent = '×';
+            } else {
+                menuToggle.setAttribute('aria-expanded', 'false');
+                if (icon) icon.textContent = '☰';
+            }
+        });
+
+        // Fermer le menu quand on clique sur un lien
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', function() {
+                // Ne pas fermer si c'est un dropdown
+                if (!this.parentElement.classList.contains('nav-dropdown')) {
+                    navLinks.classList.remove('active');
+                    const icon = menuToggle.querySelector('span');
+                    if (icon) icon.textContent = '☰';
+                    menuToggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    }
+}
+
+/**
+ * Initialiser les dropdowns pour mobile
+ */
+function initMobileDropdowns() {
+    const dropdowns = document.querySelectorAll('.nav-dropdown');
+
+    dropdowns.forEach(dropdown => {
+        const toggle = dropdown.querySelector('a');
+        
+        if (toggle) {
+            toggle.addEventListener('click', function(e) {
+                // Seulement sur mobile
+                if (window.innerWidth <= 768) {
+                    e.preventDefault();
+                    dropdown.classList.toggle('active');
+                    
+                    const arrow = toggle.querySelector('.dropdown-arrow');
+                    if (arrow) {
+                        arrow.textContent = dropdown.classList.contains('active') ? '▲' : '▼';
+                    }
+                }
+            });
+        }
+    });
 }

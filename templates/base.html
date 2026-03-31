@@ -25,6 +25,9 @@
                 {% endif %}
                 <span class="nav-title">{{ site_settings.title or 'AD Web Interface' }}</span>
             </a>
+            <button class="menu-toggle" aria-label="Menu" aria-expanded="false">
+                <span>☰</span>
+            </button>
         </div>
         <ul class="nav-links">{% if connected %}
             <li><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
@@ -34,7 +37,7 @@
             <li><a href="{{ url_for('computers.list_computers') }}">Ordinateurs</a></li>
             <li><a href="{{ url_for('ous') }}">Structure</a></li>
             <li class="nav-dropdown">
-                <a href="#">Plus &#9662;</a>
+                <a href="#">Plus <span class="dropdown-arrow">▼</span></a>
                 <ul class="dropdown-menu">{% if has_permission('admin') %}
                     <li><a href="{{ url_for('tools.laps_passwords') }}">LAPS</a></li>{% endif %}{% if has_permission('admin') %}
                     <li><a href="{{ url_for('tools.bitlocker_keys') }}">BitLocker</a></li>{% endif %}{% if has_permission('write') %}
