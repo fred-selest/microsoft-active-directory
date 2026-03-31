@@ -2,7 +2,7 @@
 Blueprint pour la gestion des groupes.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from ldap3 import SUBTREE, MODIFY_ADD, MODIFY_DELETE
+from ldap3 import SUBTREE, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3.core.exceptions import LDAPException
 
 from .core import (get_ad_connection, decode_ldap_value, is_connected,
@@ -104,7 +104,7 @@ def view_group(dn):
         }
         conn.unbind()
 
-        return render_template('group_detail.html', group=group, connected=is_connected())
+        return render_template('group_details.html', group=group, connected=is_connected())
     except Exception as e:
         flash(f'Erreur: {str(e)}', 'error')
         return redirect(url_for('groups.list_groups'))
@@ -272,3 +272,61 @@ def create_group():
             conn.unbind()
 
     return render_template('create_group.html', ous=ou_list, connected=is_connected())
+
+
+@groups_bp.route('/<path:dn>/edit', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def edit_group(dn):
+    """Modifier la description d'un groupe."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('groups.list_groups'))
+
+    base_dn = session.get('ad_base_dn', '')
+    group = None
+
+    try:
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                   attributes=['cn', 'description', 'distinguishedName'])
+        if not conn.entries:
+            flash('Groupe introuvable.', 'error')
+            conn.unbind()
+            return redirect(url_for('groups.list_groups'))
+        entry = conn.entries[0]
+        group = {
+            'cn': decode_ldap_value(entry.cn),
+            'description': decode_ldap_value(entry.description),
+            'dn': dn,
+        }
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('groups.list_groups'))
+
+    if request.method == 'POST':
+        if not validate_csrf_token(request.form.get('csrf_token')):
+            flash('Token CSRF invalide.', 'error')
+            return render_template('group_form.html', action='edit', group=group, connected=is_connected())
+
+        description = request.form.get('description', '').strip()
+        try:
+            conn.modify(dn, {'description': [(MODIFY_REPLACE, [description] if description else [])]})
+            if conn.result['result'] == 0:
+                log_action(ACTIONS.get('EDIT_GROUP', 'edit_group'), session.get('ad_username'),
+                          {'dn': dn}, True, request.remote_addr)
+                flash('Groupe modifié.', 'success')
+                conn.unbind()
+                return redirect(url_for('groups.list_groups'))
+            else:
+                flash(f'Erreur: {conn.result["description"]}', 'error')
+        except Exception as e:
+            flash(f'Erreur: {str(e)}', 'error')
+        finally:
+            try:
+                conn.unbind()
+            except Exception:
+                pass
+
+    return render_template('group_form.html', action='edit', group=group, connected=is_connected())

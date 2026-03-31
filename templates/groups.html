@@ -65,6 +65,7 @@
                 <td>{{ group.member_count }}</td>
                 <td class="actions">
                     <a href="{{ url_for('groups.view_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Membres</a>
+                    <a href="{{ url_for('groups.edit_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     <form method="post" action="{{ url_for('groups.delete_group', dn=group.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer ce groupe ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
