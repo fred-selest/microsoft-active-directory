@@ -7,6 +7,8 @@
     <h2>Utilisateurs Active Directory</h2>
     <div class="header-actions">
         <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
+        <a href="{{ url_for('users.bulk_operations') }}" class="btn btn-secondary">Masse</a>
+        <a href="{{ url_for('users.compare_users') }}" class="btn btn-secondary">Comparer</a>
         <a href="{{ url_for('users.import_users') }}" class="btn btn-secondary">Importer</a>
         <a href="{{ url_for('users.export_users') }}" class="btn btn-secondary">CSV</a>
     </div>

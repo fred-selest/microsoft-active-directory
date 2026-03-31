@@ -546,6 +546,167 @@ def duplicate_user(dn):
     return render_template('duplicate_user.html', user=user, ous=ou_list, connected=is_connected())
 
 
+@users_bp.route('/compare', methods=['GET', 'POST'])
+@require_connection
+def compare_users():
+    """Comparer deux utilisateurs côte à côte."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('users.list_users'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    try:
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'distinguishedName'])
+        user_list = [{'cn': decode_ldap_value(e.cn),
+                      'sAMAccountName': decode_ldap_value(e.sAMAccountName),
+                      'dn': decode_ldap_value(e.distinguishedName)}
+                     for e in conn.entries]
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('users.list_users'))
+
+    if request.method == 'GET':
+        conn.unbind()
+        return render_template('compare_users_form.html', users=user_list, connected=is_connected())
+
+    # POST — compare
+    dn1 = request.form.get('user1', '')
+    dn2 = request.form.get('user2', '')
+
+    COMPARE_ATTRS = ['cn', 'givenName', 'sn', 'displayName', 'mail', 'telephoneNumber',
+                     'department', 'title', 'description', 'userAccountControl',
+                     'memberOf', 'manager', 'company', 'physicalDeliveryOfficeName']
+
+    def fetch_user(dn):
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE, attributes=COMPARE_ATTRS)
+        if not conn.entries:
+            return None
+        entry = conn.entries[0]
+        result = {}
+        for attr in COMPARE_ATTRS:
+            try:
+                val = getattr(entry, attr).value if hasattr(entry, attr) else None
+                if isinstance(val, list):
+                    result[attr] = [str(v) for v in val]
+                else:
+                    result[attr] = str(val) if val is not None else ''
+            except Exception:
+                result[attr] = ''
+        result['cn'] = decode_ldap_value(entry.cn)
+        return result
+
+    try:
+        u1 = fetch_user(dn1)
+        u2 = fetch_user(dn2)
+        conn.unbind()
+        if not u1 or not u2:
+            flash('Un ou deux utilisateurs introuvables.', 'error')
+            return render_template('compare_users_form.html', users=user_list, connected=is_connected())
+        return render_template('compare_users.html', user1=u1, user2=u2,
+                               attributes=COMPARE_ATTRS, connected=is_connected())
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+        conn.unbind()
+        return render_template('compare_users_form.html', users=user_list, connected=is_connected())
+
+
+@users_bp.route('/bulk', methods=['GET', 'POST'])
+@require_connection
+@require_permission('write')
+def bulk_operations():
+    """Opérations en masse sur les utilisateurs."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('users.list_users'))
+
+    base_dn = session.get('ad_base_dn', '')
+
+    try:
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'distinguishedName', 'userAccountControl'])
+        user_list = []
+        for e in conn.entries:
+            uac = e.userAccountControl.value if hasattr(e, 'userAccountControl') and e.userAccountControl else 512
+            user_list.append({
+                'cn': decode_ldap_value(e.cn),
+                'sAMAccountName': decode_ldap_value(e.sAMAccountName),
+                'dn': decode_ldap_value(e.distinguishedName),
+                'disabled': bool(int(uac) & 2),
+            })
+    except Exception as e:
+        flash(f'Erreur: {str(e)}', 'error')
+        conn.unbind()
+        return redirect(url_for('users.list_users'))
+
+    if request.method == 'GET':
+        conn.unbind()
+        return render_template('bulk_operations.html', users=user_list, connected=is_connected())
+
+    # POST — execute
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        conn.unbind()
+        return render_template('bulk_operations.html', users=user_list, connected=is_connected())
+
+    action = request.form.get('action', '')
+    selected_dns = request.form.getlist('user_dns')
+    new_password = request.form.get('new_password', '')
+
+    if not selected_dns:
+        flash('Aucun utilisateur sélectionné.', 'error')
+        conn.unbind()
+        return render_template('bulk_operations.html', users=user_list, connected=is_connected())
+
+    success_count = 0
+    error_count = 0
+
+    try:
+        for dn in selected_dns:
+            try:
+                if action == 'enable':
+                    conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                               attributes=['userAccountControl'])
+                    if conn.entries:
+                        uac = int(conn.entries[0].userAccountControl.value or 512)
+                        conn.modify(dn, {'userAccountControl': [(MODIFY_REPLACE, [uac & ~2])]})
+                elif action == 'disable':
+                    conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                               attributes=['userAccountControl'])
+                    if conn.entries:
+                        uac = int(conn.entries[0].userAccountControl.value or 512)
+                        conn.modify(dn, {'userAccountControl': [(MODIFY_REPLACE, [uac | 2])]})
+                elif action == 'reset_password' and new_password:
+                    unicode_pwd = f'"{new_password}"'.encode('utf-16-le')
+                    conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+                elif action == 'delete':
+                    conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE, attributes=['*'])
+                    attributes = {}
+                    if conn.entries:
+                        entry = conn.entries[0]
+                        attributes = {attr: str(entry[attr].value) for attr in entry.entry_attributes}
+                    from backup import backup_object
+                    backup_object('user', dn, attributes)
+                    conn.delete(dn)
+                if conn.result['result'] == 0:
+                    success_count += 1
+                else:
+                    error_count += 1
+            except Exception:
+                error_count += 1
+    finally:
+        conn.unbind()
+
+    log_action(ACTIONS.get('BULK_ACTION', 'bulk_action'), session.get('ad_username'),
+              {'action': action, 'count': success_count}, True, request.remote_addr)
+    flash(f'{success_count} utilisateur(s) traité(s), {error_count} erreur(s).', 'success' if not error_count else 'warning')
+    return redirect(url_for('users.list_users'))
+
+
 @users_bp.route('/import', methods=['GET', 'POST'])
 @require_connection
 @require_permission('write')
