@@ -25,6 +25,7 @@ from routes.groups import groups_bp
 from routes.computers import computers_bp
 from routes.tools import tools_bp
 from routes.admin import admin_bp
+from routes.ous import ous_bp
 
 app = Flask(__name__)
 config = get_config()
@@ -47,6 +48,7 @@ app.register_blueprint(groups_bp)
 app.register_blueprint(computers_bp)
 app.register_blueprint(tools_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(ous_bp)
 
 # Cache mise à jour
 _update_cache = {'last_check': 0, 'result': None}

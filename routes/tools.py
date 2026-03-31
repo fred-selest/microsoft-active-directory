@@ -327,3 +327,28 @@ def password_policy():
         flash(f'Erreur: {str(e)}', 'error')
 
     return render_template('password_policy.html', policy=policy, connected=is_connected())
+
+
+
+# === BACKUPS ===
+@tools_bp.route('/backups')
+@require_connection
+@require_permission('admin')
+def backups():
+    """Liste des backups d'objets AD."""
+    from backup import get_backups
+    backup_list = get_backups(limit=100)
+    return render_template('backups.html', backups=backup_list, connected=is_connected())
+
+
+@tools_bp.route('/backups/<filename>')
+@require_connection
+@require_permission('admin')
+def view_backup(filename):
+    """Voir le détail d'un backup."""
+    from backup import get_backup_content
+    backup = get_backup_content(filename)
+    if not backup:
+        flash('Backup introuvable.', 'error')
+        return redirect(url_for('tools.backups'))
+    return render_template('backup_detail.html', backup=backup, connected=is_connected())
