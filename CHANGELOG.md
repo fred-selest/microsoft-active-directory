@@ -5,6 +5,30 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.20.0] - 2026-03-31
+
+### Ajouté
+
+- **Modifier un utilisateur** — nouvelle route `GET/POST /users/<dn>/edit` : modification des attributs personnels et professionnels (prénom, nom, email, téléphone, service, fonction, description), changement de mot de passe optionnel, activation/désactivation du compte.
+- **Réinitialiser le mot de passe** — nouvelle route `GET/POST /users/<dn>/reset-password` : formulaire dédié avec confirmation et option « forcer le changement à la prochaine connexion ».
+- **Activer / Désactiver un utilisateur** — nouvelle route `POST /users/<dn>/toggle` : bascule `userAccountControl` sans quitter la liste. Bouton contextuel (vert = Activer, orange = Désactiver) dans la liste.
+- **Dupliquer un utilisateur** — nouvelle route `GET/POST /users/<dn>/duplicate` : clone les attributs professionnels et copie optionnelle de l'appartenance aux groupes.
+- **Comparer deux utilisateurs** — nouvelle route `GET/POST /users/compare` : tableau côte à côte de 14 attributs AD avec mise en évidence des différences.
+- **Opérations en masse** — nouvelle route `GET/POST /users/bulk` : activer, désactiver, réinitialiser le mot de passe ou supprimer plusieurs utilisateurs en une seule action (backup automatique avant suppression).
+- **Gestion des OUs** — nouveau blueprint `ous_bp` avec trois routes : `POST /ous/create`, `GET/POST /ous/<dn>/edit` (description), `POST /ous/<dn>/delete`. Boutons Créer / Modifier / Supprimer dans la page Structure.
+- **Modifier un groupe** — nouvelle route `GET/POST /groups/<dn>/edit` : modification de la description du groupe. Bouton Modifier dans la liste des groupes.
+- **Déplacer un ordinateur** — nouvelle route `POST /computers/<dn>/move` : déplace vers une OU cible via modal (déjà présent dans l'interface). `list_computers` fournit maintenant aussi `dNSHostName`, `operatingSystemVersion` et la liste des OUs.
+- **Gestion des backups** — deux nouvelles routes dans `tools_bp` : `GET /backups` (liste) et `GET /backups/<filename>` (détail) utilisant `get_backups()` et `get_backup_content()` de `backup.py`.
+
+### Corrigé
+
+- **Erreurs 500 sur tous les menus** — tous les `url_for()` des templates (`users.html`, `groups.html`, `computers.html`, `ous.html`) corrigés pour inclure le préfixe Blueprint (`users.list_users`, `groups.list_groups`, etc.). Routes inexistantes supprimées des templates.
+- **`group_detail.html` introuvable** — `routes/groups.py` référençait `group_detail.html` alors que le fichier s'appelle `group_details.html` (avec 's') ; corrigé, la page Membres des groupes fonctionne à nouveau.
+- **Templates orphelins** — `user_form.html`, `reset_password.html`, `duplicate_user.html`, `group_form.html`, `compare_users_form.html`, `compare_users.html`, `bulk_operations.html`, `backups.html`, `backup_detail.html` : tous les `url_for()` mis à jour avec les bons endpoints Blueprint.
+- **Section « Appartenance aux groupes » cassée dans `user_form.html`** — suppression des références à `add_user_to_group` et `remove_user_from_group` (routes inexistantes) qui levaient une `BuildError`.
+
+---
+
 ## [1.19.1] - 2026-03-30
 
 ### Corrigé
