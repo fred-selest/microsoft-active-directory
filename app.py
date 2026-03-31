@@ -10,6 +10,7 @@ import os
 import platform
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from ad_detect import get_local_domain
 
 from config import get_config
 from security import generate_csrf_token, validate_csrf_token, add_security_headers, get_secure_session_config, check_rate_limit, record_login_attempt
@@ -137,11 +138,16 @@ def connect():
             return render_template('connect.html', connected=is_connected())
 
         server = request.form.get('server')
-        username = request.form.get('username')
+        username = request.form.get('username', '').strip()
         password = request.form.get('password')
         use_ssl = request.form.get('use_ssl') == 'on'
         port = request.form.get('port', '')
         base_dn = request.form.get('base_dn', '')
+        domain = request.form.get('domain', '').strip()
+
+        # Si l'utilisateur a saisi juste un nom (sans \ ni @), préfixer avec le domaine
+        if domain and '\\' not in username and '@' not in username:
+            username = f"{domain}\\{username}"
 
         port = int(port) if port else None
         conn, error = get_ad_connection(server, username, password, use_ssl, port)
@@ -176,7 +182,11 @@ def connect():
             log_action(ACTIONS['LOGIN'], username, {'error': error}, False, ip)
             flash(f'Erreur: {error}', 'error')
 
-    return render_template('connect.html', connected=is_connected())
+    # Détecter le domaine local pour pré-remplir le champ
+    detected_domain_full = get_local_domain()  # ex: SELEST.local
+    detected_domain = detected_domain_full.split('.')[0].upper() if detected_domain_full else ''
+    return render_template('connect.html', connected=is_connected(),
+                           auto_domain=detected_domain)
 
 
 @app.route('/disconnect')
