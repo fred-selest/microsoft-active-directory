@@ -2,7 +2,7 @@
 
 Interface web pour Microsoft Active Directory. Gérez vos utilisateurs, groupes et ordinateurs directement depuis votre navigateur — aucune installation requise côté client.
 
-> **Version actuelle : 1.20.0** — [Voir les releases](https://github.com/fred-selest/microsoft-active-directory/releases)
+> **Version actuelle : 1.20.1** — [Voir les releases](https://github.com/fred-selest/microsoft-active-directory/releases)
 
 ---
 

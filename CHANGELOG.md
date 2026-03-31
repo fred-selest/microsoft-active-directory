@@ -5,6 +5,14 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.20.1] - 2026-03-31
+
+### Corrigé
+
+- **Connexion impossible sans auto-détection du serveur** — quand `detect_ad_config()` ne trouvait pas l'adresse du contrôleur de domaine (DNS SRV absent, hors domaine), le champ `server` était un `<input hidden>` avec `value=""`. La soumission du formulaire envoyait `server=""` → `get_ad_connection()` retournait "Non connecté" sans même tenter la connexion LDAP. Corrections : `app.py` appelle maintenant `detect_ad_config()` sur le GET et passe `server`, `port`, `base_dn`, `use_ssl`, `auto_detected` au template ; `connect.html` affiche le champ serveur directement dans le formulaire principal quand `auto_detected=False` (plus de formulaire caché dans les options avancées).
+
+---
+
 ## [1.20.0] - 2026-03-31
 
 ### Ajouté
