@@ -20,25 +20,51 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read version and create tag
+      - name: Read version and check tag/release status
         id: tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(cat VERSION | tr -d '[:space:]')
           TAG="v${VERSION}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
+          # Check if tag already exists
+          TAG_EXISTS=false
           if git ls-remote --tags origin "${TAG}" | grep -q "${TAG}"; then
-            echo "Tag ${TAG} already exists, skipping."
+            TAG_EXISTS=true
+          fi
+
+          # Check if release already exists
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
+          RELEASE_EXISTS=false
+          if [ "$HTTP_STATUS" = "200" ]; then
+            RELEASE_EXISTS=true
+          fi
+
+          echo "tag_exists=$TAG_EXISTS"
+          echo "release_exists=$RELEASE_EXISTS"
+
+          if [ "$TAG_EXISTS" = "true" ] && [ "$RELEASE_EXISTS" = "true" ]; then
+            echo "Tag and release already exist — nothing to do."
             echo "skip=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${TAG}" -m "Release ${TAG}"
-          git push origin "${TAG}"
-          echo "Tag ${TAG} created."
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          # Create tag if missing
+          if [ "$TAG_EXISTS" = "false" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "${TAG}" -m "Release ${TAG}"
+            git push origin "${TAG}"
+            echo "Tag ${TAG} created."
+          else
+            echo "Tag ${TAG} already exists — skipping tag creation."
+          fi
+
           echo "skip=false" >> $GITHUB_OUTPUT
 
       - name: Read CHANGELOG
