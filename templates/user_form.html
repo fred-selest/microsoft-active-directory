@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h2>{% if action == 'create' %}Nouvel utilisateur{% else %}Modifier l'utilisateur{% endif %}</h2>
-    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour a la liste</a>
+    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour a la liste</a>
 </div>
 
 <div class="form-container">
@@ -138,49 +138,13 @@
             </div>
         </div>
 
-        <div class="form-section">
-            <h3>Appartenance aux groupes</h3>
-
-            <!-- Ajouter a un groupe -->
-            <div class="add-to-group-form">
-                <p><strong>Ajouter a un groupe:</strong></p>
-                <form method="post" action="{{ url_for('add_user_to_group', dn=user.dn) }}" class="inline-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="form-group">
-                        <input type="text" name="group_dn" id="group_search"
-                               placeholder="Rechercher un groupe ou entrer le DN..."
-                               autocomplete="off" required>
-                        <div id="group-suggestions" class="suggestions-dropdown"></div>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
-                </form>
-            </div>
-
-            {% if user.memberOf %}
-            <p><strong>Membre de {{ user.memberOf|length }} groupe(s):</strong></p>
-            <ul class="group-list">
-                {% for group in user.memberOf %}
-                <li class="group-item">
-                    <span class="group-name">{{ group }}</span>
-                    <form method="post" action="{{ url_for('remove_user_from_group', dn=user.dn) }}" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="group_dn" value="{{ group }}">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Retirer de ce groupe ?');">Retirer</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p class="text-muted">Cet utilisateur n'appartient a aucun groupe.</p>
-            {% endif %}
-        </div>
         {% endif %}
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">
                 {% if action == 'create' %}Creer l'utilisateur{% else %}Enregistrer les modifications{% endif %}
             </button>
-            <a href="{{ url_for('users') }}" class="btn btn-secondary">Annuler</a>
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
 </div>
