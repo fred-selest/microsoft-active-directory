@@ -35,7 +35,7 @@
         <div class="stat-card stat-blue">
             <div class="stat-icon">📡</div>
             <div class="stat-content">
-                <span class="stat-value">{{ debug_data.session.connected|yesno("1,0") }}</span>
+                <span class="stat-value">{{ '1' if debug_data.session.connected else '0' }}</span>
                 <span class="stat-label">Connexion AD</span>
             </div>
         </div>
@@ -56,7 +56,7 @@
         <div class="stat-card stat-orange">
             <div class="stat-icon">🛠️</div>
             <div class="stat-content">
-                <span class="stat-value">{{ debug_data.config.debug|yesno("Activé,Désactivé") }}</span>
+                <span class="stat-value">{{ '🟢 Activé' if debug_data.config.debug else '🔴 Désactivé' }}</span>
                 <span class="stat-label">Mode Debug</span>
             </div>
         </div>
@@ -90,7 +90,7 @@
                         <div class="info-item">
                             <span class="info-label">Mode Sombre</span>
                             <span class="toggle-badge {{ 'active' if session_data.dark_mode else '' }}">
-                                {{ session_data.dark_mode|yesno("Activé,Désactivé") }}
+                                {{ 'Activé' if session_data.dark_mode else 'Désactivé' }}
                             </span>
                         </div>
                         <div class="info-item">
@@ -132,14 +132,14 @@
                     <div class="config-grid">
                         <div class="config-item">
                             <span class="config-label">Debug</span>
-                            <span class="config-value {{ debug_data.config.debug and 'text-green' or 'text-red' }}">
-                                {{ debug_data.config.debug|yesno("🟢 Activé,🔴 Désactivé") }}
+                            <span class="config-value {{ 'text-green' if debug_data.config.debug else 'text-red' }}">
+                                {{ '🟢 Activé' if debug_data.config.debug else '🔴 Désactivé' }}
                             </span>
                         </div>
                         <div class="config-item">
                             <span class="config-label">RBAC</span>
-                            <span class="config-value {{ debug_data.config.rbac_enabled and 'text-green' or 'text-red' }}">
-                                {{ debug_data.config.rbac_enabled|yesno("🟢 Activé,🔴 Désactivé") }}
+                            <span class="config-value {{ 'text-green' if debug_data.config.rbac_enabled else 'text-red' }}">
+                                {{ '🟢 Activé' if debug_data.config.rbac_enabled else '🔴 Désactivé' }}
                             </span>
                         </div>
                         <div class="config-item">
