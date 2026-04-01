@@ -26,7 +26,9 @@ from routes.computers import computers_bp
 from routes.tools import tools_bp
 from routes.admin import admin_bp
 from routes.ous import ous_bp
+from routes.debug import debug_bp
 from features import require_feature, is_feature_enabled
+from debug_utils import init_debug, logger
 
 app = Flask(__name__)
 config = get_config()
@@ -35,6 +37,29 @@ config = get_config()
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['DEBUG'] = config.DEBUG
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=config.SESSION_TIMEOUT)
+
+# Flask Debug Toolbar
+if config.DEBUG:
+    app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
+    app.config['DEBUG_TB_PANELS'] = [
+        'flask_debugtoolbar.panels.versions.VersionDebugPanel',
+        'flask_debugtoolbar.panels.timer.TimerDebugPanel',
+        'flask_debugtoolbar.panels.headers.HeaderDebugPanel',
+        'flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel',
+        'flask_debugtoolbar.panels.config_vars.ConfigVarsDebugPanel',
+        'flask_debugtoolbar.panels.template.TemplateDebugPanel',
+        'flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel',
+        'flask_debugtoolbar.panels.logging.LoggingPanel',
+        'flask_debugtoolbar.panels.route.RouteDebugPanel',
+        'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel',
+    ]
+    
+    try:
+        from flask_debugtoolbar import DebugToolbarExtension
+        toolbar = DebugToolbarExtension(app)
+        logger.info("✅ Flask Debug Toolbar activée")
+    except ImportError:
+        logger.warning("⚠️ Flask Debug Toolbar non installé")
 
 secure_session = get_secure_session_config()
 app.config['SESSION_COOKIE_HTTPONLY'] = secure_session['SESSION_COOKIE_HTTPONLY']
@@ -50,6 +75,11 @@ app.register_blueprint(computers_bp)
 app.register_blueprint(tools_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(ous_bp)
+app.register_blueprint(debug_bp)
+
+# Initialiser le debug
+if config.DEBUG:
+    init_debug(app)
 
 # Cache mise à jour
 _update_cache = {'last_check': 0, 'result': None}
