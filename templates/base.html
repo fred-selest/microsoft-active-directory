@@ -17,11 +17,32 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-152.png') }}">
     
-    <title>{% block title %}Active Directory Web Interface{% endblock %}</title>
+    <title>{% block title %}AD Web Interface{% endblock %}</title>
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/optimizations.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
     {% block extra_css %}{% endblock %}
+    
+    {% if config.DEBUG %}
+    <!-- Auto-reload en mode debug -->
+    <script>
+    (function() {
+        let lastModified = Date.now();
+        setInterval(() => {
+            fetch(window.location.href, {method: 'HEAD'})
+                .then(resp => {
+                    const modified = resp.headers.get('last-modified');
+                    if (modified && new Date(modified).getTime() > lastModified) {
+                        console.log('🔄 Page modifiée, rechargement...');
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {});
+        }, 3000); // Vérifie toutes les 3 secondes
+    })();
+    </script>
+    {% endif %}
 </head>
 <body class="{% if dark_mode %}dark-mode{% endif %}">
     <a href="#main-content" class="skip-link">Aller au contenu principal</a>
