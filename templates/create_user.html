@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Nouvel utilisateur - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Nouvel utilisateur</h2>
+    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour a la liste</a>
+</div>
+
+<div class="form-container">
+    <form method="post" class="user-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-section">
+            <h3>Informations de compte</h3>
+
+            <div class="form-group">
+                <label for="username">Identifiant (login) *</label>
+                <input type="text" id="username" name="username" required placeholder="jdupont">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="first_name">Prenom</label>
+                    <input type="text" id="first_name" name="first_name" placeholder="Jean">
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Nom</label>
+                    <input type="text" id="last_name" name="last_name" placeholder="Dupont">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="jean.dupont@domaine.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" name="password" placeholder="Mot de passe initial">
+                <small class="form-hint">Laissez vide pour ne pas definir de mot de passe initial</small>
+            </div>
+
+            {% if ous %}
+            <div class="form-group">
+                <label for="target_ou">Unite organisationnelle (OU)</label>
+                <select id="target_ou" name="target_ou">
+                    <option value="">CN=Users (par defaut)</option>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Creer l'utilisateur</button>
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% block extra_css %}
+<style>
+.form-container {
+    max-width: 600px;
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-section {
+    margin-bottom: 1.5rem;
+}
+
+.form-section h3 {
+    color: #0078d4;
+    border-bottom: 2px solid #0078d4;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-hint {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+</style>
+{% endblock %}
+{% endblock %}

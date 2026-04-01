@@ -1,0 +1,20 @@
+{
+  "name": "AD Web Interface",
+  "short_name": "AD Web",
+  "description": "Interface Web pour Microsoft Active Directory",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0078d4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["utilities", "productivity"],
+  "lang": "fr"
+}

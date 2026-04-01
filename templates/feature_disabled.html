@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Fonctionnalité non disponible - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin: 3rem auto;">
+    <div class="card fade-in">
+        <div class="text-center" style="padding: 3rem 2rem;">
+            <!-- Icône -->
+            <div style="font-size: 5rem; margin-bottom: 1rem;" aria-hidden="true">
+                🚧
+            </div>
+            
+            <!-- Titre -->
+            <h2 style="color: #0078d4; margin-bottom: 1rem;">
+                Fonctionnalité non disponible
+            </h2>
+            
+            <!-- Message -->
+            <p class="text-muted" style="font-size: 1.1rem; margin-bottom: 2rem;">
+                {% if feature_name %}
+                La fonctionnalité <strong>"{{ feature_name|replace('_', ' ')|title }}"</strong> 
+                est actuellement désactivée.
+                {% else %}
+                Cette fonctionnalité est actuellement désactivée.
+                {% endif %}
+            </p>
+            
+            <!-- Explications -->
+            <div class="alert alert-info" style="text-align: left; margin-bottom: 2rem;">
+                <strong>ℹ️ Information :</strong>
+                <p style="margin-top: 0.5rem;">
+                    L'administrateur a choisi de désactiver cette fonctionnalité via les 
+                    paramètres de configuration. Vous pouvez :
+                </p>
+                <ul style="margin-bottom: 0;">
+                    <li>Revenir au tableau de bord</li>
+                    <li>Contacter l'administrateur pour activer cette fonctionnalité</li>
+                    <li>Consulter la documentation pour plus d'informations</li>
+                </ul>
+            </div>
+            
+            <!-- Boutons d'action -->
+            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                    ← Retour au tableau de bord
+                </a>
+                {% if connected %}
+                <a href="{{ url_for('admin.settings_page') if config.FEATURE_SETTINGS_ENABLED else '#' }}" 
+                   class="btn btn-secondary"
+                   {% if not config.FEATURE_SETTINGS_ENABLED %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+                    ⚙️ Paramètres
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Détails techniques (pour admin) -->
+    {% if user_role == 'admin' %}
+    <div class="card fade-in" style="margin-top: 1.5rem;">
+        <h3 style="font-size: 1rem; color: #666; margin-bottom: 1rem;">
+            🔧 Pour l'administrateur
+        </h3>
+        <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 1rem;">
+            Pour activer cette fonctionnalité, modifiez le fichier <code>.env</code> :
+        </p>
+        <div style="background: #f5f5f5; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto;">
+            {% if feature_name %}
+            FEATURE_{{ feature_name|upper }}_ENABLED=true
+            {% else %}
+            FEATURE_<NOM>_ENABLED=true
+            {% endif %}
+        </div>
+        <p class="text-muted" style="font-size: 0.85rem; margin-top: 1rem;">
+            Puis redémarrez le serveur pour appliquer les changements.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+    }
+    
+    .text-center {
+        text-align: center;
+    }
+    
+    .text-muted {
+        color: #666;
+    }
+    
+    .alert {
+        padding: 1rem;
+        border-radius: 4px;
+        margin: 1rem 0;
+    }
+    
+    .alert-info {
+        background: #d1ecf1;
+        border-left: 4px solid #17a2b8;
+        color: #0c5460;
+    }
+    
+    .btn {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background: #0078d4;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #005a9e;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Dark mode */
+    body.dark-mode .card {
+        background: var(--dark-bg-secondary, #2d2d2d);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    body.dark-mode .alert-info {
+        background: rgba(23, 162, 184, 0.2);
+        border-left-color: #17a2b8;
+        color: #9de3e8;
+    }
+    
+    body.dark-mode code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}

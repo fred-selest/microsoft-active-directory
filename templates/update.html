@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+
+{% block title %}Mise a jour - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Mise a jour du systeme</h2>
+</div>
+
+<div class="update-container">
+    <div class="version-info">
+        <h3>Informations de version</h3>
+        <table class="info-table">
+            <tr>
+                <th>Version actuelle</th>
+                <td>{{ update_info.current_version }}</td>
+            </tr>
+            <tr>
+                <th>Derniere version</th>
+                <td>
+                    {% if update_info.latest_version %}
+                        {{ update_info.latest_version }}
+                    {% else %}
+                        <span class="text-muted">Non disponible</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Statut</th>
+                <td>
+                    {% if update_info.error %}
+                        <span class="badge badge-danger">Erreur</span>
+                        <span class="error-message">{{ update_info.error }}</span>
+                    {% elif update_info.update_available %}
+                        <span class="badge badge-info">Mise a jour disponible</span>
+                    {% else %}
+                        <span class="badge badge-success">A jour</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    {% if update_info.update_available %}
+    <div class="update-actions">
+        <h3>Installer la mise a jour</h3>
+        <p>Une nouvelle version est disponible. Cliquez sur le bouton ci-dessous pour mettre a jour.</p>
+        <p class="warning-text">
+            <strong>Attention:</strong> Le serveur devra etre redemarrer apres la mise a jour.
+        </p>
+        <button id="btn-update" class="btn btn-primary" onclick="performUpdate()">
+            Mettre a jour vers {{ update_info.latest_version }}
+        </button>
+        <div id="update-progress" class="update-progress" style="display: none;">
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p class="progress-text" id="progress-text">Initialisation...</p>
+        </div>
+        <div id="update-status" class="update-status"></div>
+    </div>
+    {% endif %}
+
+    <div class="update-manual">
+        <h3>Mise a jour manuelle</h3>
+        <p>Vous pouvez aussi mettre a jour manuellement en executant:</p>
+        <pre><code>python updater.py</code></pre>
+        <p>Ou verifier les mises a jour depuis la ligne de commande:</p>
+        <pre><code>python updater.py --check</code></pre>
+    </div>
+
+    <div class="update-info">
+        <h3>Notes</h3>
+        <ul>
+            <li>Les fichiers de configuration (.env) sont preserves</li>
+            <li>Les dossiers logs/, data/ et venv/ ne sont pas modifies</li>
+            <li>Les dependances Python sont mises a jour automatiquement</li>
+            <li>Un redemarrage du serveur est necessaire apres la mise a jour</li>
+        </ul>
+    </div>
+
+    <div class="changelog">
+        <h3>Historique des versions</h3>
+
+        <div class="version-entry">
+            <h4>Version 1.15.0 - Attribution roles basee sur groupes AD</h4>
+            <ul>
+                <li><strong>RBAC:</strong> Les roles (admin, operator, reader) sont attribues automatiquement selon les groupes AD</li>
+                <li><strong>Configuration:</strong> RBAC_ADMIN_GROUPS, RBAC_OPERATOR_GROUPS, RBAC_READER_GROUPS</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.14.0 - Option changement mot de passe</h4>
+            <ul>
+                <li><strong>Utilisateurs:</strong> Checkbox pour forcer le changement de mot de passe a la prochaine connexion</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.13.0 - Support Docker et CI/CD</h4>
+            <ul>
+                <li><strong>Docker:</strong> Dockerfile, docker-compose.yml, documentation complete</li>
+                <li><strong>CI/CD:</strong> GitHub Actions (tests, build Docker, releases automatiques)</li>
+                <li><strong>Securite:</strong> Option FORCE_HTTPS, support reverse proxy</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.11.0 - Securite majeure</h4>
+            <ul>
+                <li><strong>Chiffrement:</strong> Mots de passe AD chiffres en session (AES-128)</li>
+                <li><strong>Protection:</strong> Injection LDAP, XSS, Path Traversal</li>
+                <li><strong>RBAC:</strong> Controle d'acces active par defaut</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.10.0 - Ameliorations mise a jour</h4>
+            <ul>
+                <li><strong>Interface:</strong> Barre de progression animee pendant la mise a jour</li>
+                <li><strong>Performance:</strong> Mise a jour silencieuse cote serveur (pas de logs console)</li>
+                <li><strong>PWA:</strong> Application Progressive Web App activee par defaut</li>
+                <li><strong>Simplification:</strong> Suppression du selecteur de langue</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.9.0 - Interface d'administration</h4>
+            <ul>
+                <li><strong>Administration:</strong> Nouvelle page d'administration complete avec 4 onglets</li>
+                <li><strong>Personnalisation:</strong> Configuration dynamique du titre, logo, pied de page et couleur</li>
+                <li><strong>Menus:</strong> Gestion des elements de menu (activer/desactiver, renommer, reordonner)</li>
+                <li><strong>Fonctionnalites:</strong> Activation/desactivation du mode sombre, selecteur de langue, PWA</li>
+                <li><strong>Securite:</strong> Parametres de session, tentatives de connexion, HTTPS</li>
+                <li><strong>Export:</strong> Export et reinitialisation des parametres</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.8.1 - Ameliorations interface</h4>
+            <ul>
+                <li><strong>Interface:</strong> Fusion Arborescence et OUs en page "Structure" avec onglets</li>
+                <li><strong>Personnalisation:</strong> Support pour logo personnalise en haut a gauche</li>
+                <li><strong>Navigation:</strong> Menu Plus reorganise avec acces direct LAPS, BitLocker, Corbeille</li>
+                <li><strong>Documentation:</strong> Historique des versions sur la page Mise a jour</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.8.0 - Securite et gestion avancee</h4>
+            <ul>
+                <li><strong>Securite:</strong> Reinitialisation de mot de passe, deverrouillage en masse, historique des connexions</li>
+                <li><strong>Integration:</strong> Corbeille AD, LAPS (mots de passe admin locaux), BitLocker (cles de recuperation)</li>
+                <li><strong>Gestion:</strong> Groupes imbriques, comparaison d'utilisateurs, recherche avancee multi-filtres</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.7.0 - Ameliorations majeures</h4>
+            <ul>
+                <li><strong>Interface:</strong> Tri des colonnes, graphiques Chart.js, support PWA</li>
+                <li><strong>Fonctionnalites:</strong> Deplacement utilisateurs, export Excel, duplication de groupes</li>
+                <li><strong>Modules:</strong> Cache LDAP, audit, alertes, backup, chiffrement de session</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.6.1 - Corrections</h4>
+            <ul>
+                <li>Correction encodage UTF-8 pour caracteres accentues</li>
+                <li>Amelioration menu mobile</li>
+                <li>Ajout filtre dans la liste des groupes</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.6.0 - Fonctionnalites avancees</h4>
+            <ul>
+                <li>API REST complete</li>
+                <li>Systeme d'alertes et favoris</li>
+                <li>Support multi-langues (FR/EN)</li>
+                <li>Modeles d'utilisateurs</li>
+            </ul>
+        </div>
+
+        <div class="version-entry">
+            <h4>Version 1.5.0 - Securite renforcee</h4>
+            <ul>
+                <li>Protection CSRF</li>
+                <li>Validation force mot de passe</li>
+                <li>Rate limiting</li>
+                <li>Headers de securite</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Fonction d'échappement HTML pour prévenir XSS
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+// Afficher un message de manière sécurisée
+function showStatusMessage(container, message, className) {
+    const p = document.createElement('p');
+    p.className = className;
+    p.textContent = message;
+    container.appendChild(p);
+}
+
+function performUpdate() {
+    const btn = document.getElementById('btn-update');
+    const status = document.getElementById('update-status');
+    const progressContainer = document.getElementById('update-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+
+    btn.disabled = true;
+    btn.style.display = 'none';
+    progressContainer.style.display = 'block';
+    status.innerHTML = '';
+
+    // Etapes de progression simulees
+    const steps = [
+        { progress: 10, text: 'Verification de la connexion...' },
+        { progress: 25, text: 'Telechargement de la mise a jour...' },
+        { progress: 50, text: 'Extraction des fichiers...' },
+        { progress: 70, text: 'Installation des dependances...' },
+        { progress: 85, text: 'Finalisation...' },
+        { progress: 95, text: 'Nettoyage...' }
+    ];
+
+    let stepIndex = 0;
+    const progressInterval = setInterval(() => {
+        if (stepIndex < steps.length) {
+            progressBar.style.width = steps[stepIndex].progress + '%';
+            progressText.textContent = steps[stepIndex].text;
+            stepIndex++;
+        }
+    }, 800);
+
+    fetch('/api/perform-update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        clearInterval(progressInterval);
+
+        if (data.success) {
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Mise a jour terminee!';
+
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                status.innerHTML = '';
+                showStatusMessage(status, data.message || 'Mise à jour réussie', 'update-success');
+
+                // Si le serveur redémarre, afficher un compte à rebours
+                if (data.restarting) {
+                    let countdown = 10;
+                    const restartP = document.createElement('p');
+                    restartP.className = 'restart-countdown';
+                    restartP.innerHTML = 'Le serveur redémarre. Rechargement dans <span id="countdown">' + countdown + '</span> secondes...';
+                    status.appendChild(restartP);
+
+                    const countdownInterval = setInterval(() => {
+                        countdown--;
+                        document.getElementById('countdown').textContent = countdown;
+                        if (countdown <= 0) {
+                            clearInterval(countdownInterval);
+                            window.location.reload();
+                        }
+                    }, 1000);
+                }
+            }, 500);
+        } else {
+            progressContainer.style.display = 'none';
+            status.innerHTML = '';
+            showStatusMessage(status, data.message || 'Erreur lors de la mise à jour', 'update-error');
+            btn.disabled = false;
+            btn.style.display = 'inline-block';
+            btn.textContent = 'Reessayer';
+        }
+    })
+    .catch(error => {
+        clearInterval(progressInterval);
+        progressContainer.style.display = 'none';
+        status.innerHTML = '';
+        showStatusMessage(status, 'Erreur: ' + (error.message || 'Erreur inconnue'), 'update-error');
+        btn.disabled = false;
+        btn.style.display = 'inline-block';
+        btn.textContent = 'Reessayer';
+    });
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.update-container {
+    max-width: 800px;
+}
+
+.version-info,
+.update-actions,
+.update-manual,
+.update-info {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.version-info h3,
+.update-actions h3,
+.update-manual h3,
+.update-info h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+
+.info-table {
+    width: 100%;
+}
+
+.info-table th,
+.info-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.info-table th {
+    width: 200px;
+    font-weight: 600;
+}
+
+.warning-text {
+    color: #856404;
+    background: #fff3cd;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.update-status {
+    margin-top: 1rem;
+}
+
+.update-progress {
+    margin: 1.5rem 0;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 24px;
+    background: #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0078d4, #00a4ef);
+    border-radius: 12px;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.progress-text {
+    text-align: center;
+    margin-top: 0.75rem;
+    color: #0078d4;
+    font-weight: 500;
+}
+
+.updating {
+    color: #0078d4;
+}
+
+.update-success {
+    color: #155724;
+    background: #d4edda;
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+.update-error {
+    color: #721c24;
+    background: #f8d7da;
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+.error-message {
+    color: #721c24;
+    font-size: 0.875rem;
+}
+
+.text-muted {
+    color: #6c757d;
+}
+
+pre {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+code {
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.update-info ul {
+    margin-left: 1.5rem;
+}
+
+.update-info li {
+    margin-bottom: 0.5rem;
+}
+
+.changelog {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.changelog h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+
+.version-entry {
+    border-left: 3px solid #0078d4;
+    padding-left: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.version-entry:last-child {
+    margin-bottom: 0;
+}
+
+.version-entry h4 {
+    margin: 0 0 0.5rem;
+    color: #333;
+}
+
+.version-entry ul {
+    margin: 0 0 0 1rem;
+    padding: 0;
+}
+
+.version-entry li {
+    margin-bottom: 0.25rem;
+}
+</style>
+{% endblock %}
+{% endblock %}

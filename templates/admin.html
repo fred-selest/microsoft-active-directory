@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}Administration - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>⚙️ Administration</h2>
+</div>
+
+<div class="admin-dashboard">
+    <!-- Section 1: Configuration Générale -->
+    <div class="admin-section card fade-in">
+        <h3>📋 Configuration Générale</h3>
+        <div class="admin-grid">
+            {% if config.FEATURE_SETTINGS_ENABLED %}
+            <a href="{{ url_for('admin.settings_page') }}" class="admin-card">
+                <div class="admin-card-icon">⚙️</div>
+                <div class="admin-card-content">
+                    <h4>Paramètres</h4>
+                    <p>Configurer l'application</p>
+                </div>
+            </a>
+            {% endif %}
+            
+            {% if config.FEATURE_UPDATE_CHECK_ENABLED %}
+            <a href="{{ url_for('update_page') }}" class="admin-card">
+                <div class="admin-card-icon">🔄</div>
+                <div class="admin-card-content">
+                    <h4>Mises à jour</h4>
+                    <p>Vérifier et installer</p>
+                </div>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section 2: Surveillance -->
+    <div class="admin-section card fade-in">
+        <h3>📊 Surveillance</h3>
+        <div class="admin-grid">
+            {% if config.FEATURE_AUDIT_LOGS_ENABLED %}
+            <a href="{{ url_for('audit_logs') }}" class="admin-card">
+                <div class="admin-card-icon">📜</div>
+                <div class="admin-card-content">
+                    <h4>Journal d'audit</h4>
+                    <p>Consulter les logs</p>
+                </div>
+            </a>
+            {% endif %}
+            
+            {% if config.FEATURE_DIAGNOSTIC_ENABLED %}
+            <a href="{{ url_for('diagnostic_page') }}" class="admin-card">
+                <div class="admin-card-icon">🔧</div>
+                <div class="admin-card-content">
+                    <h4>Diagnostic</h4>
+                    <p>Vérifier le système</p>
+                </div>
+            </a>
+            {% endif %}
+            
+            {% if config.FEATURE_BACKUPS_ENABLED %}
+            <a href="{{ url_for('tools.backups') }}" class="admin-card">
+                <div class="admin-card-icon">💾</div>
+                <div class="admin-card-content">
+                    <h4>Sauvegardes</h4>
+                    <p>Gérer les backups</p>
+                </div>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section 3: Fonctionnalités Avancées -->
+    <div class="admin-section card fade-in">
+        <h3>🚀 Fonctionnalités Avancées</h3>
+        <div class="admin-grid">
+            {% if config.FEATURE_API_DOCS_ENABLED %}
+            <a href="{{ url_for('tools.api_documentation') }}" class="admin-card">
+                <div class="admin-card-icon">📖</div>
+                <div class="admin-card-content">
+                    <h4>API Documentation</h4>
+                    <p>Consulter l'API</p>
+                </div>
+            </a>
+            {% endif %}
+            
+            {% if config.FEATURE_PASSWORD_POLICY_ENABLED %}
+            <a href="{{ url_for('tools.password_policy') }}" class="admin-card">
+                <div class="admin-card-icon">🔐</div>
+                <div class="admin-card-content">
+                    <h4>Politique MDP</h4>
+                    <p>Configurer les mots de passe</p>
+                </div>
+            </a>
+            {% endif %}
+            
+            {% if config.FEATURE_PASSWORD_AUDIT_ENABLED %}
+            <a href="{{ url_for('tools.password_audit') }}" class="admin-card">
+                <div class="admin-card-icon">🔍</div>
+                <div class="admin-card-content">
+                    <h4>Audit MDP</h4>
+                    <p>Analyser la sécurité</p>
+                </div>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Section 4: Fonctionnalités Désactivées -->
+    {% set disabled_features = [] %}
+    {% if not config.FEATURE_RECYCLE_BIN_ENABLED %}
+        {% set _ = disabled_features.append({'id': 'recycle_bin', 'name': 'Corbeille AD'}) %}
+    {% endif %}
+    {% if not config.FEATURE_LOCKED_ACCOUNTS_ENABLED %}
+        {% set _ = disabled_features.append({'id': 'locked_accounts', 'name': 'Comptes verrouillés'}) %}
+    {% endif %}
+    
+    {% if disabled_features %}
+    <div class="admin-section card fade-in">
+        <h3>⚠️ Fonctionnalités Désactivées</h3>
+        <p class="text-muted">Les fonctionnalités suivantes sont désactivées dans la configuration :</p>
+        <ul class="disabled-features-list">
+            {% for feature in disabled_features %}
+            <li>
+                <span class="badge badge-warning">{{ feature.name }}</span>
+                <small class="text-muted">FEATURE_{{ feature.id|upper }}_ENABLED=false</small>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.admin-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.admin-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.admin-section h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.admin-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.admin-card:hover {
+    background: #e9ecef;
+    border-color: #0078d4;
+    transform: translateY(-2px);
+}
+
+.admin-card-icon {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.admin-card-content h4 {
+    margin: 0 0 0.25rem 0;
+    color: #0078d4;
+    font-size: 1rem;
+}
+
+.admin-card-content p {
+    margin: 0;
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.disabled-features-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+}
+
+.disabled-features-list li {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: #fff3cd;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.text-muted {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+/* Dark mode */
+body.dark-mode .admin-section {
+    background: var(--dark-bg-secondary, #2d2d2d);
+}
+
+body.dark-mode .admin-card {
+    background: var(--dark-bg-primary, #1e1e1e);
+}
+
+body.dark-mode .admin-card:hover {
+    background: var(--dark-bg-hover, #2a2a2a);
+}
+
+body.dark-mode .admin-card-icon {
+    background: var(--dark-bg-tertiary, #3d3d3d);
+}
+
+body.dark-mode .disabled-features-list li {
+    background: rgba(255, 193, 7, 0.1);
+}
+</style>
+{% endblock %}

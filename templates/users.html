@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Utilisateurs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Utilisateurs Active Directory</h2>
+    <div class="header-actions">
+        <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
+        <a href="{{ url_for('users.bulk_operations') }}" class="btn btn-secondary">Masse</a>
+        <a href="{{ url_for('users.compare_users') }}" class="btn btn-secondary">Comparer</a>
+        <a href="{{ url_for('users.import_users') }}" class="btn btn-secondary">Importer</a>
+        <a href="{{ url_for('users.export_users') }}" class="btn btn-secondary">CSV</a>
+    </div>
+</div>
+
+<div class="search-box">
+    <form method="get" action="{{ url_for('users.list_users') }}">
+        <div class="form-group">
+            <input type="text" name="search" placeholder="Rechercher un utilisateur..."
+                   value="{{ search }}" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-secondary">Rechercher</button>
+        {% if search %}
+        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Effacer</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table sortable">
+        <thead>
+            <tr>
+                <th>Nom d'affichage</th>
+                <th>Identifiant</th>
+                <th>Email</th>
+                <th>Service</th>
+                <th>Fonction</th>
+                <th>Statut</th>
+                <th data-no-sort>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr class="{% if user.disabled %}disabled-user{% endif %}">
+                <td>{{ user.displayName or user.cn }}</td>
+                <td>{{ user.sAMAccountName }}</td>
+                <td>{{ user.mail }}</td>
+                <td>{{ user.department }}</td>
+                <td>{{ user.title }}</td>
+                <td>
+                    {% if user.disabled %}
+                    <span class="badge badge-danger">Desactive</span>
+                    {% else %}
+                    <span class="badge badge-success">Actif</span>
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-sm btn-secondary">MDP</a>
+                    <form method="post" action="{{ url_for('users.toggle_user', dn=user.dn) }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
+                        <button type="submit" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}">
+                            {{ 'Activer' if user.disabled else 'Desactiver' }}
+                        </button>
+                    </form>
+                    <a href="{{ url_for('users.duplicate_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Dupliquer</a>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn }}', '{{ user.displayName or user.cn }}')">Deplacer</button>
+                    <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
+                          style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center">Aucun utilisateur trouve.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="results-count">{{ total }} utilisateur(s) trouve(s) (page {{ page }}/{{ total_pages }})</p>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="{{ url_for('users.list_users', search=search, page=page-1) }}" class="btn btn-sm btn-secondary">&laquo; Precedent</a>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span class="btn btn-sm btn-primary">{{ p }}</span>
+        {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+        <a href="{{ url_for('users.list_users', search=search, page=p) }}" class="btn btn-sm btn-secondary">{{ p }}</a>
+        {% elif p == 4 or p == total_pages - 3 %}
+        <span class="pagination-ellipsis">...</span>
+        {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+    <a href="{{ url_for('users.list_users', search=search, page=page+1) }}" class="btn btn-sm btn-secondary">Suivant &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Modal pour deplacer -->
+<div id="moveModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Deplacer l'utilisateur</h3>
+        <p id="moveUserName"></p>
+        <form method="post" id="moveForm" action="">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="new_ou">Unite d'organisation de destination</label>
+                <select id="new_ou" name="new_ou" required>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Deplacer</button>
+                <button type="button" class="btn btn-secondary" onclick="closeMoveModal()">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+.pagination {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+.pagination-ellipsis {
+    padding: 0.375rem;
+}
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    min-width: 400px;
+    max-width: 90%;
+}
+.modal-content h3 {
+    margin-top: 0;
+    color: #0078d4;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const userSearchInput = document.querySelector('input[name="search"]');
+    if (userSearchInput) {
+        let timeout;
+        userSearchInput.addEventListener('input', function() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                this.form.submit();
+            }, 500);
+        });
+    }
+})();
+
+function showMoveModal(dn, name) {
+    document.getElementById('moveUserName').textContent = 'Utilisateur: ' + name;
+    document.getElementById('moveForm').action = '/users/' + encodeURIComponent(dn) + '/move';
+    document.getElementById('moveModal').style.display = 'flex';
+}
+
+function closeMoveModal() {
+    document.getElementById('moveModal').style.display = 'none';
+}
+
+document.getElementById('moveModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeMoveModal();
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

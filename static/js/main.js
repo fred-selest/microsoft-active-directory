@@ -1,0 +1,428 @@
+/**
+ * JavaScript multi-plateforme pour l'interface Web AD
+ * Fonctionne sur n'importe quel navigateur moderne, quel que soit le système d'exploitation
+ */
+
+/**
+ * Échapper les caractères HTML pour prévenir les attaques XSS
+ * @param {string} text - Le texte à échapper
+ * @returns {string} Le texte échappé
+ */
+function escapeHtml(text) {
+    if (text === null || text === undefined) {
+        return '';
+    }
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+/**
+ * Afficher un message d'erreur de manière sécurisée
+ * @param {HTMLElement} container - L'élément conteneur
+ * @param {string} message - Le message d'erreur
+ */
+function showError(container, message) {
+    const p = document.createElement('p');
+    p.style.color = 'red';
+    p.textContent = message;
+    container.innerHTML = '';
+    container.appendChild(p);
+}
+
+/**
+ * Afficher un message d'information de manière sécurisée
+ * @param {HTMLElement} container - L'élément conteneur
+ * @param {string} message - Le message
+ */
+function showMessage(container, message) {
+    const p = document.createElement('p');
+    p.textContent = message;
+    container.innerHTML = '';
+    container.appendChild(p);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser les formulaires de recherche
+    initSearchForms();
+
+    // Vérifier les informations système
+    fetchSystemInfo();
+
+    // Menu burger pour mobile
+    initMobileMenu();
+
+    // Dropdown mobile
+    initMobileDropdowns();
+
+    // Initialiser les tableaux triables
+    initSortableTables();
+
+    // Initialiser les raccourcis clavier
+    initKeyboardShortcuts();
+});
+
+/**
+ * Initialiser le tri des tableaux
+ */
+function initSortableTables() {
+    document.querySelectorAll('.data-table.sortable thead th').forEach(th => {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', function() {
+            const table = this.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const index = Array.from(this.parentNode.children).indexOf(this);
+            const isAsc = this.classList.contains('sort-asc');
+
+            // Retirer les classes de tri des autres colonnes
+            table.querySelectorAll('th').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+
+            // Trier les lignes
+            rows.sort((a, b) => {
+                const aVal = a.children[index]?.textContent.trim() || '';
+                const bVal = b.children[index]?.textContent.trim() || '';
+
+                // Detecter si c'est un nombre
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return isAsc ? bNum - aNum : aNum - bNum;
+                }
+
+                return isAsc
+                    ? bVal.localeCompare(aVal, 'fr')
+                    : aVal.localeCompare(bVal, 'fr');
+            });
+
+            // Ajouter la classe de tri
+            this.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+
+            // Reinserer les lignes triees
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+}
+
+/**
+ * Initialiser les raccourcis clavier
+ */
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Ignorer si on est dans un champ de saisie
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+            return;
+        }
+
+        // Ctrl+K ou Ctrl+F: Focus sur la recherche
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')) {
+            e.preventDefault();
+            const searchInput = document.querySelector('input[name="search"], input[name="q"], #search-query');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+
+        // Ctrl+N: Nouveau (utilisateur, groupe, etc.)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            const newBtn = document.querySelector('a.btn-primary[href*="create"], a.btn-primary[href*="new"]');
+            if (newBtn) {
+                window.location.href = newBtn.href;
+            }
+        }
+
+        // Escape: Fermer les modals
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.style.display = 'none';
+            });
+        }
+
+        // ?: Afficher l'aide des raccourcis
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+            showKeyboardHelp();
+        }
+    });
+}
+
+/**
+ * Afficher l'aide des raccourcis clavier
+ */
+function showKeyboardHelp() {
+    const helpHtml = `
+        <div id="keyboard-help-modal" class="modal" style="display: flex;">
+            <div class="modal-content">
+                <h3>Raccourcis clavier</h3>
+                <table style="width: 100%;">
+                    <tr><td><kbd>Ctrl+K</kbd> ou <kbd>Ctrl+F</kbd></td><td>Rechercher</td></tr>
+                    <tr><td><kbd>Ctrl+N</kbd></td><td>Nouveau</td></tr>
+                    <tr><td><kbd>Escape</kbd></td><td>Fermer</td></tr>
+                    <tr><td><kbd>?</kbd></td><td>Afficher cette aide</td></tr>
+                </table>
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary" style="margin-top: 1rem;">Fermer</button>
+            </div>
+        </div>
+    `;
+
+    // Supprimer l'ancien modal s'il existe
+    const existing = document.getElementById('keyboard-help-modal');
+    if (existing) existing.remove();
+
+    document.body.insertAdjacentHTML('beforeend', helpHtml);
+}
+
+/**
+ * Initialiser les gestionnaires de formulaires de recherche
+ */
+function initSearchForms() {
+    const forms = [
+        'search-users-form',
+        'search-groups-form',
+        'search-computers-form'
+    ];
+
+    forms.forEach(formId => {
+        const form = document.getElementById(formId);
+        if (form) {
+            form.addEventListener('submit', handleSearchSubmit);
+        }
+    });
+}
+
+/**
+ * Gérer la soumission du formulaire de recherche
+ */
+async function handleSearchSubmit(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+    const resultsDiv = document.getElementById('results');
+
+    // Afficher l'état de chargement
+    showMessage(resultsDiv, 'Recherche en cours...');
+
+    // Obtenir les identifiants de connexion depuis la session ou demander à l'utilisateur
+    const credentials = getStoredCredentials();
+
+    if (!credentials) {
+        showError(resultsDiv, 'Veuillez d\'abord vous connecter à Active Directory.');
+        return;
+    }
+
+    const searchData = {
+        server: credentials.server,
+        username: credentials.username,
+        password: credentials.password,
+        base_dn: formData.get('base_dn'),
+        filter: formData.get('filter'),
+        attributes: ['cn', 'distinguishedName', 'description', 'mail', 'memberOf']
+    };
+
+    try {
+        const response = await fetch('/api/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(searchData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            displayResults(data.results);
+        } else {
+            // Utiliser showError pour éviter XSS
+            showError(resultsDiv, 'Erreur: ' + (data.error || 'Erreur inconnue'));
+        }
+    } catch (error) {
+        // Utiliser showError pour éviter XSS
+        showError(resultsDiv, 'Erreur de connexion: ' + (error.message || 'Erreur inconnue'));
+    }
+}
+
+/**
+ * Afficher les résultats de recherche
+ */
+function displayResults(results) {
+    const resultsDiv = document.getElementById('results');
+
+    if (results.length === 0) {
+        showMessage(resultsDiv, 'Aucun résultat trouvé.');
+        return;
+    }
+
+    let html = `<p><strong>${results.length} résultat(s) trouvé(s)</strong></p>`;
+    html += '<pre>';
+
+    results.forEach((result, index) => {
+        html += `--- Résultat ${index + 1} ---\n`;
+        html += JSON.stringify(JSON.parse(result), null, 2);
+        html += '\n\n';
+    });
+
+    html += '</pre>';
+    resultsDiv.innerHTML = html;
+}
+
+/**
+ * Obtenir les identifiants stockés (simplifié - en production, utiliser une session sécurisée)
+ */
+function getStoredCredentials() {
+    // Dans une application de production, ceux-ci proviendraient d'une session sécurisée
+    // Pour la démonstration, nous demandons à l'utilisateur
+    const stored = sessionStorage.getItem('ad_credentials');
+
+    if (stored) {
+        return JSON.parse(stored);
+    }
+
+    // Demander les identifiants s'ils ne sont pas stockés
+    const server = prompt('Serveur AD:');
+    const username = prompt('Nom d\'utilisateur:');
+    const password = prompt('Mot de passe:');
+
+    if (server && username && password) {
+        const credentials = { server, username, password };
+        sessionStorage.setItem('ad_credentials', JSON.stringify(credentials));
+        return credentials;
+    }
+
+    return null;
+}
+
+/**
+ * Récupérer et afficher les informations système
+ */
+async function fetchSystemInfo() {
+    try {
+        const response = await fetch('/api/system-info');
+        const data = await response.json();
+        console.log('Informations système:', data);
+    } catch (error) {
+        console.error('Échec de la récupération des informations système:', error);
+    }
+}
+
+/**
+ * Effacer les identifiants stockés
+ */
+function clearCredentials() {
+    sessionStorage.removeItem('ad_credentials');
+    alert('Identifiants effacés.');
+}
+
+/**
+ * Initialiser le menu burger pour mobile
+ */
+function initMobileMenu() {
+    const menuToggle = document.querySelector('.menu-toggle');
+    const navLinks = document.querySelector('.nav-links');
+    const menuIcon = document.querySelector('.menu-icon');
+
+    if (menuToggle && navLinks) {
+        menuToggle.addEventListener('click', function() {
+            const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
+            menuToggle.setAttribute('aria-expanded', !isExpanded);
+            navLinks.classList.toggle('active');
+            
+            if (menuIcon) {
+                menuIcon.textContent = isExpanded ? '☰' : '×';
+            }
+        });
+
+        // Fermer le menu quand on clique sur un lien (sauf dropdown)
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', function() {
+                if (!this.parentElement.classList.contains('nav-dropdown')) {
+                    navLinks.classList.remove('active');
+                    menuToggle.setAttribute('aria-expanded', 'false');
+                    if (menuIcon) menuIcon.textContent = '☰';
+                }
+            });
+        });
+
+        // Fermer avec Échap
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && navLinks.classList.contains('active')) {
+                navLinks.classList.remove('active');
+                menuToggle.setAttribute('aria-expanded', 'false');
+                if (menuIcon) menuIcon.textContent = '☰';
+                menuToggle.focus();
+            }
+        });
+    }
+}
+
+/**
+ * Initialiser les dropdowns pour mobile
+ */
+function initMobileDropdowns() {
+    const dropdowns = document.querySelectorAll('.nav-dropdown');
+
+    dropdowns.forEach(dropdown => {
+        const toggle = dropdown.querySelector('.dropdown-toggle');
+        const menu = dropdown.querySelector('.dropdown-menu');
+        const arrow = dropdown.querySelector('.dropdown-arrow');
+        
+        if (toggle && menu) {
+            toggle.addEventListener('click', function(e) {
+                // Seulement sur mobile
+                if (window.innerWidth <= 768) {
+                    e.preventDefault();
+                    const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+                    
+                    // Fermer les autres dropdowns
+                    document.querySelectorAll('.nav-dropdown .dropdown-toggle').forEach(other => {
+                        if (other !== toggle) {
+                            other.setAttribute('aria-expanded', 'false');
+                            other.parentElement.classList.remove('active');
+                        }
+                    });
+                    
+                    toggle.setAttribute('aria-expanded', !isExpanded);
+                    dropdown.classList.toggle('active');
+                    
+                    if (arrow) {
+                        arrow.textContent = !isExpanded ? '▲' : '▼';
+                    }
+                }
+            });
+
+            // Navigation clavier pour dropdown
+            toggle.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.click();
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Gestion du loading overlay
+ */
+function showLoading(message) {
+    const overlay = document.getElementById('loading-overlay');
+    const text = overlay ? overlay.querySelector('.loading-text') : null;
+    if (overlay) {
+        if (message && text) text.textContent = message;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+}

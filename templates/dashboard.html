@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Tableau de bord</h2>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon users-icon">&#x1F465;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total_users }}</div>
+            <div class="stat-label">Utilisateurs</div>
+        </div>
+    </div>
+
+    <div class="stat-card stat-success">
+        <div class="stat-icon">&#x2714;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.active_users }}</div>
+            <div class="stat-label">Comptes actifs</div>
+        </div>
+    </div>
+
+    <div class="stat-card stat-danger">
+        <div class="stat-icon">&#x26D4;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.disabled_users }}</div>
+            <div class="stat-label">Comptes desactives</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">&#x1F465;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total_groups }}</div>
+            <div class="stat-label">Groupes</div>
+        </div>
+    </div>
+
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">&#x26A0;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.empty_groups }}</div>
+            <div class="stat-label">Groupes vides</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">&#x1F4C1;</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total_ous }}</div>
+            <div class="stat-label">Unites d'organisation</div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-section">
+    <h3>Acces rapide</h3>
+    <div class="quick-actions">
+        <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
+        <a href="{{ url_for('groups.create_group') }}" class="btn btn-secondary">Nouveau groupe</a>
+        <a href="{{ url_for('ous') }}" class="btn btn-secondary">Unites d'organisation</a>
+        <a href="{{ url_for('users.import_users') }}" class="btn btn-secondary">Importer utilisateurs</a>
+        <a href="{{ url_for('users.export_users') }}" class="btn btn-secondary">Exporter utilisateurs</a>
+        <a href="{{ url_for('computers.list_computers') }}" class="btn btn-secondary">Ordinateurs</a>
+        <a href="{{ url_for('tools.locked_accounts') }}" class="btn btn-secondary">Comptes verrouilles</a>
+        <a href="{{ url_for('tools.password_policy') }}" class="btn btn-secondary">Politique mots de passe</a>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="dashboard-section">
+        <h3>Repartition des utilisateurs</h3>
+        <canvas id="usersChart"></canvas>
+    </div>
+    <div class="dashboard-section">
+        <h3>Types de groupes</h3>
+        <canvas id="groupsChart"></canvas>
+    </div>
+</div>
+
+<div class="dashboard-section">
+    <h3>Activite recente</h3>
+    {% if logs %}
+    <div class="table-container">
+        <table class="data-table sortable">
+            <thead>
+                <tr>
+                    <th>Date/Heure</th>
+                    <th>Action</th>
+                    <th>Utilisateur</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.user }}</td>
+                    <td>
+                        {% if log.status == 'SUCCESS' %}
+                        <span class="badge badge-success">Succes</span>
+                        {% else %}
+                        <span class="badge badge-danger">Echec</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p><a href="{{ url_for('audit_logs') }}">Voir tous les logs d'audit</a></p>
+    {% else %}
+    <p class="text-muted">Aucune activite recente.</p>
+    {% endif %}
+</div>
+
+{% block extra_css %}
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    border-radius: 8px;
+}
+
+.stat-success .stat-icon {
+    background: #d4edda;
+}
+
+.stat-danger .stat-icon {
+    background: #f8d7da;
+}
+
+.stat-warning .stat-icon {
+    background: #fff3cd;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: #0078d4;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.dashboard-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-section h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.text-muted {
+    color: #666;
+    font-style: italic;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.charts-grid canvas {
+    max-height: 300px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Graphique des utilisateurs
+const usersCtx = document.getElementById('usersChart').getContext('2d');
+new Chart(usersCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Actifs', 'Desactives'],
+        datasets: [{
+            data: [{{ stats.active_users }}, {{ stats.disabled_users }}],
+            backgroundColor: ['#28a745', '#dc3545'],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Graphique des groupes
+const groupsCtx = document.getElementById('groupsChart').getContext('2d');
+new Chart(groupsCtx, {
+    type: 'pie',
+    data: {
+        labels: ['Avec membres', 'Vides'],
+        datasets: [{
+            data: [{{ stats.total_groups - stats.empty_groups }}, {{ stats.empty_groups }}],
+            backgroundColor: ['#0078d4', '#ffc107'],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

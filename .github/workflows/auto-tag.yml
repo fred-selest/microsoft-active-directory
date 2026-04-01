@@ -1,0 +1,144 @@
+name: Auto Tag and Release
+
+on:
+  push:
+    branches: [main]
+    paths: ['VERSION']
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    name: Create tag and release from VERSION
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version and check tag/release status
+        id: tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          TAG="v${VERSION}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          # Check if tag already exists
+          TAG_EXISTS=false
+          if git ls-remote --tags origin "${TAG}" | grep -q "${TAG}"; then
+            TAG_EXISTS=true
+          fi
+
+          # Check if release already exists
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
+          RELEASE_EXISTS=false
+          if [ "$HTTP_STATUS" = "200" ]; then
+            RELEASE_EXISTS=true
+          fi
+
+          echo "tag_exists=$TAG_EXISTS"
+          echo "release_exists=$RELEASE_EXISTS"
+
+          if [ "$TAG_EXISTS" = "true" ] && [ "$RELEASE_EXISTS" = "true" ]; then
+            echo "Tag and release already exist — nothing to do."
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Create tag if missing
+          if [ "$TAG_EXISTS" = "false" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "${TAG}" -m "Release ${TAG}"
+            git push origin "${TAG}"
+            echo "Tag ${TAG} created."
+          else
+            echo "Tag ${TAG} already exists — skipping tag creation."
+          fi
+
+          echo "skip=false" >> $GITHUB_OUTPUT
+
+      - name: Read CHANGELOG
+        if: steps.tag.outputs.skip == 'false'
+        id: changelog
+        run: |
+          VERSION=${{ steps.tag.outputs.version }}
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+            if [ -z "$NOTES" ]; then
+              NOTES=$(head -50 CHANGELOG.md)
+            fi
+          else
+            NOTES="Release version ${VERSION}"
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Build Windows package
+        if: steps.tag.outputs.skip == 'false'
+        id: build_windows
+        run: |
+          VERSION=${{ steps.tag.outputs.version }}
+          PACKAGE_NAME="AD-WebInterface-${VERSION}-Windows"
+          mkdir -p dist/${PACKAGE_NAME}
+          rsync -a --exclude='.git' \
+                   --exclude='*.sh' \
+                   --exclude='__pycache__' \
+                   --exclude='*.pyc' \
+                   --exclude='venv' \
+                   --exclude='logs' \
+                   --exclude='data' \
+                   --exclude='.env' \
+                   --exclude='dist' \
+                   . dist/${PACKAGE_NAME}/
+          cd dist && zip -r ${PACKAGE_NAME}.zip ${PACKAGE_NAME}
+          echo "windows_zip=dist/${PACKAGE_NAME}.zip" >> $GITHUB_OUTPUT
+
+      - name: Build Linux package
+        if: steps.tag.outputs.skip == 'false'
+        id: build_linux
+        run: |
+          VERSION=${{ steps.tag.outputs.version }}
+          PACKAGE_NAME="AD-WebInterface-${VERSION}-Linux"
+          mkdir -p dist/${PACKAGE_NAME}
+          rsync -a --exclude='.git' \
+                   --exclude='*.bat' \
+                   --exclude='*.vbs' \
+                   --exclude='*.ps1' \
+                   --exclude='*.exe' \
+                   --exclude='__pycache__' \
+                   --exclude='*.pyc' \
+                   --exclude='venv' \
+                   --exclude='logs' \
+                   --exclude='data' \
+                   --exclude='.env' \
+                   --exclude='dist' \
+                   . dist/${PACKAGE_NAME}/
+          chmod +x dist/${PACKAGE_NAME}/*.sh 2>/dev/null || true
+          cd dist && tar -czf ${PACKAGE_NAME}.tar.gz ${PACKAGE_NAME}
+          echo "linux_tar=dist/${PACKAGE_NAME}.tar.gz" >> $GITHUB_OUTPUT
+
+      - name: Create Release with assets
+        if: steps.tag.outputs.skip == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: AD Web Interface ${{ steps.tag.outputs.tag }}
+          body: ${{ steps.changelog.outputs.notes }}
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.version, 'alpha') || contains(steps.tag.outputs.version, 'beta') || contains(steps.tag.outputs.version, 'rc') }}
+          files: |
+            ${{ steps.build_windows.outputs.windows_zip }}
+            ${{ steps.build_linux.outputs.linux_tar }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,180 @@
+"""
+Configuration multi-plateforme pour l'interface web Microsoft Active Directory.
+Compatible avec les systèmes Windows et Linux.
+"""
+
+import os
+import platform
+from pathlib import Path
+
+# Détection du système d'exploitation
+CURRENT_OS = platform.system().lower()
+IS_WINDOWS = CURRENT_OS == 'windows'
+IS_LINUX = CURRENT_OS == 'linux'
+
+# Répertoire de base (multi-plateforme)
+BASE_DIR = Path(__file__).resolve().parent
+
+class Config:
+    """Classe de configuration de base avec support multi-plateforme."""
+
+    # Liaison du serveur - 0.0.0.0 permet l'accès depuis n'importe quelle interface réseau
+    # Ceci est essentiel pour l'accès multi-plateforme et à distance
+    HOST = os.environ.get('AD_WEB_HOST', '0.0.0.0')
+    PORT = int(os.environ.get('AD_WEB_PORT', 5000))
+
+    # Configuration Flask
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'changer-ceci-en-production')
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+
+    # Vérification et correction de la SECRET_KEY
+    _DEFAULT_KEY = 'changer-ceci-en-production'
+    if not SECRET_KEY or SECRET_KEY == _DEFAULT_KEY:
+        if DEBUG:
+            import secrets as _secrets
+            SECRET_KEY = _secrets.token_hex(32)
+            print("[ATTENTION] SECRET_KEY non définie — clé temporaire générée.")
+            print("[ATTENTION] Les sessions seront réinitialisées à chaque redémarrage.")
+            print("[INFO] Pour fixer: ajoutez SECRET_KEY=<valeur> dans le fichier .env")
+        else:
+            raise ValueError(
+                "ERREUR DE SÉCURITÉ: Vous devez définir une SECRET_KEY forte.\n"
+                "Générez une clé: python -c 'import secrets; print(secrets.token_hex(32))'\n"
+                "Puis ajoutez dans .env: SECRET_KEY=votre_cle_generee"
+            )
+
+    # Configuration Active Directory
+    AD_SERVER = os.environ.get('AD_SERVER', '')
+    AD_PORT = int(os.environ.get('AD_PORT', 389))
+    AD_USE_SSL = os.environ.get('AD_USE_SSL', 'False').lower() == 'true'
+    AD_BASE_DN = os.environ.get('AD_BASE_DN', '')
+
+    # Configuration de session
+    SESSION_TIMEOUT = int(os.environ.get('SESSION_TIMEOUT', 30))  # minutes
+    PERMANENT_SESSION_LIFETIME = SESSION_TIMEOUT * 60  # secondes
+
+    # Configuration RBAC (Role-Based Access Control)
+    # Roles: admin, operator, reader
+    # SÉCURITÉ: RBAC activé par défaut avec rôle 'reader' (privilège minimum)
+    RBAC_ENABLED = os.environ.get('RBAC_ENABLED', 'true').lower() == 'true'
+    DEFAULT_ROLE = os.environ.get('DEFAULT_ROLE', 'reader')
+
+    # Groupes AD pour attribution automatique des rôles
+    # Noms de groupes AD (CN) séparés par des virgules
+    # Le premier groupe correspondant détermine le rôle (ordre: admin > operator > reader)
+    ADMIN_GROUPS = [g.strip() for g in os.environ.get('RBAC_ADMIN_GROUPS', 'Domain Admins,Administrateurs du domaine,Administrateurs,Administrateurs de l\'entreprise,Admins du domaine').split(',') if g.strip()]
+    OPERATOR_GROUPS = [g.strip() for g in os.environ.get('RBAC_OPERATOR_GROUPS', '').split(',') if g.strip()]
+    READER_GROUPS = [g.strip() for g in os.environ.get('RBAC_READER_GROUPS', '').split(',') if g.strip()]
+
+    # Configuration HTTPS
+    # Force la redirection HTTP -> HTTPS (recommandé en production)
+    FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'false').lower() == 'true'
+    # Liste des proxys de confiance (pour X-Forwarded-Proto)
+    TRUSTED_PROXIES = os.environ.get('TRUSTED_PROXIES', '127.0.0.1,::1').split(',')
+
+    # Pagination
+    ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE', 25))
+
+    # =========================================================================
+    # FEATURE FLAGS - Activer/Désactiver des fonctionnalités
+    # =========================================================================
+    # Chaque fonctionnalité peut être activée (true) ou désactivée (false)
+    # Cela permet de modulariser l'application et d'éviter d'afficher les
+    # fonctionnalités non désirées ou non implémentées
+    
+    # Gestion des utilisateurs
+    FEATURE_USERS_ENABLED = os.environ.get('FEATURE_USERS_ENABLED', 'true').lower() == 'true'
+    FEATURE_CREATE_USER_ENABLED = os.environ.get('FEATURE_CREATE_USER_ENABLED', 'true').lower() == 'true'
+    FEATURE_EDIT_USER_ENABLED = os.environ.get('FEATURE_EDIT_USER_ENABLED', 'true').lower() == 'true'
+    FEATURE_DELETE_USER_ENABLED = os.environ.get('FEATURE_DELETE_USER_ENABLED', 'true').lower() == 'true'
+    FEATURE_IMPORT_USERS_ENABLED = os.environ.get('FEATURE_IMPORT_USERS_ENABLED', 'true').lower() == 'true'
+    FEATURE_EXPORT_USERS_ENABLED = os.environ.get('FEATURE_EXPORT_USERS_ENABLED', 'true').lower() == 'true'
+    
+    # Gestion des groupes
+    FEATURE_GROUPS_ENABLED = os.environ.get('FEATURE_GROUPS_ENABLED', 'true').lower() == 'true'
+    FEATURE_CREATE_GROUP_ENABLED = os.environ.get('FEATURE_CREATE_GROUP_ENABLED', 'true').lower() == 'true'
+    FEATURE_EDIT_GROUP_ENABLED = os.environ.get('FEATURE_EDIT_GROUP_ENABLED', 'true').lower() == 'true'
+    FEATURE_DELETE_GROUP_ENABLED = os.environ.get('FEATURE_DELETE_GROUP_ENABLED', 'true').lower() == 'true'
+    
+    # Gestion des ordinateurs
+    FEATURE_COMPUTERS_ENABLED = os.environ.get('FEATURE_COMPUTERS_ENABLED', 'true').lower() == 'true'
+    FEATURE_LAPS_ENABLED = os.environ.get('FEATURE_LAPS_ENABLED', 'true').lower() == 'true'
+    FEATURE_BITLOCKER_ENABLED = os.environ.get('FEATURE_BITLOCKER_ENABLED', 'true').lower() == 'true'
+    
+    # Gestion des OUs
+    FEATURE_OUS_ENABLED = os.environ.get('FEATURE_OUS_ENABLED', 'true').lower() == 'true'
+    
+    # Outils avancés
+    FEATURE_RECYCLE_BIN_ENABLED = os.environ.get('FEATURE_RECYCLE_BIN_ENABLED', 'false').lower() == 'true'  # Désactivé par défaut (non implémenté)
+    FEATURE_LOCKED_ACCOUNTS_ENABLED = os.environ.get('FEATURE_LOCKED_ACCOUNTS_ENABLED', 'false').lower() == 'true'  # Désactivé par défaut (non implémenté)
+    FEATURE_EXPIRING_ACCOUNTS_ENABLED = os.environ.get('FEATURE_EXPIRING_ACCOUNTS_ENABLED', 'true').lower() == 'true'
+    FEATURE_PASSWORD_POLICY_ENABLED = os.environ.get('FEATURE_PASSWORD_POLICY_ENABLED', 'true').lower() == 'true'
+    FEATURE_PASSWORD_AUDIT_ENABLED = os.environ.get('FEATURE_PASSWORD_AUDIT_ENABLED', 'true').lower() == 'true'
+    
+    # Administration
+    FEATURE_AUDIT_LOGS_ENABLED = os.environ.get('FEATURE_AUDIT_LOGS_ENABLED', 'true').lower() == 'true'
+    FEATURE_BACKUPS_ENABLED = os.environ.get('FEATURE_BACKUPS_ENABLED', 'true').lower() == 'true'
+    FEATURE_DIAGNOSTIC_ENABLED = os.environ.get('FEATURE_DIAGNOSTIC_ENABLED', 'true').lower() == 'true'
+    FEATURE_API_DOCS_ENABLED = os.environ.get('FEATURE_API_DOCS_ENABLED', 'true').lower() == 'true'
+    FEATURE_SETTINGS_ENABLED = os.environ.get('FEATURE_SETTINGS_ENABLED', 'true').lower() == 'true'
+    
+    # Fonctionnalités utilisateur
+    FEATURE_FAVORITES_ENABLED = os.environ.get('FEATURE_FAVORITES_ENABLED', 'true').lower() == 'true'
+    FEATURE_TEMPLATES_ENABLED = os.environ.get('FEATURE_TEMPLATES_ENABLED', 'true').lower() == 'true'
+    FEATURE_DARK_MODE_ENABLED = os.environ.get('FEATURE_DARK_MODE_ENABLED', 'true').lower() == 'true'
+    FEATURE_LANGUAGE_SWITCH_ENABLED = os.environ.get('FEATURE_LANGUAGE_SWITCH_ENABLED', 'false').lower() == 'true'
+    
+    # Système
+    FEATURE_UPDATE_CHECK_ENABLED = os.environ.get('FEATURE_UPDATE_CHECK_ENABLED', 'true').lower() == 'true'
+    FEATURE_PWA_ENABLED = os.environ.get('FEATURE_PWA_ENABLED', 'true').lower() == 'true'
+
+    # Chemins multi-plateformes - par défaut dans le dossier de l'application
+    LOG_DIR = Path(os.environ.get('AD_LOG_DIR', str(BASE_DIR / 'logs')))
+    DATA_DIR = Path(os.environ.get('AD_DATA_DIR', str(BASE_DIR / 'data')))
+
+    # Création des répertoires nécessaires
+    @classmethod
+    def init_directories(cls):
+        """Créer les répertoires nécessaires s'ils n'existent pas."""
+        for directory in [cls.LOG_DIR, cls.DATA_DIR]:
+            try:
+                directory.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                # Utiliser le répertoire utilisateur si les répertoires système ne sont pas accessibles
+                fallback = BASE_DIR / directory.name
+                fallback.mkdir(parents=True, exist_ok=True)
+                if directory == cls.LOG_DIR:
+                    cls.LOG_DIR = fallback
+                else:
+                    cls.DATA_DIR = fallback
+
+
+class DevelopmentConfig(Config):
+    """Configuration de développement."""
+    DEBUG = True
+
+
+class ProductionConfig(Config):
+    """Configuration de production."""
+    DEBUG = False
+
+
+class TestConfig(Config):
+    """Configuration de test."""
+    TESTING = True
+    DEBUG = True
+
+
+# Dictionnaire de configuration
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'testing': TestConfig,
+    'default': DevelopmentConfig
+}
+
+
+def get_config():
+    """Obtenir la configuration basée sur l'environnement."""
+    env = os.environ.get('FLASK_ENV', 'development')
+    return config.get(env, config['default'])

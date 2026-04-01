@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Modeles d'utilisateurs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Modeles d'utilisateurs</h2>
+    <a href="{{ url_for('create_user_template') }}" class="btn btn-primary">Nouveau modele</a>
+</div>
+
+<div class="templates-list">
+    {% for id, template in templates.items() %}
+    <div class="template-card">
+        <div class="template-header">
+            <h3>{{ template.name }}</h3>
+            <span class="template-date">Cree le {{ template.created[:10] }}</span>
+        </div>
+        <p class="template-description">{{ template.description }}</p>
+
+        <div class="template-details">
+            <h4>Attributs par defaut:</h4>
+            <ul>
+                {% for key, value in template.attributes.items() %}
+                {% if value %}
+                <li><strong>{{ key }}:</strong> {{ value }}</li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+
+            {% if template.groups %}
+            <h4>Groupes ({{ template.groups|length }}):</h4>
+            <ul>
+                {% for group in template.groups %}
+                <li>{{ group }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% if template.ou %}
+            <h4>OU par defaut:</h4>
+            <p>{{ template.ou }}</p>
+            {% endif %}
+        </div>
+
+        <div class="template-actions">
+            <a href="{{ url_for('create_user') }}?template={{ id }}" class="btn btn-primary btn-sm">Utiliser</a>
+            <a href="{{ url_for('edit_user_template', template_id=id) }}" class="btn btn-secondary btn-sm">Modifier</a>
+            <form method="post" action="{{ url_for('delete_user_template', template_id=id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce modele ?');">Supprimer</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <p class="no-templates">Aucun modele defini. <a href="{{ url_for('create_user_template') }}">Creer un modele</a></p>
+    {% endfor %}
+</div>
+
+{% block extra_css %}
+<style>
+.templates-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+.template-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.template-header h3 {
+    margin: 0;
+    color: #0078d4;
+}
+.template-date {
+    font-size: 0.85rem;
+    color: #666;
+}
+.template-description {
+    color: #666;
+    margin-bottom: 1rem;
+}
+.template-details {
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+    margin-bottom: 1rem;
+}
+.template-details h4 {
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+}
+.template-details ul {
+    margin: 0 0 0.5rem 1.5rem;
+    padding: 0;
+}
+.template-details li {
+    font-size: 0.85rem;
+}
+.template-actions {
+    display: flex;
+    gap: 0.5rem;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+.no-templates {
+    text-align: center;
+    color: #666;
+    padding: 2rem;
+}
+</style>
+{% endblock %}
+{% endblock %}

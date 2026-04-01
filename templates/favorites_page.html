@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Favoris - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Favoris</h2>
+    <span class="badge">{{ favorites|length }} element(s)</span>
+</div>
+
+<div class="favorites-stats">
+    <div class="stat-item">
+        <span class="count">{{ counts.user }}</span>
+        <span class="label">Utilisateurs</span>
+    </div>
+    <div class="stat-item">
+        <span class="count">{{ counts.group }}</span>
+        <span class="label">Groupes</span>
+    </div>
+    <div class="stat-item">
+        <span class="count">{{ counts.computer }}</span>
+        <span class="label">Ordinateurs</span>
+    </div>
+    <div class="stat-item">
+        <span class="count">{{ counts.ou }}</span>
+        <span class="label">OUs</span>
+    </div>
+</div>
+
+{% if favorites %}
+<div class="favorites-list">
+    {% for fav in favorites %}
+    <div class="favorite-item type-{{ fav.type }}">
+        <div class="fav-icon">
+            {% if fav.type == 'user' %}U{% endif %}
+            {% if fav.type == 'group' %}G{% endif %}
+            {% if fav.type == 'computer' %}C{% endif %}
+            {% if fav.type == 'ou' %}OU{% endif %}
+        </div>
+        <div class="fav-info">
+            <span class="fav-name">{{ fav.name }}</span>
+            <span class="fav-details">{{ fav.description or fav.dn }}</span>
+            <span class="fav-date">Ajoute le {{ fav.added[:10] }}</span>
+        </div>
+        <div class="fav-actions">
+            {% if fav.type == 'user' %}
+            <a href="{{ url_for('edit_user', dn=fav.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
+            {% elif fav.type == 'group' %}
+            <a href="{{ url_for('group_details', dn=fav.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
+            {% endif %}
+            <form method="post" action="{{ url_for('toggle_favorite') }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="dn" value="{{ fav.dn }}">
+                <input type="hidden" name="action" value="remove">
+                <button type="submit" class="btn btn-sm btn-danger">Retirer</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="no-favorites">Aucun favori. Utilisez l'etoile pour ajouter des elements aux favoris.</p>
+{% endif %}
+
+{% block extra_css %}
+<style>
+.favorites-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.stat-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.stat-item .count {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #0078d4;
+}
+.stat-item .label {
+    color: #666;
+}
+
+.favorite-item {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid;
+}
+.type-user { border-color: #0078d4; }
+.type-group { border-color: #107c10; }
+.type-computer { border-color: #5c2d91; }
+.type-ou { border-color: #ff8c00; }
+
+.fav-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 1rem;
+    color: white;
+}
+.type-user .fav-icon { background: #0078d4; }
+.type-group .fav-icon { background: #107c10; }
+.type-computer .fav-icon { background: #5c2d91; }
+.type-ou .fav-icon { background: #ff8c00; }
+
+.fav-info {
+    flex: 1;
+}
+.fav-name {
+    display: block;
+    font-weight: 500;
+}
+.fav-details {
+    display: block;
+    font-size: 0.85rem;
+    color: #666;
+    word-break: break-all;
+}
+.fav-date {
+    display: block;
+    font-size: 0.8rem;
+    color: #999;
+}
+.fav-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+.no-favorites {
+    text-align: center;
+    color: #666;
+    padding: 2rem;
+}
+</style>
+{% endblock %}
+{% endblock %}

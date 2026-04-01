@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ group.cn }} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{{ group.cn }}</h2>
+    <a href="{{ url_for('groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+</div>
+
+<div class="group-info">
+    <p><strong>DN:</strong> {{ group.dn }}</p>
+    {% if group.description %}
+    <p><strong>Description:</strong> {{ group.description }}</p>
+    {% endif %}
+    <p><strong>Nombre de membres:</strong> {{ group.members|length }}</p>
+</div>
+
+<div class="add-member-section">
+    <h3>Ajouter un membre</h3>
+    <form method="post" action="{{ url_for('add_group_member', dn=group.dn) }}" class="add-member-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <input type="text" name="member_dn" id="member_search"
+                   placeholder="Rechercher un utilisateur ou entrer le DN..."
+                   autocomplete="off" required>
+            <div id="member-suggestions" class="suggestions-dropdown"></div>
+        </div>
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+    </form>
+</div>
+
+<h3>Membres du groupe</h3>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Identifiant</th>
+                <th>Type</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in group.members %}
+            <tr>
+                <td>{{ member.cn }}</td>
+                <td>{{ member.sAMAccountName }}</td>
+                <td>
+                    {% if member.type == 'user' %}
+                    <span class="badge badge-info">Utilisateur</span>
+                    {% else %}
+                    <span class="badge badge-secondary">Groupe</span>
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    {% if member.type == 'user' %}
+                    <a href="{{ url_for('edit_user', dn=member.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    {% else %}
+                    <a href="{{ url_for('group_details', dn=member.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('remove_group_member', dn=group.dn) }}"
+                          style="display: inline;" onsubmit="return confirm('Retirer ce membre du groupe ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="member_dn" value="{{ member.dn }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Retirer</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Ce groupe n'a aucun membre.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% block extra_css %}
+<style>
+.add-member-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.add-member-section h3 {
+    color: #0078d4;
+    margin-bottom: 1rem;
+}
+.add-member-form {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.add-member-form .form-group {
+    flex: 1;
+    margin: 0;
+    position: relative;
+}
+.add-member-form input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+.suggestion-item {
+    padding: 0.5rem;
+    cursor: pointer;
+}
+.suggestion-item:hover {
+    background: #f0f0f0;
+}
+.suggestion-item small {
+    color: #666;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Recherche AJAX d'utilisateurs
+const memberSearch = document.getElementById('member_search');
+const suggestions = document.getElementById('member-suggestions');
+
+if (memberSearch) {
+    let timeout;
+    memberSearch.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value;
+
+        if (query.length < 2) {
+            suggestions.style.display = 'none';
+            return;
+        }
+
+        timeout = setTimeout(() => {
+            fetch('/api/users/search?q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.users.length > 0) {
+                        suggestions.innerHTML = data.users.map(u =>
+                            `<div class="suggestion-item" data-dn="${u.dn}">${u.cn} <small>(${u.sAMAccountName})</small></div>`
+                        ).join('');
+                        suggestions.style.display = 'block';
+                    } else {
+                        suggestions.style.display = 'none';
+                    }
+                });
+        }, 300);
+    });
+
+    suggestions.addEventListener('click', function(e) {
+        if (e.target.classList.contains('suggestion-item')) {
+            memberSearch.value = e.target.dataset.dn;
+            suggestions.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!memberSearch.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

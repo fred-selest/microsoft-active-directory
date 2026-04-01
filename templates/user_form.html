@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if action == 'create' %}Nouvel utilisateur{% else %}Modifier l'utilisateur{% endif %} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{% if action == 'create' %}Nouvel utilisateur{% else %}Modifier l'utilisateur{% endif %}</h2>
+    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour a la liste</a>
+</div>
+
+<div class="form-container">
+    <form method="post" class="user-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if action == 'create' %}
+        <div class="form-section">
+            <h3>Informations de compte</h3>
+
+            <div class="form-group">
+                <label for="sAMAccountName">Identifiant (login) *</label>
+                <input type="text" id="sAMAccountName" name="sAMAccountName" required
+                       placeholder="jdupont">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Mot de passe *</label>
+                <div class="password-input-group">
+                    <input type="password" id="password" name="password" required
+                           placeholder="Mot de passe initial" minlength="{{ password_requirements.min_length }}">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="generatePassword()">Generer</button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="togglePasswordVisibility('password')">Voir</button>
+                </div>
+                <small class="form-hint">Min. {{ password_requirements.min_length }} caracteres, avec majuscule, minuscule, chiffre ou special</small>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="must_change_password" value="on" checked>
+                    L'utilisateur doit changer son mot de passe a la prochaine connexion
+                </label>
+            </div>
+
+            {% if ous %}
+            <div class="form-group">
+                <label for="ou">Unite organisationnelle (OU)</label>
+                <select id="ou" name="ou">
+                    <option value="">CN=Users (par defaut)</option>
+                    {% for ou in ous %}
+                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="form-section">
+            <h3>Informations personnelles</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="givenName">Prenom *</label>
+                    <input type="text" id="givenName" name="givenName"
+                           value="{{ user.givenName if user else '' }}" required
+                           placeholder="Jean">
+                </div>
+
+                <div class="form-group">
+                    <label for="sn">Nom *</label>
+                    <input type="text" id="sn" name="sn"
+                           value="{{ user.sn if user else '' }}" required
+                           placeholder="Dupont">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="displayName">Nom d'affichage</label>
+                <input type="text" id="displayName" name="displayName"
+                       value="{{ user.displayName if user else '' }}"
+                       placeholder="Jean Dupont">
+            </div>
+
+            <div class="form-group">
+                <label for="mail">Email</label>
+                <input type="email" id="mail" name="mail"
+                       value="{{ user.mail if user else '' }}"
+                       placeholder="jean.dupont@exemple.com">
+            </div>
+
+            <div class="form-group">
+                <label for="telephoneNumber">Telephone</label>
+                <input type="tel" id="telephoneNumber" name="telephoneNumber"
+                       value="{{ user.telephoneNumber if user else '' }}"
+                       placeholder="+33 1 23 45 67 89">
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Informations professionnelles</h3>
+
+            <div class="form-group">
+                <label for="department">Service</label>
+                <input type="text" id="department" name="department"
+                       value="{{ user.department if user else '' }}"
+                       placeholder="Informatique">
+            </div>
+
+            <div class="form-group">
+                <label for="title">Fonction</label>
+                <input type="text" id="title" name="title"
+                       value="{{ user.title if user else '' }}"
+                       placeholder="Administrateur systeme">
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3"
+                          placeholder="Description de l'utilisateur">{{ user.description if user else '' }}</textarea>
+            </div>
+        </div>
+
+        {% if action == 'edit' %}
+        <div class="form-section">
+            <h3>Gestion du compte</h3>
+
+            <div class="form-group">
+                <label for="new_password">Nouveau mot de passe</label>
+                <input type="password" id="new_password" name="new_password"
+                       placeholder="Laisser vide pour ne pas changer">
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="enable_account"
+                           {% if not user.disabled %}checked{% endif %}
+                           value="on">
+                    Compte actif
+                </label>
+            </div>
+        </div>
+
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if action == 'create' %}Creer l'utilisateur{% else %}Enregistrer les modifications{% endif %}
+            </button>
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% block extra_css %}
+<style>
+.inline-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+.inline-form .form-group {
+    flex: 1;
+    margin: 0;
+    position: relative;
+}
+.add-to-group-form {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+.group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+}
+.group-name {
+    flex: 1;
+    word-break: break-all;
+    margin-right: 1rem;
+}
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+.suggestion-item {
+    padding: 0.5rem;
+    cursor: pointer;
+}
+.suggestion-item:hover {
+    background: #f0f0f0;
+}
+.text-muted {
+    color: #666;
+    font-style: italic;
+}
+.password-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.password-input-group input {
+    flex: 1;
+}
+.form-hint {
+    color: #666;
+    font-size: 0.85em;
+    display: block;
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Generateur de mot de passe
+function generatePassword(length = 12) {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+    // S'assurer d'avoir au moins un de chaque type
+    let password = '';
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += digits[Math.floor(Math.random() * digits.length)];
+    password += special[Math.floor(Math.random() * special.length)];
+
+    // Completer le reste avec des caracteres aleatoires
+    const allChars = uppercase + lowercase + digits + special;
+    for (let i = password.length; i < length; i++) {
+        password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+
+    // Melanger le mot de passe
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+
+    // Mettre dans le champ
+    const pwdField = document.getElementById('password');
+    if (pwdField) {
+        pwdField.value = password;
+        pwdField.type = 'text'; // Montrer le mot de passe genere
+    }
+
+    return password;
+}
+
+// Afficher/masquer le mot de passe
+function togglePasswordVisibility(fieldId) {
+    const field = document.getElementById(fieldId);
+    if (field) {
+        field.type = field.type === 'password' ? 'text' : 'password';
+    }
+}
+
+// Recherche AJAX de groupes
+const groupSearch = document.getElementById('group_search');
+const suggestions = document.getElementById('group-suggestions');
+
+if (groupSearch) {
+    let timeout;
+    groupSearch.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value;
+
+        if (query.length < 2) {
+            suggestions.style.display = 'none';
+            return;
+        }
+
+        timeout = setTimeout(() => {
+            fetch('/api/groups/search?q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.groups.length > 0) {
+                        suggestions.innerHTML = data.groups.map(g =>
+                            `<div class="suggestion-item" data-dn="${g.dn}">${g.cn} <small>(${g.description || 'Aucune description'})</small></div>`
+                        ).join('');
+                        suggestions.style.display = 'block';
+                    } else {
+                        suggestions.style.display = 'none';
+                    }
+                });
+        }, 300);
+    });
+
+    suggestions.addEventListener('click', function(e) {
+        if (e.target.classList.contains('suggestion-item')) {
+            groupSearch.value = e.target.dataset.dn;
+            suggestions.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!groupSearch.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

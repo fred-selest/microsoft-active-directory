@@ -1,0 +1,121 @@
+# =============================================================================
+# GitHub Actions - Release Automatique
+# Cree des releases avec packages Windows/Linux en un seul job
+# =============================================================================
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.17.2)'
+        required: true
+        default: '1.17.5'
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Read CHANGELOG
+        id: changelog
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+            if [ -z "$NOTES" ]; then
+              NOTES=$(head -50 CHANGELOG.md)
+            fi
+          else
+            NOTES="Release version ${VERSION}"
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # NSSM n'est plus inclus dans le package - téléchargé à l'installation
+      # - name: Bundle NSSM for Windows package
+      #   continue-on-error: true
+      #   run: |
+      #     echo "Bundling NSSM..."
+      #     mkdir -p nssm
+      #     ...
+
+      - name: Build Windows package
+        id: build_windows
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          PACKAGE_NAME="AD-WebInterface-${VERSION}-Windows"
+          mkdir -p dist/${PACKAGE_NAME}
+          rsync -a --exclude='.git' \
+                   --exclude='*.sh' \
+                   --exclude='__pycache__' \
+                   --exclude='*.pyc' \
+                   --exclude='venv' \
+                   --exclude='logs' \
+                   --exclude='data' \
+                   --exclude='.env' \
+                   --exclude='dist' \
+                   . dist/${PACKAGE_NAME}/
+          cd dist && zip -r ${PACKAGE_NAME}.zip ${PACKAGE_NAME}
+          echo "windows_zip=dist/${PACKAGE_NAME}.zip" >> $GITHUB_OUTPUT
+
+      - name: Build Linux package
+        id: build_linux
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          PACKAGE_NAME="AD-WebInterface-${VERSION}-Linux"
+          mkdir -p dist/${PACKAGE_NAME}
+          rsync -a --exclude='.git' \
+                   --exclude='*.bat' \
+                   --exclude='*.vbs' \
+                   --exclude='*.ps1' \
+                   --exclude='*.exe' \
+                   --exclude='__pycache__' \
+                   --exclude='*.pyc' \
+                   --exclude='venv' \
+                   --exclude='logs' \
+                   --exclude='data' \
+                   --exclude='.env' \
+                   --exclude='dist' \
+                   . dist/${PACKAGE_NAME}/
+          chmod +x dist/${PACKAGE_NAME}/*.sh 2>/dev/null || true
+          cd dist && tar -czf ${PACKAGE_NAME}.tar.gz ${PACKAGE_NAME}
+          echo "linux_tar=dist/${PACKAGE_NAME}.tar.gz" >> $GITHUB_OUTPUT
+
+      - name: Create Release with assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: AD Web Interface v${{ steps.get_version.outputs.version }}
+          body: ${{ steps.changelog.outputs.notes }}
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.version, 'alpha') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'rc') }}
+          files: |
+            ${{ steps.build_windows.outputs.windows_zip }}
+            ${{ steps.build_linux.outputs.linux_tar }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
