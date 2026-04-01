@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Interface Web pour Microsoft Active Directory">
+    <meta name="theme-color" content="#0078d4">
+    
+    <!-- Mobile Web App -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="AD Web">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-152.png') }}">
+    
+    <title>{% block title %}AD Web Interface{% endblock %}</title>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/optimizations.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
+    {% block extra_css %}{% endblock %}
+    
+    {% if config.DEBUG %}
+    <!-- Auto-reload en mode debug -->
+    <script>
+    (function() {
+        let lastModified = Date.now();
+        setInterval(() => {
+            fetch(window.location.href, {method: 'HEAD'})
+                .then(resp => {
+                    const modified = resp.headers.get('last-modified');
+                    if (modified && new Date(modified).getTime() > lastModified) {
+                        console.log('🔄 Page modifiée, rechargement...');
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {});
+        }, 3000); // Vérifie toutes les 3 secondes
+    })();
+    </script>
+    {% endif %}
+</head>
+<body class="{% if dark_mode %}dark-mode{% endif %}">
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+    
+    <nav class="navbar" role="navigation" aria-label="Menu principal">
+        <div class="nav-brand">
+            <a href="{{ url_for('index') }}">
+                {% if site_settings.logo %}
+                <img src="{{ url_for('static', filename='images/' + site_settings.logo) }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+                {% else %}
+                <img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+                {% endif %}
+                <span class="nav-title">{{ site_settings.title or 'AD Web Interface' }}</span>
+            </a>
+            <button class="menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-menu">
+                <span class="menu-icon">☰</span>
+            </button>
+        </div>
+        <ul class="nav-links" id="nav-menu" role="menubar">
+            {% if connected %}
+            <li role="none"><a href="{{ url_for('dashboard') }}" role="menuitem">Tableau de bord</a></li>
+            <li role="none"><a href="{{ url_for('global_search') }}" role="menuitem">Recherche</a></li>
+            {% if config.FEATURE_USERS_ENABLED %}
+            <li role="none"><a href="{{ url_for('users.list_users') }}" role="menuitem">Utilisateurs</a></li>
+            {% endif %}
+            {% if config.FEATURE_GROUPS_ENABLED %}
+            <li role="none"><a href="{{ url_for('groups.list_groups') }}" role="menuitem">Groupes</a></li>
+            {% endif %}
+            {% if config.FEATURE_COMPUTERS_ENABLED %}
+            <li role="none"><a href="{{ url_for('computers.list_computers') }}" role="menuitem">Ordinateurs</a></li>
+            {% endif %}
+            {% if config.FEATURE_OUS_ENABLED %}
+            <li role="none"><a href="{{ url_for('ous') }}" role="menuitem">Structure</a></li>
+            {% endif %}
+            <li class="nav-dropdown" role="none">
+                <a href="#" role="menuitem" aria-haspopup="true" aria-expanded="false" class="dropdown-toggle">
+                    Plus <span class="dropdown-arrow" aria-hidden="true">▼</span>
+                </a>
+                <ul class="dropdown-menu" role="menu">
+                    {% if has_permission('admin') and config.FEATURE_LAPS_ENABLED %}
+                    <li role="none"><a href="{{ url_for('tools.laps_passwords') }}" role="menuitem">LAPS</a></li>
+                    {% endif %}
+                    {% if has_permission('admin') and config.FEATURE_BITLOCKER_ENABLED %}
+                    <li role="none"><a href="{{ url_for('tools.bitlocker_keys') }}" role="menuitem">BitLocker</a></li>
+                    {% endif %}
+                    {% if has_permission('write') and config.FEATURE_RECYCLE_BIN_ENABLED %}
+                    <li role="none"><a href="{{ url_for('tools.recycle_bin') }}" role="menuitem">Corbeille</a></li>
+                    {% endif %}
+                    {% if has_permission('write') and config.FEATURE_TEMPLATES_ENABLED %}
+                    <li role="none"><a href="{{ url_for('tools.user_templates') }}" role="menuitem">Modèles</a></li>
+                    {% endif %}
+                    {% if config.FEATURE_FAVORITES_ENABLED %}
+                    <li role="none"><a href="{{ url_for('tools.favorites') }}" role="menuitem">Favoris</a></li>
+                    {% endif %}
+                    {% if config.FEATURE_EXPIRING_ACCOUNTS_ENABLED %}
+                    <li role="none"><a href="{{ url_for('tools.expiring_accounts') }}" role="menuitem">Expirations</a></li>
+                    {% endif %}
+                    <li role="none">
+                        <a href="{{ url_for('tools.alerts') }}" role="menuitem">
+                            Alertes
+                            {% if alert_counts and alert_counts.unacknowledged > 0 %}
+                            <span class="badge badge-warning" aria-label="{{ alert_counts.unacknowledged }} alertes non reconnues">{{ alert_counts.unacknowledged }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% if has_permission('admin') and config.FEATURE_AUDIT_LOGS_ENABLED %}
+                    <li role="none"><a href="{{ url_for('audit_logs') }}" role="menuitem">Audit</a></li>
+                    {% endif %}
+                    {% if has_permission('admin') and config.FEATURE_DIAGNOSTIC_ENABLED %}
+                    <li role="none"><a href="{{ url_for('diagnostic_page') }}" role="menuitem">Diagnostic</a></li>
+                    {% endif %}
+                    {% if has_permission('admin') and config.FEATURE_API_DOCS_ENABLED %}
+                    <li role="none"><a href="{{ url_for('tools.api_documentation') }}" role="menuitem">API</a></li>
+                    {% endif %}
+                    {% if has_permission('admin') and config.FEATURE_SETTINGS_ENABLED %}
+                    <li role="none"><a href="{{ url_for('admin.admin_page') }}" role="menuitem">Administration</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            <li role="none"><a href="{{ url_for('disconnect') }}" class="nav-disconnect" role="menuitem">Déconnexion</a></li>
+            {% else %}
+            <li role="none"><a href="{{ url_for('index') }}" role="menuitem">Accueil</a></li>
+            <li role="none"><a href="{{ url_for('connect') }}" role="menuitem">Connexion AD</a></li>
+            {% endif %}
+            {% if config.FEATURE_DARK_MODE_ENABLED %}
+            <li role="none">
+                <a href="{{ url_for('toggle_dark_mode') }}" class="dark-mode-toggle" role="menuitem" title="Basculer mode sombre" aria-label="Basculer mode sombre">
+                    <span class="dark-mode-icon" aria-hidden="true">🌙</span>
+                </a>
+            </li>
+            {% endif %}
+            {% if config.FEATURE_UPDATE_CHECK_ENABLED %}
+            <li role="none"><a href="{{ url_for('update_page') }}" role="menuitem">Mise à jour</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    {% if update_info and update_info.update_available %}
+    <div class="update-notification" role="alert" aria-live="polite">
+        <span class="update-icon" aria-hidden="true">⚠</span>
+        <span class="update-text">
+            Nouvelle version disponible: <strong>{{ update_info.latest_version }}</strong>
+            (actuelle: {{ update_info.current_version }})
+        </span>
+        <a href="{{ url_for('update_page') }}" class="btn btn-sm btn-update">Mettre à jour</a>
+        <button class="update-close" onclick="this.parentElement.style.display='none'" aria-label="Fermer la notification">&times;</button>
+    </div>
+    {% endif %}
+
+    <main class="container" id="main-content" role="main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" role="alert" aria-live="{{ 'assertive' if category == 'error' else 'polite' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer" role="contentinfo">
+        <p>{{ site_settings.footer or 'Active Directory Web Interface - Compatible Windows & Linux' }}</p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay" aria-hidden="true" aria-live="polite">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p class="loading-text">Chargement...</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    // Enregistrement du Service Worker pour PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/static/sw.js')
+                .then(registration => {
+                    console.log('SW enregistré:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('Erreur SW:', error);
+                });
+        });
+    }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

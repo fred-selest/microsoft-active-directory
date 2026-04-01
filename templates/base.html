@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Interface Web pour Microsoft Active Directory">
     <meta name="theme-color" content="#0078d4">
-    
+
     <!-- Mobile Web App -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="AD Web">
-    
+
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
     <link rel="shortcut icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-152.png') }}">
-    
+
     <title>{% block title %}AD Web Interface{% endblock %}</title>
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -39,159 +39,249 @@
                     }
                 })
                 .catch(() => {});
-        }, 3000); // Vérifie toutes les 3 secondes
+        }, 3000);
     })();
     </script>
     {% endif %}
 </head>
 <body class="{% if dark_mode %}dark-mode{% endif %}">
     <a href="#main-content" class="skip-link">Aller au contenu principal</a>
-    
-    <nav class="navbar" role="navigation" aria-label="Menu principal">
-        <div class="nav-brand">
-            <a href="{{ url_for('index') }}">
-                {% if site_settings.logo %}
-                <img src="{{ url_for('static', filename='images/' + site_settings.logo) }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
-                {% else %}
-                <img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
-                {% endif %}
-                <span class="nav-title">{{ site_settings.title or 'AD Web Interface' }}</span>
-            </a>
-            <button class="menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-menu">
-                <span class="menu-icon">☰</span>
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
             </button>
+            <a href="{{ url_for('index') }}" class="top-bar-brand">
+                <img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="Logo" class="top-bar-logo">
+                <span class="top-bar-title">{{ site_settings.title or 'AD Web' }}</span>
+            </a>
         </div>
-        <ul class="nav-links" id="nav-menu" role="menubar">
+        <div class="top-bar-right">
             {% if connected %}
-            <li role="none"><a href="{{ url_for('dashboard') }}" role="menuitem">Tableau de bord</a></li>
-            <li role="none"><a href="{{ url_for('global_search') }}" role="menuitem">Recherche</a></li>
-            {% if config.FEATURE_USERS_ENABLED %}
-            <li role="none"><a href="{{ url_for('users.list_users') }}" role="menuitem">Utilisateurs</a></li>
-            {% endif %}
-            {% if config.FEATURE_GROUPS_ENABLED %}
-            <li role="none"><a href="{{ url_for('groups.list_groups') }}" role="menuitem">Groupes</a></li>
-            {% endif %}
-            {% if config.FEATURE_COMPUTERS_ENABLED %}
-            <li role="none"><a href="{{ url_for('computers.list_computers') }}" role="menuitem">Ordinateurs</a></li>
-            {% endif %}
-            {% if config.FEATURE_OUS_ENABLED %}
-            <li role="none"><a href="{{ url_for('ous') }}" role="menuitem">Structure</a></li>
-            {% endif %}
-            <li class="nav-dropdown" role="none">
-                <a href="#" role="menuitem" aria-haspopup="true" aria-expanded="false" class="dropdown-toggle">
-                    Plus <span class="dropdown-arrow" aria-hidden="true">▼</span>
-                </a>
-                <ul class="dropdown-menu" role="menu">
-                    {% if has_permission('admin') and config.FEATURE_LAPS_ENABLED %}
-                    <li role="none"><a href="{{ url_for('tools.laps_passwords') }}" role="menuitem">LAPS</a></li>
-                    {% endif %}
-                    {% if has_permission('admin') and config.FEATURE_BITLOCKER_ENABLED %}
-                    <li role="none"><a href="{{ url_for('tools.bitlocker_keys') }}" role="menuitem">BitLocker</a></li>
-                    {% endif %}
-                    {% if has_permission('write') and config.FEATURE_RECYCLE_BIN_ENABLED %}
-                    <li role="none"><a href="{{ url_for('tools.recycle_bin') }}" role="menuitem">Corbeille</a></li>
-                    {% endif %}
-                    {% if has_permission('write') and config.FEATURE_TEMPLATES_ENABLED %}
-                    <li role="none"><a href="{{ url_for('tools.user_templates') }}" role="menuitem">Modèles</a></li>
-                    {% endif %}
-                    {% if config.FEATURE_FAVORITES_ENABLED %}
-                    <li role="none"><a href="{{ url_for('tools.favorites') }}" role="menuitem">Favoris</a></li>
-                    {% endif %}
-                    {% if config.FEATURE_EXPIRING_ACCOUNTS_ENABLED %}
-                    <li role="none"><a href="{{ url_for('tools.expiring_accounts') }}" role="menuitem">Expirations</a></li>
-                    {% endif %}
-                    <li role="none">
-                        <a href="{{ url_for('tools.alerts') }}" role="menuitem">
-                            Alertes
-                            {% if alert_counts and alert_counts.unacknowledged > 0 %}
-                            <span class="badge badge-warning" aria-label="{{ alert_counts.unacknowledged }} alertes non reconnues">{{ alert_counts.unacknowledged }}</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    {% if has_permission('admin') and config.FEATURE_AUDIT_LOGS_ENABLED %}
-                    <li role="none"><a href="{{ url_for('audit_logs') }}" role="menuitem">Audit</a></li>
-                    {% endif %}
-                    {% if has_permission('admin') and config.FEATURE_DIAGNOSTIC_ENABLED %}
-                    <li role="none"><a href="{{ url_for('diagnostic_page') }}" role="menuitem">Diagnostic</a></li>
-                    {% endif %}
-                    {% if has_permission('admin') and config.FEATURE_API_DOCS_ENABLED %}
-                    <li role="none"><a href="{{ url_for('tools.api_documentation') }}" role="menuitem">API</a></li>
-                    {% endif %}
-                    {% if has_permission('admin') and config.FEATURE_SETTINGS_ENABLED %}
-                    <li role="none"><a href="{{ url_for('admin.admin_page') }}" role="menuitem">Administration</a></li>
-                    {% endif %}
-                </ul>
-            </li>
-            <li role="none"><a href="{{ url_for('disconnect') }}" class="nav-disconnect" role="menuitem">Déconnexion</a></li>
+            <span class="user-info">
+                <span class="user-avatar">{{ session.get('ad_username', 'U')[0]|upper }}</span>
+                <span class="user-name">{{ session.get('ad_username', 'Utilisateur') }}</span>
+                <span class="user-role badge badge-{{ 'success' if session.get('user_role') == 'admin' else 'info' if session.get('user_role') == 'operator' else 'warning' }}">
+                    {{ session.get('user_role', 'reader') }}
+                </span>
+            </span>
+            <a href="{{ url_for('disconnect') }}" class="btn btn-logout" title="Déconnexion">
+                <span>🚪</span>
+            </a>
             {% else %}
-            <li role="none"><a href="{{ url_for('index') }}" role="menuitem">Accueil</a></li>
-            <li role="none"><a href="{{ url_for('connect') }}" role="menuitem">Connexion AD</a></li>
+            <a href="{{ url_for('connect') }}" class="btn btn-primary btn-sm">Connexion</a>
             {% endif %}
-            {% if config.FEATURE_DARK_MODE_ENABLED %}
-            <li role="none">
-                <a href="{{ url_for('toggle_dark_mode') }}" class="dark-mode-toggle" role="menuitem" title="Basculer mode sombre" aria-label="Basculer mode sombre">
-                    <span class="dark-mode-icon" aria-hidden="true">🌙</span>
+        </div>
+    </header>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="sidebar-section">
+                <div class="sidebar-label">Principal</div>
+                <a href="{{ url_for('dashboard') }}" class="sidebar-link {{ 'active' if request.endpoint == 'dashboard' }}">
+                    <span class="sidebar-icon">📊</span>
+                    <span class="sidebar-text">Tableau de bord</span>
                 </a>
-            </li>
-            {% endif %}
-            {% if config.FEATURE_UPDATE_CHECK_ENABLED %}
-            <li role="none"><a href="{{ url_for('update_page') }}" role="menuitem">Mise à jour</a></li>
-            {% endif %}
-        </ul>
-    </nav>
+                <a href="{{ url_for('global_search') }}" class="sidebar-link {{ 'active' if request.endpoint == 'global_search' }}">
+                    <span class="sidebar-icon">🔍</span>
+                    <span class="sidebar-text">Recherche</span>
+                </a>
+            </div>
 
-    {% if update_info and update_info.update_available %}
-    <div class="update-notification" role="alert" aria-live="polite">
-        <span class="update-icon" aria-hidden="true">⚠</span>
-        <span class="update-text">
-            Nouvelle version disponible: <strong>{{ update_info.latest_version }}</strong>
-            (actuelle: {{ update_info.current_version }})
-        </span>
-        <a href="{{ url_for('update_page') }}" class="btn btn-sm btn-update">Mettre à jour</a>
-        <button class="update-close" onclick="this.parentElement.style.display='none'" aria-label="Fermer la notification">&times;</button>
-    </div>
-    {% endif %}
+            <div class="sidebar-section">
+                <div class="sidebar-label">Gestion</div>
+                {% if config.FEATURE_USERS_ENABLED %}
+                <a href="{{ url_for('users.list_users') }}" class="sidebar-link {{ 'active' if request.endpoint and 'users' in request.endpoint }}">
+                    <span class="sidebar-icon">👥</span>
+                    <span class="sidebar-text">Utilisateurs</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_GROUPS_ENABLED %}
+                <a href="{{ url_for('groups.list_groups') }}" class="sidebar-link {{ 'active' if request.endpoint and 'groups' in request.endpoint }}">
+                    <span class="sidebar-icon">👨‍👩‍👧‍👦</span>
+                    <span class="sidebar-text">Groupes</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_COMPUTERS_ENABLED %}
+                <a href="{{ url_for('computers.list_computers') }}" class="sidebar-link {{ 'active' if request.endpoint and 'computers' in request.endpoint }}">
+                    <span class="sidebar-icon">💻</span>
+                    <span class="sidebar-text">Ordinateurs</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_OUS_ENABLED %}
+                <a href="{{ url_for('ous') }}" class="sidebar-link {{ 'active' if request.endpoint == 'ous' }}">
+                    <span class="sidebar-icon">📁</span>
+                    <span class="sidebar-text">Unités d'org.</span>
+                </a>
+                {% endif %}
+            </div>
 
-    <main class="container" id="main-content" role="main">
+            {% if connected and has_permission('admin') %}
+            <div class="sidebar-section">
+                <div class="sidebar-label">Outils</div>
+                {% if config.FEATURE_LAPS_ENABLED %}
+                <a href="{{ url_for('tools.laps_passwords') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.laps_passwords' }}">
+                    <span class="sidebar-icon">🔑</span>
+                    <span class="sidebar-text">LAPS</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_BITLOCKER_ENABLED %}
+                <a href="{{ url_for('tools.bitlocker_keys') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.bitlocker_keys' }}">
+                    <span class="sidebar-icon">🔐</span>
+                    <span class="sidebar-text">BitLocker</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_RECYCLE_BIN_ENABLED %}
+                <a href="{{ url_for('tools.recycle_bin') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.recycle_bin' }}">
+                    <span class="sidebar-icon">🗑️</span>
+                    <span class="sidebar-text">Corbeille</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_LOCKED_ACCOUNTS_ENABLED %}
+                <a href="{{ url_for('tools.locked_accounts') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.locked_accounts' }}">
+                    <span class="sidebar-icon">🔒</span>
+                    <span class="sidebar-text">Comptes verrouillés</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_EXPIRING_ACCOUNTS_ENABLED %}
+                <a href="{{ url_for('tools.expiring_accounts') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.expiring_accounts' }}">
+                    <span class="sidebar-icon">⏰</span>
+                    <span class="sidebar-text">Expirations</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_PASSWORD_POLICY_ENABLED %}
+                <a href="{{ url_for('tools.password_policy') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.password_policy' }}">
+                    <span class="sidebar-icon">🛡️</span>
+                    <span class="sidebar-text">Politique MDP</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_PASSWORD_AUDIT_ENABLED %}
+                <a href="{{ url_for('tools.password_audit') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.password_audit' }}">
+                    <span class="sidebar-icon">🔍</span>
+                    <span class="sidebar-text">Audit MDP</span>
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Administration</div>
+                <a href="{{ url_for('tools.alerts') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.alerts' }}">
+                    <span class="sidebar-icon">🔔</span>
+                    <span class="sidebar-text">Alertes</span>
+                    {% if alert_counts and alert_counts.unacknowledged > 0 %}
+                    <span class="sidebar-badge">{{ alert_counts.unacknowledged }}</span>
+                    {% endif %}
+                </a>
+                {% if config.FEATURE_AUDIT_LOGS_ENABLED %}
+                <a href="{{ url_for('audit_logs') }}" class="sidebar-link {{ 'active' if request.endpoint == 'audit_logs' }}">
+                    <span class="sidebar-icon">📋</span>
+                    <span class="sidebar-text">Audit</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_DIAGNOSTIC_ENABLED %}
+                <a href="{{ url_for('diagnostic_page') }}" class="sidebar-link {{ 'active' if request.endpoint == 'diagnostic_page' }}">
+                    <span class="sidebar-icon">🔧</span>
+                    <span class="sidebar-text">Diagnostic</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_BACKUPS_ENABLED %}
+                <a href="{{ url_for('tools.backups') }}" class="sidebar-link {{ 'active' if request.endpoint == 'tools.backups' }}">
+                    <span class="sidebar-icon">💾</span>
+                    <span class="sidebar-text">Sauvegardes</span>
+                </a>
+                {% endif %}
+                {% if config.FEATURE_SETTINGS_ENABLED %}
+                <a href="{{ url_for('admin.admin_page') }}" class="sidebar-link {{ 'active' if request.endpoint and 'admin' in request.endpoint }}">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span class="sidebar-text">Admin</span>
+                </a>
+                {% endif %}
+                {% if config.DEBUG %}
+                <a href="{{ url_for('debug.debug_dashboard') }}" class="sidebar-link {{ 'active' if request.endpoint and 'debug' in request.endpoint }}">
+                    <span class="sidebar-icon">🐛</span>
+                    <span class="sidebar-text">Debug</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="sidebar-footer">
+                <a href="{{ url_for('toggle_dark_mode') }}" class="sidebar-link sidebar-footer">
+                    <span class="sidebar-icon">{% if dark_mode %}☀️{% else %}🌙{% endif %}</span>
+                    <span class="sidebar-text">{% if dark_mode %}Mode clair{% else %}Mode sombre{% endif %}</span>
+                </a>
+                {% if config.FEATURE_UPDATE_CHECK_ENABLED %}
+                <a href="{{ url_for('update_page') }}" class="sidebar-link sidebar-footer {{ 'update-available' if update_info and update_info.update_available else '' }}">
+                    <span class="sidebar-icon">🔄</span>
+                    <span class="sidebar-text">Mise à jour</span>
+                    {% if update_info and update_info.update_available %}
+                    <span class="sidebar-badge">!</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Overlay pour mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}" role="alert" aria-live="{{ 'assertive' if category == 'error' else 'polite' }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'error' if category == 'error' else 'warning' if category == 'warning' else 'info' }} alert-dismissible fade-in" role="alert">
+                {{ message }}
+                <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endwith %}
 
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer" role="contentinfo">
+    <footer class="main-footer">
         <p>{{ site_settings.footer or 'Active Directory Web Interface - Compatible Windows & Linux' }}</p>
     </footer>
 
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loading-overlay" aria-hidden="true" aria-live="polite">
-        <div class="loading-spinner">
-            <div class="spinner"></div>
-            <p class="loading-text">Chargement...</p>
-        </div>
-    </div>
-
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
-    // Enregistrement du Service Worker pour PWA
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/static/sw.js')
-                .then(registration => {
-                    console.log('SW enregistré:', registration.scope);
-                })
-                .catch(error => {
-                    console.log('Erreur SW:', error);
-                });
+    // Sidebar toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const toggle = document.getElementById('sidebarToggle');
+        
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
+        }
+        
+        if (toggle) {
+            toggle.addEventListener('click', toggleSidebar);
+        }
+        
+        if (overlay) {
+            overlay.addEventListener('click', toggleSidebar);
+        }
+        
+        // Fermer avec Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                toggleSidebar();
+            }
         });
-    }
+    });
     </script>
     {% block extra_js %}{% endblock %}
 </body>
