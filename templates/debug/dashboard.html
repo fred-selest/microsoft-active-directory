@@ -1,327 +1,1115 @@
 {% extends 'base.html' %}
 
-{% block title %}Debug Dashboard - AD Web Interface{% endblock %}
+{% block title %}🔍 Debug Dashboard - AD Web Interface{% endblock %}
+
+{% block extra_css %}
+<!-- Google Fonts - Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <div class="debug-dashboard">
-    <div class="page-header">
-        <h2>🔍 Debug Dashboard</h2>
-        <p class="text-muted">Outils de débogage pour le développement</p>
-    </div>
-
-    <!-- Session Info -->
-    <div class="debug-section card">
-        <h3>💾 Session</h3>
-        <div class="debug-grid">
-            <div class="debug-item">
-                <span class="label">Connecté:</span>
-                <span class="value {% if session_data.connected %}success{% else %}error{% endif %}">
-                    {% if session_data.connected %}✅ Oui{% else %}❌ Non{% endif %}
-                </span>
+    <!-- Header -->
+    <header class="debug-header">
+        <div class="header-content">
+            <div class="header-left">
+                <span class="header-icon">🔍</span>
+                <div>
+                    <h1>Debug Dashboard</h1>
+                    <p class="subtitle">Outils de débogage et monitoring en temps réel</p>
+                </div>
             </div>
-            <div class="debug-item">
-                <span class="label">Serveur:</span>
-                <span class="value">{{ session_data.server }}</span>
-            </div>
-            <div class="debug-item">
-                <span class="label">Username:</span>
-                <span class="value">{{ session_data.username }}</span>
-            </div>
-            <div class="debug-item">
-                <span class="label">Rôle:</span>
-                <span class="value badge badge-{{ 'success' if session_data.user_role == 'admin' else 'info' }}">
-                    {{ session_data.user_role }}
+            <div class="header-right">
+                <span class="status-badge {{ 'online' if session_data.connected else 'offline' }}">
+                    <span class="status-dot"></span>
+                    {{ 'En ligne' if session_data.connected else 'Hors ligne' }}
                 </span>
             </div>
         </div>
-    </div>
+    </header>
 
-    <!-- Feature Flags -->
-    <div class="debug-section card">
-        <h3>🚩 Feature Flags</h3>
-        <div class="feature-flags-grid">
-            {% for flag, enabled in feature_flags.items() %}
-            <div class="feature-flag {% if enabled %}enabled{% else %}disabled{% endif %}">
-                <span class="flag-icon">{% if enabled %}✅{% else %}❌{% endif %}</span>
-                <span class="flag-name">{{ flag }}</span>
+    <!-- Stats Rapides -->
+    <div class="stats-row">
+        <div class="stat-card stat-blue">
+            <div class="stat-icon">📡</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ debug_data.session.connected|yesno("1,0") }}</span>
+                <span class="stat-label">Connexion AD</span>
             </div>
-            {% endfor %}
+        </div>
+        <div class="stat-card stat-green">
+            <div class="stat-icon">🔐</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ session_data.user_role|upper }}</span>
+                <span class="stat-label">Rôle Utilisateur</span>
+            </div>
+        </div>
+        <div class="stat-card stat-purple">
+            <div class="stat-icon">🚩</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ feature_flags|selectattr('value')|list|length }}/{{ feature_flags|length }}</span>
+                <span class="stat-label">Feature Flags Actives</span>
+            </div>
+        </div>
+        <div class="stat-card stat-orange">
+            <div class="stat-icon">🛠️</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ debug_data.config.debug|yesno("Activé,Désactivé") }}</span>
+                <span class="stat-label">Mode Debug</span>
+            </div>
         </div>
     </div>
 
-    <!-- Debug Data -->
-    <div class="debug-section card">
-        <h3>📊 Debug Data</h3>
-        <pre class="debug-json">{{ debug_data | tojson(indent=2) }}</pre>
-    </div>
+    <!-- Section Principale -->
+    <div class="main-grid">
+        <!-- Colonne Gauche -->
+        <div class="left-column">
+            <!-- Session Details -->
+            <div class="debug-card">
+                <div class="card-header">
+                    <span class="card-icon">💾</span>
+                    <h3>Session Utilisateur</h3>
+                    <span class="card-badge info">Active</span>
+                </div>
+                <div class="card-body">
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="info-label">Serveur AD</span>
+                            <code class="info-value">{{ session_data.server }}</code>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Username</span>
+                            <code class="info-value">{{ session_data.username }}</code>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Rôle</span>
+                            <span class="role-badge role-{{ session_data.user_role }}">{{ session_data.user_role }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Mode Sombre</span>
+                            <span class="toggle-badge {{ 'active' if session_data.dark_mode else '' }}">
+                                {{ session_data.dark_mode|yesno("Activé,Désactivé") }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Langue</span>
+                            <span class="lang-badge">{{ session_data.language|upper }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Quick Actions -->
-    <div class="debug-section card">
-        <h3>⚡ Quick Actions</h3>
-        <div class="debug-actions">
-            <a href="{{ url_for('debug.debug_routes') }}" class="btn btn-primary" target="_blank">
-                📋 Voir les routes
-            </a>
-            <a href="{{ url_for('debug.debug_templates') }}" class="btn btn-primary" target="_blank">
-                📄 Voir les templates
-            </a>
-            <a href="{{ url_for('debug.debug_session') }}" class="btn btn-primary" target="_blank">
-                💾 Voir session
-            </a>
-            <a href="{{ url_for('debug.debug_config') }}" class="btn btn-primary" target="_blank">
-                ⚙️ Voir config
-            </a>
-            <a href="{{ url_for('debug.debug_logs', type='debug') }}" class="btn btn-primary" target="_blank">
-                📜 Voir logs
-            </a>
-            <a href="{{ url_for('debug.debug_all_pages') }}" class="btn btn-success" target="_blank">
-                ✅ Tester toutes les pages
-            </a>
-        </div>
-    </div>
+            <!-- Feature Flags -->
+            <div class="debug-card">
+                <div class="card-header">
+                    <span class="card-icon">🚩</span>
+                    <h3>Feature Flags</h3>
+                    <span class="card-badge {{ feature_flags|selectattr('value')|list|length == feature_flags|length and 'success' or 'warning' }}">
+                        {{ feature_flags|selectattr('value')|list|length }}/{{ feature_flags|length }} actives
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="feature-grid">
+                        {% for flag, enabled in feature_flags.items() %}
+                        <div class="feature-item {{ 'enabled' if enabled else 'disabled' }}" title="{{ flag }}">
+                            <span class="feature-status">{{ "✓" if enabled else "✗" }}</span>
+                            <span class="feature-name">{{ flag }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
 
-    <!-- Page Tests -->
-    <div class="debug-section card">
-        <h3>🧪 Page Tests</h3>
-        <div class="page-test-buttons">
-            {% set pages = [
-                ('dashboard', 'Dashboard'),
-                ('users', 'Utilisateurs'),
-                ('groups', 'Groupes'),
-                ('computers', 'Ordinateurs'),
-                ('ous', 'OUs'),
-                ('laps', 'LAPS'),
-                ('bitlocker', 'BitLocker'),
-                ('recycle-bin', 'Corbeille'),
-                ('locked-accounts', 'Comptes verrouillés'),
-                ('audit', 'Audit'),
-                ('admin', 'Admin'),
-                ('password-policy', 'Password Policy'),
-            ] %}
-            
-            {% for page_id, page_name in pages %}
-            <button onclick="testPage('{{ page_id }}')" class="btn btn-sm btn-secondary">
-                Tester {{ page_name }}
-            </button>
-            {% endfor %}
+            <!-- Configuration -->
+            <div class="debug-card">
+                <div class="card-header">
+                    <span class="card-icon">⚙️</span>
+                    <h3>Configuration</h3>
+                </div>
+                <div class="card-body">
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <span class="config-label">Debug</span>
+                            <span class="config-value {{ debug_data.config.debug and 'text-green' or 'text-red' }}">
+                                {{ debug_data.config.debug|yesno("🟢 Activé,🔴 Désactivé") }}
+                            </span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">RBAC</span>
+                            <span class="config-value {{ debug_data.config.rbac_enabled and 'text-green' or 'text-red' }}">
+                                {{ debug_data.config.rbac_enabled|yesno("🟢 Activé,🔴 Désactivé") }}
+                            </span>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Hôte</span>
+                            <code class="config-value">{{ debug_data.environment.host }}:{{ debug_data.environment.port }}</code>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">Session</span>
+                            <code class="config-value">{{ debug_data.config.session_timeout }} min</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div id="page-test-results" class="page-test-results"></div>
+
+        <!-- Colonne Droite -->
+        <div class="right-column">
+            <!-- Quick Actions -->
+            <div class="debug-card">
+                <div class="card-header">
+                    <span class="card-icon">⚡</span>
+                    <h3>Actions Rapides</h3>
+                </div>
+                <div class="card-body">
+                    <div class="action-grid">
+                        <a href="{{ url_for('debug.debug_routes') }}" class="action-card" target="_blank">
+                            <span class="action-icon">📋</span>
+                            <span class="action-label">Routes</span>
+                            <span class="action-desc">{{ debug_data.routes|length if debug_data.routes else 'N/A' }} routes</span>
+                        </a>
+                        <a href="{{ url_for('debug.debug_templates') }}" class="action-card" target="_blank">
+                            <span class="action-icon">📄</span>
+                            <span class="action-label">Templates</span>
+                            <span class="action-desc">Voir liste</span>
+                        </a>
+                        <a href="{{ url_for('debug.debug_session') }}" class="action-card" target="_blank">
+                            <span class="action-icon">💾</span>
+                            <span class="action-label">Session</span>
+                            <span class="action-desc">Détails</span>
+                        </a>
+                        <a href="{{ url_for('debug.debug_config') }}" class="action-card" target="_blank">
+                            <span class="action-icon">🔧</span>
+                            <span class="action-label">Config</span>
+                            <span class="action-desc">JSON</span>
+                        </a>
+                        <a href="{{ url_for('debug.debug_logs', type='debug') }}" class="action-card" target="_blank">
+                            <span class="action-icon">📜</span>
+                            <span class="action-label">Logs</span>
+                            <span class="action-desc">Debug</span>
+                        </a>
+                        <a href="{{ url_for('debug.debug_all_pages') }}" class="action-card action-success" target="_blank">
+                            <span class="action-icon">✅</span>
+                            <span class="action-label">Test Global</span>
+                            <span class="action-desc">Toutes pages</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page Tests -->
+            <div class="debug-card">
+                <div class="card-header">
+                    <span class="card-icon">🧪</span>
+                    <h3>Test des Pages</h3>
+                    <button class="btn-test-all" onclick="testAllPages()">
+                        <span>🔄</span> Tout tester
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="test-grid" id="page-test-container">
+                        {% set pages = [
+                            ('dashboard', 'Dashboard', '📊'),
+                            ('users', 'Utilisateurs', '👥'),
+                            ('groups', 'Groupes', '👨‍👩‍👧‍👦'),
+                            ('computers', 'Ordinateurs', '💻'),
+                            ('ous', 'Unités d\'org', '📁'),
+                            ('laps', 'LAPS', '🔑'),
+                            ('bitlocker', 'BitLocker', '🔐'),
+                            ('recycle-bin', 'Corbeille', '🗑️'),
+                            ('locked-accounts', 'Comptes verrouillés', '🔒'),
+                            ('audit', 'Audit', '📋'),
+                            ('admin', 'Admin', '⚙️'),
+                            ('password-policy', 'Politique MDP', '🛡️'),
+                        ] %}
+                        
+                        {% for page_id, page_name, icon in pages %}
+                        <button class="test-btn" onclick="testPage('{{ page_id }}')" id="test-btn-{{ page_id }}">
+                            <span class="test-icon">{{ icon }}</span>
+                            <span class="test-label">{{ page_name }}</span>
+                            <span class="test-status" id="test-status-{{ page_id }}">⏳</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <div id="test-summary" class="test-summary" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- System Info -->
+            <div class="debug-card">
+                <div class="card-header">
+                    <span class="card-icon">🖥️</span>
+                    <h3>Système</h3>
+                </div>
+                <div class="card-body">
+                    <div class="system-info">
+                        <div class="system-item">
+                            <span class="system-label">Plateforme</span>
+                            <span class="system-value" id="system-platform">--</span>
+                        </div>
+                        <div class="system-item">
+                            <span class="system-label">Hostname</span>
+                            <code class="system-value" id="system-hostname">--</code>
+                        </div>
+                        <div class="system-item">
+                            <span class="system-label">Version</span>
+                            <span class="system-value" id="system-version">--</span>
+                        </div>
+                        <div class="system-item">
+                            <span class="system-label">Python</span>
+                            <code class="system-value" id="system-python">--</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JSON Debug Data -->
+            <div class="debug-card">
+                <div class="card-header">
+                    <span class="card-icon">📊</span>
+                    <h3>Debug Data (JSON)</h3>
+                    <button class="btn-copy" onclick="copyDebugData()">
+                        <span>📋</span> Copier
+                    </button>
+                </div>
+                <div class="card-body">
+                    <pre class="json-viewer" id="debug-json">{{ debug_data | tojson(indent=2) }}</pre>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <style>
+/* ============================================
+   VARIABLES & BASE
+   ============================================ */
+:root {
+    /* Colors */
+    --primary: #0078d4;
+    --primary-dark: #005a9e;
+    --primary-light: #4c9ff5;
+    
+    --success: #107c10;
+    --success-light: #28a745;
+    --warning: #ffb900;
+    --danger: #d13438;
+    --info: #00b7c3;
+    
+    --bg-primary: #f8f9fa;
+    --bg-card: #ffffff;
+    --text-primary: #242424;
+    --text-secondary: #616161;
+    --text-muted: #8a8a8a;
+    --border: #e0e0e0;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+    
+    /* Radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    
+    /* Fonts */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+}
+
+/* Dark mode variables */
+body.dark-mode {
+    --bg-primary: #121212;
+    --bg-card: #1e1e1e;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --text-muted: #888888;
+    --border: #333333;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+* {
+    box-sizing: border-box;
+}
+
 .debug-dashboard {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 24px;
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    min-height: 100vh;
 }
 
-.page-header {
-    margin-bottom: 30px;
+/* ============================================
+   HEADER
+   ============================================ */
+.debug-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--radius-xl);
+    padding: 24px 32px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-lg);
+    color: white;
 }
 
-.page-header h2 {
-    color: #0078d4;
-    margin-bottom: 10px;
-}
-
-.debug-section {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.debug-section h3 {
-    color: #0078d4;
-    margin-bottom: 15px;
-    font-size: 1.2rem;
-}
-
-.debug-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.debug-item {
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
-.debug-item .label {
-    font-size: 0.85rem;
-    color: #666;
-    margin-bottom: 5px;
-}
-
-.debug-item .value {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #242424;
-}
-
-.debug-item .value.success { color: #28a745; }
-.debug-item .value.error { color: #dc3545; }
-
-.feature-flags-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 10px;
-}
-
-.feature-flag {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid #ccc;
-}
-
-.feature-flag.enabled {
-    border-left-color: #28a745;
-    background: #d4edda;
-}
-
-.feature-flag.disabled {
-    border-left-color: #dc3545;
-    background: #f8d7da;
-}
-
-.flag-icon { font-size: 1.2rem; }
-.flag-name { font-weight: 500; }
-
-.debug-json {
-    background: #1e1e1e;
-    color: #d4d4d4;
-    padding: 20px;
-    border-radius: 8px;
-    overflow-x: auto;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 0.85rem;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.debug-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.debug-actions .btn {
-    flex: 1;
-    min-width: 150px;
-}
-
-.page-test-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 15px;
-}
-
-.page-test-results {
-    margin-top: 15px;
-}
-
-.test-result {
+.header-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 15px;
-    margin-bottom: 8px;
-    border-radius: 8px;
-    background: #f8f9fa;
 }
 
-.test-result.success {
-    background: #d4edda;
-    border-left: 4px solid #28a745;
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
-.test-result.error {
-    background: #f8d7da;
-    border-left: 4px solid #dc3545;
+.header-icon {
+    font-size: 3rem;
+    line-height: 1;
 }
 
-.badge {
-    display: inline-block;
+.header-left h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    font-size: 0.9375rem;
+    opacity: 0.9;
+    margin: 0;
+    font-weight: 400;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    animation: pulse 2s infinite;
+}
+
+.status-badge.offline .status-dot {
+    background: #f87171;
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ============================================
+   STATS ROW
+   ============================================ */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--border);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.stat-blue { border-left: 4px solid var(--primary); }
+.stat-green { border-left: 4px solid var(--success); }
+.stat-purple { border-left: 4px solid #8b5cf6; }
+.stat-orange { border-left: 4px solid #f97316; }
+
+/* ============================================
+   MAIN GRID
+   ============================================ */
+.main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 1200px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.left-column,
+.right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ============================================
+   DEBUG CARDS
+   ============================================ */
+.debug-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+}
+
+.card-icon {
+    font-size: 1.5rem;
+}
+
+.card-header h3 {
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.card-badge {
     padding: 4px 12px;
-    border-radius: 12px;
+    border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
 }
 
-.badge-success { background: #28a745; color: white; }
-.badge-info { background: #17a2b8; color: white; }
-.badge-warning { background: #ffc107; color: #212529; }
-.badge-danger { background: #dc3545; color: white; }
-
-/* Dark mode */
-body.dark-mode .debug-section {
-    background: var(--dark-bg-secondary, #2d2d2d);
+.card-badge.success {
+    background: #d4edda;
+    color: #155724;
 }
 
-body.dark-mode .debug-item {
-    background: var(--dark-bg-tertiary, #3d3d3d);
+.card-badge.warning {
+    background: #fff3cd;
+    color: #856404;
 }
 
-body.dark-mode .debug-item .label {
-    color: var(--dark-text-secondary, #cccccc);
+.card-badge.info {
+    background: #d1ecf1;
+    color: #0c5460;
 }
 
-body.dark-mode .debug-item .value {
-    color: var(--dark-text-primary, #ffffff);
+.card-body {
+    padding: 20px;
 }
 
-body.dark-mode .feature-flag {
-    background: var(--dark-bg-tertiary, #3d3d3d);
+/* ============================================
+   INFO LIST
+   ============================================ */
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-body.dark-mode .feature-flag.enabled {
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.info-value {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    background: var(--bg-primary);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+}
+
+.role-badge {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.role-badge-admin {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+}
+
+.role-badge-operator {
+    background: linear-gradient(135deg, #0078d4, #005a9e);
+    color: white;
+}
+
+.role-badge-reader {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    color: white;
+}
+
+.toggle-badge {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+.toggle-badge.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.lang-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--primary);
+    color: white;
+    text-transform: uppercase;
+}
+
+/* ============================================
+   FEATURE GRID
+   ============================================ */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    transition: all 0.2s;
+}
+
+.feature-item.enabled {
+    background: #d4edda;
+    color: #155724;
+}
+
+.feature-item.disabled {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+body.dark-mode .feature-item.disabled {
+    background: #2d2d2d;
+    color: #888888;
+}
+
+.feature-status {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.feature-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================
+   CONFIG GRID
+   ============================================ */
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.config-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.config-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.config-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.config-value code {
+    font-family: var(--font-mono);
+    background: var(--bg-primary);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.text-green { color: var(--success); }
+.text-red { color: var(--danger); }
+
+/* ============================================
+   ACTION GRID
+   ============================================ */
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 12px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+}
+
+.action-card:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.action-card.action-success:hover {
+    background: var(--success);
+    border-color: var(--success);
+}
+
+.action-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.action-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.action-desc {
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+}
+
+.action-card:hover .action-desc {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ============================================
+   TEST BUTTONS
+   ============================================ */
+.test-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.test-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+}
+
+.test-btn:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.test-btn.testing {
+    background: #fff3cd;
+    border-color: var(--warning);
+}
+
+.test-btn.success {
+    background: #d4edda;
+    border-color: var(--success);
+}
+
+.test-btn.error {
+    background: #f8d7da;
+    border-color: var(--danger);
+}
+
+.test-icon {
+    font-size: 1.2rem;
+}
+
+.test-label {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.test-status {
+    font-size: 1rem;
+}
+
+.btn-test-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-test-all:hover {
+    background: var(--primary-dark);
+}
+
+.test-summary {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ============================================
+   SYSTEM INFO
+   ============================================ */
+.system-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.system-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.system-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.system-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.system-value code {
+    font-family: var(--font-mono);
+    background: var(--bg-primary);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+}
+
+/* ============================================
+   JSON VIEWER
+   ============================================ */
+.json-viewer {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.btn-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-copy:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* ============================================
+   DARK MODE
+   ============================================ */
+body.dark-mode .feature-item.enabled {
     background: rgba(40, 167, 69, 0.2);
+    color: #4ade80;
 }
 
-body.dark-mode .feature-flag.disabled {
+body.dark-mode .test-btn.testing {
+    background: rgba(255, 185, 0, 0.2);
+    border-color: var(--warning);
+}
+
+body.dark-mode .test-btn.success {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: var(--success-light);
+}
+
+body.dark-mode .test-btn.error {
     background: rgba(220, 53, 69, 0.2);
+    border-color: var(--danger);
 }
 
-body.dark-mode .test-result {
-    background: var(--dark-bg-tertiary, #3d3d3d);
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .debug-dashboard {
+        padding: 16px;
+    }
+    
+    .debug-header {
+        padding: 16px 20px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+    
+    .header-left h1 {
+        font-size: 1.5rem;
+    }
+    
+    .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .action-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .config-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
+{% endblock %}
 
+{% block extra_js %}
 <script>
+// Test une page spécifique
 async function testPage(pageId) {
-    const resultsDiv = document.getElementById('page-test-results');
-    resultsDiv.innerHTML = '<div class="test-result">Test en cours...</div>';
+    const btn = document.getElementById(`test-btn-${pageId}`);
+    const statusEl = document.getElementById(`test-status-${pageId}`);
+    
+    btn.classList.add('testing');
+    statusEl.textContent = '⏳';
     
     try {
         const response = await fetch(`/_debug/test/${pageId}`);
         const data = await response.json();
         
-        resultsDiv.innerHTML = `
-            <div class="test-result ${data.success ? 'success' : 'error'}">
-                <span><strong>${data.page}</strong> - ${data.status}</span>
-                <span>${data.error || 'OK'}</span>
-            </div>
-        `;
+        if (data.success) {
+            btn.classList.remove('testing');
+            btn.classList.add('success');
+            statusEl.textContent = '✅';
+        } else {
+            btn.classList.remove('testing');
+            btn.classList.add('error');
+            statusEl.textContent = '❌';
+        }
+        
+        updateTestSummary();
     } catch (error) {
-        resultsDiv.innerHTML = `
-            <div class="test-result error">
-                <span><strong>${pageId}</strong> - ❌ ERREUR</span>
-                <span>${error.message}</span>
-            </div>
-        `;
+        btn.classList.remove('testing');
+        btn.classList.add('error');
+        statusEl.textContent = '❌';
+        updateTestSummary();
     }
 }
+
+// Teste toutes les pages
+async function testAllPages() {
+    const testButtons = document.querySelectorAll('.test-btn');
+    testButtons.forEach(btn => {
+        btn.classList.remove('testing', 'success', 'error');
+        btn.querySelector('.test-status').textContent = '⏳';
+    });
+    
+    const pages = ['dashboard', 'users', 'groups', 'computers', 'ous', 'laps', 'bitlocker', 'recycle-bin', 'locked-accounts', 'audit', 'admin', 'password-policy'];
+    
+    for (const pageId of pages) {
+        await testPage(pageId);
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+}
+
+// Met à jour le résumé des tests
+function updateTestSummary() {
+    const buttons = document.querySelectorAll('.test-btn');
+    const success = document.querySelectorAll('.test-btn.success').length;
+    const error = document.querySelectorAll('.test-btn.error').length;
+    const pending = buttons.length - success - error;
+    
+    let summaryDiv = document.getElementById('test-summary');
+    if (!summaryDiv) {
+        summaryDiv = document.createElement('div');
+        summaryDiv.id = 'test-summary';
+        summaryDiv.className = 'test-summary';
+        document.getElementById('page-test-container').appendChild(summaryDiv);
+    }
+    
+    summaryDiv.style.display = 'flex';
+    summaryDiv.innerHTML = `
+        <span><strong>Résumé:</strong> ${buttons.length} pages testées</span>
+        <span style="display: flex; gap: 16px;">
+            <span style="color: var(--success);">✅ ${success} succès</span>
+            <span style="color: var(--danger);">❌ ${error} erreurs</span>
+            ${pending > 0 ? `<span>⏳ ${pending} en attente</span>` : ''}
+        </span>
+    `;
+}
+
+// Copie les données JSON
+function copyDebugData() {
+    const jsonEl = document.getElementById('debug-json');
+    const text = jsonEl.textContent;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.btn-copy');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span>✅</span> Copié!';
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+        }, 2000);
+    });
+}
+
+// Récupère les infos système au chargement
+async function fetchSystemInfo() {
+    try {
+        const response = await fetch('/api/system-info');
+        const data = await response.json();
+        
+        document.getElementById('system-platform').textContent = data.platform || 'N/A';
+        document.getElementById('system-hostname').textContent = data.hostname || 'N/A';
+        document.getElementById('system-version').textContent = data.version || 'N/A';
+        document.getElementById('system-python').textContent = data.python_version || 'N/A';
+    } catch (error) {
+        console.error('Erreur fetch system info:', error);
+    }
+}
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', () => {
+    fetchSystemInfo();
+});
 </script>
 {% endblock %}

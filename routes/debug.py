@@ -16,11 +16,15 @@ debug_bp = Blueprint('debug', __name__, url_prefix='/_debug')
 def debug_dashboard():
     """Page de debug principale."""
     from debug_utils import get_debug_info, log_session_data, check_feature_flags
+    from flask import current_app
     
     # Récupérer les infos de debug
     debug_data = get_debug_info()
     session_data = log_session_data()
     feature_flags = check_feature_flags()
+    
+    # Ajouter le nombre de routes
+    debug_data['routes'] = list(current_app.url_map.iter_rules())
     
     return render_template('debug/dashboard.html', 
                          debug_data=debug_data,
