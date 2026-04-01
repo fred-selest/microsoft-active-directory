@@ -5,6 +5,38 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.21.0] - 2026-03-31
+
+### Ajouté
+
+- **Accessibilité (a11y)** — Navigation clavier complète, attributs ARIA (role, aria-label, aria-expanded), skip link "Aller au contenu principal", focus visible avec outline jaune, support `prefers-reduced-motion`.
+- **Mode sombre amélioré** — Variables CSS pour couleurs cohérentes, contrastes améliorés (WCAG AA), tous les éléments stylisés (tables, formulaires, alerts, badges, modals), borders et ombres adaptés.
+- **Animations CSS** — Transitions 0.3s, effets hover (boutons et cartes avec translateY + shadow), loading spinner avec overlay, animations keyframes (fadeIn, slideIn, shake, pulse, spin).
+- **Audit de sécurité des mots de passe** — Nouveau module `password_audit.py` avec analyse complète : détection des comptes "Le mot de passe n'expire jamais", mots de passe trop anciens (> 90 jours), politique de mot de passe du domaine, recommandations personnalisées, score de sécurité global.
+- **Page Dashboard Audit MDP** — Template `password_audit.html` avec score visuel, statistiques, tableaux des comptes problématiques, recommandations actionnables.
+- **API /api/password-audit** — Endpoint JSON retournant le rapport d'audit complet.
+- **Menu "Audit MDP"** — Lien ajouté dans le menu "Plus" (réservé aux admins).
+
+### Corrigé
+
+- **Menus défaillants** — Structure HTML corrigée avec `role="menubar"`, dropdowns avec gestion aria-expanded dynamique, fermeture automatique des autres dropdowns, icônes flèches (▼/▲) dynamiques, gestion clavier (Entrée/Espace/Échap).
+
+### Modifié
+
+- **base.html** — Attributs ARIA ajoutés, skip link, loading overlay, menu "Audit MDP".
+- **style.css** — +550 lignes (a11y, dark mode, animations, responsive).
+- **main.js** — Fonctions `initMobileMenu()`, `initMobileDropdowns()`, `showLoading()`, `hideLoading()`.
+- **routes/tools.py** — Route `/tools/password-audit` ajoutée.
+- **app.py** — Endpoint `/api/password-audit` ajouté.
+
+### Technique
+
+- **Nouveau fichier** : `password_audit.py` (module d'audit)
+- **Nouveau template** : `templates/password_audit.html` (dashboard)
+- **Total** : +1687 lignes ajoutées, -63 supprimées
+
+---
+
 ## [1.20.2] - 2026-03-31
 
 ### Corrigé
