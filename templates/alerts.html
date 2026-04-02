@@ -1,0 +1,405 @@
+{% extends 'base.html' %}
+
+{% block title %}Alertes - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>🔔 Centre des Alertes</h2>
+    <div class="page-actions">
+        <button class="btn btn-primary" onclick="runAlertCheck()">
+            🔄 Vérifier maintenant
+        </button>
+        <button class="btn btn-secondary" onclick="exportAlerts()">
+            📥 Exporter
+        </button>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="alert-stats">
+    <div class="stat-card critical">
+        <div class="stat-value">{{ counts.by_severity.get('critical', 0) }}</div>
+        <div class="stat-label">Critiques</div>
+    </div>
+    <div class="stat-card error">
+        <div class="stat-value">{{ counts.by_severity.get('error', 0) }}</div>
+        <div class="stat-label">Erreurs</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-value">{{ counts.by_severity.get('warning', 0) }}</div>
+        <div class="stat-label">Avertissements</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-value">{{ counts.by_severity.get('info', 0) }}</div>
+        <div class="stat-label">Informations</div>
+    </div>
+    <div class="stat-card total">
+        <div class="stat-value">{{ counts.unacknowledged }}</div>
+        <div class="stat-label">Non acquittées</div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card fade-in" style="margin-bottom: 1.5rem;">
+    <h3>🔍 Filtres</h3>
+    <form method="get" action="{{ url_for('alerts_page') }}" class="filter-form">
+        <div class="form-group">
+            <label>Type d'alerte</label>
+            <select name="type" class="form-control">
+                <option value="">Tous les types</option>
+                <option value="expiring_account" {{ 'selected' if current_type == 'expiring_account' }}>Comptes expirants</option>
+                <option value="password_expiring" {{ 'selected' if current_type == 'password_expiring' }}>Mots de passe expirant</option>
+                <option value="inactive_account" {{ 'selected' if current_type == 'inactive_account' }}>Comptes inactifs</option>
+                <option value="locked_account" {{ 'selected' if current_type == 'locked_account' }}>Comptes verrouillés</option>
+                <option value="security" {{ 'selected' if current_type == 'security' }}>Sécurité</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Sévérité</label>
+            <select name="severity" class="form-control">
+                <option value="">Toutes</option>
+                <option value="critical" {{ 'selected' if current_severity == 'critical' }}>🔴 Critique</option>
+                <option value="error" {{ 'selected' if current_severity == 'error' }}>🔴 Erreur</option>
+                <option value="warning" {{ 'selected' if current_severity == 'warning' }}>🟡 Avertissement</option>
+                <option value="info" {{ 'selected' if current_severity == 'info' }}>🔵 Information</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Statut</label>
+            <select name="acknowledged" class="form-control">
+                <option value="">Tous</option>
+                <option value="false" {{ 'selected' if request.args.get('acknowledged') == 'false' }}>Non acquittées</option>
+                <option value="true" {{ 'selected' if request.args.get('acknowledged') == 'true' }}>Acquittées</option>
+            </select>
+        </div>
+        <div class="form-actions" style="margin-top: 1rem;">
+            <button type="submit" class="btn btn-primary">Filtrer</button>
+            <a href="{{ url_for('alerts_page') }}" class="btn btn-secondary">Réinitialiser</a>
+        </div>
+    </form>
+</div>
+
+<!-- Liste des alertes -->
+<div class="card fade-in">
+    <h3>📋 Alertes ({{ alerts|length }})</h3>
+    
+    {% if alerts %}
+    <div class="alerts-list">
+        {% for alert in alerts %}
+        <div class="alert-item alert-{{ alert.severity }} {{ 'acknowledged' if alert.acknowledged else '' }}" id="alert-{{ alert.id }}">
+            <div class="alert-header">
+                <div class="alert-icon">
+                    {% if alert.severity == 'critical' %}🔴
+                    {% elif alert.severity == 'error' %}🔴
+                    {% elif alert.severity == 'warning' %}🟡
+                    {% else %}🔵{% endif %}
+                </div>
+                <div class="alert-content">
+                    <div class="alert-title">
+                        {{ alert.title }}
+                        {% if alert.acknowledged %}
+                        <span class="badge badge-success" style="margin-left: 0.5rem;">✅ Acquittée</span>
+                        {% endif %}
+                    </div>
+                    <div class="alert-message">{{ alert.message }}</div>
+                    <div class="alert-meta">
+                        <span>📅 {{ alert.created[:16].replace('T', ' ') }}</span>
+                        {% if alert.acknowledged %}
+                        <span>👤 {{ alert.acknowledged_by or 'Inconnu' }}</span>
+                        <span>✅ {{ alert.acknowledged_at[:16].replace('T', ' ') }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="alert-actions">
+                    {% if not alert.acknowledged %}
+                    <button class="btn btn-sm btn-success" onclick="acknowledgeAlert('{{ alert.id }}')">
+                        ✅ Acquitter
+                    </button>
+                    {% endif %}
+                    <button class="btn btn-sm btn-danger" onclick="deleteAlert('{{ alert.id }}')">
+                        🗑️ Supprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-alerts">
+        <div class="no-alerts-icon">✅</div>
+        <h3>Aucune alerte</h3>
+        <p>Toutes les alertes ont été traitées ou aucune alerte n'a été détectée.</p>
+        <button class="btn btn-primary" onclick="runAlertCheck()">
+            🔄 Lancer une vérification
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.alert-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    border-left: 4px solid #ccc;
+}
+
+.stat-card.critical { border-left-color: #dc3545; }
+.stat-card.error { border-left-color: #dc3545; }
+.stat-card.warning { border-left-color: #ffc107; }
+.stat-card.info { border-left-color: #17a2b8; }
+.stat-card.total { border-left-color: #0078d4; }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.filter-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.alert-item {
+    background: #f8f9fa;
+    border-left: 4px solid #ccc;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.alert-item.critical { border-left-color: #dc3545; background: #fff5f5; }
+.alert-item.error { border-left-color: #dc3545; background: #fff5f5; }
+.alert-item.warning { border-left-color: #ffc107; background: #fffdf5; }
+.alert-item.info { border-left-color: #17a2b8; background: #f5fcff; }
+
+.alert-item.acknowledged {
+    opacity: 0.6;
+    background: #e9ecef;
+}
+
+.alert-header {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.alert-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.alert-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.alert-message {
+    color: #666;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.alert-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.alert-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.no-alerts {
+    text-align: center;
+    padding: 3rem;
+}
+
+.no-alerts-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.no-alerts h3 {
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.no-alerts p {
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+/* Dark mode */
+body.dark-mode .stat-card {
+    background: var(--dark-bg-secondary);
+}
+
+body.dark-mode .stat-value {
+    color: var(--dark-text-primary);
+}
+
+body.dark-mode .stat-label {
+    color: var(--dark-text-secondary);
+}
+
+body.dark-mode .alert-item {
+    background: var(--dark-bg-primary);
+}
+
+body.dark-mode .alert-item.acknowledged {
+    background: var(--dark-bg-secondary);
+}
+
+body.dark-mode .alert-title {
+    color: var(--dark-text-primary);
+}
+
+body.dark-mode .alert-message {
+    color: var(--dark-text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .alert-header {
+        flex-direction: column;
+    }
+    .alert-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    .alert-meta {
+        flex-wrap: wrap;
+    }
+}
+</style>
+
+<script>
+/**
+ * Lancer une vérification des alertes
+ */
+async function runAlertCheck() {
+    showLoading('Vérification en cours...');
+    
+    try {
+        const response = await fetch('/api/alerts/check', {method: 'POST'});
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`✅ Vérification terminée!\n\n` +
+                  `📊 Résultats:\n` +
+                  `• Comptes expirants: ${data.results.expiring_accounts}\n` +
+                  `• Mots de passe expirant: ${data.results.password_expiring}\n` +
+                  `• Comptes inactifs: ${data.results.inactive_accounts}\n` +
+                  `• Total alertes: ${data.results.total_alerts}`);
+            location.reload();
+        } else {
+            showError('Erreur: ' + (data.error || 'Échec de la vérification'));
+        }
+    } catch (error) {
+        showError('Erreur de connexion: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Acquitter une alerte
+ */
+async function acknowledgeAlert(alertId) {
+    if (!confirm('Voulez-vous acquitter cette alerte ?')) return;
+    
+    try {
+        const response = await fetch(`/api/alerts/${alertId}/acknowledge`, {method: 'POST'});
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('alert-' + alertId).classList.add('acknowledged');
+            alert('✅ Alerte acquittée');
+        } else {
+            alert('❌ Erreur: ' + (data.error || 'Échec'));
+        }
+    } catch (error) {
+        alert('❌ Erreur: ' + error.message);
+    }
+}
+
+/**
+ * Supprimer une alerte
+ */
+async function deleteAlert(alertId) {
+    if (!confirm('Voulez-vous vraiment supprimer cette alerte ?')) return;
+    
+    try {
+        const response = await fetch(`/api/alerts/${alertId}/delete`, {method: 'POST'});
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('alert-' + alertId).remove();
+            alert('✅ Alerte supprimée');
+        } else {
+            alert('❌ Erreur: ' + (data.error || 'Échec'));
+        }
+    } catch (error) {
+        alert('❌ Erreur: ' + error.message);
+    }
+}
+
+/**
+ * Exporter les alertes
+ */
+function exportAlerts() {
+    const alerts = [];
+    document.querySelectorAll('.alert-item').forEach(item => {
+        alerts.push({
+            title: item.querySelector('.alert-title')?.textContent?.trim(),
+            message: item.querySelector('.alert-message')?.textContent?.trim(),
+            severity: item.className.includes('critical') ? 'critical' : 
+                     item.className.includes('error') ? 'error' :
+                     item.className.includes('warning') ? 'warning' : 'info',
+            acknowledged: item.classList.contains('acknowledged')
+        });
+    });
+    
+    const blob = new Blob([JSON.stringify(alerts, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'alertes_' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

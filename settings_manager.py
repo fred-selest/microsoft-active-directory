@@ -12,13 +12,16 @@ DEFAULT_SETTINGS = {
     'site': {
         'title': 'AD Web Interface',
         'logo': '',  # Chemin vers le logo personnalise
+        'logo_height': '40px',  # Hauteur du logo
+        'logo_position': 'left',  # left, center, right
         'footer': 'Active Directory Web Interface - Compatible Windows & Linux',
-        'theme_color': '#0078d4'
+        'theme_color': '#0078d4',
+        'custom_css': ''  # CSS personnalise additionnel
     },
     'menu': {
         'items': [
             {'id': 'dashboard', 'label': 'Tableau de bord', 'url': 'dashboard', 'enabled': True, 'order': 1},
-            {'id': 'search', 'label': 'Recherche', 'url': 'global_search', 'enabled': True, 'order': 2},
+            {'id': 'search', 'label': 'Recherche', 'url': 'global_search', 'enabled': False, 'order': 2},
             {'id': 'users', 'label': 'Utilisateurs', 'url': 'users', 'enabled': True, 'order': 3},
             {'id': 'groups', 'label': 'Groupes', 'url': 'groups', 'enabled': True, 'order': 4},
             {'id': 'computers', 'label': 'Ordinateurs', 'url': 'computers', 'enabled': True, 'order': 5},
@@ -27,25 +30,37 @@ DEFAULT_SETTINGS = {
         'dropdown_items': [
             {'id': 'laps', 'label': 'LAPS', 'url': 'laps_passwords', 'enabled': True, 'order': 1},
             {'id': 'bitlocker', 'label': 'BitLocker', 'url': 'bitlocker_keys', 'enabled': True, 'order': 2},
-            {'id': 'recycle', 'label': 'Corbeille', 'url': 'recycle_bin', 'enabled': True, 'order': 3},
-            {'id': 'templates', 'label': 'Modeles', 'url': 'user_templates_page', 'enabled': True, 'order': 4},
-            {'id': 'favorites', 'label': 'Favoris', 'url': 'favorites_page', 'enabled': True, 'order': 5},
+            {'id': 'recycle', 'label': 'Corbeille', 'url': 'recycle_bin', 'enabled': False, 'order': 3},
+            {'id': 'templates', 'label': 'Modeles', 'url': 'user_templates_page', 'enabled': False, 'order': 4},
+            {'id': 'favorites', 'label': 'Favoris', 'url': 'favorites_page', 'enabled': False, 'order': 5},
             {'id': 'expiring', 'label': 'Expirations', 'url': 'expiring_accounts', 'enabled': True, 'order': 6},
-            {'id': 'alerts', 'label': 'Alertes', 'url': 'alerts_page', 'enabled': True, 'order': 7},
+            {'id': 'alerts', 'label': 'Alertes', 'url': 'alerts_page', 'enabled': False, 'order': 7},
             {'id': 'audit', 'label': 'Audit', 'url': 'audit_logs', 'enabled': True, 'order': 8},
-            {'id': 'api', 'label': 'API', 'url': 'api_documentation_page', 'enabled': True, 'order': 9}
+            {'id': 'api', 'label': 'API', 'url': 'api_documentation_page', 'enabled': False, 'order': 9}
         ]
     },
     'features': {
         'dark_mode': True,
         'language_switch': False,
         'update_check': True,
-        'pwa_enabled': True
+        'pwa_enabled': True,
+        'custom_logo': False,
+        'show_footer': True
     },
     'security': {
         'session_timeout': 30,  # minutes
         'max_login_attempts': 5,
         'require_https': False
+    },
+    'branding': {
+        'primary_color': '#0078d4',
+        'secondary_color': '#107c10',
+        'danger_color': '#d13438',
+        'warning_color': '#ffb900',
+        'info_color': '#00b7c3',
+        'font_family': 'Segoe UI, sans-serif',
+        'border_radius': '8px',
+        'show_branding': True  # Afficher "Powered by AD Web Interface"
     }
 }
 

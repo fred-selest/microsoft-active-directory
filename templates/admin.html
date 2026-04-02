@@ -13,7 +13,7 @@
         <h3>📋 Configuration Générale</h3>
         <div class="admin-grid">
             {% if config.FEATURE_SETTINGS_ENABLED %}
-            <a href="{{ url_for('admin.settings_page') }}" class="admin-card">
+            <a href="{{ url_for('admin.admin_page') }}" class="admin-card">
                 <div class="admin-card-icon">⚙️</div>
                 <div class="admin-card-content">
                     <h4>Paramètres</h4>
@@ -47,7 +47,15 @@
                 </div>
             </a>
             {% endif %}
-            
+
+            <a href="{{ url_for('error_logs') }}" class="admin-card">
+                <div class="admin-card-icon">📋</div>
+                <div class="admin-card-content">
+                    <h4>Erreurs</h4>
+                    <p>Erreurs récentes</p>
+                </div>
+            </a>
+
             {% if config.FEATURE_DIAGNOSTIC_ENABLED %}
             <a href="{{ url_for('diagnostic_page') }}" class="admin-card">
                 <div class="admin-card-icon">🔧</div>

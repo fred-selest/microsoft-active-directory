@@ -46,7 +46,7 @@
                     ← Retour au tableau de bord
                 </a>
                 {% if connected %}
-                <a href="{{ url_for('admin.settings_page') if config.FEATURE_SETTINGS_ENABLED else '#' }}" 
+                <a href="{{ url_for('admin.admin_page') if config.FEATURE_SETTINGS_ENABLED else '#' }}"
                    class="btn btn-secondary"
                    {% if not config.FEATURE_SETTINGS_ENABLED %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
                     ⚙️ Paramètres

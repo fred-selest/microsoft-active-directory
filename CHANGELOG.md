@@ -5,6 +5,75 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.23.0] - 2026-04-02
+
+### Ajouté
+
+- **🔔 Système d'alertes complet** — Page `/alerts` avec détection automatique des comptes expirants, mots de passe expirant, et comptes inactifs
+- **API des alertes** — Routes `/api/alerts`, `/api/alerts/<id>/acknowledge`, `/api/alerts/<id>/delete`, `/api/alerts/check`
+- **Module `alerts.py` enrichi** — Fonction `run_full_alert_check()` pour vérification automatique
+- **Template `alerts.html`** — Interface complète avec filtres, statistiques, acquittement et export JSON
+- **🔐 Case "Changer MDP à prochaine connexion"** — Dans `/users/create`, force `pwdLastSet=0` pour obligation de changement
+- **🎨 Personnalisation avancée** — Logo, couleurs, police, CSS personnalisé via Admin → Paramètres
+- **Module `settings_manager.py`** — Section `branding` avec couleurs, polices, rayon des bordures
+- **Template `GUIDE_PERSONNALISATION.md`** — Guide complet de personnalisation avec exemples
+- **🧰 Scripts PowerShell de correction** — `fix_smbv1.ps1`, `fix_ntlm.ps1`, `fix_ldap_signing.ps1`, `fix_channel_binding.ps1`
+- **API `/api/fix-protocol`** — Endpoint pour appliquer les corrections de protocoles
+- **🔍 Détection automatique des protocoles** — SMBv1, NTLM/LM, LDAP Signing, Channel Binding via PowerShell
+- **📊 Tests visuels automatisés** — Scripts `test_full.py`, `test_debug.py` avec captures d'écran Chromium
+- **Affichage des erreurs** — Page `/errors` et API `/api/errors` pour consultation des logs
+
+### Corrigé
+
+- **Overflow horizontal (+280px)** — Correction du sidebar avec `overflow-x: hidden` et ajustement du `margin-left`
+- **Boutons empilés verticalement** — Header-actions en flexbox avec wrap responsive
+- **Politique MDP valeurs vides** — Gestion correcte des valeurs timedelta/FILETIME dans `routes/tools.py`
+- **Template LAPS erreur syntaxe** — Correction des balises `{% endif %}` en double
+- **Routes `/admin/` et `/password-audit`** — Correction des `url_for()` incorrects
+- **Fonctions JavaScript manquantes** — Ajout de `showLoading()`, `hideLoading()` dans password_audit.html
+- **Erreur `ACTIONS['OTHER']`** — Ajout dans `audit.py`
+- **Import `request` manquant** — Ajout dans `debug_utils.py`
+- **Template `debug/dashboard.html`** — Conversion des objets Rule Flask en JSON sérialisable
+
+### Modifié
+
+- **`routes/core.py`** — Nouvelles fonctions `get_user_permissions()`, `has_permission()`, `require_permission()` pour autorisations granulaires
+- **`password_audit.py`** — Fonctions de détection `check_smbv1_status()`, `check_ntlm_level()`, `check_ldap_signing()`, `check_channel_binding()`
+- **`app.py`** — Routes des alertes, injection `branding` dans le contexte, error handlers 404/500
+- **`templates/base.html`** — Support du logo personnalisé, CSS personnalisé injecté, variables CSS pour couleurs
+- **`templates/password_audit.html`** — Interface de correction des protocoles avec boutons "Appliquer la correction"
+- **`templates/password_policy.html`** — Affichage amélioré avec valeurs par défaut et indicateurs visuels
+- **`templates/laps.html`** — Gestion gracieuse de l'absence du schéma LAPS
+- **`static/css/responsive.css`** — Corrections complètes pour overflow, tableaux, cartes, flexbox
+- **`static/css/optimizations.css`** — Sidebar avec `overflow-x: hidden`, main-content responsive
+- **`routes/users.py`** — Support de `must_change_password` dans `create_user()`
+- **`.env.example`** — Section "PERSONNALISATION" ajoutée
+
+### Technique
+
+- **Nouveaux fichiers** : 
+  - `templates/alerts.html`, `templates/error.html`, `templates/errors.html`
+  - `scripts/fix_smbv1.ps1`, `scripts/fix_ntlm.ps1`, `scripts/fix_ldap_signing.ps1`, `scripts/fix_channel_binding.ps1`
+  - `test_full.py`, `test_debug.py`, `test_visual.py`, `test_responsive.py`
+  - `GUIDE_PERSONNALISATION.md`, `GUIDE_TEST_RESPONSIVE.md`
+  - `static/js/display-debugger.js`
+- **Fichiers modifiés** : +20 fichiers Python, templates, CSS, scripts
+- **Total** : +2500 lignes ajoutées, -200 supprimées
+
+### Sécurité
+
+- **Autorisations granulaires par groupe AD** — Configuration via `AD_GROUP_PERMISSIONS` dans `routes/core.py`
+- **Détection et correction des protocoles obsolètes** — SMBv1, NTLMv1, LM, LDAP Signing, Channel Binding
+- **Scripts de durcissement** — PowerShell avec validation, rollback et logging
+- **Audit des mots de passe enrichi** — Score 0-100, recommandations ANSSI, détection FGPP
+
+### Tests
+
+- **8 pages testées automatiquement** — Dashboard, Users, Groups, Computers, OUs, Password Policy, Password Audit, Admin
+- **Overflow horizontal vérifié** — Passage de +280px à 0px sur toutes les pages
+- **Aucun élément coupé** — Vérification automatique des headers, boutons, stat cards
+- **Aucune erreur JavaScript** — Validation console browser
+
 ## [1.22.0] - 2026-04-01
 
 ### Ajouté

@@ -7,7 +7,7 @@ import logging
 import json
 from datetime import datetime
 from functools import wraps
-from flask import session, g
+from flask import session, g, request
 import time
 
 # Configuration logging

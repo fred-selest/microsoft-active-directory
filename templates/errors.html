@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block title %}Journal des Erreurs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>📋 Journal des Erreurs</h2>
+    <div class="page-actions">
+        <button class="btn btn-primary" onclick="refreshErrors()">
+            🔄 Actualiser
+        </button>
+        <button class="btn btn-secondary" onclick="exportErrors()">
+            📥 Exporter
+        </button>
+        <a href="{{ url_for('diagnostic_page') }}" class="btn btn-secondary">
+            🔧 Diagnostic
+        </a>
+    </div>
+</div>
+
+<div class="errors-dashboard">
+    <!-- Statistiques -->
+    <div class="error-stats">
+        <div class="stat-card">
+            <div class="stat-value" id="total-errors">0</div>
+            <div class="stat-label">Total Erreurs</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="server-errors">0</div>
+            <div class="stat-label">Serveur</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="service-errors">0</div>
+            <div class="stat-label">Service</div>
+        </div>
+    </div>
+
+    <!-- Liste des erreurs -->
+    <div class="error-list card fade-in">
+        <h3>Erreurs Récentes</h3>
+        <div id="errors-container">
+            <div class="loading">Chargement des erreurs...</div>
+        </div>
+    </div>
+</div>
+
+<style>
+.errors-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.error-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #dc3545;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.error-list {
+    padding: 1.5rem;
+}
+
+.error-list h3 {
+    margin-top: 0;
+    color: #0078d4;
+}
+
+.error-item {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+}
+
+.error-item.error {
+    background: #f8d7da;
+    border-left-color: #dc3545;
+}
+
+.error-item.traceback {
+    background: #2d2d2d;
+    border-left-color: #dc3545;
+    color: #f8f8f2;
+}
+
+.error-item.traceback pre {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    margin: 0.5rem 0;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.error-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.error-file {
+    font-size: 0.75rem;
+    color: #666;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.error-line {
+    font-family: monospace;
+    font-size: 0.875rem;
+    word-break: break-all;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.no-errors {
+    text-align: center;
+    padding: 3rem;
+    color: #28a745;
+}
+
+/* Dark mode */
+body.dark-mode .stat-card {
+    background: var(--dark-bg-secondary);
+}
+
+body.dark-mode .stat-label {
+    color: var(--dark-text-secondary);
+}
+
+body.dark-mode .error-item {
+    background: rgba(255, 193, 7, 0.1);
+}
+
+body.dark-mode .error-item.error {
+    background: rgba(220, 53, 69, 0.1);
+}
+
+body.dark-mode .error-file {
+    background: rgba(255, 255, 255, 0.1);
+}
+</style>
+
+<script>
+let allErrors = [];
+
+/**
+ * Charger les erreurs
+ */
+async function loadErrors() {
+    try {
+        const response = await fetch('/api/errors');
+        const data = await response.json();
+        
+        allErrors = data.errors || [];
+        displayErrors(allErrors);
+        updateStats(allErrors);
+    } catch (error) {
+        document.getElementById('errors-container').innerHTML = 
+            '<div class="error-item error">Erreur de chargement: ' + error.message + '</div>';
+    }
+}
+
+/**
+ * Afficher les erreurs
+ */
+function displayErrors(errors) {
+    const container = document.getElementById('errors-container');
+    
+    if (!errors || errors.length === 0) {
+        container.innerHTML = '<div class="no-errors">✅ Aucune erreur récente détectée</div>';
+        return;
+    }
+    
+    container.innerHTML = errors.map(err => {
+        const isError = err.line.includes('ERROR') || err.line.includes('Exception');
+        const isTraceback = err.line.includes('Traceback') || err.line.includes('File "');
+        
+        return `
+            <div class="error-item ${isError ? 'error' : ''} ${isTraceback ? 'traceback' : ''}">
+                <div class="error-header">
+                    <span class="error-file">${err.file}</span>
+                </div>
+                <div class="error-line">${escapeHtml(err.line)}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Mettre à jour les statistiques
+ */
+function updateStats(errors) {
+    const total = errors.length;
+    const server = errors.filter(e => e.file.includes('server.log')).length;
+    const service = errors.filter(e => e.file.includes('service')).length;
+    
+    document.getElementById('total-errors').textContent = total;
+    document.getElementById('server-errors').textContent = server;
+    document.getElementById('service-errors').textContent = service;
+}
+
+/**
+ * Actualiser
+ */
+function refreshErrors() {
+    loadErrors();
+}
+
+/**
+ * Exporter
+ */
+function exportErrors() {
+    const content = allErrors.map(e => `[${e.file}] ${e.line}`).join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'errors_' + new Date().toISOString().split('T')[0] + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Échapper HTML
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Charger au démarrage
+document.addEventListener('DOMContentLoaded', loadErrors);
+
+// Auto-refresh toutes les 30 secondes
+setInterval(loadErrors, 30000);
+</script>
+{% endblock %}

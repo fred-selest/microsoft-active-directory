@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Erreur {{ error_code }} - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-card">
+        <div class="error-icon">❌</div>
+        <h1>Erreur {{ error_code }}</h1>
+        <h2>{{ error_message }}</h2>
+        
+        {% if error_details %}
+        <div class="error-details">
+            <h3>Détails techniques :</h3>
+            <pre>{{ error_details }}</pre>
+        </div>
+        {% endif %}
+        
+        <div class="error-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                📊 Retour au dashboard
+            </a>
+            {% if connected %}
+            <a href="{{ url_for('error_logs') }}" class="btn btn-secondary">
+                📋 Voir les erreurs récentes
+            </a>
+            <a href="{{ url_for('diagnostic_page') }}" class="btn btn-secondary">
+                🔧 Diagnostic
+            </a>
+            {% endif %}
+            <button onclick="window.history.back()" class="btn btn-secondary">
+                ← Page précédente
+            </button>
+        </div>
+        
+        <div class="error-help">
+            <h3>💡 Que faire ?</h3>
+            <ul>
+                <li>Vérifiez les logs dans <code>logs/server.log</code></li>
+                <li>Redémarrez le service si le problème persiste</li>
+                <li>Contactez l'administrateur si l'erreur est critique</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+
+.error-card {
+    background: white;
+    border-radius: 12px;
+    padding: 3rem;
+    max-width: 800px;
+    width: 100%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+}
+
+.error-card h1 {
+    color: #dc3545;
+    font-size: 4rem;
+    margin: 0;
+}
+
+.error-card h2 {
+    color: #333;
+    margin: 1rem 0 2rem;
+}
+
+.error-details {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin: 2rem 0;
+    border-left: 4px solid #dc3545;
+}
+
+.error-details h3 {
+    margin-top: 0;
+    color: #dc3545;
+    font-size: 1rem;
+}
+
+.error-details pre {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.875rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+}
+
+.error-help {
+    background: #e7f3ff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin-top: 2rem;
+}
+
+.error-help h3 {
+    margin-top: 0;
+    color: #0078d4;
+}
+
+.error-help ul {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+}
+
+.error-help li {
+    margin: 0.5rem 0;
+    color: #555;
+}
+
+.error-help code {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+/* Dark mode */
+body.dark-mode .error-card {
+    background: var(--dark-bg-secondary);
+}
+
+body.dark-mode .error-details {
+    background: var(--dark-bg-primary);
+}
+
+body.dark-mode .error-help {
+    background: rgba(0, 120, 212, 0.1);
+}
+
+body.dark-mode .error-help li {
+    color: var(--dark-text-secondary);
+}
+</style>
+{% endblock %}

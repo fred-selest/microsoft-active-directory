@@ -18,6 +18,8 @@ tools_bp = Blueprint('tools', __name__)
 @require_permission('admin')
 def laps_passwords():
     """Afficher les mots de passe LAPS."""
+    from ldap3.core.exceptions import LDAPAttributeError
+    
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
@@ -33,38 +35,75 @@ def laps_passwords():
         search_filter = '(objectClass=computer)'
 
     computers = []
+    laps_available = True
+    
     try:
-        # Essayer les attributs LAPS (ancien et nouveau)
-        conn.search(base_dn, search_filter, SUBTREE,
-                   attributes=['cn', 'distinguishedName', 'ms-Mcs-AdmPwd',
-                              'ms-Mcs-AdmPwdExpirationTime', 'msLAPS-Password',
-                              'msLAPS-PasswordExpirationTime'])
+        # Vérifier si les attributs LAPS existent dans le schéma
+        conn.search(base_dn, '(objectClass=computer)', SUBTREE,
+                   attributes=['objectClass'], 
+                   get_operational_attributes=True)
+        
+        # Vérifier la présence des attributs LAPS dans le schéma
+        schema_attrs = conn.server.schema.attribute_types if conn.server.schema else []
+        has_legacy_laps = 'ms-Mcs-AdmPwd' in schema_attrs
+        has_new_laps = 'msLAPS-Password' in schema_attrs
+        
+        if not has_legacy_laps and not has_new_laps:
+            laps_available = False
+            flash('LAPS n\'est pas installé sur ce domaine. Installez Windows LAPS ou Legacy LAPS pour afficher les mots de passe administrateur local.', 'warning')
+        else:
+            # Construire la liste des attributs à récupérer
+            attrs = ['cn', 'distinguishedName', 'operatingSystem']
+            if has_legacy_laps:
+                attrs.extend(['ms-Mcs-AdmPwd', 'ms-Mcs-AdmPwdExpirationTime'])
+            if has_new_laps:
+                attrs.extend(['msLAPS-Password', 'msLAPS-PasswordExpirationTime'])
+            
+            conn.search(base_dn, search_filter, SUBTREE, attributes=attrs)
 
-        for entry in conn.entries:
-            pwd = None
-            exp = None
-            # Ancien LAPS
-            if hasattr(entry, 'ms-Mcs-AdmPwd'):
-                pwd = decode_ldap_value(getattr(entry, 'ms-Mcs-AdmPwd', None))
-                exp = decode_ldap_value(getattr(entry, 'ms-Mcs-AdmPwdExpirationTime', None))
-            # Nouveau LAPS
-            if not pwd and hasattr(entry, 'msLAPS-Password'):
-                pwd = decode_ldap_value(getattr(entry, 'msLAPS-Password', None))
-                exp = decode_ldap_value(getattr(entry, 'msLAPS-PasswordExpirationTime', None))
+            for entry in conn.entries:
+                pwd = None
+                exp = None
+                laps_type = 'Aucun'
 
-            if pwd:
-                computers.append({
-                    'cn': decode_ldap_value(entry.cn),
-                    'dn': decode_ldap_value(entry.distinguishedName),
-                    'password': pwd,
-                    'expiration': exp
-                })
-        conn.unbind()
+                # Ancien LAPS
+                if has_legacy_laps and hasattr(entry, 'ms-Mcs-AdmPwd'):
+                    pwd_val = getattr(entry, 'ms-Mcs-AdmPwd', None)
+                    if pwd_val and pwd_val.value:
+                        pwd = decode_ldap_value(pwd_val)
+                        laps_type = 'LAPS (Legacy)'
+                        exp_val = getattr(entry, 'ms-Mcs-AdmPwdExpirationTime', None)
+                        exp = decode_ldap_value(exp_val) if exp_val else None
+
+                # Nouveau LAPS (Windows LAPS)
+                if not pwd and has_new_laps and hasattr(entry, 'msLAPS-Password'):
+                    pwd_val = getattr(entry, 'msLAPS-Password', None)
+                    if pwd_val and pwd_val.value:
+                        pwd = decode_ldap_value(pwd_val)
+                        laps_type = 'Windows LAPS'
+                        exp_val = getattr(entry, 'msLAPS-PasswordExpirationTime', None)
+                        exp = decode_ldap_value(exp_val) if exp_val else None
+
+                if pwd:
+                    computers.append({
+                        'cn': decode_ldap_value(entry.cn),
+                        'os': decode_ldap_value(getattr(entry, 'operatingSystem', None)) or 'Inconnu',
+                        'dn': decode_ldap_value(entry.distinguishedName),
+                        'laps_type': laps_type,
+                        'laps_password': pwd,
+                        'laps_expiration': exp or 'Inconnue'
+                    })
+                    
+    except LDAPAttributeError as e:
+        laps_available = False
+        flash(f'LAPS n\'est pas installé: {str(e)}', 'warning')
     except Exception as e:
         flash(f'Erreur LAPS: {str(e)}', 'error')
+    finally:
+        conn.unbind()
 
     return render_template('laps.html', computers=computers, search=search_query,
-                         connected=is_connected())
+                         connected=is_connected(), laps_available=laps_available)
 
 
 # === BITLOCKER ===
@@ -299,30 +338,86 @@ def favorites():
 @require_connection
 def expiring_accounts():
     """Comptes expirant bientôt."""
+    from datetime import datetime, timedelta
+    from ldap3 import SUBTREE
+    
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('connect'))
 
     base_dn = session.get('ad_base_dn', '')
-    expiring = []
+    
+    # Dates pour les calculs
+    now = datetime.now()
+    expiry_threshold = now + timedelta(days=30)
+    password_threshold = now + timedelta(days=14)
+    inactive_threshold = now - timedelta(days=90)
+    
+    expiring_accounts_list = []
+    password_expiring_list = []
+    inactive_accounts_list = []
 
     try:
         # Chercher les comptes avec une date d'expiration
         conn.search(base_dn, '(&(objectClass=user)(accountExpires>=1))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'accountExpires'])
+                   attributes=['cn', 'sAMAccountName', 'accountExpires', 'mail', 'distinguishedName', 
+                              'pwdLastSet', 'lastLogon'])
 
         for entry in conn.entries:
-            expiring.append({
+            account_data = {
                 'cn': decode_ldap_value(entry.cn),
                 'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
-                'accountExpires': decode_ldap_value(entry.accountExpires)
-            })
+                'mail': decode_ldap_value(entry.mail) if hasattr(entry, 'mail') else None,
+                'dn': decode_ldap_value(entry.distinguishedName),
+            }
+            
+            # Date d'expiration du compte
+            if hasattr(entry, 'accountExpires') and entry.accountExpires.value:
+                try:
+                    from ldap3.utils.conv import from_ad_timestamp
+                    expiry_date = from_ad_timestamp(entry.accountExpires.value)
+                    account_data['accountExpires'] = expiry_date.strftime('%Y-%m-%d') if expiry_date else 'Jamais'
+                    
+                    if expiry_date and expiry_date <= expiry_threshold:
+                        expiring_accounts_list.append(account_data.copy())
+                except:
+                    account_data['accountExpires'] = 'Inconnue'
+            
+            # Date du dernier changement de mot de passe
+            if hasattr(entry, 'pwdLastSet') and entry.pwdLastSet.value:
+                try:
+                    from ldap3.utils.conv import from_ad_timestamp
+                    pwd_date = from_ad_timestamp(entry.pwdLastSet.value)
+                    if pwd_date and pwd_date <= password_threshold:
+                        account_data['pwdLastSet'] = pwd_date.strftime('%Y-%m-%d')
+                        password_expiring_list.append(account_data.copy())
+                except:
+                    pass
+            
+            # Dernière connexion
+            if hasattr(entry, 'lastLogon') and entry.lastLogon.value:
+                try:
+                    from ldap3.utils.conv import from_ad_timestamp
+                    last_logon = from_ad_timestamp(entry.lastLogon.value)
+                    account_data['lastLogon'] = last_logon.strftime('%Y-%m-%d') if last_logon else 'Jamais'
+                    
+                    if last_logon and last_logon <= inactive_threshold:
+                        inactive_accounts_list.append(account_data.copy())
+                except:
+                    account_data['lastLogon'] = 'Inconnue'
+            else:
+                account_data['lastLogon'] = 'Jamais'
+                inactive_accounts_list.append(account_data.copy())
+                
         conn.unbind()
     except Exception as e:
         flash(f'Erreur: {str(e)}', 'error')
 
-    return render_template('expiring_accounts.html', accounts=expiring,
+    return render_template('expiring_accounts.html', 
+                         expiring_accounts=expiring_accounts_list,
+                         password_expiring=password_expiring_list,
+                         inactive_accounts=inactive_accounts_list,
                          connected=is_connected())
 
 
@@ -356,63 +451,96 @@ def password_policy():
         return redirect(url_for('connect'))
 
     base_dn = session.get('ad_base_dn', '')
-    policy = {}
+    policy = None
 
     try:
         # Lire la politique de mot de passe par défaut du domaine
         conn.search(base_dn, '(objectClass=domain)', 'BASE',
                    attributes=['minPwdLength', 'pwdHistoryLength', 'maxPwdAge',
                               'minPwdAge', 'lockoutThreshold', 'lockoutDuration',
-                              'lockoutObservationWindow', 'pwdProperties'])
+                              'lockoutObservationWindow', 'pwdProperties', 'name'])
 
-        if conn.entries:
-            entry = conn.entries[0]
+        if not conn.entries:
+            flash('Aucune politique de domaine trouvée.', 'warning')
+            return render_template('password_policy.html', policy=None, connected=is_connected())
 
-            # Conversion des valeurs
-            def get_value(attr):
-                if hasattr(entry, attr) and getattr(entry, attr).value is not None:
-                    return getattr(entry, attr).value
+        entry = conn.entries[0]
+        
+        # Fonction pour extraire les valeurs avec gestion timedelta
+        def get_int_value(attr, default=0):
+            val = getattr(entry, attr, None)
+            if val is None or val.value is None:
+                return default
+            v = val.value
+            # Gérer timedelta
+            if hasattr(v, 'days'):
+                return int(v.total_seconds()) if attr in ['maxPwdAge', 'minPwdAge', 'lockoutDuration', 'lockoutObservationWindow'] else default
+            return int(v) if v is not None else default
+        
+        def get_filetime_days(attr):
+            """Convertir FILETIME Windows en jours."""
+            val = getattr(entry, attr, None)
+            if val is None or val.value is None:
                 return None
+            v = val.value
+            if hasattr(v, 'days'):
+                # C'est un timedelta
+                return abs(int(v.total_seconds() / 86400))
+            # C'est un FILETIME (-valeur * 100ns)
+            return abs(int(v / -864000000000)) if v != 0 else None
+        
+        def get_filetime_minutes(attr):
+            """Convertir FILETIME Windows en minutes."""
+            val = getattr(entry, attr, None)
+            if val is None or val.value is None:
+                return None
+            v = val.value
+            if hasattr(v, 'days'):
+                return abs(int(v.total_seconds() / 60))
+            return abs(int(v / -600000000)) if v != 0 else None
 
-            policy = {
-                'minPwdLength': get_value('minPwdLength') or 0,
-                'pwdHistoryLength': get_value('pwdHistoryLength') or 0,
-                'maxPwdAge': get_value('maxPwdAge'),
-                'minPwdAge': get_value('minPwdAge'),
-                'lockoutThreshold': get_value('lockoutThreshold') or 0,
-                'lockoutDuration': get_value('lockoutDuration'),
-                'lockoutObservationWindow': get_value('lockoutObservationWindow'),
-                'pwdProperties': get_value('pwdProperties') or 0
-            }
-
-            # Convertir les durées (format Windows: -valeur * 100ns)
-            def convert_duration(val):
-                if val is None or val == 0:
-                    return "Non défini"
-                # Valeur négative en intervalles de 100ns
-                seconds = abs(int(val)) / 10000000
-                if seconds < 60:
-                    return f"{int(seconds)} secondes"
-                elif seconds < 3600:
-                    return f"{int(seconds/60)} minutes"
-                elif seconds < 86400:
-                    return f"{int(seconds/3600)} heures"
+        policy = {
+            'domain_name': str(entry.name) if hasattr(entry, 'name') else 'Domaine',
+            'minPwdLength': get_int_value('minPwdLength', 0),
+            'pwdHistoryLength': get_int_value('pwdHistoryLength', 0),
+            'maxPwdAge': get_filetime_days('maxPwdAge'),
+            'minPwdAge': get_filetime_days('minPwdAge'),
+            'lockoutThreshold': get_int_value('lockoutThreshold', 0),
+            'lockoutDuration': get_filetime_minutes('lockoutDuration'),
+            'lockoutObservationWindow': get_filetime_minutes('lockoutObservationWindow'),
+            'pwdProperties': get_int_value('pwdProperties', 0)
+        }
+        
+        # Convertir en texte lisible
+        def format_duration(val, is_days=True):
+            if val is None or val == 0:
+                return "Non défini"
+            if is_days:
+                return f"{val} jours"
+            else:
+                if val < 60:
+                    return f"{val} minutes"
+                elif val < 1440:
+                    return f"{int(val/60)} heures"
                 else:
-                    return f"{int(seconds/86400)} jours"
+                    return f"{int(val/1440)} jours"
+        
+        policy['maxPwdAge_display'] = format_duration(policy['maxPwdAge'], is_days=True)
+        policy['minPwdAge_display'] = format_duration(policy['minPwdAge'], is_days=True)
+        policy['lockoutDuration_display'] = format_duration(policy['lockoutDuration'], is_days=False)
+        policy['lockoutObservationWindow_display'] = format_duration(policy['lockoutObservationWindow'], is_days=False)
 
-            policy['maxPwdAge_display'] = convert_duration(policy['maxPwdAge'])
-            policy['minPwdAge_display'] = convert_duration(policy['minPwdAge'])
-            policy['lockoutDuration_display'] = convert_duration(policy['lockoutDuration'])
-            policy['lockoutObservationWindow_display'] = convert_duration(policy['lockoutObservationWindow'])
-
-            # Propriétés du mot de passe
-            pwd_props = int(policy['pwdProperties'])
-            policy['complexity_enabled'] = bool(pwd_props & 1)
-            policy['reversible_encryption'] = bool(pwd_props & 16)
+        # Propriétés du mot de passe
+        pwd_props = policy['pwdProperties']
+        policy['complexity_enabled'] = bool(pwd_props & 1)
+        policy['reversible_encryption'] = bool(pwd_props & 16)
 
         conn.unbind()
+        
     except Exception as e:
-        flash(f'Erreur: {str(e)}', 'error')
+        flash(f'Erreur lors de la récupération: {str(e)}', 'error')
+        import logging
+        logging.error(f'Password policy error: {str(e)}', exc_info=True)
 
     return render_template('password_policy.html', policy=policy, connected=is_connected())
 
@@ -448,3 +576,56 @@ def view_backup(filename):
         flash('Backup introuvable.', 'error')
         return redirect(url_for('tools.backups'))
     return render_template('backup_detail.html', backup=backup, connected=is_connected())
+
+
+# === EXPORT AUDIT MOTS DE PASSE ===
+@tools_bp.route('/password-audit/export/csv')
+@require_connection
+@require_permission('admin')
+def export_password_audit_csv():
+    """Exporter l'audit des mots de passe en CSV."""
+    from flask import Response
+    from password_audit import run_password_audit, export_audit_to_csv
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('tools.password_audit'))
+    
+    base_dn = session.get('ad_base_dn', '')
+    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
+    conn.unbind()
+    
+    csv_data = export_audit_to_csv(audit_result)
+    
+    return Response(
+        csv_data,
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment;filename=password_audit.csv'}
+    )
+
+
+@tools_bp.route('/password-audit/export/json')
+@require_connection
+@require_permission('admin')
+def export_password_audit_json():
+    """Exporter l'audit des mots de passe en JSON."""
+    from flask import Response
+    from password_audit import run_password_audit, export_audit_to_json
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('tools.password_audit'))
+    
+    base_dn = session.get('ad_base_dn', '')
+    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
+    conn.unbind()
+    
+    json_data = export_audit_to_json(audit_result)
+    
+    return Response(
+        json_data,
+        mimetype='application/json',
+        headers={'Content-Disposition': 'attachment;filename=password_audit.json'}
+    )

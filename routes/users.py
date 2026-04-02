@@ -181,6 +181,7 @@ def create_user():
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         password = request.form.get('password', '')
+        must_change_password = request.form.get('must_change_password') == 'on'
         target_ou = request.form.get('target_ou', base_dn)
         email = request.form.get('email', '').strip()
 
@@ -210,12 +211,16 @@ def create_user():
                 if password:
                     unicode_pwd = f'"{password}"'.encode('utf-16-le')
                     conn.modify(user_dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
+                    
+                    # Forcer le changement de mot de passe à la prochaine connexion
+                    if must_change_password:
+                        conn.modify(user_dn, {'pwdLastSet': [(MODIFY_REPLACE, [0])]})
 
                 # Activer le compte
                 conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [512])]})
 
                 log_action(ACTIONS.get('CREATE_USER', 'create_user'), session.get('ad_username'),
-                          {'dn': user_dn, 'username': username}, True, request.remote_addr)
+                          {'dn': user_dn, 'username': username, 'must_change_password': must_change_password}, True, request.remote_addr)
                 flash(f'Utilisateur {username} créé.', 'success')
                 return redirect(url_for('users.list_users'))
             else:

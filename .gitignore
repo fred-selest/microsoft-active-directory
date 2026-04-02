@@ -1,134 +1,34 @@
-# ============================================================================
-# .gitignore - AD Web Interface
-# ============================================================================
-
-# ----------------------------------------------------------------------------
 # Python
-# ----------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
-*.egg
-*.egg-info/
-dist/
-build/
 .Python
-
-# Environnements virtuels
 venv/
 env/
-ENV/
-.venv/
-virtualenv/
-
-# ----------------------------------------------------------------------------
-# Configuration et Secrets (CRITIQUE - Ne JAMAIS committer)
-# ----------------------------------------------------------------------------
+Commande ECHO d‚sactiv‚e.
+# Logs
+logs/*.log
+logs/*.png
+Commande ECHO d‚sactiv‚e.
+# Data
+data/settings.json
+data/backups/*
+data/crypto_salt.bin
+Commande ECHO d‚sactiv‚e.
+# Configuration locale
 .env
 .env.local
-.env.production
-.env.*.local
-*.env
-
-# Fichiers de secrets
-secrets.json
-credentials.json
-*.key
-*.pem
-*.crt
-*.p12
-*.pfx
-
-# ClÃ©s API
-data/api_keys.json
-api_keys.json
-
-# ----------------------------------------------------------------------------
-# Logs et DonnÃ©es
-# ----------------------------------------------------------------------------
-*.log
-*.log.*
-logs/
-log/
-data/
-backup/
-backups/
-
-# ----------------------------------------------------------------------------
-# Fichiers de sauvegarde
-# ----------------------------------------------------------------------------
-*.bak
-*.backup
-*.old
-*.orig
-*.swp
-*.swo
-*~
-
-# ----------------------------------------------------------------------------
-# IDE et Ã‰diteurs
-# ----------------------------------------------------------------------------
+Commande ECHO d‚sactiv‚e.
+# IDE
 .vscode/
 .idea/
-*.iml
-.project
-.classpath
-.settings/
-*.sublime-project
-*.sublime-workspace
-
-# ----------------------------------------------------------------------------
-# SystÃ¨me d'exploitation
-# ----------------------------------------------------------------------------
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
+*.swp
+*.swo
+Commande ECHO d‚sactiv‚e.
+# OS
 Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-server_address.txt
-nssm/
-
-# Linux
-*~
-.directory
-
-# ----------------------------------------------------------------------------
-# Fichiers temporaires
-# ----------------------------------------------------------------------------
-*.tmp
-*.temp
-*.cache
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# ----------------------------------------------------------------------------
-# Bases de donnÃ©es locales
-# ----------------------------------------------------------------------------
-*.db
-*.sqlite
-*.sqlite3
-
-# ----------------------------------------------------------------------------
-# Archives et releases (maintenant sur GitHub Releases)
-# ----------------------------------------------------------------------------
-*.zip
-*.tar.gz
-*.rar
-*.7z
-release/
-
-# ----------------------------------------------------------------------------
-# Fichiers de test et dÃ©veloppement
-# ----------------------------------------------------------------------------
-test_data/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+.DS_Store
+Commande ECHO d‚sactiv‚e.
+# Tests
+logs/screenshots/
+logs/test_results.json
