@@ -1,0 +1,48 @@
+/* ==========================================================================
+   THEME.CSS — Surcharges de thème dynamiques
+   Ce fichier est chargé en dernier et peut être surchargé par l'admin.
+   ========================================================================== */
+
+/* Light mode sidebar */
+.sidebar {
+    background: #f8f9fa;
+}
+.sidebar-link {
+    color: #242424;
+}
+.sidebar-link:hover {
+    background: rgba(0, 120, 212, 0.1);
+    color: #0078d4;
+}
+.sidebar-link.active {
+    background: rgba(0, 120, 212, 0.15);
+    color: #0078d4;
+}
+.sidebar-label {
+    color: #666666;
+}
+.sidebar-footer {
+    color: #888888;
+}
+
+/* Dark mode sidebar */
+body.dark-mode .sidebar {
+    background: #1a1a2e;
+}
+body.dark-mode .sidebar-link {
+    color: #ffffff;
+}
+body.dark-mode .sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #00d9ff;
+}
+body.dark-mode .sidebar-link.active {
+    background: rgba(0, 217, 255, 0.2);
+    color: #00d9ff;
+}
+body.dark-mode .sidebar-label {
+    color: #aaaaaa;
+}
+body.dark-mode .sidebar-footer {
+    color: #888888;
+}

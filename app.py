@@ -31,6 +31,7 @@ from routes.ous import ous_bp
 from routes.debug import debug_bp
 from features import require_feature, is_feature_enabled
 from debug_utils import init_debug, logger
+from context_processor import inject_globals
 
 app = Flask(__name__)
 config = get_config()
@@ -92,63 +93,7 @@ app.register_blueprint(debug_bp)
 if config.DEBUG:
     init_debug(app)
 
-# Cache mise à jour
-_update_cache = {'last_check': 0, 'result': None}
-
-
-@app.context_processor
-def inject_globals():
-    """Injecter les variables globales dans les templates."""
-    import time
-
-    # Mise à jour
-    if _update_cache['result'] is None or (time.time() - _update_cache['last_check']) > 300:
-        try:
-            from updater_fast import check_for_updates_fast
-            _update_cache['result'] = check_for_updates_fast()
-            _update_cache['last_check'] = time.time()
-        except:
-            _update_cache['result'] = {'update_available': False, 'error': 'check_failed'}
-
-    lang = session.get('language', 'fr')
-    translator = Translator(lang)
-
-    try:
-        from settings_manager import load_settings, get_menu_items, get_dropdown_items
-        settings = load_settings()
-        menu_items = get_menu_items()
-        dropdown_items = get_dropdown_items()
-    except:
-        settings, menu_items, dropdown_items = {}, [], {}
-
-    def has_permission(permission):
-        if not config.RBAC_ENABLED:
-            return True
-        user_role = session.get('user_role', config.DEFAULT_ROLE)
-        return permission in ROLE_PERMISSIONS.get(user_role, [])
-
-    try:
-        alert_counts = get_alert_counts()
-    except:
-        alert_counts = {'total': 0}
-
-    return {
-        'update_info': _update_cache['result'],
-        'user_role': session.get('user_role', config.DEFAULT_ROLE),
-        'has_permission': has_permission,
-        'dark_mode': session.get('dark_mode', False),
-        'config': config,
-        'csrf_token': generate_csrf_token,
-        't': translator,
-        'current_lang': lang,
-        'alert_counts': alert_counts,
-        'site_settings': settings.get('site', {}),
-        'branding': settings.get('branding', {}),
-        'menu_items': menu_items,
-        'dropdown_items': dropdown_items,
-        'feature_settings': settings.get('features', {}),
-        'is_feature_enabled': is_feature_enabled
-    }
+app.context_processor(inject_globals)
 
 
 @app.after_request
@@ -422,7 +367,7 @@ def audit_logs():
 def update_page():
     """Page de mise à jour."""
     try:
-        from updater_fast import check_for_updates_fast
+        from updater import check_for_updates_fast
         update_info = check_for_updates_fast()
     except Exception as e:
         update_info = {
@@ -709,7 +654,7 @@ def api_check_alerts():
 def api_check_update():
     """API pour vérifier les mises à jour."""
     try:
-        from updater_fast import check_for_updates_fast
+        from updater import check_for_updates_fast
         return jsonify(check_for_updates_fast())
     except Exception as e:
         return jsonify({'update_available': False, 'error': str(e)})
@@ -720,8 +665,7 @@ def api_perform_update():
     """API pour effectuer une mise à jour incrémentale."""
     try:
         import threading
-        from updater_fast import check_for_updates_fast, perform_fast_update
-        from updater import restart_server, update_dependencies
+        from updater import check_for_updates_fast, perform_fast_update, restart_server, update_dependencies
 
         info = check_for_updates_fast()
         if not info['update_available']:
