@@ -7,6 +7,24 @@
     <h2>LAPS - Mots de passe administrateur local</h2>
 </div>
 
+{% if not laps_available %}
+<div class="alert alert-warning">
+    <h4>⚠️ LAPS non installé</h4>
+    <p>Le schéma LAPS n'est pas installé sur ce domaine Active Directory.</p>
+    <p>Pour utiliser LAPS, vous devez :</p>
+    <ol>
+        <li>Installer <strong>Windows LAPS</strong> (recommandé) ou <strong>Legacy LAPS</strong></li>
+        <li>Étendre le schéma Active Directory avec les attributs LAPS</li>
+        <li>Configurer les politiques de groupe pour LAPS</li>
+    </ol>
+    <p><strong>Liens utiles :</strong></p>
+    <ul>
+        <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/laps/laps-management" target="_blank">Documentation Microsoft Windows LAPS</a></li>
+        <li><a href="https://www.microsoft.com/en-us/download/details.aspx?id=46899" target="_blank">Télécharger Legacy LAPS</a></li>
+    </ul>
+</div>
+{% else %}
+
 <div class="search-box">
     <form method="get">
         <div class="form-group">
@@ -15,7 +33,7 @@
         </div>
         <button type="submit" class="btn btn-secondary">Rechercher</button>
         {% if search %}
-        <a href="{{ url_for('laps_passwords') }}" class="btn btn-secondary">Effacer</a>
+        <a href="{{ url_for('tools.laps_passwords') }}" class="btn btn-secondary">Effacer</a>
         {% endif %}
     </form>
 </div>
@@ -96,5 +114,4 @@ function copyPassword(password) {
     });
 }
 </script>
-{% endblock %}
 {% endblock %}

@@ -1,0 +1,79 @@
+{
+  "timestamp": "2026-04-01T23:48:34.201175",
+  "version": "1.17.4",
+  "tests": [
+    {
+      "name": "Configuration",
+      "status": "passed",
+      "message": "Configuration valide"
+    },
+    {
+      "name": "Échappement LDAP",
+      "status": "passed",
+      "message": "Échappement correct: test\\2a\\28user\\29"
+    },
+    {
+      "name": "Token CSRF",
+      "status": "passed",
+      "message": "Token CSRF valide: 74cdcf7901b2a3a50a34..."
+    },
+    {
+      "name": "Chiffrement sessions",
+      "status": "passed",
+      "message": "Chiffrement OK (longueur: 160)"
+    },
+    {
+      "name": "Traductions",
+      "status": "passed",
+      "message": "Langues: fr, en"
+    },
+    {
+      "name": "Module audit",
+      "status": "passed",
+      "message": "20 actions définies"
+    },
+    {
+      "name": "Routes core",
+      "status": "passed",
+      "message": "Rôles: admin, operator, reader"
+    },
+    {
+      "name": "Application Flask",
+      "status": "passed",
+      "message": "75 routes enregistrées"
+    },
+    {
+      "name": "Endpoint /api/health",
+      "status": "passed",
+      "message": "Version: 1.22.0"
+    },
+    {
+      "name": "Endpoint /api/check-update",
+      "status": "passed",
+      "message": "Mise à jour: False"
+    },
+    {
+      "name": "Page d'accueil /",
+      "status": "passed",
+      "message": "Page d'accueil OK"
+    },
+    {
+      "name": "Répertoires",
+      "status": "passed",
+      "message": "Répertoires existants"
+    },
+    {
+      "name": "Fichier .env",
+      "status": "passed",
+      "message": "Fichier .env valide"
+    },
+    {
+      "name": "Dépendances",
+      "status": "passed",
+      "message": "6 dépendances OK"
+    }
+  ],
+  "passed": 14,
+  "failed": 0,
+  "warnings": 0
+}

@@ -318,3 +318,65 @@ def check_inactive_accounts(conn, base_dn, days=90):
         logger.warning("Erreur lors de la verification des comptes inactifs", exc_info=True)
 
     return inactive
+
+
+def run_full_alert_check(conn, base_dn):
+    """
+    Exécuter une vérification complète et générer des alertes.
+    
+    Args:
+        conn: Connexion LDAP
+        base_dn: Base DN
+    
+    Returns:
+        dict: Résumé des alertes générées
+    """
+    results = {
+        'expiring_accounts': 0,
+        'password_expiring': 0,
+        'inactive_accounts': 0,
+        'total_alerts': 0
+    }
+    
+    # Vérifier comptes expirants (30 jours)
+    expiring = check_expiring_accounts(conn, base_dn, days=30)
+    results['expiring_accounts'] = len(expiring)
+    
+    for account in expiring[:10]:  # Limiter à 10 alertes
+        add_alert(
+            alert_type='expiring_account',
+            title=f"Compte expirant: {account['sAMAccountName']}",
+            message=f"Le compte {account['cn']} ({account['sAMAccountName']}) expire le {account['accountExpires']}",
+            severity='warning',
+            data={'user_dn': account['dn'], 'expiry': account['accountExpires']}
+        )
+    
+    # Vérifier mots de passe expirant (14 jours)
+    pwd_expiring = check_password_expiring(conn, base_dn, days=14)
+    results['password_expiring'] = len(pwd_expiring)
+    
+    for user in pwd_expiring[:10]:
+        add_alert(
+            alert_type='password_expiring',
+            title=f"Mot de passe expirant: {user['sAMAccountName']}",
+            message=f"Le mot de passe de {user['cn']} expire le {user['pwdExpires']}",
+            severity='warning',
+            data={'user_dn': user['dn'], 'expiry': user['pwdExpires']}
+        )
+    
+    # Vérifier comptes inactifs (90 jours)
+    inactive = check_inactive_accounts(conn, base_dn, days=90)
+    results['inactive_accounts'] = len(inactive)
+    
+    for account in inactive[:10]:
+        add_alert(
+            alert_type='inactive_account',
+            title=f"Compte inactif: {account['sAMAccountName']}",
+            message=f"Le compte {account['cn']} n'a pas été utilisé depuis {account['lastLogon']}",
+            severity='info',
+            data={'user_dn': account['dn'], 'last_logon': account['lastLogon']}
+        )
+    
+    results['total_alerts'] = results['expiring_accounts'] + results['password_expiring'] + results['inactive_accounts']
+    
+    return results

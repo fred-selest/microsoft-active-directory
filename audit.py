@@ -173,4 +173,8 @@ ACTIONS = {
 
     # Bulk
     'BULK_OPERATION': 'bulk_operation',
+
+    # Autres
+    'OTHER': 'other',
+    'PASSWORD_AUDIT': 'password_audit',
 }

@@ -9,6 +9,7 @@ import _openssl_init
 import os
 import hashlib
 import platform
+from pathlib import Path
 from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from ad_detect import get_local_domain, detect_ad_config
@@ -19,7 +20,8 @@ from audit import log_action, ACTIONS
 from alerts import get_alert_counts
 from session_crypto import init_crypto, encrypt_password
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
-                         require_connection, get_user_role_from_groups, ROLE_PERMISSIONS)
+                         require_connection, require_permission, get_user_role_from_groups, 
+                         get_user_permissions, ROLE_PERMISSIONS)
 from routes.users import users_bp
 from routes.groups import groups_bp
 from routes.computers import computers_bp
@@ -33,10 +35,19 @@ from debug_utils import init_debug, logger
 app = Flask(__name__)
 config = get_config()
 
+# Répertoire de base
+BASE_DIR = Path(__file__).parent.resolve()
+
 # Configuration Flask
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['DEBUG'] = config.DEBUG
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=config.SESSION_TIMEOUT)
+
+# Désactiver cache templates en mode debug
+if config.DEBUG:
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    app.jinja_env.auto_reload = True
 
 # Flask Debug Toolbar
 if config.DEBUG:
@@ -132,6 +143,7 @@ def inject_globals():
         'current_lang': lang,
         'alert_counts': alert_counts,
         'site_settings': settings.get('site', {}),
+        'branding': settings.get('branding', {}),
         'menu_items': menu_items,
         'dropdown_items': dropdown_items,
         'feature_settings': settings.get('features', {}),
@@ -141,7 +153,54 @@ def inject_globals():
 
 @app.after_request
 def after_request(response):
+    # Disable cache en mode debug
+    if config.DEBUG:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
     return add_security_headers(response)
+
+
+# === GESTION DES ERREURS AUTOMATIQUE ===
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Gérer automatiquement les erreurs 404."""
+    logger.error(f"404 Error: {request.url} - User: {session.get('ad_username', 'anonymous')}")
+    return render_template('error.html', 
+                         error_code=404,
+                         error_message="Page non trouvée",
+                         error_details=str(error),
+                         connected=is_connected()), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Gérer automatiquement les erreurs 500."""
+    logger.error(f"500 Error: {request.url} - User: {session.get('ad_username', 'anonymous')} - {str(error)}", exc_info=True)
+    return render_template('error.html',
+                         error_code=500,
+                         error_message="Erreur interne du serveur",
+                         error_details=str(error),
+                         connected=is_connected()), 500
+
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    """Gérer toutes les exceptions non capturées."""
+    logger.error(f"Unhandled Exception: {request.url} - {type(error).__name__}: {str(error)}", exc_info=True)
+    # En mode debug, afficher les détails
+    if config.DEBUG:
+        import traceback
+        return render_template('error.html',
+                             error_code=500,
+                             error_message=f"{type(error).__name__}: {str(error)}",
+                             error_details=traceback.format_exc(),
+                             connected=is_connected()), 500
+    return render_template('error.html',
+                         error_code=500,
+                         error_message="Une erreur inattendue s'est produite",
+                         connected=is_connected()), 500
 
 
 # === ROUTES PRINCIPALES ===
@@ -215,8 +274,15 @@ def connect():
             if not base_dn and conn.server.info and conn.server.info.naming_contexts:
                 session['ad_base_dn'] = str(conn.server.info.naming_contexts[0])
 
+            # Rôle utilisateur
             user_role, debug_info = get_user_role_from_groups(conn, username, debug=True)
             session['user_role'] = user_role
+
+            # Permissions granulaires
+            from routes.core import get_user_permissions
+            user_permissions = get_user_permissions(conn, username)
+            session['user_permissions'] = user_permissions
+
             conn.unbind()
 
             log_action(ACTIONS['LOGIN'], username, {'server': server, 'role': user_role}, True, ip)
@@ -343,12 +409,12 @@ def audit_logs():
     return render_template('audit.html', logs=logs, page=page, connected=is_connected())
 
 
-@app.route('/search')
-@require_connection
-def global_search():
-    """Recherche globale."""
-    query = request.args.get('q', '')
-    return render_template('search.html', query=query, results=[], connected=is_connected())
+# @app.route('/search')  # DÉSACTIVÉ - Fonctionnalité non implémentée
+# @require_connection
+# def global_search():
+#     """Recherche globale."""
+#     query = request.args.get('q', '')
+#     return render_template('search.html', query=query, results=[], connected=is_connected())
 
 
 # === MISE A JOUR ===
@@ -509,6 +575,136 @@ def api_password_audit():
     return jsonify(audit_result)
 
 
+# === ALERTES ===
+
+@app.route('/alerts')
+@require_connection
+@require_permission('admin')
+def alerts_page():
+    """Page des alertes."""
+    from alerts import get_alerts, get_alert_counts, run_full_alert_check
+    
+    # Vérifier si on doit lancer une vérification
+    run_check = request.args.get('check', 'false').lower() == 'true'
+    
+    if run_check:
+        conn, error = get_ad_connection()
+        if conn:
+            base_dn = session.get('ad_base_dn', '')
+            run_full_alert_check(conn, base_dn)
+            conn.unbind()
+    
+    # Récupérer les alertes
+    alert_type = request.args.get('type', '')
+    severity = request.args.get('severity', '')
+    acknowledged = request.args.get('acknowledged', '')
+    
+    # Filtres
+    filters = {}
+    if alert_type:
+        filters['alert_type'] = alert_type
+    if severity:
+        filters['severity'] = severity
+    if acknowledged:
+        filters['acknowledged'] = acknowledged == 'true'
+    
+    alerts_list = get_alerts(limit=100, **filters)
+    counts = get_alert_counts()
+    
+    return render_template('alerts.html', 
+                         alerts=alerts_list,
+                         counts=counts,
+                         current_type=alert_type,
+                         current_severity=severity,
+                         connected=is_connected())
+
+
+@app.route('/api/alerts')
+@require_connection
+@require_permission('admin')
+def api_get_alerts():
+    """API pour récupérer les alertes."""
+    from alerts import get_alerts, get_alert_counts
+    
+    limit = request.args.get('limit', 50, type=int)
+    alert_type = request.args.get('type', '')
+    severity = request.args.get('severity', '')
+    
+    alerts_list = get_alerts(limit=limit, alert_type=alert_type, severity=severity)
+    counts = get_alert_counts()
+    
+    return jsonify({
+        'alerts': alerts_list,
+        'counts': counts,
+        'total': len(alerts_list)
+    })
+
+
+@app.route('/api/alerts/<alert_id>/acknowledge', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_acknowledge_alert(alert_id):
+    """API pour acquitter une alerte."""
+    from alerts import acknowledge_alert
+    
+    user = session.get('ad_username', 'unknown')
+    success = acknowledge_alert(alert_id, user)
+    
+    if success:
+        log_action(
+            ACTIONS['OTHER'],
+            user,
+            {'action': 'acknowledge_alert', 'alert_id': alert_id},
+            True
+        )
+        return jsonify({'success': True, 'message': 'Alerte acquittée'})
+    else:
+        return jsonify({'success': False, 'error': 'Alerte introuvable'}), 404
+
+
+@app.route('/api/alerts/<alert_id>/delete', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_delete_alert(alert_id):
+    """API pour supprimer une alerte."""
+    from alerts import delete_alert
+    
+    delete_alert(alert_id)
+    
+    log_action(
+        ACTIONS['OTHER'],
+        session.get('ad_username', 'unknown'),
+        {'action': 'delete_alert', 'alert_id': alert_id},
+        True
+    )
+    
+    return jsonify({'success': True, 'message': 'Alerte supprimée'})
+
+
+@app.route('/api/alerts/check', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_check_alerts():
+    """API pour lancer une vérification des alertes."""
+    from alerts import run_full_alert_check, get_alert_counts
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'error': error}), 500
+    
+    base_dn = session.get('ad_base_dn', '')
+    results = run_full_alert_check(conn, base_dn)
+    conn.unbind()
+    
+    counts = get_alert_counts()
+    
+    return jsonify({
+        'success': True,
+        'results': results,
+        'counts': counts
+    })
+
+
 @app.route('/api/check-update')
 def api_check_update():
     """API pour vérifier les mises à jour."""
@@ -554,6 +750,140 @@ def api_perform_update():
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+
+# === DIAGNOSTIC ET ERREURS ===
+
+@app.route('/errors')
+@require_connection
+@require_permission('admin')
+def error_logs():
+    """Afficher les erreurs récentes."""
+    from audit import get_audit_logs
+    
+    # Lire les logs d'erreurs
+    error_logs = []
+    log_files = ['logs/server.log', 'logs/service_error.log']
+    
+    for log_file in log_files:
+        try:
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    # Filtrer les lignes avec ERROR ou Exception
+                    for line in lines[-500:]:  # Dernières 500 lignes
+                        if 'ERROR' in line or 'Exception' in line or 'Traceback' in line:
+                            error_logs.append({
+                                'file': log_file,
+                                'line': line.strip(),
+                                'timestamp': datetime.now().isoformat()
+                            })
+        except Exception as e:
+            logger.warning(f"Could not read {log_file}: {e}")
+    
+    # Trier par timestamp (plus récent en premier)
+    error_logs.reverse()
+    
+    return render_template('errors.html', 
+                         error_logs=error_logs[:100],  # Limiter à 100 erreurs
+                         connected=is_connected())
+
+
+@app.route('/api/errors')
+@require_connection
+@require_permission('admin')
+def api_error_logs():
+    """API pour récupérer les erreurs récentes."""
+    import os
+    
+    error_logs = []
+    log_files = ['logs/server.log', 'logs/service_error.log', 'logs/audit.log']
+    
+    for log_file in log_files:
+        try:
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    for line in lines[-200:]:
+                        if 'ERROR' in line or 'Exception' in line or 'Traceback' in line:
+                            error_logs.append({
+                                'file': log_file,
+                                'line': line.strip(),
+                                'timestamp': datetime.now().isoformat()
+                            })
+        except Exception as e:
+            error_logs.append({'file': 'system', 'line': str(e), 'timestamp': datetime.now().isoformat()})
+    
+    error_logs.reverse()
+    return jsonify({'errors': error_logs[:50], 'total': len(error_logs)})
+
+
+# === CORRECTION PROTOCOLES OBSOLÈTES ===
+
+@app.route('/api/fix-protocol', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def fix_protocol():
+    """API pour appliquer les corrections de protocoles."""
+    import subprocess
+    import os
+    
+    data = request.get_json() or {}
+    protocol = data.get('protocol', '')
+    
+    scripts = {
+        'smbv1': 'scripts/fix_smbv1.ps1',
+        'ntlm': 'scripts/fix_ntlm.ps1',
+        'ldap_signing': 'scripts/fix_ldap_signing.ps1',
+        'channel_binding': 'scripts/fix_channel_binding.ps1'
+    }
+    
+    if protocol not in scripts:
+        return jsonify({'success': False, 'error': f'Protocole inconnu: {protocol}'}), 400
+    
+    script_path = os.path.join(BASE_DIR, scripts[protocol])
+    
+    if not os.path.exists(script_path):
+        return jsonify({'success': False, 'error': f'Script introuvable: {script_path}'}), 404
+    
+    try:
+        # Exécuter le script PowerShell
+        ps_command = ['powershell.exe', '-ExecutionPolicy', 'Bypass', '-File', script_path]
+        
+        proc = subprocess.Popen(
+            ps_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        stdout, stderr = proc.communicate(timeout=60)
+        
+        if proc.returncode == 0:
+            # Journaliser l'action
+            log_action(
+                ACTIONS['OTHER'],
+                session.get('ad_username', 'system'),
+                {'action': 'fix_protocol', 'protocol': protocol, 'script': scripts[protocol]},
+                True
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': f'Correction {protocol} appliquée avec succès',
+                'output': stdout[:2000] if stdout else ''
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': stderr[:500] if stderr else 'Erreur inconnue'
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return jsonify({'success': False, 'error': 'Timeout - Le script a pris trop de temps'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def run_server():

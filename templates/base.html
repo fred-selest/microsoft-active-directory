@@ -18,10 +18,10 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-152.png') }}">
 
     <title>{% block title %}AD Web Interface{% endblock %}</title>
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/optimizations.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v={{ config.DEBUG }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ config.DEBUG }}&t={{ range(1000, 9999)|random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/optimizations.css') }}?v={{ config.DEBUG }}&t={{ range(1000, 9999)|random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}?v={{ config.DEBUG }}&t={{ range(1000, 9999)|random }}">
     {% block extra_css %}{% endblock %}
     
     {% if config.DEBUG %}
@@ -43,6 +43,37 @@
     })();
     </script>
     {% endif %}
+    
+    <!-- Personnalisation CSS -->
+    {% if site_settings.theme_color or branding %}
+    <style>
+        :root {
+            {% if branding %}
+            --primary-color: {{ branding.primary_color or '#0078d4' }};
+            --secondary-color: {{ branding.secondary_color or '#107c10' }};
+            --danger-color: {{ branding.danger_color or '#d13438' }};
+            --warning-color: {{ branding.warning_color or '#ffb900' }};
+            --info-color: {{ branding.info_color or '#00b7c3' }};
+            --border-radius: {{ branding.border_radius or '8px' }};
+            --font-family: {{ branding.font_family or 'Segoe UI, sans-serif' }};
+            {% endif %}
+            {% if site_settings.theme_color %}
+            --theme-color: {{ site_settings.theme_color }};
+            {% endif %}
+        }
+        
+        {% if branding and branding.font_family %}
+        body {
+            font-family: {{ branding.font_family }};
+        }
+        {% endif %}
+        
+        {% if site_settings.custom_css %}
+        /* CSS personnalisé */
+        {{ site_settings.custom_css|safe }}
+        {% endif %}
+    </style>
+    {% endif %}
 </head>
 <body class="{% if dark_mode %}dark-mode{% endif %}">
     <a href="#main-content" class="skip-link">Aller au contenu principal</a>
@@ -56,7 +87,14 @@
                 <span></span>
             </button>
             <a href="{{ url_for('index') }}" class="top-bar-brand">
+                {% if site_settings.logo %}
+                <img src="{{ url_for('static', filename='images/' + site_settings.logo) }}" 
+                     alt="Logo" 
+                     class="top-bar-logo"
+                     style="height: {{ site_settings.logo_height or '40px' }};">
+                {% else %}
                 <img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="Logo" class="top-bar-logo">
+                {% endif %}
                 <span class="top-bar-title">{{ site_settings.title or 'AD Web' }}</span>
             </a>
         </div>
@@ -87,10 +125,7 @@
                     <span class="sidebar-icon">📊</span>
                     <span class="sidebar-text">Tableau de bord</span>
                 </a>
-                <a href="{{ url_for('global_search') }}" class="sidebar-link {{ 'active' if request.endpoint == 'global_search' }}">
-                    <span class="sidebar-icon">🔍</span>
-                    <span class="sidebar-text">Recherche</span>
-                </a>
+                <!-- Recherche désactivée - Fonctionnalité non implémentée -->
             </div>
 
             <div class="sidebar-section">
@@ -224,6 +259,14 @@
                     {% endif %}
                 </a>
                 {% endif %}
+                
+                <!-- Menu Debug Caché (Admin uniquement) -->
+                {% if config.DEBUG and user_role == 'admin' %}
+                <a href="{{ url_for('debug.debug_dashboard') }}" class="sidebar-link sidebar-footer" style="opacity: 0.3; font-size: 0.75rem;" title="Outils de debug (Ctrl+Shift+D)">
+                    <span class="sidebar-icon">🐛</span>
+                    <span class="sidebar-text">Debug</span>
+                </a>
+                {% endif %}
             </div>
         </nav>
     </aside>
@@ -254,6 +297,9 @@
     </footer>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% if config.DEBUG %}
+    <script src="{{ url_for('static', filename='js/display-debugger.js') }}?v={{ config.DEBUG }}"></script>
+    {% endif %}
     <script>
     // Sidebar toggle
     document.addEventListener('DOMContentLoaded', function() {
@@ -279,6 +325,18 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && sidebar.classList.contains('open')) {
                 toggleSidebar();
+            }
+        });
+        
+        // Raccourci Debug: Ctrl+Shift+D (Admin uniquement)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                e.preventDefault();
+                {% if config.DEBUG and user_role == 'admin' %}
+                window.location.href = '{{ url_for("debug.debug_dashboard") }}';
+                {% else %}
+                console.log('Debug menu: Accès réservé aux administrateurs');
+                {% endif %}
             }
         });
     });

@@ -6,7 +6,7 @@
 <div class="page-header">
     <h2>Comptes expirants</h2>
     <div class="page-actions">
-        <a href="{{ url_for('export_expiring_pdf') }}" class="btn btn-secondary">Exporter PDF</a>
+        <a href="{{ url_for('tools.export_expiring_pdf') }}" class="btn btn-secondary">Exporter PDF</a>
     </div>
 </div>
 
@@ -35,7 +35,7 @@
                     <td>{{ account.mail or '-' }}</td>
                     <td>{{ account.accountExpires }}</td>
                     <td>
-                        <a href="{{ url_for('edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <a href="{{ url_for('users.edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -68,7 +68,7 @@
                     <td>{{ user.sAMAccountName }}</td>
                     <td>{{ user.mail or '-' }}</td>
                     <td>
-                        <a href="{{ url_for('edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -103,7 +103,7 @@
                     <td>{{ account.mail or '-' }}</td>
                     <td>{{ account.lastLogon }}</td>
                     <td>
-                        <a href="{{ url_for('edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <a href="{{ url_for('users.edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     </td>
                 </tr>
                 {% endfor %}
