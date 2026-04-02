@@ -330,3 +330,11 @@ def edit_group(dn):
                 pass
 
     return render_template('group_form.html', action='edit', group=group, connected=is_connected())
+
+
+@groups_bp.route('/<path:dn>/nested')
+@require_connection
+def nested_groups(dn):
+    """Afficher les groupes imbriqués (stub)."""
+    flash('Groupes imbriqués disponible dans la version complète.', 'info')
+    return redirect(url_for('groups.view_group', dn=dn))

@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h2>Groupes imbriques</h2>
-    <a href="{{ url_for('groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+    <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Retour aux groupes</a>
 </div>
 
 <div class="group-card">
@@ -23,9 +23,9 @@
         <ul class="group-list">
             {% for parent in parent_groups %}
             <li>
-                <a href="{{ url_for('group_details', dn=parent.dn) }}">{{ parent.cn }}</a>
+                <a href="{{ url_for('groups.view_group', dn=parent.dn) }}">{{ parent.cn }}</a>
                 {% if parent.description %}<small>- {{ parent.description }}</small>{% endif %}
-                <a href="{{ url_for('nested_groups', dn=parent.dn) }}" class="btn btn-sm btn-secondary">Voir imbrication</a>
+                <a href="{{ url_for('groups.nested_groups', dn=parent.dn) }}" class="btn btn-sm btn-secondary">Voir imbrication</a>
             </li>
             {% endfor %}
         </ul>
@@ -41,9 +41,9 @@
         <ul class="group-list">
             {% for child in child_groups %}
             <li>
-                <a href="{{ url_for('group_details', dn=child.dn) }}">{{ child.cn }}</a>
+                <a href="{{ url_for('groups.view_group', dn=child.dn) }}">{{ child.cn }}</a>
                 {% if child.description %}<small>- {{ child.description }}</small>{% endif %}
-                <a href="{{ url_for('nested_groups', dn=child.dn) }}" class="btn btn-sm btn-secondary">Voir imbrication</a>
+                <a href="{{ url_for('groups.nested_groups', dn=child.dn) }}" class="btn btn-sm btn-secondary">Voir imbrication</a>
             </li>
             {% endfor %}
         </ul>
