@@ -65,12 +65,12 @@
         </div>
         <div class="alert-actions">
             {% if not alert.acknowledged %}
-            <form method="post" action="{{ url_for('acknowledge_alert_route', alert_id=alert.id) }}" style="display: inline;">
+            <form method="post" action="{{ url_for('api_acknowledge_alert', alert_id=alert.id) }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-secondary">Acquitter</button>
             </form>
             {% endif %}
-            <form method="post" action="{{ url_for('delete_alert_route', alert_id=alert.id) }}" style="display: inline;">
+            <form method="post" action="{{ url_for('api_delete_alert', alert_id=alert.id) }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
             </form>

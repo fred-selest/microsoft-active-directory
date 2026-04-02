@@ -127,6 +127,28 @@ def bulk_unlock_accounts():
     return redirect(url_for('tools.locked_accounts'))
 
 
+@tools_bp.route('/locked-accounts/unlock/<path:dn>', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def unlock_account(dn):
+    """Débloquer un compte utilisateur individuel."""
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('tools.locked_accounts'))
+    try:
+        conn.modify(dn, {'lockoutTime': [(0, [(0, b'\x00\x00\x00\x00\x00\x00\x00\x00')])]})
+        if conn.result['result'] == 0:
+            flash('Compte débloqué avec succès.', 'success')
+        else:
+            flash(f"Échec du déblocage: {conn.result.get('description', 'erreur inconnue')}", 'error')
+    except Exception as e:
+        flash(f'Erreur: {e}', 'error')
+    finally:
+        conn.unbind()
+    return redirect(url_for('tools.locked_accounts'))
+
+
 # === COMPTES EXPIRANT ===
 
 _AD_EPOCH_DELTA = 116444736000000000  # 100ns intervals between 1601-01-01 and 1970-01-01

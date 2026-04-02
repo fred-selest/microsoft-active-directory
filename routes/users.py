@@ -769,3 +769,19 @@ def export_users():
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
         return redirect(url_for('users.list_users'))
+
+
+@users_bp.route('/search/advanced')
+@require_connection
+def advanced_search():
+    """Recherche avancée d'utilisateurs (stub)."""
+    flash('Recherche avancée disponible dans la version complète.', 'info')
+    return redirect(url_for('users.list_users'))
+
+
+@users_bp.route('/search/global')
+@require_connection
+def global_search():
+    """Recherche globale (stub)."""
+    flash('Recherche globale disponible dans la version complète.', 'info')
+    return redirect(url_for('users.list_users'))

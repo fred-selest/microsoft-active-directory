@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h2>{% if action == 'create' %}Nouveau modele d'utilisateur{% else %}Modifier le modele{% endif %}</h2>
-    <a href="{{ url_for('user_templates_page') }}" class="btn btn-secondary">Retour</a>
+    <a href="{{ url_for('tools.user_templates') }}" class="btn btn-secondary">Retour</a>
 </div>
 
 <div class="form-container">
@@ -58,7 +58,7 @@
             <button type="submit" class="btn btn-primary">
                 {% if action == 'create' %}Creer le modele{% else %}Enregistrer{% endif %}
             </button>
-            <a href="{{ url_for('user_templates_page') }}" class="btn btn-secondary">Annuler</a>
+            <a href="{{ url_for('tools.user_templates') }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
 </div>
