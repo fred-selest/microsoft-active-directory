@@ -426,3 +426,31 @@ function hideLoading() {
         overlay.setAttribute('aria-hidden', 'true');
     }
 }
+
+/**
+ * Gestion de la sidebar (toggle, overlay, raccourcis clavier)
+ */
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const toggle = document.getElementById('sidebarToggle');
+
+    if (!sidebar) return;
+
+    function toggleSidebar() {
+        sidebar.classList.toggle('open');
+        if (overlay) overlay.classList.toggle('active');
+        document.body.classList.toggle('sidebar-open');
+    }
+
+    if (toggle) toggle.addEventListener('click', toggleSidebar);
+    if (overlay) overlay.addEventListener('click', toggleSidebar);
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+            toggleSidebar();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initSidebar);

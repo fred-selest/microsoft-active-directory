@@ -1,0 +1,97 @@
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+
+        {# Section Gestion — tous utilisateurs connectés #}
+        <div class="sidebar-section">
+            <div class="sidebar-label">Gestion</div>
+            {% for item in menu_items %}
+            <a href="{{ url_for(item.endpoint) }}"
+               class="sidebar-link {{ 'active' if request.endpoint and item.id in request.endpoint }}">
+                <span class="sidebar-icon">{{ item.icon }}</span>
+                <span class="sidebar-text">{{ item.label }}</span>
+            </a>
+            {% endfor %}
+        </div>
+
+        {# Sections Outils & Administration — admins uniquement #}
+        {% if connected and has_permission('admin') %}
+
+        {% set visible_tools = tool_items | selectattr('feature', 'none') | list
+                             + tool_items | rejectattr('feature', 'none')
+                                         | selectattr('feature', 'defined')
+                                         | list %}
+        {% set active_tools = [] %}
+        {% for item in tool_items %}
+            {% if not item.feature or config[item.feature] %}
+                {% set _ = active_tools.append(item) %}
+            {% endif %}
+        {% endfor %}
+
+        {% if active_tools %}
+        <div class="sidebar-section">
+            <div class="sidebar-label">Outils</div>
+            {% for item in active_tools %}
+            <a href="{{ url_for(item.endpoint) }}"
+               class="sidebar-link {{ 'active' if request.endpoint == item.endpoint }}">
+                <span class="sidebar-icon">{{ item.icon }}</span>
+                <span class="sidebar-text">{{ item.label }}</span>
+                {% if item.id == 'alerts' and alert_counts and alert_counts.unacknowledged > 0 %}
+                <span class="sidebar-badge">{{ alert_counts.unacknowledged }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% set active_admin = [] %}
+        {% for item in admin_items %}
+            {% if not item.feature or config[item.feature] %}
+                {% set _ = active_admin.append(item) %}
+            {% endif %}
+        {% endfor %}
+
+        {% if active_admin %}
+        <div class="sidebar-section">
+            <div class="sidebar-label">Administration</div>
+            {% for item in active_admin %}
+            <a href="{{ url_for(item.endpoint) }}"
+               class="sidebar-link {{ 'active' if request.endpoint == item.endpoint }}">
+                <span class="sidebar-icon">{{ item.icon }}</span>
+                <span class="sidebar-text">{{ item.label }}</span>
+                {% if item.id == 'alerts' and alert_counts and alert_counts.unacknowledged > 0 %}
+                <span class="sidebar-badge">{{ alert_counts.unacknowledged }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+            {% if config.DEBUG %}
+            <a href="{{ url_for('debug.debug_dashboard') }}"
+               class="sidebar-link {{ 'active' if request.endpoint and 'debug' in request.endpoint }}">
+                <span class="sidebar-icon">&#x1F41B;</span>
+                <span class="sidebar-text">Debug</span>
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% endif %}{# end admin #}
+
+        {# Pied de sidebar — toujours visible #}
+        <div class="sidebar-footer">
+            <a href="{{ url_for('toggle_dark_mode') }}" class="sidebar-link sidebar-footer">
+                <span class="sidebar-icon">{% if dark_mode %}&#x2600;&#xFE0F;{% else %}&#x1F319;{% endif %}</span>
+                <span class="sidebar-text">{% if dark_mode %}Mode clair{% else %}Mode sombre{% endif %}</span>
+            </a>
+            {% if config.FEATURE_UPDATE_CHECK_ENABLED %}
+            <a href="{{ url_for('update_page') }}"
+               class="sidebar-link sidebar-footer {{ 'update-available' if update_info and update_info.update_available else '' }}">
+                <span class="sidebar-icon">&#x1F504;</span>
+                <span class="sidebar-text">Mise à jour</span>
+                {% if update_info and update_info.update_available %}
+                <span class="sidebar-badge">!</span>
+                {% endif %}
+            </a>
+            {% endif %}
+        </div>
+
+    </nav>
+</aside>
