@@ -613,22 +613,27 @@ def api_password_audit_quick_fix():
     
     data = request.get_json() if request.is_json else request.form
     fix_type = data.get('fix_type')
+    accounts = data.get('accounts', [])  # Liste des comptes sélectionnés
     
     conn, error = get_ad_connection()
     if not conn:
         return jsonify({'success': False, 'error': 'Connexion échouée'}), 500
     
     base_dn = session.get('ad_base_dn', '')
-    results = {'success': False, 'message': '', 'modified': 0}
+    results = {'success': False, 'message': '', 'modified': 0, 'total': 0}
     
     try:
         if fix_type == 'force_password_change':
-            # Forcer changement MDP pour comptes avec MDP faible
-            from password_audit import check_weak_passwords
-            weak_accounts = check_weak_passwords(conn, base_dn)
+            # Si aucun compte spécifié, récupérer tous les comptes faibles
+            if not accounts:
+                from password_audit import check_weak_passwords
+                weak_accounts = check_weak_passwords(conn, base_dn)
+                accounts = [{'dn': acc.get('dn'), 'username': acc.get('username')} for acc in weak_accounts]
             
+            results['total'] = len(accounts)
             modified = 0
-            for account in weak_accounts:
+            
+            for account in accounts:
                 if account.get('dn'):
                     conn.modify(account['dn'], {
                         'pwdLastSet': [(MODIFY_REPLACE, [0])]  # 0 = doit changer au prochain login
@@ -638,18 +643,23 @@ def api_password_audit_quick_fix():
             
             results = {
                 'success': True,
-                'message': f'{modified} compte(s) modifié(s). Les utilisateurs devront changer leur MDP.',
-                'modified': modified
+                'message': f'{modified}/{results["total"]} compte(s) modifié(s). Les utilisateurs devront changer leur MDP.',
+                'modified': modified,
+                'total': results['total']
             }
         
         elif fix_type == 'enable_password_expiry_admin':
-            # Activer expiration MDP pour admins
-            from password_audit import check_admin_weak_passwords
-            admin_accounts = check_admin_weak_passwords(conn, base_dn)
+            # Si aucun compte spécifié, récupérer tous les admins à risque
+            if not accounts:
+                from password_audit import check_admin_weak_passwords
+                admin_accounts = check_admin_weak_passwords(conn, base_dn)
+                accounts = [{'dn': acc.get('dn'), 'username': acc.get('username'), 'type': acc.get('type'), 'uac': acc.get('uac')} for acc in admin_accounts if acc.get('type') != 'admin_ok']
             
+            results['total'] = len(accounts)
             modified = 0
-            for account in admin_accounts:
-                if account.get('dn') and account.get('type') != 'admin_ok':
+            
+            for account in accounts:
+                if account.get('dn'):
                     # Vérifier si DONT_EXPIRE_PASSWD est activé
                     uac = int(account.get('uac', 0))
                     if uac & 64:  # DONT_EXPIRE_PASSWD
@@ -662,8 +672,9 @@ def api_password_audit_quick_fix():
             
             results = {
                 'success': True,
-                'message': f'{modified} compte(s) administrateur modifié(s). Expiration MDP activée.',
-                'modified': modified
+                'message': f'{modified}/{results["total"]} compte(s) administrateur modifié(s). Expiration MDP activée.',
+                'modified': modified,
+                'total': results['total']
             }
         
         else:
@@ -677,7 +688,7 @@ def api_password_audit_quick_fix():
     # Log l'action
     from audit import log_action, ACTIONS
     log_action(ACTIONS['OTHER'], session.get('ad_username', 'unknown'),
-              {'action': f'password_audit_quick_fix_{fix_type}', 'results': results}, True)
+              {'action': f'password_audit_quick_fix_{fix_type}', 'results': results, 'accounts_count': len(accounts)}, True)
     
     return jsonify(results)
 

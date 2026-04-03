@@ -7,13 +7,18 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h3 style="margin: 0;">🚨 Comptes avec Mots de Passe Faibles</h3>
         <button class="btn btn-success" onclick="showQuickFixModal('force_password_change')" id="btn-quick-fix-password" style="display: none;">
-            🔧 Forcer changement MDP pour tous
+            🔧 Correction Rapide
         </button>
     </div>
+    <p id="weak-accounts-summary" style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.875rem; display: none;"></p>
     <div class="table-container">
         <table class="data-table" id="weak-accounts-table">
             <thead>
                 <tr>
+                    <th>
+                        <input type="checkbox" id="select-all-weak" onchange="toggleSelectAll('weak')" style="margin-right: 0.5rem;">
+                        Sélection
+                    </th>
                     <th>Utilisateur</th>
                     <th>Nom affiché</th>
                     <th>Problème</th>
@@ -23,9 +28,15 @@
             </thead>
             <tbody id="weak-accounts-body">
                 <tr>
-                    <td colspan="5" class="text-center text-muted">Aucun compte problématique détecté</td>
+                    <td colspan="6" class="text-center text-muted">Aucun compte problématique détecté</td>
                 </tr>
             </tbody>
         </table>
+    </div>
+    <div id="weak-actions-bar" style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; display: none;">
+        <span id="weak-selected-count" style="font-weight: bold; margin-right: 1rem;">0 compte(s) sélectionné(s)</span>
+        <button class="btn btn-success btn-sm" onclick="applySelectedFix('force_password_change')">
+            🔧 Appliquer aux sélectionnés
+        </button>
     </div>
 </div>
