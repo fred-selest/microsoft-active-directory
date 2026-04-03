@@ -209,6 +209,20 @@ function getScoreLabel(color) {
 }
 
 /**
+ * Traduire la sévérité
+ */
+function translateSeverity(severity) {
+    const translations = {
+        'critical': 'Critique',
+        'high': 'Élevé',
+        'warning': 'Attention',
+        'info': 'Info',
+        'success': 'Succès'
+    };
+    return translations[severity] || severity;
+}
+
+/**
  * Afficher les recommandations
  */
 function displayRecommendations(recommendations) {
@@ -239,6 +253,7 @@ function displayWeakAccounts(accounts) {
 
     if (!accounts || accounts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Aucun compte problématique détecté</td></tr>';
+        updateQuickFixButtons([]);
         return;
     }
 
@@ -247,7 +262,7 @@ function displayWeakAccounts(accounts) {
             <td><strong>${escapeHtml(acc.username)}</strong></td>
             <td>${escapeHtml(acc.display_name || '-')}</td>
             <td>${escapeHtml(acc.issue)}</td>
-            <td><span class="badge-severity ${acc.severity}">${acc.severity}</span></td>
+            <td><span class="badge-severity ${acc.severity}">${translateSeverity(acc.severity)}</span></td>
             <td>
                 <button class="btn btn-sm btn-primary btn-action" onclick="forcePasswordChange('${escapeHtml(acc.dn)}')">
                     Forcer changement
@@ -255,6 +270,9 @@ function displayWeakAccounts(accounts) {
             </td>
         </tr>
     `).join('');
+    
+    // Afficher le bouton de correction rapide
+    updateQuickFixButtons(accounts);
 }
 
 /**
@@ -263,10 +281,12 @@ function displayWeakAccounts(accounts) {
 function displayAdminAccounts(accounts) {
     const section = document.getElementById('admin-accounts-section');
     const tbody = document.getElementById('admin-accounts-body');
+    const btnAdmin = document.getElementById('btn-quick-fix-admin');
 
     if (!accounts || accounts.length === 0) {
         if (section) section.style.display = 'block';
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucune donnée administrateur disponible</td></tr>';
+        if (btnAdmin) btnAdmin.style.display = 'none';
         return;
     }
 
@@ -284,6 +304,7 @@ function displayAdminAccounts(accounts) {
                 </p>
             </td>
         </tr>`;
+        if (btnAdmin) btnAdmin.style.display = 'none';
         return;
     }
 
@@ -293,10 +314,13 @@ function displayAdminAccounts(accounts) {
             <td>${escapeHtml(acc.display_name || '-')}</td>
             <td>${escapeHtml(acc.mail || '-')}</td>
             <td>${escapeHtml(acc.issue)}</td>
-            <td><span class="badge-severity ${acc.severity}">${acc.severity}</span></td>
+            <td><span class="badge-severity ${acc.severity}">${translateSeverity(acc.severity)}</span></td>
             <td>${escapeHtml(acc.remediation || '-')}</td>
         </tr>
     `).join('');
+    
+    // Afficher le bouton de correction rapide
+    if (btnAdmin) btnAdmin.style.display = 'block';
 }
 
 /**
@@ -335,7 +359,7 @@ function displayServiceAccounts(accounts) {
             <td>${escapeHtml(acc.description || '-')}</td>
             <td><code style="font-size: 0.75rem;">${escapeHtml(acc.spn || '-')}</code></td>
             <td>${escapeHtml(acc.issue)}</td>
-            <td><span class="badge-severity ${acc.severity}">${acc.severity}</span></td>
+            <td><span class="badge-severity ${acc.severity}">${translateSeverity(acc.severity)}</span></td>
             <td>${escapeHtml(acc.remediation || '-')}</td>
         </tr>
     `).join('');
@@ -354,7 +378,7 @@ function displayOldPasswords(passwords) {
 
     tbody.innerHTML = passwords.map(pwd => {
         // Gérer la date - peut être une chaîne ou un objet Date
-        let dateStr = 'N/A';
+        let dateStr = 'N/D';
         if (pwd.pwdLastSet) {
             try {
                 const date = new Date(pwd.pwdLastSet);
@@ -377,7 +401,7 @@ function displayOldPasswords(passwords) {
             <td>${escapeHtml(pwd.display_name || '-')}</td>
             <td>${dateStr}</td>
             <td>${days} jours</td>
-            <td><span class="badge-severity ${severity}">${severity}</span></td>
+            <td><span class="badge-severity ${severity}">${translateSeverity(severity)}</span></td>
         </tr>
         `;
     }).join('');
@@ -467,7 +491,7 @@ function displayDelegations(delegations) {
             <td>${d.type}</td>
             <td>${escapeHtml(d.issue)}</td>
             <td>${escapeHtml(d.recommendation)}</td>
-            <td><span class="badge-severity ${d.severity}">${d.severity}</span></td>
+            <td><span class="badge-severity ${d.severity}">${translateSeverity(d.severity)}</span></td>
         </tr>
     `).join('');
 }
@@ -502,7 +526,7 @@ function displayPrivilegedGroups(privilegedGroups) {
                 <td><strong>${escapeHtml(pg.item)}</strong></td>
                 <td>${escapeHtml(pg.issue)}</td>
                 <td>${escapeHtml(pg.recommendation)}</td>
-                <td><span class="badge-severity ${pg.severity}">${pg.severity}</span></td>
+                <td><span class="badge-severity ${pg.severity}">${translateSeverity(pg.severity)}</span></td>
             </tr>
         `).join('')}</tbody>
     </table></div>`;
@@ -586,6 +610,99 @@ function hideLoading() {
     const overlay = document.getElementById('loading-overlay');
     if (overlay) {
         overlay.style.display = 'none';
+    }
+}
+
+/**
+ * Afficher modal de correction rapide
+ */
+function showQuickFixModal(fixType) {
+    const modal = document.createElement('div');
+    modal.id = 'quick-fix-modal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    let title = '';
+    let description = '';
+    let warning = '';
+    
+    if (fixType === 'force_password_change') {
+        title = '🔧 Forcer le changement de mot de passe';
+        description = 'Forcer tous les comptes avec mot de passe faible à changer leur mot de passe au prochain login.';
+        warning = '⚠️ Les utilisateurs devront changer leur mot de passe immédiatement.';
+    } else if (fixType === 'enable_password_expiry_admin') {
+        title = '⏰ Activer l\'expiration des mots de passe';
+        description = 'Activer l\'expiration des mots de passe pour tous les comptes administrateurs à risque.';
+        warning = '⚠️ Les administrateurs devront changer leur mot de passe selon la politique du domaine.';
+    }
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>${title}</h3>
+            <p style="margin: 1rem 0;">${description}</p>
+            <div style="background: rgba(255, 193, 7, 0.1); padding: 1rem; border-radius: 4px; margin: 1rem 0; border-left: 3px solid #ffc107;">
+                <strong>${warning}</strong>
+            </div>
+            <div style="text-align: right; margin-top: 1.5rem;">
+                <button class="btn btn-secondary" onclick="closeQuickFixModal()">Annuler</button>
+                <button class="btn btn-success" onclick="applyQuickFix('${fixType}')">✅ Appliquer la correction</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+/**
+ * Fermer modal de correction rapide
+ */
+function closeQuickFixModal() {
+    const modal = document.getElementById('quick-fix-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+/**
+ * Appliquer correction rapide
+ */
+function applyQuickFix(fixType) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ En cours...';
+    
+    fetch('/api/password-audit/quick-fix', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fix_type: fixType})
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(`✅ Correction appliquée avec succès !\n\n${result.message || ''}`);
+            closeQuickFixModal();
+            location.reload();
+        } else {
+            alert(`❌ Échec: ${result.error || 'Erreur inconnue'}`);
+            btn.disabled = false;
+            btn.textContent = '✅ Appliquer la correction';
+        }
+    })
+    .catch(error => {
+        alert(`❌ Erreur: ${error}`);
+        btn.disabled = false;
+        btn.textContent = '✅ Appliquer la correction';
+    });
+}
+
+/**
+ * Afficher/Masquer boutons de correction rapide
+ */
+function updateQuickFixButtons(accounts) {
+    const hasWeakPasswords = accounts && accounts.length > 0;
+    const btnPassword = document.getElementById('btn-quick-fix-password');
+    if (btnPassword) {
+        btnPassword.style.display = hasWeakPasswords ? 'block' : 'none';
     }
 }
 </script>
