@@ -648,6 +648,10 @@ function hideLoading() {
  * Afficher modal de correction rapide
  */
 function showQuickFixModal(fixType, accounts = null) {
+    // Supprimer ancien modal s'il existe
+    const oldModal = document.getElementById('quick-fix-modal');
+    if (oldModal) oldModal.remove();
+    
     const modal = document.createElement('div');
     modal.id = 'quick-fix-modal';
     modal.className = 'modal';
@@ -660,11 +664,16 @@ function showQuickFixModal(fixType, accounts = null) {
     
     // Si accounts est fourni, afficher la liste
     if (accounts && accounts.length > 0) {
+        const accountsHtml = accounts.map(acc => {
+            const username = acc.username || 'Inconnu';
+            return `<li style="margin-bottom: 0.25rem;"><strong>${username}</strong></li>`;
+        }).join('');
+        
         accountList = `
             <div style="max-height: 200px; overflow-y: auto; margin: 1rem 0; background: var(--bg-tertiary); padding: 1rem; border-radius: 4px;">
                 <strong>Comptes concernés (${accounts.length}) :</strong>
                 <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0;">
-                    ${accounts.map(acc => `<li style="margin-bottom: 0.25rem;"><strong>${escapeHtml(acc.username)}</strong></li>`).join('')}
+                    ${accountsHtml}
                 </ul>
             </div>
         `;
@@ -696,7 +705,7 @@ function showQuickFixModal(fixType, accounts = null) {
     `;
     
     // Stocker les comptes dans le modal pour les utiliser dans applyQuickFix
-    modal.dataset.accounts = accounts ? JSON.stringify(accounts) : '';
+    modal.dataset.accounts = accounts && accounts.length > 0 ? JSON.stringify(accounts) : '';
     
     document.body.appendChild(modal);
 }
@@ -715,24 +724,41 @@ function closeQuickFixModal() {
  * Appliquer correction rapide
  */
 function applyQuickFix(fixType) {
+    console.log('🔧 applyQuickFix called with:', fixType);
+    
     const modal = document.getElementById('quick-fix-modal');
-    const accountsStr = modal ? modal.dataset.accounts : '';
+    if (!modal) {
+        console.error('❌ Modal not found');
+        alert('❌ Erreur: Modal introuvable');
+        return;
+    }
+    
+    const accountsStr = modal.dataset.accounts || '';
     const accounts = accountsStr ? JSON.parse(accountsStr) : [];
     
+    console.log('📋 Accounts to fix:', accounts.length);
+    
     const btn = event.target;
+    const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = '⏳ En cours...';
+    
+    console.log('📡 Sending request to /api/password-audit/quick-fix');
     
     fetch('/api/password-audit/quick-fix', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             fix_type: fixType,
-            accounts: accounts  // Liste des comptes sélectionnés
+            accounts: accounts
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('📥 Response status:', response.status);
+        return response.json();
+    })
     .then(result => {
+        console.log('📊 Result:', result);
         if (result.success) {
             alert(`✅ Correction appliquée avec succès !\n\n${result.message || ''}\n${result.modified || 0} compte(s) modifié(s).`);
             closeQuickFixModal();
@@ -740,13 +766,14 @@ function applyQuickFix(fixType) {
         } else {
             alert(`❌ Échec: ${result.error || 'Erreur inconnue'}`);
             btn.disabled = false;
-            btn.textContent = '✅ Appliquer la correction';
+            btn.textContent = originalText;
         }
     })
     .catch(error => {
+        console.error('❌ Error:', error);
         alert(`❌ Erreur: ${error}`);
         btn.disabled = false;
-        btn.textContent = '✅ Appliquer la correction';
+        btn.textContent = originalText;
     });
 }
 

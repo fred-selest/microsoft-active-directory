@@ -12,7 +12,12 @@
       "Bash(taskkill *)",
       "Bash(git tag *)",
       "Bash(git push *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(push.bat)",
+      "Bash(do *)",
+      "Bash(@timeout *)",
+      "Bash(f *)",
+      "Bash(timeout *)"
     ]
   },
   "$version": 3

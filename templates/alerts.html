@@ -10,23 +10,23 @@
 <!-- Statistiques -->
 <div class="alert-stats stats-grid">
     <div class="stat-card warning">
-        <div class="stat-value">{{ counts.expiring_accounts }}</div>
+        <div class="stat-value">{{ alert_data.expiring_accounts }}</div>
         <div class="stat-label">Comptes expirant</div>
     </div>
     <div class="stat-card warning">
-        <div class="stat-value">{{ counts.password_expiring }}</div>
+        <div class="stat-value">{{ alert_data.password_expiring }}</div>
         <div class="stat-label">Mots de passe expirant</div>
     </div>
     <div class="stat-card info">
-        <div class="stat-value">{{ counts.inactive_accounts }}</div>
+        <div class="stat-value">{{ alert_data.inactive_accounts }}</div>
         <div class="stat-label">Comptes inactifs</div>
     </div>
     <div class="stat-card error">
-        <div class="stat-value">{{ counts.locked_accounts }}</div>
+        <div class="stat-value">{{ alert_data.locked_accounts }}</div>
         <div class="stat-label">Comptes verrouillés</div>
     </div>
     <div class="stat-card info">
-        <div class="stat-value">{{ counts.empty_groups }}</div>
+        <div class="stat-value">{{ alert_data.empty_groups }}</div>
         <div class="stat-label">Groupes vides</div>
     </div>
 </div>

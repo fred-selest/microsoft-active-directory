@@ -3,6 +3,11 @@
 {% block title %}Diagnostic et Dépannage - AD Web Interface{% endblock %}
 
 {% block content %}
+<!-- Prevent browser cache -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
 <div class="container mt-4">
     <h2>🔧 Diagnostic et Dépannage Automatique</h2>
     <p class="text-muted">Vérifiez l'état de votre installation et obtenez des solutions automatiques</p>
@@ -79,19 +84,19 @@
         // Afficher le chargement
         document.getElementById('diagnostic-results').style.display = 'block';
         document.getElementById('diagnostic-summary').innerHTML = '<div class="alert alert-info">Exécution du diagnostic...</div>';
-        
-        fetch('/api/diagnostic')
+
+        fetch('/api/diagnostic?t=' + Date.now())  // Cache-busting
             .then(response => response.json())
             .then(data => {
-                displayResults(data);
+                displayDiagnosticResults(data);
             })
             .catch(error => {
-                document.getElementById('diagnostic-summary').innerHTML = 
+                document.getElementById('diagnostic-summary').innerHTML =
                     '<div class="alert alert-danger">Erreur: ' + error + '</div>';
             });
     }
 
-    function displayResults(data) {
+    function displayDiagnosticResults(data) {
         // Résumé
         const statusClass = data.status === 'healthy' ? 'success' : 
                            data.status === 'warning' ? 'warning' : 'danger';
@@ -128,9 +133,10 @@
         document.getElementById('diagnostic-checks').innerHTML = checksHtml;
         
         // Suggestions
-        if (data.suggestions && data.suggestions.length > 0) {
+        const suggestions = data.suggestions || [];
+        if (suggestions.length > 0) {
             document.getElementById('suggestions-card').style.display = 'block';
-            const suggestionsHtml = data.suggestions.map(sug => `
+            const suggestionsHtml = suggestions.map(sug => `
                 <li>
                     <strong>${sug.title || 'Action requise'}</strong><br>
                     ${sug.description || ''}
