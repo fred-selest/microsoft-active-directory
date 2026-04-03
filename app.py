@@ -581,10 +581,10 @@ def api_password_audit():
     max_age = 90  # Jours
 
     audit_result = run_password_audit(conn, base_dn, max_age)
-    
+
     # Sauvegarder dans l'historique
     save_audit(audit_result, domain_name)
-    
+
     # Envoyer les alertes critiques automatiquement
     try:
         send_critical_alerts(audit_result)
@@ -601,6 +601,85 @@ def api_password_audit():
 
     conn.unbind()
     return jsonify(audit_result)
+
+
+@app.route('/api/password-audit/quick-fix', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_password_audit_quick_fix():
+    """API pour appliquer des corrections rapides sur l'audit MDP."""
+    from ldap3 import MODIFY_REPLACE
+    import json
+    
+    data = request.get_json() if request.is_json else request.form
+    fix_type = data.get('fix_type')
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Connexion échouée'}), 500
+    
+    base_dn = session.get('ad_base_dn', '')
+    results = {'success': False, 'message': '', 'modified': 0}
+    
+    try:
+        if fix_type == 'force_password_change':
+            # Forcer changement MDP pour comptes avec MDP faible
+            from password_audit import check_weak_passwords
+            weak_accounts = check_weak_passwords(conn, base_dn)
+            
+            modified = 0
+            for account in weak_accounts:
+                if account.get('dn'):
+                    conn.modify(account['dn'], {
+                        'pwdLastSet': [(MODIFY_REPLACE, [0])]  # 0 = doit changer au prochain login
+                    })
+                    if conn.result['result'] == 0:
+                        modified += 1
+            
+            results = {
+                'success': True,
+                'message': f'{modified} compte(s) modifié(s). Les utilisateurs devront changer leur MDP.',
+                'modified': modified
+            }
+        
+        elif fix_type == 'enable_password_expiry_admin':
+            # Activer expiration MDP pour admins
+            from password_audit import check_admin_weak_passwords
+            admin_accounts = check_admin_weak_passwords(conn, base_dn)
+            
+            modified = 0
+            for account in admin_accounts:
+                if account.get('dn') and account.get('type') != 'admin_ok':
+                    # Vérifier si DONT_EXPIRE_PASSWD est activé
+                    uac = int(account.get('uac', 0))
+                    if uac & 64:  # DONT_EXPIRE_PASSWD
+                        new_uac = uac & ~64  # Désactiver le bit
+                        conn.modify(account['dn'], {
+                            'userAccountControl': [(MODIFY_REPLACE, [new_uac])]
+                        })
+                        if conn.result['result'] == 0:
+                            modified += 1
+            
+            results = {
+                'success': True,
+                'message': f'{modified} compte(s) administrateur modifié(s). Expiration MDP activée.',
+                'modified': modified
+            }
+        
+        else:
+            results = {'success': False, 'error': 'Type de correction inconnu'}
+    
+    except Exception as e:
+        results = {'success': False, 'error': str(e)}
+    
+    conn.unbind()
+    
+    # Log l'action
+    from audit import log_action, ACTIONS
+    log_action(ACTIONS['OTHER'], session.get('ad_username', 'unknown'),
+              {'action': f'password_audit_quick_fix_{fix_type}', 'results': results}, True)
+    
+    return jsonify(results)
 
 
 # === ALERTES ===

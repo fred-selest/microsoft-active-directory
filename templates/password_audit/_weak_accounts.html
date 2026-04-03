@@ -4,7 +4,12 @@
 #}
 
 <div class="audit-section card fade-in">
-    <h3>🚨 Comptes avec Mots de Passe Faibles</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">🚨 Comptes avec Mots de Passe Faibles</h3>
+        <button class="btn btn-success" onclick="showQuickFixModal('force_password_change')" id="btn-quick-fix-password" style="display: none;">
+            🔧 Forcer changement MDP pour tous
+        </button>
+    </div>
     <div class="table-container">
         <table class="data-table" id="weak-accounts-table">
             <thead>

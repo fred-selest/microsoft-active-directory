@@ -4,7 +4,12 @@
 #}
 
 <div class="audit-section card fade-in" id="admin-accounts-section" style="display: none;">
-    <h3>👑 Comptes Administrateurs à Risque</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">👑 Comptes Administrateurs à Risque</h3>
+        <button class="btn btn-success" onclick="showQuickFixModal('enable_password_expiry_admin')" id="btn-quick-fix-admin" style="display: none;">
+            🔧 Activer expiration MDP pour tous
+        </button>
+    </div>
     <div class="alert alert-warning" style="margin-bottom: 1rem;">
         <strong>⚠️ Priorité critique :</strong> Ces comptes ont des privilèges élevés et des configurations de mot de passe faibles.
     </div>
