@@ -1,0 +1,67 @@
+{#
+    Partial: Dashboard (score + statistiques)
+    Usage: {% include 'password_audit/_dashboard.html' %}
+#}
+
+<div class="audit-dashboard" id="audit-dashboard" style="display: none;">
+    <!-- Score Global -->
+    <div class="stat-card global-score-card">
+        <h3>Score de Sécurité</h3>
+        <div class="score-display">
+            <div class="score-circle" id="global-score-circle">
+                <span class="score-value" id="global-score">--</span>
+            </div>
+            <p class="score-label" id="global-score-label">En attente...</p>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="audit-stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon critical">⚠</div>
+            <div class="stat-value" id="critical-count">0</div>
+            <div class="stat-label">Problèmes Critiques</div>
+            <div class="stat-detail" id="critical-detail" style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;"></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon warning">⚡</div>
+            <div class="stat-value" id="warning-count">0</div>
+            <div class="stat-label">Avertissements</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon info">📊</div>
+            <div class="stat-value" id="total-count">0</div>
+            <div class="stat-label">Total Problèmes</div>
+        </div>
+    </div>
+
+    <!-- Politique de Mot de Passe -->
+    <div class="audit-section card fade-in">
+        <h3>📋 Politique de Mot de Passe du Domaine</h3>
+        <div class="policy-grid" id="policy-grid">
+            <div class="policy-item">
+                <span class="policy-label">Longueur minimale:</span>
+                <span class="policy-value" id="policy-min-length">--</span>
+            </div>
+            <div class="policy-item">
+                <span class="policy-label">Expiration (jours):</span>
+                <span class="policy-value" id="policy-max-age">--</span>
+            </div>
+            <div class="policy-item">
+                <span class="policy-label">Historique:</span>
+                <span class="policy-value" id="policy-history">--</span>
+            </div>
+            <div class="policy-item">
+                <span class="policy-label">Seuil de verrouillage:</span>
+                <span class="policy-value" id="policy-lockout">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommandations -->
+    <div class="audit-section card fade-in">
+        <h3>💡 Recommandations</h3>
+        <div id="recommendations-list" class="recommendations-list">
+            <p class="text-muted">Aucune recommandation pour le moment</p>
+        </div>
+    </div>

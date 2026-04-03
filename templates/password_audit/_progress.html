@@ -1,0 +1,32 @@
+{#
+    Partial: Barre de progression + Boutons d'export
+    Usage: {% include 'password_audit/_progress.html' %}
+#}
+
+<div id="audit-progress-container" style="display: none; margin-left: 1.5rem; flex: 1; max-width: 400px; padding: 0.75rem 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+        <div style="width: 40px; height: 40px; position: relative;">
+            <div style="position: absolute; inset: 0; border: 3px solid #e0e0e0; border-radius: 50%;"></div>
+            <div id="audit-progress-circle" style="position: absolute; inset: 0; border: 3px solid transparent; border-top-color: #0078d4; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        </div>
+        <div style="flex: 1;">
+            <div style="background: #e0e0e0; border-radius: 4px; height: 12px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);">
+                <div id="audit-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0078d4 0%, #005a9e 50%, #4c9ff5 100%); transition: width 0.3s ease; box-shadow: 0 0 10px rgba(0, 120, 212, 0.5);"></div>
+            </div>
+        </div>
+        <span id="audit-progress-text" style="font-size: 1.125rem; font-weight: bold; color: #0078d4; min-width: 45px; text-align: right;">0%</span>
+    </div>
+    <p id="audit-progress-message" style="font-size: 0.875rem; color: #666; margin: 0; font-weight: 500;">⏳ Initialisation en cours...</p>
+</div>
+
+<div class="btn-group" id="export-buttons" style="display: none;">
+    <a href="{{ url_for('tools.export_password_audit_pdf') }}" class="btn btn-secondary btn-lg" title="Export PDF professionnel">
+        📄 PDF
+    </a>
+    <a href="{{ url_for('tools.export_password_audit_csv') }}" class="btn btn-secondary btn-lg" title="Export CSV Excel">
+        📊 CSV
+    </a>
+    <a href="{{ url_for('tools.export_password_audit_json') }}" class="btn btn-secondary btn-lg" title="Export JSON complet">
+        📄 JSON
+    </a>
+</div>

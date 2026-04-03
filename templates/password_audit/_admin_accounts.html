@@ -1,0 +1,30 @@
+{#
+    Partial: Comptes administrateurs à risque (P1)
+    Usage: {% include 'password_audit/_admin_accounts.html' %}
+#}
+
+<div class="audit-section card fade-in" id="admin-accounts-section" style="display: none;">
+    <h3>👑 Comptes Administrateurs à Risque</h3>
+    <div class="alert alert-warning" style="margin-bottom: 1rem;">
+        <strong>⚠️ Priorité critique :</strong> Ces comptes ont des privilèges élevés et des configurations de mot de passe faibles.
+    </div>
+    <div class="table-container">
+        <table class="data-table" id="admin-accounts-table">
+            <thead>
+                <tr>
+                    <th>Utilisateur</th>
+                    <th>Nom affiché</th>
+                    <th>Email</th>
+                    <th>Problème</th>
+                    <th>Sévérité</th>
+                    <th>Recommandation</th>
+                </tr>
+            </thead>
+            <tbody id="admin-accounts-body">
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Aucun compte administrateur à risque détecté</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

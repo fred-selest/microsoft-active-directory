@@ -497,17 +497,22 @@ def api_diagnostic():
 def api_password_audit():
     """API d'audit des mots de passe."""
     from password_audit import run_password_audit
+    from audit_history import save_audit
     from audit import log_action, ACTIONS
-    
+
     conn, error = get_ad_connection()
     if not conn:
         return jsonify({'error': error}), 500
-    
+
     base_dn = session.get('ad_base_dn', '')
+    domain_name = session.get('ad_domain', 'Domaine AD')
     max_age = 90  # Jours
-    
+
     audit_result = run_password_audit(conn, base_dn, max_age)
     
+    # Sauvegarder dans l'historique
+    save_audit(audit_result, domain_name)
+
     # Journaliser l'audit
     log_action(
         ACTIONS['OTHER'],
@@ -515,7 +520,7 @@ def api_password_audit():
         {'action': 'password_audit', 'issues_found': audit_result['summary']['total_issues']},
         True
     )
-    
+
     conn.unbind()
     return jsonify(audit_result)
 
@@ -556,9 +561,9 @@ def alerts_page():
     alerts_list = get_alerts(limit=100, **filters)
     counts = get_alert_counts()
     
-    return render_template('alerts.html', 
+    return render_template('alerts.html',
+                         alert_data=counts,
                          alerts=alerts_list,
-                         counts=counts,
                          current_type=alert_type,
                          current_severity=severity,
                          connected=is_connected())
