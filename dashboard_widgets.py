@@ -53,14 +53,23 @@ def get_dashboard_widgets():
             'total_audits': stats.get('total_audits', 0),
             'avg_score': round(stats.get('avg_score', 0), 1),
             'best_score': stats.get('best_score', 0),
-            'trend': stats.get('trend', 'stable')
+            'trend': stats.get('trend', 'stable'),
+            'critical_count': 0,
+            'warning_count': 0
         }
+        
+        # Compter critiques et warnings depuis les alertes
+        if widgets['alerts']:
+            widgets['quick_stats']['critical_count'] = len([a for a in widgets['alerts'] if a.get('severity') == 'critical'])
+            widgets['quick_stats']['warning_count'] = len([a for a in widgets['alerts'] if a.get('severity') == 'high'])
     except Exception:
         widgets['quick_stats'] = {
             'total_audits': 0,
             'avg_score': 0,
             'best_score': 0,
-            'trend': 'stable'
+            'trend': 'stable',
+            'critical_count': 0,
+            'warning_count': 0
         }
     
     # 3. Actions récentes
