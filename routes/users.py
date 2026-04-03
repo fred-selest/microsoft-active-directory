@@ -54,16 +54,11 @@ def list_users():
                 'disabled': is_disabled
             })
 
-        # OUs et Groupes pour modification rapide
+        # OUs pour affichage
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
         ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
                    for e in conn.entries]
-        
-        conn.search(base_dn, '(objectClass=group)', SUBTREE,
-                   attributes=['name', 'distinguishedName'])
-        group_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
-                     for e in conn.entries]
         
         conn.unbind()
 
@@ -75,7 +70,7 @@ def list_users():
 
         return render_template('users.html', users=paginated, search=search_query,
                              page=page, total_pages=total_pages, total=total,
-                             ous=ou_list, groups=group_list, connected=is_connected())
+                             ous=ou_list, connected=is_connected())
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
@@ -791,122 +786,3 @@ def global_search():
     """Recherche globale (stub)."""
     flash('Recherche globale disponible dans la version complète.', 'info')
     return redirect(url_for('users.list_users'))
-
-
-# === API POUR CHANGEMENTS RAPIDES ===
-
-@users_bp.route('/api/quick-change', methods=['POST'])
-@require_connection
-@require_permission('write')
-def api_quick_change():
-    """API pour changement rapide de groupe ou OU."""
-    import json
-    
-    data = request.get_json() if request.is_json else request.form
-    dn = data.get('dn')
-    change_type = data.get('type')
-    new_value = data.get('value')
-    
-    if not dn or not change_type or not new_value:
-        return jsonify({'success': False, 'error': 'Paramètres incomplets'}), 400
-    
-    conn, error = get_ad_connection()
-    if not conn:
-        return jsonify({'success': False, 'error': 'Connexion échouée'}), 500
-    
-    try:
-        if change_type == 'group':
-            # Ajouter l'utilisateur au groupe
-            conn.modify(new_value, {
-                'member': [(MODIFY_ADD, [dn])]
-            })
-            
-            if conn.result['result'] == 0:
-                return jsonify({
-                    'success': True,
-                    'message': 'Utilisateur ajouté au groupe avec succès'
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'error': conn.result['description']
-                }), 500
-        
-        elif change_type == 'ou':
-            # Déplacer l'utilisateur vers la nouvelle OU
-            # Note: LDAP ne permet pas de déplacer directement, il faut recréer
-            # On retourne juste un message informatif
-            return jsonify({
-                'success': True,
-                'message': f'Pour déplacer vers cette OU, utilisez la fonction Déplacer. OU cible: {new_value}',
-                'ou_dn': new_value
-            })
-        
-        else:
-            return jsonify({'success': False, 'error': 'Type de changement inconnu'}), 400
-    
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-    finally:
-        conn.unbind()
-
-
-@users_bp.route('/api/bulk-change', methods=['POST'])
-@require_connection
-@require_permission('write')
-def api_bulk_change():
-    """API pour changement en masse de groupe ou OU."""
-    import json
-    
-    data = request.get_json() if request.is_json else request.form
-    users = data.get('users', [])
-    group_dn = data.get('group')
-    ou_dn = data.get('ou')
-    
-    if not users:
-        return jsonify({'success': False, 'error': 'Aucun utilisateur spécifié'}), 400
-    
-    conn, error = get_ad_connection()
-    if not conn:
-        return jsonify({'success': False, 'error': 'Connexion échouée'}), 500
-    
-    results = {'success': 0, 'failed': 0, 'errors': []}
-    
-    try:
-        # Changement de groupe
-        if group_dn:
-            for user in users:
-                try:
-                    conn.modify(group_dn, {
-                        'member': [(MODIFY_ADD, [user['dn']])]
-                    })
-                    if conn.result['result'] == 0:
-                        results['success'] += 1
-                    else:
-                        results['failed'] += 1
-                        results['errors'].append(f"{user['name']}: {conn.result['description']}")
-                except Exception as e:
-                    results['failed'] += 1
-                    results['errors'].append(f"{user['name']}: {str(e)}")
-        
-        # Pour OU, on ne peut pas déplacer en masse directement
-        # On retourne juste les DNs pour traitement ultérieur
-        if ou_dn:
-            return jsonify({
-                'success': True,
-                'message': f'{results["success"]} utilisateur(s) ajouté(s) au groupe. Pour déplacer vers OU, utilisez la fonction Déplacer avec les DNs.',
-                'modified': results['success'],
-                'ou_target': ou_dn
-            })
-        
-        return jsonify({
-            'success': True,
-            'message': f'{results["success"]}/{len(users)} utilisateur(s) modifié(s) avec succès',
-            'modified': results['success'],
-            'failed': results['failed']
-        })
-    
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-    finally:
-        conn.unbind()
