@@ -56,11 +56,11 @@ ALL_PERMISSIONS = {
 
 # Rôles prédéfinis avec permissions
 PREDEFINED_ROLES = {
-    'Domain Admins': {
+    'Administrateurs du domaine': {
         'permissions': list(ALL_PERMISSIONS.keys()),
         'description': 'Accès complet'
     },
-    'Administrateurs du domaine': {
+    'Administrateurs de l\'entreprise': {
         'permissions': list(ALL_PERMISSIONS.keys()),
         'description': 'Accès complet'
     },
