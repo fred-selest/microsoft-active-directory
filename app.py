@@ -219,17 +219,12 @@ def connect():
             if not base_dn and conn.server.info and conn.server.info.naming_contexts:
                 session['ad_base_dn'] = str(conn.server.info.naming_contexts[0])
 
-            # Rôle utilisateur
+            # Rôle utilisateur (pour compatibilité)
             user_role, debug_info = get_user_role_from_groups(conn, username, debug=True)
             session['user_role'] = user_role
             
             # Sauvegarder les groupes de l'utilisateur (pour permissions granulaires)
             session['user_groups'] = debug_info.get('groups', [])
-
-            # Permissions granulaires
-            from routes.core import get_user_permissions
-            user_permissions = get_user_permissions(conn, username)
-            session['user_permissions'] = user_permissions
 
             conn.unbind()
 
