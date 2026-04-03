@@ -813,6 +813,22 @@ body.dark-mode blockquote {
 
 .data-table .actions {
     white-space: nowrap;
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.data-table .actions .btn {
+    white-space: nowrap;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Colonne Actions - largeur fixe pour éviter overflow */
+.data-table th:last-child,
+.data-table td:last-child {
+    width: 1%;
+    min-width: 180px;
 }
 
 .data-table .disabled-user {

@@ -22,6 +22,9 @@ html, body {
     overflow-x: hidden;
     max-width: 100%;
     width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 /* Container principal */
@@ -37,8 +40,8 @@ html, body {
 /* Desktop : sidebar fixe de 280px, contenu occupe le reste */
 @media (min-width: 1024px) {
     .main-content {
-        width: calc(100vw - 280px);
-        max-width: calc(100vw - 280px);
+        width: calc(100% - 280px);
+        max-width: calc(100% - 280px);
     }
 }
 
@@ -408,7 +411,8 @@ html {
 }
 
 .data-table {
-    min-width: 700px;
+    min-width: 500px;
+    width: 100%;
 }
 
 @media (max-width: 768px) {
