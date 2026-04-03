@@ -52,13 +52,6 @@
     background-clip: padding-box;
 }
 
-.data-table thead {
-    position: sticky;
-    top: 60px;
-    z-index: 10;
-    background: #f8f9fa;
-}
-
 /* Optimisation du lazy loading pour les images */
 img {
     loading: lazy;
@@ -324,22 +317,37 @@ h3 { font-size: 1.5rem; margin-bottom: var(--spacing-md); }
     width: 100%;
     background: var(--bg-primary);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow: visible;
     box-shadow: var(--shadow-md);
 }
 
 .data-table thead {
+    position: sticky;
+    top: 60px;
+    z-index: 100;
+    display: block;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.data-table thead tr {
+    display: flex;
+    width: 100%;
 }
 
 .data-table thead th {
+    position: relative;
+    z-index: 100;
+    background: transparent;
+    color: white;
     padding: var(--spacing-md) var(--spacing-lg);
     font-weight: 600;
     font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border: none;
+    flex: 1;
 }
 
 .data-table tbody tr {
