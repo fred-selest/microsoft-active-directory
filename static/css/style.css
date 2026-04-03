@@ -160,32 +160,10 @@ textarea:focus-visible {
     animation: pulse 2s ease-in-out infinite;
 }
 
-/* Fade In Animation */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
+/* fadeIn / slideIn définis dans optimizations.css (versions GPU-accélérées) */
 
 .fade-in {
     animation: fadeIn 0.5s ease forwards;
-}
-
-/* Slide In Animation */
-@keyframes slideIn {
-    from {
-        transform: translateX(-100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
 }
 
 .slide-in {

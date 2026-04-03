@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
     <h2>Importer des utilisateurs</h2>
-    <a href="{{ url_for('users') }}" class="btn btn-secondary">Retour</a>
+    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour</a>
 </div>
 
 <div class="form-container">
@@ -52,7 +52,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Importer</button>
-            <a href="{{ url_for('export_users') }}" class="btn btn-secondary">Telecharger un modele CSV</a>
+            <a href="{{ url_for('users.export_users') }}" class="btn btn-secondary">Telecharger un modele CSV</a>
         </div>
     </form>
 </div>

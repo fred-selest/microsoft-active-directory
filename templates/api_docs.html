@@ -47,7 +47,7 @@
                 <td>{{ info.last_used[:10] if info.last_used else 'Jamais' }}</td>
                 <td>{{ info.permissions|join(', ') }}</td>
                 <td>
-                    <form method="post" action="{{ url_for('revoke_api_key_route') }}" style="display: inline;">
+                    <form method="post" action="{{ url_for('tools.revoke_api_key_route') }}" style="display: inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="key" value="{{ key }}">
                         <button type="submit" class="btn btn-sm btn-danger">Revoquer</button>
@@ -61,7 +61,7 @@
     <p>Aucune cle API.</p>
     {% endif %}
 
-    <form method="post" action="{{ url_for('generate_api_key_route') }}" class="generate-key-form">
+    <form method="post" action="{{ url_for('tools.generate_api_key_route') }}" class="generate-key-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label for="key_name">Nom de la cle</label>
