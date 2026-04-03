@@ -1,0 +1,26 @@
+{#
+    Partial: Comptes avec mots de passe faibles
+    Usage: {% include 'password_audit/_weak_accounts.html' %}
+#}
+
+<div class="audit-section card fade-in">
+    <h3>🚨 Comptes avec Mots de Passe Faibles</h3>
+    <div class="table-container">
+        <table class="data-table" id="weak-accounts-table">
+            <thead>
+                <tr>
+                    <th>Utilisateur</th>
+                    <th>Nom affiché</th>
+                    <th>Problème</th>
+                    <th>Sévérité</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="weak-accounts-body">
+                <tr>
+                    <td colspan="5" class="text-center text-muted">Aucun compte problématique détecté</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,46 @@
+{#
+    Partial: Sécurité AD (protocoles, délégations, etc.)
+    Usage: {% include 'password_audit/_security.html' %}
+#}
+
+    <!-- Sécurité AD: Protocoles -->
+    <div class="audit-section card fade-in" id="protocol-section" style="display: none;">
+        <h3>🔒 Protocoles Obsolètes</h3>
+        <div id="protocol-issues"></div>
+    </div>
+
+    <!-- Sécurité AD: Délégations -->
+    <div class="audit-section card fade-in" id="delegation-section" style="display: none;">
+        <h3>🔑 Délégations de Privilèges</h3>
+        <div class="table-container">
+            <table class="data-table" id="delegations-table">
+                <thead>
+                    <tr>
+                        <th>Compte</th>
+                        <th>Type</th>
+                        <th>Problème</th>
+                        <th>Sévérité</th>
+                    </tr>
+                </thead>
+                <tbody id="delegations-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sécurité AD: Protected Users -->
+    <div class="audit-section card fade-in" id="protected-users-section" style="display: none;">
+        <h3>🛡️ Groupe Protected Users</h3>
+        <div id="protected-users-status"></div>
+    </div>
+
+    <!-- Sécurité AD: Groupes Privilégiés -->
+    <div class="audit-section card fade-in" id="privileged-groups-section" style="display: none;">
+        <h3>👥 Groupes Privilégiés</h3>
+        <div id="privileged-groups-status"></div>
+    </div>
+
+    <!-- Sécurité AD: SIEM -->
+    <div class="audit-section card fade-in" id="siem-section" style="display: none;">
+        <h3>📋 SIEM & Logs</h3>
+        <div id="siem-status"></div>
+    </div>

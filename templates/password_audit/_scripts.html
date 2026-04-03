@@ -1,0 +1,591 @@
+{#
+    Partial: JavaScript pour Password Audit
+    Usage: {% include 'password_audit/_scripts.html' %}
+#}
+
+<script>
+/**
+ * Lancer l'audit des mots de passe
+ */
+async function runAudit() {
+    // Afficher la barre de progression
+    const progressContainer = document.getElementById('audit-progress-container');
+    const progressBar = document.getElementById('audit-progress-bar');
+    const progressText = document.getElementById('audit-progress-text');
+    const progressMessage = document.getElementById('audit-progress-message');
+    const startBtn = document.getElementById('audit-start-btn');
+
+    if (progressContainer) progressContainer.style.display = 'flex';
+    if (startBtn) startBtn.disabled = true;
+
+    // Simulation de progression
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        if (progress < 90) {
+            progress += Math.random() * 10;
+            if (progress > 90) progress = 90;
+            if (progressBar) progressBar.style.width = progress + '%';
+            if (progressText) progressText.textContent = Math.round(progress) + '%';
+            if (progressMessage) progressMessage.textContent = 'Analyse des comptes en cours...';
+        }
+    }, 300);
+
+    try {
+        const response = await fetch('/api/password-audit');
+        const data = await response.json();
+
+        console.log('Audit result:', data);
+
+        // Compléter la progression
+        clearInterval(progressInterval);
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressText) progressText.textContent = '100%';
+        if (progressMessage) progressMessage.textContent = 'Audit terminé !';
+
+        // Attendre un peu avant de cacher
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (response.ok) {
+            if (data.summary) {
+                displayAuditResults(data);
+            } else {
+                showError('Erreur: Format de données invalide');
+                console.error('Invalid data format:', data);
+            }
+        } else {
+            showError('Erreur: ' + (data.error || 'Échec de l\'audit'));
+        }
+    } catch (error) {
+        console.error('Audit error:', error);
+        showError('Erreur de connexion: ' + error.message);
+    } finally {
+        // Cacher la barre de progression
+        if (progressContainer) progressContainer.style.display = 'none';
+        if (startBtn) startBtn.disabled = false;
+        if (progressBar) progressBar.style.width = '0%';
+        if (progressText) progressText.textContent = '0%';
+        if (progressMessage) progressMessage.textContent = 'Initialisation...';
+    }
+}
+
+/**
+ * Afficher les résultats de l'audit
+ */
+function displayAuditResults(data) {
+    console.log('=== DISPLAY AUDIT RESULTS ===');
+    console.log('Data:', data);
+    console.log('Summary:', data.summary);
+
+    try {
+        // Masquer l'intro, afficher le dashboard
+        const intro = document.getElementById('audit-intro');
+        const dashboard = document.getElementById('audit-dashboard');
+
+        if (!intro) {
+            console.error('DOM element audit-intro NOT FOUND!');
+            showError('Erreur: Element DOM introuvable (audit-intro)');
+            return;
+        }
+
+        if (!dashboard) {
+            console.error('DOM element audit-dashboard NOT FOUND!');
+            showError('Erreur: Element DOM introuvable (audit-dashboard)');
+            return;
+        }
+
+        intro.style.display = 'none';
+        dashboard.style.display = 'block';
+        dashboard.classList.add('active');
+
+        // Afficher les boutons d'export
+        const exportButtons = document.getElementById('export-buttons');
+        if (exportButtons) {
+            exportButtons.style.display = 'flex';
+        }
+
+        // Score global
+        const score = data.summary.global_score;
+        const scoreColor = data.summary.score_color;
+        const scoreValue = document.getElementById('global-score');
+        const scoreLabel = document.getElementById('global-score-label');
+        const scoreCircle = document.getElementById('global-score-circle');
+
+        if (scoreValue) scoreValue.textContent = Math.round(score);
+        if (scoreCircle) scoreCircle.className = 'score-circle ' + scoreColor;
+        if (scoreLabel) scoreLabel.textContent = getScoreLabel(scoreColor) + ' (' + Math.round(score) + '/100)';
+
+        // Statistiques
+        const criticalCount = document.getElementById('critical-count');
+        const criticalDetail = document.getElementById('critical-detail');
+        const totalCount = document.getElementById('total-count');
+        const warningCount = document.getElementById('warning-count');
+
+        if (criticalCount) criticalCount.textContent = data.summary.critical_issues || 0;
+        if (totalCount) totalCount.textContent = data.summary.total_issues || 0;
+
+        const warningAccounts = (data.weak_accounts || []).filter(a => a.severity === 'warning').length;
+        const warningPasswords = (data.old_passwords || []).filter(p => p.severity === 'warning').length;
+        if (warningCount) warningCount.textContent = warningAccounts + warningPasswords;
+
+        const criticalAccounts = (data.weak_accounts || []).filter(a => a.severity === 'critical').length;
+        const criticalPasswords = (data.old_passwords || []).filter(p => p.severity === 'critical').length;
+        const reversibleEnc = data.policy?.reversible_encryption ? 1 : 0;
+
+        const details = [];
+        if (criticalAccounts > 0) details.push(`${criticalAccounts} compte(s)`);
+        if (criticalPasswords > 0) details.push(`${criticalPasswords} mot(s) de passe ancien(s)`);
+        if (reversibleEnc > 0) details.push('1 stockage réversible activé');
+
+        if (criticalDetail) criticalDetail.textContent = details.join(', ');
+
+        // Politique
+        if (data.policy) {
+            const policyMinLength = document.getElementById('policy-min-length');
+            const policyMaxAge = document.getElementById('policy-max-age');
+            const policyHistory = document.getElementById('policy-history');
+            const policyLockout = document.getElementById('policy-lockout');
+
+            if (policyMinLength) policyMinLength.textContent = (data.policy.minPasswordLength || 0) + ' caractères';
+            if (policyMaxAge) policyMaxAge.textContent = (data.policy.maxPasswordAge || 'Illimité') + (data.policy.maxPasswordAge ? ' jours' : '');
+            if (policyHistory) policyHistory.textContent = data.policy.passwordHistoryLength || 0;
+            if (policyLockout) policyLockout.textContent = data.policy.lockoutThreshold || 0;
+        }
+
+        // Recommandations
+        displayRecommendations(data.recommendations || []);
+
+        // Comptes faibles
+        displayWeakAccounts(data.weak_accounts || []);
+
+        // === NOUVEAU P1: Comptes administrateurs ===
+        displayAdminAccounts(data.admin_weak_accounts || []);
+
+        // === NOUVEAU P2: Comptes de service ===
+        displayServiceAccounts(data.service_accounts || []);
+
+        // Mots de passe anciens
+        displayOldPasswords(data.old_passwords || []);
+
+        // === NOUVEAU: Sécurité AD complète ===
+        try {
+            if (typeof displayProtocolIssues === 'function') {
+                displayProtocolIssues(data.legacy_protocols || []);
+            }
+            if (typeof displayDelegations === 'function') {
+                displayDelegations(data.delegations || []);
+            }
+            if (typeof displayProtectedUsers === 'function') {
+                displayProtectedUsers(data.protected_users || []);
+            }
+            if (typeof displayPrivilegedGroups === 'function') {
+                displayPrivilegedGroups(data.privileged_groups || []);
+            }
+            if (typeof displaySIEM === 'function') {
+                displaySIEM(data.siem_logging || []);
+            }
+        } catch (sectionError) {
+            console.error('Error displaying AD security sections:', sectionError);
+        }
+
+        console.log('=== AUDIT RESULTS DISPLAYED SUCCESSFULLY ===');
+    } catch (error) {
+        console.error('=== ERROR DISPLAYING AUDIT RESULTS ===');
+        console.error(error);
+        showError('Erreur lors de l\'affichage: ' + error.message);
+    }
+}
+
+/**
+ * Obtenir le libellé du score
+ */
+function getScoreLabel(color) {
+    const labels = {
+        'success': 'Excellent - Continuez ainsi !',
+        'info': 'Acceptable - Quelques améliorations possibles',
+        'warning': 'Mauvais - Actions recommandées',
+        'danger': 'Critique - Actions immédiates requises'
+    };
+    return labels[color] || 'Inconnu';
+}
+
+/**
+ * Afficher les recommandations
+ */
+function displayRecommendations(recommendations) {
+    const container = document.getElementById('recommendations-list');
+
+    if (!recommendations || recommendations.length === 0) {
+        container.innerHTML = '<p class="text-muted">Aucune recommandation - Bonne configuration !</p>';
+        return;
+    }
+
+    container.innerHTML = recommendations.map(rec => `
+        <div class="recommendation-item ${rec.priority}">
+            <div class="recommendation-header">
+                <span class="recommendation-category">${rec.category}</span>
+                <span class="recommendation-priority ${rec.priority}">${rec.priority.toUpperCase()}</span>
+            </div>
+            <p><strong>Problème:</strong> ${rec.issue}</p>
+            <p><strong>Recommandation:</strong> ${rec.recommendation}</p>
+        </div>
+    `).join('');
+}
+
+/**
+ * Afficher les comptes faibles
+ */
+function displayWeakAccounts(accounts) {
+    const tbody = document.getElementById('weak-accounts-body');
+
+    if (!accounts || accounts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Aucun compte problématique détecté</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = accounts.map(acc => `
+        <tr>
+            <td><strong>${escapeHtml(acc.username)}</strong></td>
+            <td>${escapeHtml(acc.display_name || '-')}</td>
+            <td>${escapeHtml(acc.issue)}</td>
+            <td><span class="badge-severity ${acc.severity}">${acc.severity}</span></td>
+            <td>
+                <button class="btn btn-sm btn-primary btn-action" onclick="forcePasswordChange('${escapeHtml(acc.dn)}')">
+                    Forcer changement
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Afficher les comptes administrateurs à risque (P1)
+ */
+function displayAdminAccounts(accounts) {
+    const section = document.getElementById('admin-accounts-section');
+    const tbody = document.getElementById('admin-accounts-body');
+
+    if (!accounts || accounts.length === 0) {
+        if (section) section.style.display = 'block';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucune donnée administrateur disponible</td></tr>';
+        return;
+    }
+
+    if (section) section.style.display = 'block';
+
+    const realAccounts = accounts.filter(acc => acc.type !== 'admin_ok');
+
+    if (realAccounts.length === 0) {
+        tbody.innerHTML = `<tr>
+            <td colspan="6" class="text-center" style="padding: 2rem; color: #28a745 !important;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+                <strong style="font-size: 1.125rem;">Aucun compte administrateur à risque détecté</strong>
+                <p style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.875rem;">
+                    Tous les comptes administrateurs ont des configurations de mot de passe sécurisées.
+                </p>
+            </td>
+        </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = realAccounts.map(acc => `
+        <tr>
+            <td><strong>${escapeHtml(acc.username)}</strong></td>
+            <td>${escapeHtml(acc.display_name || '-')}</td>
+            <td>${escapeHtml(acc.mail || '-')}</td>
+            <td>${escapeHtml(acc.issue)}</td>
+            <td><span class="badge-severity ${acc.severity}">${acc.severity}</span></td>
+            <td>${escapeHtml(acc.remediation || '-')}</td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Afficher les comptes de service à risque (P2)
+ */
+function displayServiceAccounts(accounts) {
+    const section = document.getElementById('service-accounts-section');
+    const tbody = document.getElementById('service-accounts-body');
+
+    if (!accounts || accounts.length === 0) {
+        if (section) section.style.display = 'block';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucune donnée de service disponible</td></tr>';
+        return;
+    }
+
+    if (section) section.style.display = 'block';
+
+    const realAccounts = accounts.filter(acc => acc.type !== 'service_ok');
+
+    if (realAccounts.length === 0) {
+        tbody.innerHTML = `<tr>
+            <td colspan="6" class="text-center" style="padding: 2rem; color: #28a745 !important;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+                <strong style="font-size: 1.125rem;">Aucun compte de service à risque détecté</strong>
+                <p style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.875rem;">
+                    Tous les comptes de service ont des configurations de mot de passe sécurisées.
+                </p>
+            </td>
+        </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = realAccounts.map(acc => `
+        <tr>
+            <td><strong>${escapeHtml(acc.username)}</strong></td>
+            <td>${escapeHtml(acc.description || '-')}</td>
+            <td><code style="font-size: 0.75rem;">${escapeHtml(acc.spn || '-')}</code></td>
+            <td>${escapeHtml(acc.issue)}</td>
+            <td><span class="badge-severity ${acc.severity}">${acc.severity}</span></td>
+            <td>${escapeHtml(acc.remediation || '-')}</td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Afficher les mots de passe anciens
+ */
+function displayOldPasswords(passwords) {
+    const tbody = document.getElementById('old-passwords-body');
+
+    if (!passwords || passwords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Aucun mot de passe ancien détecté</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = passwords.map(pwd => {
+        // Gérer la date - peut être une chaîne ou un objet Date
+        let dateStr = 'N/A';
+        if (pwd.pwdLastSet) {
+            try {
+                const date = new Date(pwd.pwdLastSet);
+                if (!isNaN(date.getTime())) {
+                    dateStr = date.toLocaleDateString('fr-FR');
+                } else {
+                    dateStr = pwd.pwdLastSet; // Déjà formaté
+                }
+            } catch (e) {
+                dateStr = pwd.pwdLastSet;
+            }
+        }
+        
+        const days = pwd.days_old || 0;
+        const severity = pwd.severity || 'warning';
+        
+        return `
+        <tr>
+            <td><strong>${escapeHtml(pwd.username || '-')}</strong></td>
+            <td>${escapeHtml(pwd.display_name || '-')}</td>
+            <td>${dateStr}</td>
+            <td>${days} jours</td>
+            <td><span class="badge-severity ${severity}">${severity}</span></td>
+        </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * Afficher les problèmes de protocoles
+ */
+function displayProtocolIssues(protocols) {
+    const container = document.getElementById('protocol-issues');
+    if (!container || !protocols || protocols.length === 0) return;
+
+    container.innerHTML = protocols.map(proto => `
+        <div class="recommendation-item ${proto.severity}" style="margin-bottom: 1rem; padding: 1rem;">
+            <div class="recommendation-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <div>
+                    <span class="recommendation-category">${proto.item}</span>
+                    <span class="recommendation-priority ${proto.severity}" style="margin-left: 0.5rem;">${proto.severity.toUpperCase()}</span>
+                </div>
+                ${proto.fix_available === true ? `
+                <button class="btn btn-sm btn-${proto.severity === 'critical' ? 'danger' : proto.severity === 'high' ? 'warning' : 'secondary'}"
+                        onclick="fixProtocol('${proto.type}', '${proto.item}', '${proto.fix_script}')">
+                    🔧 Appliquer la correction
+                </button>
+                ` : ''}
+            </div>
+
+            <p style="margin: 0.5rem 0;"><strong>État actuel:</strong> ${proto.current_value || 'Non vérifié'}</p>
+            <p style="margin: 0.5rem 0;"><strong>Problème:</strong> ${proto.issue}</p>
+            <p style="margin: 0.5rem 0;"><strong>Recommandation:</strong> ${proto.recommendation}</p>
+            ${proto.reference ? `<p style="font-size: 0.75rem; color: #666; margin-top: 0.5rem;">📚 ${proto.reference}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+/**
+ * Appliquer une correction de protocole
+ */
+async function fixProtocol(type, itemName, scriptName) {
+    if (!confirm(`Voulez-vous vraiment appliquer la correction pour ${itemName} ?\n\n⚠️ Cette opération peut nécessiter un redémarrage.\n\nScript: ${scriptName}`)) {
+        return;
+    }
+
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '⏳ En cours...';
+
+    try {
+        const response = await fetch('/api/fix-protocol', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({protocol: type})
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✅ Correction appliquée avec succès!\n\n' + (data.output ? 'Sortie:\n' + data.output.substring(0, 500) : ''));
+            location.reload();
+        } else {
+            alert('❌ Échec de la correction:\n' + (data.error || 'Erreur inconnue'));
+        }
+    } catch (error) {
+        alert('❌ Erreur de connexion: ' + error.message);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+}
+
+/**
+ * Afficher les délégations
+ */
+function displayDelegations(delegations) {
+    const tbody = document.getElementById('delegations-body');
+    if (!tbody) return;
+
+    if (!delegations || delegations.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Aucune délégation problématique détectée</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = delegations.map(d => `
+        <tr>
+            <td><strong>${escapeHtml(d.item)}</strong></td>
+            <td>${d.type}</td>
+            <td>${escapeHtml(d.issue)}</td>
+            <td>${escapeHtml(d.recommendation)}</td>
+            <td><span class="badge-severity ${d.severity}">${d.severity}</span></td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Afficher le statut Protected Users
+ */
+function displayProtectedUsers(protectedUsers) {
+    const container = document.getElementById('protected-users-status');
+    if (!container || !protectedUsers || protectedUsers.length === 0) return;
+
+    container.innerHTML = protectedUsers.map(pu => `
+        <div class="recommendation-item ${pu.severity}" style="margin-bottom: 0.75rem;">
+            <p><strong>${pu.issue}</strong></p>
+            <p>${pu.recommendation}</p>
+            ${pu.reference ? `<p style="font-size: 0.75rem; color: #666; margin-top: 0.5rem;">📚 ${pu.reference}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+/**
+ * Afficher les groupes privilégiés
+ */
+function displayPrivilegedGroups(privilegedGroups) {
+    const container = document.getElementById('privileged-groups-status');
+    if (!container || !privilegedGroups || privilegedGroups.length === 0) return;
+
+    container.innerHTML = `<div class="table-container"><table class="data-table">
+        <thead><tr><th>Groupe</th><th>Problème</th><th>Recommandation</th><th>Sévérité</th></tr></thead>
+        <tbody>${privilegedGroups.map(pg => `
+            <tr>
+                <td><strong>${escapeHtml(pg.item)}</strong></td>
+                <td>${escapeHtml(pg.issue)}</td>
+                <td>${escapeHtml(pg.recommendation)}</td>
+                <td><span class="badge-severity ${pg.severity}">${pg.severity}</span></td>
+            </tr>
+        `).join('')}</tbody>
+    </table></div>`;
+}
+
+/**
+ * Afficher le statut SIEM & Logs
+ */
+function displaySIEM(siemLogging) {
+    const container = document.getElementById('siem-status');
+    const section = document.getElementById('siem-section');
+    if (!container || !siemLogging || siemLogging.length === 0) return;
+
+    if (section) section.style.display = 'block';
+
+    container.innerHTML = siemLogging.map(siem => `
+        <div class="recommendation-item ${siem.severity}" style="margin-bottom: 0.75rem;">
+            <p><strong>${siem.item}</strong></p>
+            <p>${siem.recommendation}</p>
+            ${siem.reference ? `<p style="font-size: 0.75rem; color: #666; margin-top: 0.5rem;">📚 ${siem.reference}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+/**
+ * Forcer le changement de mot de passe
+ */
+function forcePasswordChange(dn) {
+    if (confirm('Voulez-vous vraiment forcer le changement de mot de passe pour cet utilisateur ?')) {
+        alert('Fonctionnalité à implémenter - DN: ' + dn);
+    }
+}
+
+/**
+ * Échapper HTML
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Afficher erreur
+ */
+function showError(message) {
+    const container = document.getElementById('audit-intro');
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-error';
+    alert.textContent = message;
+    container.insertBefore(alert, container.firstChild);
+    setTimeout(() => alert.remove(), 5000);
+}
+
+/**
+ * Afficher le chargement
+ */
+function showLoading(message) {
+    let overlay = document.getElementById('loading-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'loading-overlay';
+        overlay.className = 'loading-overlay';
+        overlay.innerHTML = `
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p class="loading-message"></p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    overlay.querySelector('.loading-message').textContent = message;
+    overlay.style.display = 'flex';
+}
+
+/**
+ * Masquer le chargement
+ */
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+</script>
