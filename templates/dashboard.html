@@ -119,23 +119,20 @@
     {% endif %}
 </div>
 
+{% endblock %}
+
 {% block extra_css %}
 <style>
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
+/* Dashboard-specific styles - override responsive.css for this page only */
 .stat-card {
     background: white;
     padding: 1.5rem;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    display: flex;
+    display: flex !important;
     align-items: center;
     gap: 1rem;
+    text-align: left !important;
 }
 
 .stat-icon {
@@ -147,29 +144,30 @@
     justify-content: center;
     background: #e3f2fd;
     border-radius: 8px;
+    flex-shrink: 0;
 }
 
-.stat-success .stat-icon {
-    background: #d4edda;
-}
+.stat-success .stat-icon { background: #d4edda; }
+.stat-danger .stat-icon { background: #f8d7da; }
+.stat-warning .stat-icon { background: #fff3cd; }
 
-.stat-danger .stat-icon {
-    background: #f8d7da;
-}
-
-.stat-warning .stat-icon {
-    background: #fff3cd;
+.stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
 .stat-value {
     font-size: 1.75rem;
     font-weight: bold;
     color: #0078d4;
+    line-height: 1.2;
 }
 
 .stat-label {
     color: #666;
     font-size: 0.875rem;
+    line-height: 1.2;
 }
 
 .dashboard-section {
@@ -256,5 +254,4 @@ new Chart(groupsCtx, {
     }
 });
 </script>
-{% endblock %}
 {% endblock %}

@@ -3,12 +3,47 @@
    Ce fichier est chargé en dernier et peut être surchargé par l'admin.
    ========================================================================== */
 
-/* Light mode sidebar */
+/* Layout sidebar — compact pour tenir dans la hauteur de l'écran */
 .sidebar {
     background: #f8f9fa;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.15) transparent;
 }
+
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+    border-radius: 4px;
+}
+
+.sidebar-nav {
+    padding: 8px 0;
+}
+
 .sidebar-link {
+    padding: 8px 16px;
+    font-size: 14px;
     color: #242424;
+}
+
+.sidebar-label {
+    padding: 10px 16px 4px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: #666666;
+}
+
+.sidebar-section {
+    margin-bottom: 2px;
 }
 .sidebar-link:hover {
     background: rgba(0, 120, 212, 0.1);

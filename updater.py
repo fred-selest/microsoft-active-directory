@@ -10,6 +10,7 @@ import subprocess
 import urllib.request
 import json
 from pathlib import Path
+from packaging.version import Version
 
 VERSION_FILE = "VERSION"
 GITHUB_REPO = "fred-selest/microsoft-active-directory"
@@ -179,8 +180,12 @@ def check_for_updates_fast():
                 'latest_version': None,
                 'error': 'Impossible de contacter le serveur de mise à jour'
             }
+        try:
+            update_available = Version(latest) > Version(current)
+        except Exception:
+            update_available = latest != current
         return {
-            'update_available': latest != current,
+            'update_available': update_available,
             'current_version': current,
             'latest_version': latest,
             'error': None
@@ -201,6 +206,15 @@ def perform_fast_update(silent=False):
     Retourne un dict avec les clés :
       success (bool), files_updated (int), errors (list[str])
     """
+    # Vérifier que la version distante est bien plus récente avant d'écraser
+    check = check_for_updates_fast()
+    if not check.get('update_available'):
+        return {
+            'success': False,
+            'files_updated': 0,
+            'errors': ['Aucune mise à jour disponible ou version distante inférieure à la version locale.']
+        }
+
     app_dir = Path(__file__).parent
 
     if not silent:
