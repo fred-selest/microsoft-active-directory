@@ -39,7 +39,7 @@
                     <td>{{ account.sAMAccountName }}</td>
                     <td>{{ account.mail }}</td>
                     <td class="actions">
-                        <form method="post" action="{{ url_for('unlock_account', dn=account.dn) }}" style="display: inline;">
+                        <form method="post" action="{{ url_for('tools.unlock_account', dn=account.dn) }}" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-success">Deverrouiller</button>
                         </form>

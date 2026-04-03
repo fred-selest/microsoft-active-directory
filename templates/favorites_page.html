@@ -44,11 +44,11 @@
         </div>
         <div class="fav-actions">
             {% if fav.type == 'user' %}
-            <a href="{{ url_for('edit_user', dn=fav.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
+            <a href="{{ url_for('users.edit_user', dn=fav.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
             {% elif fav.type == 'group' %}
-            <a href="{{ url_for('group_details', dn=fav.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
+            <a href="{{ url_for('groups.view_group', dn=fav.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
             {% endif %}
-            <form method="post" action="{{ url_for('toggle_favorite') }}" style="display: inline;">
+            <form method="post" action="{{ url_for('tools.toggle_favorite') }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="dn" value="{{ fav.dn }}">
                 <input type="hidden" name="action" value="remove">

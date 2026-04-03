@@ -1,0 +1,36 @@
+<header class="top-bar">
+    <div class="top-bar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <a href="{{ url_for('index') }}" class="top-bar-brand">
+            {% if site_settings.logo %}
+            <img src="{{ url_for('static', filename='images/' + site_settings.logo) }}"
+                 alt="Logo"
+                 class="top-bar-logo"
+                 style="height: {{ site_settings.logo_height or '40px' }};">
+            {% else %}
+            <img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="Logo" class="top-bar-logo">
+            {% endif %}
+            <span class="top-bar-title">{{ site_settings.title or 'AD Web' }}</span>
+        </a>
+    </div>
+    <div class="top-bar-right">
+        {% if connected %}
+        <span class="user-info">
+            <span class="user-avatar">{{ session.get('ad_username', 'U')[0]|upper }}</span>
+            <span class="user-name">{{ session.get('ad_username', 'Utilisateur') }}</span>
+            <span class="user-role badge badge-{{ 'success' if session.get('user_role') == 'admin' else 'info' if session.get('user_role') == 'operator' else 'warning' }}">
+                {{ session.get('user_role', 'reader') }}
+            </span>
+        </span>
+        <a href="{{ url_for('disconnect') }}" class="btn btn-logout" title="Déconnexion">
+            <span>&#x1F6AA;</span>
+        </a>
+        {% else %}
+        <a href="{{ url_for('connect') }}" class="btn btn-primary btn-sm">Connexion</a>
+        {% endif %}
+    </div>
+</header>
