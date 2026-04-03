@@ -13,6 +13,26 @@ from audit import log_action, ACTIONS
 computers_bp = Blueprint('computers', __name__, url_prefix='/computers')
 
 
+def extract_ou_path(dn):
+    """
+    Extraire le chemin OU depuis un DN.
+    Ex: CN=PC01,OU=Computers,OU=Paris,DC=company,DC=local → OU=Paris,OU=Computers
+    """
+    if not dn:
+        return '-'
+    
+    parts = dn.split(',')
+    ou_parts = [p for p in parts if p.strip().upper().startswith('OU=')]
+    
+    if ou_parts:
+        # Inverser pour avoir du plus haut niveau au plus bas
+        ou_parts.reverse()
+        return ','.join(ou_parts)
+    
+    # Pas d'OU, retourner le premier composant
+    return parts[0] if parts else '-'
+
+
 @computers_bp.route('/')
 @require_connection
 def list_computers():
@@ -43,14 +63,20 @@ def list_computers():
         for entry in conn.entries:
             uac = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 4096
             is_disabled = bool(int(uac) & 2) if uac else False
+            
+            # Extraire le chemin OU depuis le DN
+            dn_str = decode_ldap_value(entry.distinguishedName)
+            ou_path = extract_ou_path(dn_str)
+            
             computer_list.append({
                 'cn': decode_ldap_value(entry.cn),
                 'description': decode_ldap_value(entry.description),
-                'dn': decode_ldap_value(entry.distinguishedName),
+                'dn': dn_str,
                 'os': decode_ldap_value(entry.operatingSystem),
                 'os_version': decode_ldap_value(entry.operatingSystemVersion),
                 'dns_name': decode_ldap_value(entry.dNSHostName),
-                'disabled': is_disabled
+                'disabled': is_disabled,
+                'ou_path': ou_path
             })
 
         # OUs pour déplacement

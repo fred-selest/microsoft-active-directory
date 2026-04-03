@@ -21,9 +21,11 @@
     <table class="data-table sortable">
         <thead>
             <tr>
+                <th><input type="checkbox" id="select-all-computers" onchange="toggleAllComputers(this)"></th>
                 <th>Nom</th>
                 <th>Systeme d'exploitation</th>
-                <th>Nom DNS</th>
+                <th class="hide-mobile">Nom DNS</th>
+                <th class="hide-mobile">OU</th>
                 <th>Statut</th>
                 <th data-no-sort>Actions</th>
             </tr>
@@ -31,38 +33,52 @@
         <tbody>
             {% for computer in computers %}
             <tr class="{% if computer.disabled %}disabled-row{% endif %}">
-                <td>{{ computer.cn }}</td>
+                <td><input type="checkbox" class="computer-checkbox" data-dn="{{ computer.dn }}" data-name="{{ computer.cn }}"></td>
+                <td>
+                    <strong>{{ computer.cn }}</strong>
+                    <div class="mobile-only"><small class="text-muted">{{ computer.dns_name or '-' }}</small></div>
+                </td>
                 <td>{{ computer.os }} {% if computer.os_version %}({{ computer.os_version }}){% endif %}</td>
-                <td>{{ computer.dns_name }}</td>
+                <td class="hide-mobile">{{ computer.dns_name or '-' }}</td>
+                <td class="hide-mobile">
+                    <small class="ou-path">{{ computer.ou_path or '-' }}</small>
+                </td>
                 <td>
                     {% if computer.disabled %}
-                    <span class="badge badge-danger">Desactive</span>
+                    <span class="badge badge-danger">Désactivé</span>
                     {% else %}
                     <span class="badge badge-success">Actif</span>
                     {% endif %}
                 </td>
                 <td class="actions">
+                    <a href="{{ url_for('computers.edit_computer', dn=computer.dn) }}" class="btn btn-sm btn-primary" title="Modifier">
+                        ✏️
+                    </a>
                     <form method="post" action="{{ url_for('computers.toggle_computer', dn=computer.dn) }}" style="display: inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if computer.disabled %}
                         <input type="hidden" name="action" value="enable">
-                        <button type="submit" class="btn btn-sm btn-success">Activer</button>
+                        <button type="submit" class="btn btn-sm btn-success" title="Activer">✅</button>
                         {% else %}
                         <input type="hidden" name="action" value="disable">
-                        <button type="submit" class="btn btn-sm btn-secondary">Desactiver</button>
+                        <button type="submit" class="btn btn-sm btn-secondary" title="Désactiver">⏸️</button>
                         {% endif %}
                     </form>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ computer.dn }}', '{{ computer.cn }}')">Deplacer</button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ computer.dn }}', '{{ computer.cn }}')" title="Déplacer">
+                        📍
+                    </button>
                     <form method="post" action="{{ url_for('computers.delete_computer', dn=computer.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer cet ordinateur ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                        <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
+                            🗑️
+                        </button>
                     </form>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" class="text-center">Aucun ordinateur trouve.</td>
+                <td colspan="7" class="text-center">Aucun ordinateur trouvé.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -99,28 +115,47 @@
 .disabled-row {
     opacity: 0.6;
 }
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+
+/* Responsive Mobile */
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none;
+    }
+    .mobile-only {
+        display: block;
+    }
+    .table-container {
+        overflow-x: auto;
+    }
+    .data-table {
+        min-width: 700px;
+    }
+    .actions {
+        white-space: nowrap;
+    }
+    .ou-path {
+        max-width: 150px;
+        display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 }
-.modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    min-width: 400px;
-    max-width: 90%;
+
+@media (min-width: 769px) {
+    .mobile-only {
+        display: none;
+    }
 }
-.modal-content h3 {
-    margin-top: 0;
-    color: #0078d4;
+
+.ou-path {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+/* Action buttons with icons */
+.actions .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
 }
 </style>
 {% endblock %}
@@ -141,6 +176,26 @@ document.getElementById('moveModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeMoveModal();
     }
+});
+
+/**
+ * Sélectionner/désélectionner tous les ordinateurs
+ */
+function toggleAllComputers(checkbox) {
+    const checkboxes = document.querySelectorAll('.computer-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+}
+
+// Ajouter les écouteurs pour les checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.computer-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            // Future: barre d'actions pour sélection multiple
+        });
+    });
 });
 </script>
 {% endblock %}
