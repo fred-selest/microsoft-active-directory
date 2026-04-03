@@ -45,9 +45,10 @@ DEFAULT_SETTINGS = {
             {'id': 'alerts',     'label': 'Alertes',      'endpoint': 'alerts_page',       'icon': '🔔', 'feature': None,                          'enabled': True,  'order': 1},
             {'id': 'audit',      'label': 'Audit',        'endpoint': 'audit_logs',         'icon': '📋', 'feature': 'FEATURE_AUDIT_LOGS_ENABLED',  'enabled': True,  'order': 2},
             {'id': 'security',   'label': 'Sécurité',     'endpoint': 'security_audit',     'icon': '🔐', 'feature': None,                          'enabled': True,  'order': 3},
-            {'id': 'diagnostic', 'label': 'Diagnostic',   'endpoint': 'diagnostic_page',    'icon': '🔧', 'feature': 'FEATURE_DIAGNOSTIC_ENABLED',  'enabled': True,  'order': 4},
-            {'id': 'backups',    'label': 'Sauvegardes',  'endpoint': 'tools.backups',      'icon': '💾', 'feature': 'FEATURE_BACKUPS_ENABLED',     'enabled': True,  'order': 5},
-            {'id': 'admin',      'label': 'Admin',        'endpoint': 'admin.admin_page',   'icon': '⚙️', 'feature': 'FEATURE_SETTINGS_ENABLED',   'enabled': True,  'order': 6},
+            {'id': 'permissions','label': 'Permissions',  'endpoint': 'permissions_page',   'icon': '🔑', 'feature': None,                          'enabled': True,  'order': 4},
+            {'id': 'diagnostic', 'label': 'Diagnostic',   'endpoint': 'diagnostic_page',    'icon': '🔧', 'feature': 'FEATURE_DIAGNOSTIC_ENABLED',  'enabled': True,  'order': 5},
+            {'id': 'backups',    'label': 'Sauvegardes',  'endpoint': 'tools.backups',      'icon': '💾', 'feature': 'FEATURE_BACKUPS_ENABLED',     'enabled': True,  'order': 6},
+            {'id': 'admin',      'label': 'Admin',        'endpoint': 'admin.admin_page',   'icon': '⚙️', 'feature': 'FEATURE_SETTINGS_ENABLED',   'enabled': True,  'order': 7},
         ],
     },
     'features': {

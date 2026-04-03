@@ -14,12 +14,13 @@ from ldap3.core.exceptions import LDAPException
 from config import get_config
 from security import escape_ldap_filter
 from session_crypto import decrypt_password
+from granular_permissions import has_permission as has_granular_permission
 import logging
 
 logger = logging.getLogger('ad_core')
 config = get_config()
 
-# Permissions par rôle
+# Permissions par rôle (système legacy - pour rétrocompatibilité)
 ROLE_PERMISSIONS = {
     'admin': ['read', 'write', 'delete', 'admin'],
     'operator': ['read', 'write'],
@@ -84,15 +85,23 @@ def require_connection(f):
 
 
 def require_permission(permission):
-    """Decorateur pour verifier les permissions RBAC."""
+    """Decorateur pour verifier les permissions RBAC granulaires."""
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
             if config.RBAC_ENABLED:
+                # Vérifier d'abord avec le système granulaire
+                user_groups = session.get('user_groups', [])
+                
+                if user_groups and has_granular_permission(user_groups, permission):
+                    return f(*args, **kwargs)
+                
+                # Fallback sur l'ancien système par rôle
                 user_role = session.get('user_role', config.DEFAULT_ROLE)
                 if permission not in ROLE_PERMISSIONS.get(user_role, []):
                     flash('Permission refusee.', 'error')
                     return redirect(url_for('index'))
+            
             return f(*args, **kwargs)
         return decorated
     return decorator
