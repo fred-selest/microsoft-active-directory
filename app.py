@@ -10,7 +10,7 @@ import os
 import hashlib
 import platform
 from pathlib import Path
-from datetime import timedelta
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from ad_detect import get_local_domain, detect_ad_config
 from config import get_config
@@ -790,31 +790,37 @@ def api_perform_update():
 def error_logs():
     """Afficher les erreurs récentes."""
     from audit import get_audit_logs
-    
+
     # Lire les logs d'erreurs
     error_logs = []
     log_files = ['logs/server.log', 'logs/service_error.log']
-    
+
     for log_file in log_files:
         try:
             if os.path.exists(log_file):
-                with open(log_file, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                    # Filtrer les lignes avec ERROR ou Exception
-                    for line in lines[-500:]:  # Dernières 500 lignes
-                        if 'ERROR' in line or 'Exception' in line or 'Traceback' in line:
-                            error_logs.append({
-                                'file': log_file,
-                                'line': line.strip(),
-                                'timestamp': datetime.now().isoformat()
-                            })
+                # Essayer plusieurs encodages
+                for encoding in ['utf-8', 'cp1252', 'latin-1']:
+                    try:
+                        with open(log_file, 'r', encoding=encoding) as f:
+                            lines = f.readlines()
+                            # Filtrer les lignes avec ERROR ou Exception
+                            for line in lines[-500:]:  # Dernières 500 lignes
+                                if 'ERROR' in line or 'Exception' in line or 'Traceback' in line or 'error' in line.lower():
+                                    error_logs.append({
+                                        'file': log_file,
+                                        'line': line.strip(),
+                                        'timestamp': datetime.now().isoformat()
+                                    })
+                        break  # Si ça a fonctionné, on passe au fichier suivant
+                    except UnicodeDecodeError:
+                        continue  # Essayer l'encodage suivant
         except Exception as e:
-            logger.warning(f"Could not read {log_file}: {e}")
-    
+            error_logs.append({'file': 'system', 'line': f'Erreur lecture {log_file}: {str(e)}', 'timestamp': datetime.now().isoformat()})
+
     # Trier par timestamp (plus récent en premier)
     error_logs.reverse()
-    
-    return render_template('errors.html', 
+
+    return render_template('errors.html',
                          error_logs=error_logs[:100],  # Limiter à 100 erreurs
                          connected=is_connected())
 
@@ -825,25 +831,31 @@ def error_logs():
 def api_error_logs():
     """API pour récupérer les erreurs récentes."""
     import os
-    
+
     error_logs = []
     log_files = ['logs/server.log', 'logs/service_error.log', 'logs/audit.log']
-    
+
     for log_file in log_files:
         try:
             if os.path.exists(log_file):
-                with open(log_file, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                    for line in lines[-200:]:
-                        if 'ERROR' in line or 'Exception' in line or 'Traceback' in line:
-                            error_logs.append({
-                                'file': log_file,
-                                'line': line.strip(),
-                                'timestamp': datetime.now().isoformat()
-                            })
+                # Essayer plusieurs encodages
+                for encoding in ['utf-8', 'cp1252', 'latin-1']:
+                    try:
+                        with open(log_file, 'r', encoding=encoding) as f:
+                            lines = f.readlines()
+                            for line in lines[-200:]:
+                                if 'ERROR' in line or 'Exception' in line or 'Traceback' in line or 'error' in line.lower():
+                                    error_logs.append({
+                                        'file': log_file,
+                                        'line': line.strip(),
+                                        'timestamp': datetime.now().isoformat()
+                                    })
+                        break
+                    except UnicodeDecodeError:
+                        continue
         except Exception as e:
-            error_logs.append({'file': 'system', 'line': str(e), 'timestamp': datetime.now().isoformat()})
-    
+            error_logs.append({'file': 'system', 'line': f'Erreur lecture {log_file}: {str(e)}', 'timestamp': datetime.now().isoformat()})
+
     error_logs.reverse()
     return jsonify({'errors': error_logs[:50], 'total': len(error_logs)})
 
