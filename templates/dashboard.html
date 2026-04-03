@@ -7,6 +7,22 @@
     <h2>Tableau de bord</h2>
 </div>
 
+{% if critical_alerts and critical_alerts|length > 0 %}
+<!-- Widget Alertes Critiques -->
+<div class="card fade-in" style="margin-bottom: 1.5rem; border-left: 4px solid #dc3545; background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);">
+    <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem;">
+        <div style="font-size: 2.5rem;">🚨</div>
+        <div style="flex: 1;">
+            <h3 style="margin: 0 0 0.25rem 0; color: #dc3545;">⚠️ {{ critical_alerts|length }} Alerte(s) Critique(s)</h3>
+            <p style="margin: 0; color: #666; font-size: 0.9375rem;">Des actions immédiates sont requises</p>
+        </div>
+        <a href="{{ url_for('tools.password_audit_history') }}" class="btn btn-danger">
+            👁️ Voir les détails
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-icon users-icon">&#x1F465;</div>
