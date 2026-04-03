@@ -11,7 +11,7 @@ from security import generate_csrf_token
 from translations import Translator
 from alerts import get_alert_counts
 from features import is_feature_enabled
-from routes.core import ROLE_PERMISSIONS
+from routes.core import get_ad_connection
 
 config = get_config()
 
@@ -48,8 +48,19 @@ def inject_globals():
     def has_permission(permission):
         if not config.RBAC_ENABLED:
             return True
+        user_groups = session.get('user_groups', [])
         user_role = session.get('user_role', config.DEFAULT_ROLE)
-        return permission in ROLE_PERMISSIONS.get(user_role, [])
+        
+        # Les admins ont toutes les permissions
+        if user_role == 'admin':
+            return True
+        
+        # Sinon vérifier les permissions granulaires
+        if user_groups:
+            from granular_permissions import has_permission as has_granular_permission
+            return has_granular_permission(user_groups, permission)
+        
+        return False
 
     try:
         alert_counts = get_alert_counts()
@@ -57,6 +68,11 @@ def inject_globals():
         alert_counts = {'total': 0}
 
     from updater import get_current_version
+    
+    # Vérifier si connecté à AD
+    from routes.core import is_connected
+    connected = is_connected()
+    
     return {
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
@@ -76,4 +92,5 @@ def inject_globals():
         'feature_settings': settings.get('features', {}),
         'is_feature_enabled': is_feature_enabled,
         'app_version': get_current_version(),
+        'connected': connected,
     }

@@ -222,6 +222,12 @@ def has_permission(user_groups, required_permission):
         for perm in required_permissions:
             if perm in group_perms:
                 return True
+    
+    # Si aucune permission explicite, vérifier le rôle (pour compatibilité)
+    from flask import session
+    user_role = session.get('user_role', 'reader')
+    if user_role == 'admin':
+        return True  # Les admins ont toutes les permissions par défaut
 
     return False
 

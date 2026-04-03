@@ -20,8 +20,7 @@ from audit import log_action, ACTIONS
 from alerts import get_alert_counts
 from session_crypto import init_crypto, encrypt_password
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
-                         require_connection, require_permission, get_user_role_from_groups, 
-                         get_user_permissions, ROLE_PERMISSIONS)
+                         require_connection, require_permission, get_user_role_from_groups)
 from routes.users import users_bp
 from routes.groups import groups_bp
 from routes.computers import computers_bp
