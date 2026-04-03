@@ -35,9 +35,8 @@
                 <th>Nom d'affichage</th>
                 <th>Identifiant</th>
                 <th>Email</th>
-                <th>Service</th>
-                <th>Fonction</th>
-                <th>Groupe</th>
+                <th class="hide-mobile">Service</th>
+                <th class="hide-mobile">Fonction</th>
                 <th>OU</th>
                 <th>Statut</th>
                 <th data-no-sort>Actions</th>
@@ -47,85 +46,62 @@
             {% for user in users %}
             <tr class="{% if user.disabled %}disabled-user{% endif %}">
                 <td><input type="checkbox" class="user-checkbox" data-dn="{{ user.dn }}" data-name="{{ user.displayName or user.cn }}"></td>
-                <td>{{ user.displayName or user.cn }}</td>
-                <td>{{ user.sAMAccountName }}</td>
-                <td>{{ user.mail }}</td>
-                <td>{{ user.department }}</td>
-                <td>{{ user.title }}</td>
                 <td>
-                    <select class="quick-select" data-type="group" data-dn="{{ user.dn }}" onchange="quickChange(this)">
-                        <option value="">-- Changer groupe --</option>
-                        {% for group in groups %}
-                        <option value="{{ group.dn }}">{{ group.name }}</option>
-                        {% endfor %}
-                    </select>
+                    <strong>{{ user.displayName or user.cn }}</strong>
+                    <div class="mobile-only"><small class="text-muted">{{ user.sAMAccountName }}</small></div>
                 </td>
+                <td>{{ user.sAMAccountName }}</td>
+                <td>{{ user.mail or '-' }}</td>
+                <td class="hide-mobile">{{ user.department or '-' }}</td>
+                <td class="hide-mobile">{{ user.title or '-' }}</td>
                 <td>
-                    <select class="quick-select" data-type="ou" data-dn="{{ user.dn }}" onchange="quickChange(this)">
-                        <option value="">-- Changer OU --</option>
-                        {% for ou in ous %}
-                        <option value="{{ ou.dn }}">{{ ou.name }}</option>
-                        {% endfor %}
-                    </select>
+                    <small class="ou-path">{{ user.dn.split(',')[-2:] | join(',') }}</small>
                 </td>
                 <td>
                     {% if user.disabled %}
-                    <span class="badge badge-danger">Desactive</span>
+                    <span class="badge badge-danger">Désactivé</span>
                     {% else %}
                     <span class="badge badge-success">Actif</span>
                     {% endif %}
                 </td>
                 <td class="actions">
-                    <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
-                    <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-sm btn-secondary">MDP</a>
-                    <form method="post" action="{{ url_for('users.toggle_user', dn=user.dn) }}" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
-                        <button type="submit" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}">
-                            {{ 'Activer' if user.disabled else 'Desactiver' }}
+                    <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-primary" title="Modifier">
+                        ✏️
+                    </a>
+                    <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-sm btn-secondary" title="MDP">
+                        🔑
+                    </a>
+                    <div class="btn-group-mobile">
+                        <form method="post" action="{{ url_for('users.toggle_user', dn=user.dn) }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
+                            <button type="submit" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}" title="{{ 'Activer' if user.disabled else 'Désactiver' }}">
+                                {{ '✅' if user.disabled else '⏸️' }}
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn }}', '{{ user.displayName or user.cn }}')" title="Déplacer">
+                            📍
                         </button>
-                    </form>
-                    <a href="{{ url_for('users.duplicate_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Dupliquer</a>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn }}', '{{ user.displayName or user.cn }}')">Deplacer</button>
-                    <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
-                          style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
-                    </form>
+                        <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
+                              style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
+                                🗑️
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="10" class="text-center">Aucun utilisateur trouve.</td>
+                <td colspan="9" class="text-center">Aucun utilisateur trouvé.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<!-- Barre d'actions masse -->
-<div id="bulk-action-bar" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px;">
-    <span id="selected-count" style="font-weight: bold; margin-right: 1rem;">0 utilisateur(s) sélectionné(s)</span>
-    <select id="bulk-group-change" style="margin-right: 0.5rem; padding: 0.5rem;">
-        <option value="">-- Changer groupe --</option>
-        {% for group in groups %}
-        <option value="{{ group.dn }}">{{ group.name }}</option>
-        {% endfor %}
-    </select>
-    <select id="bulk-ou-change" style="margin-right: 0.5rem; padding: 0.5rem;">
-        <option value="">-- Changer OU --</option>
-        {% for ou in ous %}
-        <option value="{{ ou.dn }}">{{ ou.name }}</option>
-        {% endfor %}
-    </select>
-    <button class="btn btn-success btn-sm" onclick="applyBulkChange()">🔄 Appliquer aux sélectionnés</button>
-</div>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<p class="results-count">{{ total }} utilisateur(s) trouve(s) (page {{ page }}/{{ total_pages }})</p>
+<p class="results-count">{{ total }} utilisateur(s) trouvé(s) (page {{ page }}/{{ total_pages }})</p>
 
 {% if total_pages > 1 %}
 <div class="pagination">
@@ -211,6 +187,57 @@
     margin-top: 0;
     color: #0078d4;
 }
+
+/* Responsive Mobile */
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none;
+    }
+    .mobile-only {
+        display: block;
+    }
+    .table-container {
+        overflow-x: auto;
+    }
+    .data-table {
+        min-width: 600px;
+    }
+    .actions {
+        white-space: nowrap;
+    }
+    .btn-group-mobile {
+        display: flex;
+        gap: 0.25rem;
+    }
+    .btn-group-mobile .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 1rem;
+    }
+    .ou-path {
+        max-width: 150px;
+        display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+@media (min-width: 769px) {
+    .mobile-only {
+        display: none;
+    }
+}
+
+.ou-path {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    word-break: break-all;
+}
+
+/* Action buttons with icons */
+.actions .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
 </style>
 {% endblock %}
 
@@ -261,122 +288,13 @@ function toggleAllUsers(checkbox) {
  */
 function updateSelectedCount() {
     const checkboxes = document.querySelectorAll('.user-checkbox:checked');
-    const countSpan = document.getElementById('selected-count');
     const actionBar = document.getElementById('bulk-action-bar');
-    
-    if (countSpan) {
-        countSpan.textContent = `${checkboxes.length} utilisateur(s) sélectionné(s)`;
-    }
     
     if (actionBar) {
         actionBar.style.display = checkboxes.length > 0 ? 'block' : 'none';
+        document.getElementById('selected-count').textContent = 
+            `${checkboxes.length} utilisateur(s) sélectionné(s)`;
     }
-}
-
-/**
- * Changement rapide (groupe ou OU)
- */
-function quickChange(select) {
-    const dn = select.dataset.dn;
-    const type = select.dataset.type;
-    const newValue = select.value;
-    
-    if (!newValue) return;
-    
-    const confirmMsg = type === 'group' 
-        ? `Changer le groupe pour cet utilisateur ?`
-        : `Changer l'OU pour cet utilisateur ?`;
-    
-    if (!confirm(confirmMsg)) {
-        select.value = '';
-        return;
-    }
-    
-    // Afficher état de chargement
-    select.disabled = true;
-    select.style.opacity = '0.5';
-    
-    fetch('/api/users/quick-change', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            dn: dn,
-            type: type,
-            value: newValue
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            alert(`✅ ${result.message}`);
-            location.reload();
-        } else {
-            alert(`❌ Échec: ${result.error}`);
-            select.disabled = false;
-            select.style.opacity = '1';
-            select.value = '';
-        }
-    })
-    .catch(error => {
-        alert(`❌ Erreur: ${error}`);
-        select.disabled = false;
-        select.style.opacity = '1';
-        select.value = '';
-    });
-}
-
-/**
- * Appliquer changement en masse
- */
-function applyBulkChange() {
-    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
-    if (checkboxes.length === 0) {
-        alert('⚠️ Veuillez sélectionner au moins un utilisateur.');
-        return;
-    }
-    
-    const groupSelect = document.getElementById('bulk-group-change');
-    const ouSelect = document.getElementById('bulk-ou-change');
-    const groupValue = groupSelect.value;
-    const ouValue = ouSelect.value;
-    
-    if (!groupValue && !ouValue) {
-        alert('⚠️ Veuillez sélectionner un groupe ou une OU.');
-        return;
-    }
-    
-    const users = Array.from(checkboxes).map(cb => ({
-        dn: cb.dataset.dn,
-        name: cb.dataset.name
-    }));
-    
-    const confirmMsg = `Appliquer les changements à ${users.length} utilisateur(s) ?\n\n` +
-                       (groupValue ? `Groupe: ${groupSelect.options[groupSelect.selectedIndex].text}\n` : '') +
-                       (ouValue ? `OU: ${ouSelect.options[ouSelect.selectedIndex].text}\n` : '');
-    
-    if (!confirm(confirmMsg)) return;
-    
-    fetch('/api/users/bulk-change', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            users: users,
-            group: groupValue,
-            ou: ouValue
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            alert(`✅ ${result.message}`);
-            location.reload();
-        } else {
-            alert(`❌ Échec: ${result.error}`);
-        }
-    })
-    .catch(error => {
-        alert(`❌ Erreur: ${error}`);
-    });
 }
 
 // Ajouter les écouteurs pour les checkboxes
