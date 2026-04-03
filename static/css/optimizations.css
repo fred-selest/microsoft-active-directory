@@ -977,16 +977,16 @@ body.dark-mode .form-group textarea:focus {
 
     .main-content {
         margin-left: 280px;
-        width: calc(100vw - 280px);
-        max-width: calc(100vw - 280px);
+        width: calc(100% - 280px);
+        max-width: calc(100% - 280px);
         box-sizing: border-box;
         overflow-x: hidden;
     }
 
     .sidebar.open ~ .main-content {
         margin-left: 280px;
-        width: calc(100vw - 280px);
-        max-width: calc(100vw - 280px);
+        width: calc(100% - 280px);
+        max-width: calc(100% - 280px);
     }
 
     .sidebar-overlay {
@@ -1008,7 +1008,7 @@ body.dark-mode .form-group textarea:focus {
 @media (min-width: 1024px) {
     .main-footer {
         margin-left: 280px;
-        width: calc(100vw - 280px);
+        width: calc(100% - 280px);
         box-sizing: border-box;
     }
 }
