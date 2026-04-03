@@ -200,6 +200,241 @@ def check_weak_passwords_ad(conn, base_dn):
     return weak_accounts
 
 
+def check_admin_weak_passwords(conn, base_dn):
+    """
+    Vérifier les comptes administrateurs avec des configurations de mot de passe faibles.
+    Fonctionnalité P1 - Comptes admins avec MDP faible.
+    """
+    admin_weak_accounts = []
+    
+    try:
+        # Rechercher tous les comptes avec adminCount=1 (comptes privilégiés)
+        conn.search(
+            base_dn,
+            '(&(objectClass=user)(objectCategory=person)(adminCount=1))',
+            SUBTREE,
+            attributes=[
+                'sAMAccountName', 
+                'displayName', 
+                'distinguishedName', 
+                'mail', 
+                'userAccountControl',
+                'pwdLastSet',
+                'whenCreated'
+            ]
+        )
+        
+        now = datetime.now()
+        
+        for entry in conn.entries:
+            uac = int(entry.userAccountControl.value) if entry.userAccountControl.value else 0
+            username = str(entry.sAMAccountName)
+            display_name = str(entry.displayName) if entry.displayName else ''
+            dn = str(entry.distinguishedName)
+            mail = str(entry.mail) if hasattr(entry, 'mail') and entry.mail else ''
+            
+            # 1. MDP n'expire jamais (déjà fait mais on renforce pour admins)
+            if uac & 64:  # DONT_EXPIRE_PASSWD
+                admin_weak_accounts.append({
+                    'type': 'admin_password_never_expires',
+                    'username': username,
+                    'display_name': display_name,
+                    'mail': mail,
+                    'dn': dn,
+                    'issue': 'Compte administrateur avec mot de passe n\'expirant jamais',
+                    'severity': 'critical',
+                    'remediation': 'Activer l\'expiration du mot de passe pour les comptes privilégiés'
+                })
+            
+            # 2. MDP jamais changé (depuis la création du compte)
+            try:
+                pwd_last_set = entry.pwdLastSet.value if entry.pwdLastSet.value else None
+                when_created = entry.whenCreated.value if entry.whenCreated.value else None
+                
+                if pwd_last_set and when_created:
+                    # Si MDP défini à la création et jamais changé (> 365 jours)
+                    if isinstance(pwd_last_set, datetime) and isinstance(when_created, datetime):
+                        days_since_change = (now - pwd_last_set).days
+                        days_since_creation = (now - when_created).days
+                        
+                        if days_since_change > 365 and abs(days_since_change - days_since_creation) < 30:
+                            admin_weak_accounts.append({
+                                'type': 'admin_password_never_changed',
+                                'username': username,
+                                'display_name': display_name,
+                                'mail': mail,
+                                'dn': dn,
+                                'issue': f'Compte administrateur avec mot de passe jamais changé ({days_since_change} jours)',
+                                'severity': 'critical',
+                                'remediation': 'Changer immédiatement le mot de passe et activer le renouvellement périodique'
+                            })
+            except Exception:
+                pass
+            
+            # 3. Compte activé sans MDP (rare mais critique)
+            if not (uac & 32):  # PASSWD_NOTREQD n'est PAS set
+                # Le compte a un MDP requis - c'est bon
+                pass
+            else:
+                admin_weak_accounts.append({
+                    'type': 'admin_no_password_required',
+                    'username': username,
+                    'display_name': display_name,
+                    'mail': mail,
+                    'dn': dn,
+                    'issue': 'Compte administrateur sans mot de passe requis',
+                    'severity': 'critical',
+                    'remediation': 'Exiger immédiatement un mot de passe fort'
+                })
+        
+        # Ajouter un résumé si tout va bien
+        if len(admin_weak_accounts) == 0:
+            admin_weak_accounts.append({
+                'type': 'admin_ok',
+                'issue': 'Aucun compte administrateur avec configuration faible détecté',
+                'severity': 'success',
+                'remediation': 'Continuer à surveiller régulièrement'
+            })
+    
+    except Exception as e:
+        admin_weak_accounts.append({
+            'type': 'error',
+            'issue': f'Erreur de recherche des comptes admins: {str(e)}',
+            'severity': 'error'
+        })
+    
+    return admin_weak_accounts
+
+
+def check_service_accounts(conn, base_dn):
+    """
+    Vérifier les comptes de service avec des configurations de mot de passe faibles.
+    Fonctionnalité P2 - Comptes de service.
+    """
+    service_accounts = []
+    
+    try:
+        # Rechercher les comptes de service potentiels
+        # Critères: Nom contenant "svc", "service", "app", "sql", "iis", etc.
+        service_patterns = ['svc', 'service', 'app', 'sql', 'iis', 'web', 'ftp', 'smtp', 'pop', 'imap']
+        
+        for pattern in service_patterns:
+            conn.search(
+                base_dn,
+                f'(&(objectClass=user)(objectCategory=person)(sAMAccountName=*{pattern}*))',
+                SUBTREE,
+                attributes=[
+                    'sAMAccountName', 
+                    'displayName', 
+                    'distinguishedName', 
+                    'mail', 
+                    'userAccountControl',
+                    'pwdLastSet',
+                    'whenCreated',
+                    'servicePrincipalName',
+                    'description'
+                ]
+            )
+            
+            now = datetime.now()
+            
+            for entry in conn.entries:
+                uac = int(entry.userAccountControl.value) if entry.userAccountControl.value else 0
+                username = str(entry.sAMAccountName)
+                display_name = str(entry.displayName) if entry.displayName else ''
+                dn = str(entry.distinguishedName)
+                mail = str(entry.mail) if hasattr(entry, 'mail') and entry.mail else ''
+                description = str(entry.description) if hasattr(entry, 'description') and entry.description else ''
+                spn = str(entry.servicePrincipalName) if hasattr(entry, 'servicePrincipalName') and entry.servicePrincipalName else ''
+                
+                # Vérifier si c'est un compte de service (SPN ou nom suggestif)
+                is_service = False
+                
+                # A un SPN (Service Principal Name)
+                if spn and spn != '[]':
+                    is_service = True
+                
+                # Nom contient des patterns de service
+                for p in service_patterns:
+                    if p in username.lower():
+                        is_service = True
+                        break
+                
+                if not is_service:
+                    continue
+                
+                # 1. MDP n'expire jamais
+                if uac & 64:  # DONT_EXPIRE_PASSWD
+                    service_accounts.append({
+                        'type': 'service_password_never_expires',
+                        'username': username,
+                        'display_name': display_name,
+                        'mail': mail,
+                        'dn': dn,
+                        'description': description,
+                        'spn': spn,
+                        'issue': 'Compte de service avec mot de passe n\'expirant jamais',
+                        'severity': 'critical',
+                        'remediation': 'Utiliser un Managed Service Account (MSA) ou renouveler le MDP périodiquement'
+                    })
+                
+                # 2. MDP jamais changé
+                try:
+                    pwd_last_set = entry.pwdLastSet.value if entry.pwdLastSet.value else None
+                    
+                    if pwd_last_set and isinstance(pwd_last_set, datetime):
+                        days_since_change = (now - pwd_last_set).days
+                        
+                        if days_since_change > 365:
+                            service_accounts.append({
+                                'type': 'service_password_never_changed',
+                                'username': username,
+                                'display_name': display_name,
+                                'mail': mail,
+                                'dn': dn,
+                                'description': description,
+                                'spn': spn,
+                                'issue': f'Compte de service avec mot de passe jamais changé ({days_since_change} jours)',
+                                'severity': 'critical',
+                                'remediation': 'Changer immédiatement le mot de passe et planifier un renouvellement'
+                            })
+                except Exception:
+                    pass
+                
+                # 3. Compte activé sans MDP requis
+                if uac & 32:  # PASSWD_NOTREQD
+                    service_accounts.append({
+                        'type': 'service_no_password_required',
+                        'username': username,
+                        'display_name': display_name,
+                        'mail': mail,
+                        'dn': dn,
+                        'description': description,
+                        'spn': spn,
+                        'issue': 'Compte de service sans mot de passe requis',
+                        'severity': 'critical',
+                        'remediation': 'Exiger immédiatement un mot de passe fort'
+                    })
+        
+        # Ajouter un résumé si tout va bien
+        if len(service_accounts) == 0:
+            service_accounts.append({
+                'type': 'service_ok',
+                'issue': 'Aucun compte de service à risque détecté',
+                'severity': 'success',
+                'remediation': 'Continuer à surveiller régulièrement'
+            })
+    
+    except Exception as e:
+        service_accounts.append({
+            'type': 'error',
+            'issue': f'Erreur de recherche des comptes de service: {str(e)}',
+            'severity': 'error'
+        })
+    
+    return service_accounts
+
+
 def check_password_age(conn, base_dn, max_age_days=90):
     """
     Vérifier l'ancienneté des mots de passe.
@@ -1107,6 +1342,12 @@ def run_password_audit(conn, base_dn, max_age_days=90):
 
     # Comptes faibles
     weak_accounts = check_weak_passwords_ad(conn, base_dn)
+    
+    # === NOUVEAU P1: Comptes admins avec MDP faible ===
+    admin_weak_accounts = check_admin_weak_passwords(conn, base_dn)
+
+    # === NOUVEAU P2: Comptes de service ===
+    service_accounts = check_service_accounts(conn, base_dn)
 
     # Ancienneté des mots de passe
     old_passwords = check_password_age(conn, base_dn, max_age_days)
@@ -1258,6 +1499,8 @@ def run_password_audit(conn, base_dn, max_age_days=90):
         'policy': policy,
         'fgpps': fgpps,
         'weak_accounts': weak_accounts,
+        'admin_weak_accounts': admin_weak_accounts,  # NOUVEAU P1
+        'service_accounts': service_accounts,  # NOUVEAU P2
         'old_passwords': old_passwords,
         'spray_vulnerabilities': spray_vulns,
         'tiering_violations': tiering_violations,
@@ -1282,7 +1525,11 @@ def run_password_audit(conn, base_dn, max_age_days=90):
             'delegation_issues': len(delegations),
             'privileged_group_issues': len(privileged_groups),
             'siem_issues': len(siem_logging),
-            'total_recommendations': len(recommendations) + len(security_recommendations)
+            'total_recommendations': len(recommendations) + len(security_recommendations),
+            # P1: Comptes admins
+            'admin_weak_count': len([a for a in admin_weak_accounts if a.get('severity') == 'critical']),
+            # P2: Comptes de service
+            'service_weak_count': len([s for s in service_accounts if s.get('severity') == 'critical']),
         }
     }
 

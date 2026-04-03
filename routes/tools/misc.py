@@ -1,15 +1,11 @@
-"""Routes diverses : alertes, modèles, favoris, API docs."""
+"""Routes diverses : modèles, favoris, API docs."""
 from flask import redirect, url_for, flash, request
 
 from . import tools_bp
 from ..core import require_connection, require_permission
 
 
-@tools_bp.route('/alerts')
-@require_connection
-def alerts():
-    flash('Fonctionnalité alertes disponible dans la version complète.', 'info')
-    return redirect(url_for('dashboard'))
+# NOTE: La route /alerts est définie dans routes/tools.py
 
 
 @tools_bp.route('/templates')

@@ -1,0 +1,13 @@
+{
+  "id": "20260403_210118",
+  "timestamp": "2026-04-03T21:01:18.751480",
+  "domain_name": "Domaine AD",
+  "score": 5,
+  "score_color": "danger",
+  "total_issues": 4,
+  "critical_issues": 4,
+  "warning_issues": 0,
+  "accounts_audited": 4,
+  "policy_compliant": false,
+  "recommendations_count": 14
+}
