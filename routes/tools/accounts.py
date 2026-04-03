@@ -161,7 +161,7 @@ def _safe_ad_date(entry, attr):
         if val and val.value:
             v = val.value
             if isinstance(v, datetime):
-                return v
+                return v.replace(tzinfo=None)  # Rendre naive
             # FILETIME (int): 100-nanosecond intervals since 1601-01-01
             if isinstance(v, int) and v > 0:
                 return datetime(1970, 1, 1) + timedelta(microseconds=(v - _AD_EPOCH_DELTA) // 10)
@@ -180,7 +180,7 @@ def expiring_accounts():
         return redirect(url_for('connect'))
 
     base_dn = session.get('ad_base_dn', '')
-    now = datetime.now()
+    now = datetime.now().replace(tzinfo=None)  # Rendre naive pour comparaison
     expiry_threshold = now + timedelta(days=30)
     password_threshold = now + timedelta(days=14)
     inactive_threshold = now - timedelta(days=90)

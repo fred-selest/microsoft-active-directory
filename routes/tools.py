@@ -425,9 +425,119 @@ def expiring_accounts():
 @tools_bp.route('/alerts')
 @require_connection
 def alerts():
-    """Gestion des alertes."""
-    flash('Fonctionnalité alertes disponible dans la version complète.', 'info')
-    return redirect(url_for('dashboard'))
+    """Page centrale des alertes AD."""
+    from datetime import datetime, timedelta
+    from ldap3 import SUBTREE
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('dashboard'))
+
+    base_dn = session.get('ad_base_dn', '')
+    now = datetime.now().replace(tzinfo=None)
+    
+    # Initialiser les compteurs
+    alert_counts = {
+        'expiring_accounts': 0,
+        'password_expiring': 0,
+        'inactive_accounts': 0,
+        'locked_accounts': 0,
+        'empty_groups': 0,
+        'total': 0
+    }
+    
+    alerts_list = []
+    
+    try:
+        # 1. Comptes expirants (30 jours)
+        expiry_threshold = now + timedelta(days=30)
+        conn.search(base_dn, '(&(objectClass=user)(accountExpires>=1))', SUBTREE,
+                    attributes=['cn', 'sAMAccountName', 'accountExpires', 'mail'])
+        
+        for entry in conn.entries:
+            try:
+                val = entry.accountExpires.value if entry.accountExpires.value else None
+                if val and isinstance(val, int) and val > 0:
+                    # FILETIME AD → datetime
+                    expiry = datetime(1970, 1, 1) + timedelta(microseconds=(val - 116444736000000000) // 10)
+                    expiry = expiry.replace(tzinfo=None)
+                    if expiry <= expiry_threshold:
+                        alert_counts['expiring_accounts'] += 1
+                        alerts_list.append({
+                            'type': 'expiring_account',
+                            'severity': 'warning',
+                            'title': f"Compte expirant: {entry.sAMAccountName}",
+                            'message': f"Le compte {entry.cn} expire le {expiry.strftime('%d/%m/%Y')}",
+                            'date': expiry.strftime('%d/%m/%Y')
+                        })
+            except Exception:
+                pass
+        
+        # 2. Mots de passe expirants (14 jours)
+        pwd_threshold = now + timedelta(days=14)
+        conn.search(base_dn, '(objectClass=user)', SUBTREE,
+                    attributes=['cn', 'sAMAccountName', 'pwdLastSet'])
+        
+        for entry in conn.entries:
+            try:
+                val = entry.pwdLastSet.value if entry.pwdLastSet.value else None
+                if val and isinstance(val, int) and val > 0:
+                    pwd_date = datetime(1970, 1, 1) + timedelta(microseconds=(val - 116444736000000000) // 10)
+                    pwd_date = pwd_date.replace(tzinfo=None)
+                    if pwd_date <= pwd_threshold:
+                        alert_counts['password_expiring'] += 1
+            except Exception:
+                pass
+        
+        # 3. Comptes inactifs (90 jours)
+        inactive_threshold = now - timedelta(days=90)
+        conn.search(base_dn, '(objectClass=user)', SUBTREE,
+                    attributes=['cn', 'sAMAccountName', 'lastLogon'])
+        
+        for entry in conn.entries:
+            try:
+                val = entry.lastLogon.value if entry.lastLogon.value else None
+                if val and isinstance(val, int) and val > 0:
+                    last_logon = datetime(1970, 1, 1) + timedelta(microseconds=(val - 116444736000000000) // 10)
+                    last_logon = last_logon.replace(tzinfo=None)
+                    if last_logon <= inactive_threshold:
+                        alert_counts['inactive_accounts'] += 1
+            except Exception:
+                pass
+        
+        # 4. Comptes verrouillés
+        conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
+                    attributes=['cn', 'sAMAccountName'])
+        alert_counts['locked_accounts'] = len(conn.entries)
+        
+        # 5. Groupes vides
+        conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member'])
+        for entry in conn.entries:
+            if not entry.member or len(entry.member) == 0:
+                alert_counts['empty_groups'] += 1
+                alerts_list.append({
+                    'type': 'empty_group',
+                    'severity': 'info',
+                    'title': f"Groupe vide: {entry.cn}",
+                    'message': f"Le groupe {entry.cn} n'a aucun membre",
+                    'date': now.strftime('%d/%m/%Y')
+                })
+        
+        conn.unbind()
+        
+    except Exception as e:
+        flash(f'Erreur: {e}', 'error')
+    
+    alert_counts['total'] = sum(alert_counts.values())
+    severity_order = {'critical': 0, 'error': 1, 'warning': 2, 'info': 3}
+    alerts_list.sort(key=lambda x: severity_order.get(x['severity'], 4))
+    
+    return render_template('alerts.html',
+                         counts=alert_counts,
+                         alerts=alerts_list[:50],
+                         current_type=None,
+                         current_severity=None)
 
 
 # === DOCUMENTATION API ===
