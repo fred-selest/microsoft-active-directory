@@ -45,7 +45,8 @@ def inject_globals():
     except Exception:
         settings, menu_items, tool_items, admin_items, dropdown_items = {}, [], [], [], {}
 
-    def has_permission(permission):
+    def check_user_permission(permission):
+        """Vérifie si l'utilisateur actuel a une permission spécifique."""
         if not config.RBAC_ENABLED:
             return True
         user_groups = session.get('user_groups', [])

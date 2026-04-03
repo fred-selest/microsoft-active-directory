@@ -311,20 +311,3 @@ def ldap_search_with_retry(conn, base_dn, search_filter, attributes=None,
                 return []
 
     return []
-
-
-def require_permission(permission):
-    """Décorateur pour vérifier les permissions granulaires par groupe AD."""
-    def decorator(f):
-        @wraps(f)
-        def decorated(*args, **kwargs):
-            if config.RBAC_ENABLED:
-                user_groups = session.get('user_groups', [])
-                
-                if not user_groups or not has_granular_permission(user_groups, permission):
-                    flash('Permission refusée.', 'error')
-                    return redirect(url_for('index'))
-            
-            return f(*args, **kwargs)
-        return decorated
-    return decorator

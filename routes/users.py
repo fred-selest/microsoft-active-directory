@@ -279,6 +279,7 @@ def edit_user(dn):
     if request.method == 'POST':
         if not validate_csrf_token(request.form.get('csrf_token')):
             flash('Token CSRF invalide.', 'error')
+            conn.unbind()
             return render_template('user_form.html', action='edit', user=user,
                                    password_requirements={'min_length': 8}, connected=is_connected())
 
@@ -311,6 +312,9 @@ def edit_user(dn):
                 conn.unbind()
             except Exception:
                 pass
+    else:
+        # GET request - unbind after loading user data
+        conn.unbind()
 
     return render_template('user_form.html', action='edit', user=user,
                            password_requirements={'min_length': 8}, connected=is_connected())

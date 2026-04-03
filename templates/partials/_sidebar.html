@@ -14,7 +14,7 @@
         </div>
 
         {# Sections Outils & Administration — admins uniquement #}
-        {% if connected and has_permission('admin') %}
+        {% if connected and check_user_permission('admin') %}
 
         {% set visible_tools = tool_items | selectattr('feature', 'none') | list
                              + tool_items | rejectattr('feature', 'none')
