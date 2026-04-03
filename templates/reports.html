@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}Rapports - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>📊 Rapports et Statistiques</h2>
+    <div class="page-actions">
+        <button class="btn btn-primary" onclick="generateReport()">
+            🔄 Générer un rapport
+        </button>
+        <button class="btn btn-secondary" onclick="exportReport()">
+            📥 Exporter
+        </button>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card fade-in" style="margin-bottom: 1.5rem;">
+    <h3>🔍 Filtres</h3>
+    <form id="report-filters" class="filter-form">
+        <div class="form-group">
+            <label>Période</label>
+            <select name="period" class="form-control">
+                <option value="today">Aujourd'hui</option>
+                <option value="week" selected>Cette semaine</option>
+                <option value="month">Ce mois</option>
+                <option value="year">Cette année</option>
+                <option value="custom">Personnalisé</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Type de rapport</label>
+            <select name="report_type" class="form-control">
+                <option value="users">Utilisateurs</option>
+                <option value="groups">Groupes</option>
+                <option value="computers">Ordinateurs</option>
+                <option value="security">Sécurité</option>
+                <option value="audit">Audit</option>
+            </select>
+        </div>
+        <div class="form-group" id="custom-dates" style="display: none;">
+            <label>Date de début</label>
+            <input type="date" name="start_date" class="form-control">
+            <label style="margin-top: 0.5rem;">Date de fin</label>
+            <input type="date" name="end_date" class="form-control">
+        </div>
+        <div class="form-actions" style="margin-top: 1rem;">
+            <button type="submit" class="btn btn-primary">Appliquer</button>
+        </div>
+    </form>
+</div>
+
+<!-- Statistiques rapides -->
+<div class="stats-grid fade-in">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+            <div class="stat-value" id="total-users">0</div>
+            <div class="stat-label">Total Utilisateurs</div>
+        </div>
+    </div>
+    <div class="stat-card stat-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+            <div class="stat-value" id="active-users">0</div>
+            <div class="stat-label">Utilisateurs Actifs</div>
+        </div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+            <div class="stat-value" id="expiring-soon">0</div>
+            <div class="stat-label">Expiration Proche</div>
+        </div>
+    </div>
+    <div class="stat-card stat-danger">
+        <div class="stat-icon">🔒</div>
+        <div class="stat-info">
+            <div class="stat-value" id="locked-accounts">0</div>
+            <div class="stat-label">Comptes Verrouillés</div>
+        </div>
+    </div>
+</div>
+
+<!-- Graphiques -->
+<div class="charts-grid fade-in" style="margin-top: 1.5rem;">
+    <div class="card">
+        <h3>📈 Évolution des Utilisateurs</h3>
+        <canvas id="usersChart"></canvas>
+    </div>
+    <div class="card">
+        <h3>🔐 Statut de Sécurité</h3>
+        <canvas id="securityChart"></canvas>
+    </div>
+</div>
+
+<!-- Tableau détaillé -->
+<div class="card fade-in" style="margin-top: 1.5rem;">
+    <h3>📋 Détails</h3>
+    <div class="table-container">
+        <table class="data-table" id="report-table">
+            <thead>
+                <tr>
+                    <th>Catégorie</th>
+                    <th>Valeur</th>
+                    <th>Évolution</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="4" class="text-center">Aucune donnée disponible</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.filter-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card h3 {
+    color: #0078d4;
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+/* Dark mode */
+body.dark-mode .card {
+    background: var(--dark-bg-secondary);
+}
+
+body.dark-mode .card h3 {
+    color: var(--dark-accent);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Show/hide custom date inputs
+document.querySelector('select[name="period"]').addEventListener('change', function() {
+    document.getElementById('custom-dates').style.display = 
+        this.value === 'custom' ? 'block' : 'none';
+});
+
+// Generate report
+function generateReport() {
+    // Fetch data and update charts
+    fetch('/api/reports/data')
+        .then(r => r.json())
+        .then(data => {
+            updateStats(data);
+            updateCharts(data);
+        })
+        .catch(err => console.error('Error:', err));
+}
+
+// Update statistics
+function updateStats(data) {
+    document.getElementById('total-users').textContent = data.totalUsers || 0;
+    document.getElementById('active-users').textContent = data.activeUsers || 0;
+    document.getElementById('expiring-soon').textContent = data.expiringSoon || 0;
+    document.getElementById('locked-accounts').textContent = data.lockedAccounts || 0;
+}
+
+// Update charts
+function updateCharts(data) {
+    // Users chart
+    const usersCtx = document.getElementById('usersChart').getContext('2d');
+    new Chart(usersCtx, {
+        type: 'line',
+        data: {
+            labels: data.userLabels || [],
+            datasets: [{
+                label: 'Utilisateurs',
+                data: data.userData || [],
+                borderColor: '#0078d4',
+                tension: 0.4
+            }]
+        }
+    });
+    
+    // Security chart
+    const securityCtx = document.getElementById('securityChart').getContext('2d');
+    new Chart(securityCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Sécurisé', 'Attention', 'Critique'],
+            datasets: [{
+                data: data.securityData || [70, 20, 10],
+                backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+            }]
+        }
+    });
+}
+
+// Export report
+function exportReport() {
+    const type = document.querySelector('select[name="report_type"]').value;
+    window.location.href = `/api/reports/export?type=${type}`;
+}
+
+// Auto-generate on load
+generateReport();
+</script>
+{% endblock %}

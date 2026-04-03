@@ -1,0 +1,17 @@
+{
+  "name": "Violet Royal",
+  "primary_color": "#6B3FA0",
+  "secondary_color": "#9370DB",
+  "danger_color": "#DC143C",
+  "warning_color": "#FFA500",
+  "info_color": "#00CED1",
+  "success_color": "#228B22",
+  "bg_light": "#f8f0ff",
+  "bg_dark": "#2d1b4e",
+  "text_light": "#2d1b4e",
+  "text_dark": "#ffffff",
+  "border_radius": "15px",
+  "font_family": "Georgia, serif",
+  "sidebar_position": "left",
+  "layout": "purple"
+}

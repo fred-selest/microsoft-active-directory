@@ -1,0 +1,12 @@
+[
+  {
+    "name": "session",
+    "value": ".eJxtUl2TmjAU_SsOz1uHr3WBGR_WVeu4Sl0UpdQOE5OLpgawCam1O_vfGz607XQfGJLDOefecy-vGiLJDglISK552vCpvxzNRsvVnTqxAiOm3VWMExLiXHCiKLE-HryE6skHPd8Ym8H6tPh8JMeVFQ8D3Z-sw0Pkm3GEw_h7vPIX8cfpzP_lzzfR4Hm1OcyC0c8eMoNvhE2H85DlYUYiCA9P68k4-hSerVAP6IYFz7Mwjufr6dQPGZ2Pj3ac-XO02tvLCLuLl36_bazgpeZZjlvfBPAfwFWThmt2jZ7TNfSueW82VKlCCsE0L0VMwBXiOcpAKZrY2y0iGc2VAAueJmVxhGosDti2qwM8mGaqGz3k3lu2bpOegXcPYCnIAJRinTim7RgIEQPbCIG1swwE2LFS5VeVSk7AMyoELXKhea9aNXfN-6JxQERRzpyWoN4EGNSHppevd9qeo1wyxCtRA3oll1UGSWiZsGIvbrF2CB_lKeEgyoLDDSawk_sEYQxC_AXWlVqzPS-UMCsITS83ynXzlSGUN7huudXV0bBCyj_lauxq32JNvlr01lYTVfzH4fKS48cql1Cpw5IyKpSZ5KJDZGcglbXsbKWug94hVJQox9V4aoW68isXOmwrTd1wIS85nDgV79JkR-BDbedm6EqocVJkiObviSYXtbsP6_-_VOvhBat-oWYzb234f8Hfek0lLg.ac-0MQ.XJZ0i2aByLmC27ec5UrQX26fYbY",
+    "domain": "localhost",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  }
+]

@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block title %}Maintenance - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="maintenance-container">
+    <div class="maintenance-card">
+        <div class="maintenance-icon">🔧</div>
+        <h1>En Maintenance</h1>
+        <h2>Le service est temporairement indisponible</h2>
+        
+        <p class="maintenance-message">
+            {{ message or 'Nous effectuons actuellement des opérations de maintenance. Veuillez réessayer ultérieurement.' }}
+        </p>
+        
+        {% if estimated_return %}
+        <div class="maintenance-timer">
+            <h3>⏱️ Retour estimé dans</h3>
+            <div class="timer" id="maintenance-timer">{{ estimated_return }}</div>
+        </div>
+        {% endif %}
+        
+        <div class="maintenance-info">
+            <h3>📋 Informations</h3>
+            <ul>
+                {% if reason %}
+                <li><strong>Raison :</strong> {{ reason }}</li>
+                {% endif %}
+                {% if admin_contact %}
+                <li><strong>Contact :</strong> {{ admin_contact }}</li>
+                {% endif %}
+                <li><strong>Version :</strong> {{ version or '1.23.0' }}</li>
+            </ul>
+        </div>
+        
+        <div class="maintenance-actions">
+            <button onclick="window.location.reload()" class="btn btn-primary">
+                🔄 Rafraîchir
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                🏠 Accueil
+            </a>
+        </div>
+        
+        <div class="maintenance-status">
+            <div class="status-indicator">
+                <span class="pulse"></span>
+                <span>Maintenance en cours...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+{% if estimated_return %}
+// Timer countdown
+const timerElement = document.getElementById('maintenance-timer');
+let totalSeconds = {{ estimated_seconds or 3600 }};
+
+function updateTimer() {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    timerElement.textContent = 
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (totalSeconds > 0) {
+        totalSeconds--;
+        setTimeout(updateTimer, 1000);
+    } else {
+        timerElement.textContent = 'Vérification en cours...';
+        setTimeout(() => window.location.reload(), 5000);
+    }
+}
+
+updateTimer();
+{% endif %}
+
+// Auto-refresh every 60 seconds
+setTimeout(() => window.location.reload(), 60000);
+</script>
+
+<style>
+.maintenance-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.maintenance-card {
+    background: white;
+    padding: 3rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 600px;
+    width: 100%;
+}
+
+.maintenance-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.maintenance-card h1 {
+    font-size: 2.5rem;
+    margin: 0;
+    color: #667eea;
+}
+
+.maintenance-card h2 {
+    font-size: 1.5rem;
+    margin: 1rem 0;
+    color: #333;
+}
+
+.maintenance-message {
+    color: #666;
+    font-size: 1.125rem;
+    margin: 1.5rem 0;
+}
+
+.maintenance-timer {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+}
+
+.maintenance-timer h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+}
+
+#maintenance-timer {
+    font-size: 3rem;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.maintenance-info {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin: 1.5rem 0;
+}
+
+.maintenance-info h3 {
+    margin-top: 0;
+    color: #0078d4;
+    font-size: 1rem;
+}
+
+.maintenance-info ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.maintenance-info li {
+    margin: 0.5rem 0;
+    color: #555;
+}
+
+.maintenance-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+}
+
+.maintenance-status {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.pulse {
+    width: 10px;
+    height: 10px;
+    background: #ffc107;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Dark mode */
+body.dark-mode .maintenance-card {
+    background: var(--dark-bg-secondary);
+}
+
+body.dark-mode .maintenance-card h2 {
+    color: var(--dark-text-primary);
+}
+
+body.dark-mode .maintenance-message {
+    color: var(--dark-text-secondary);
+}
+
+body.dark-mode .maintenance-info {
+    background: var(--dark-bg-primary);
+}
+
+body.dark-mode .maintenance-info li {
+    color: var(--dark-text-secondary);
+}
+
+body.dark-mode .maintenance-status {
+    border-top-color: var(--dark-border);
+}
+
+body.dark-mode .status-indicator {
+    color: var(--dark-text-secondary);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .maintenance-card {
+        padding: 2rem;
+    }
+    
+    .maintenance-card h1 {
+        font-size: 2rem;
+    }
+    
+    .maintenance-card h2 {
+        font-size: 1.25rem;
+    }
+    
+    #maintenance-timer {
+        font-size: 2rem;
+    }
+    
+    .maintenance-actions {
+        flex-direction: column;
+    }
+    
+    .maintenance-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

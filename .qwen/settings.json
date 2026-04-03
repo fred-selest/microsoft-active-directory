@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python *)"
+      "Bash(python *)",
+      "WebFetch(claude.ai)",
+      "Bash(netstat *)",
+      "Bash(findstr *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(dir *)",
+      "Bash(start *)",
+      "Bash(taskkill *)",
+      "Bash(git tag *)",
+      "Bash(git push *)",
+      "Bash(git config *)"
     ]
-  }
+  },
+  "$version": 3
 }
