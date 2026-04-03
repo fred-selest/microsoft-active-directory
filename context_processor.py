@@ -77,7 +77,7 @@ def inject_globals():
     return {
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
-        'has_permission': has_permission,
+        'check_user_permission': check_user_permission,
         'dark_mode': session.get('dark_mode', False),
         'config': config,
         'csrf_token': generate_csrf_token,
