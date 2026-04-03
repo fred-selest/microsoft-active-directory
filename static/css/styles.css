@@ -503,7 +503,7 @@ button {
 
 .policy-section .data-table th {
     width: 250px;
-    min-width: 200px;
+    min-width: 0;
 }
 
 .policy-grid {
@@ -528,7 +528,7 @@ button {
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 600px;
+    min-width: 0;
 }
 
 /* Sticky header - position sticky sur th directement */
@@ -663,16 +663,11 @@ textarea.form-control {
 .bg-white { background: var(--white); }
 
 .mb-0 { margin-bottom: 0; }
-.mb-1 { margin-bottom: var(--spacing-xs); }
 .mb-2 { margin-bottom: var(--spacing-sm); }
-.mb-3 { margin-bottom: var(--spacing-md); }
 .mb-4 { margin-bottom: var(--spacing-lg); }
 
 .mt-0 { margin-top: 0; }
-.mt-1 { margin-top: var(--spacing-xs); }
-.mt-2 { margin-top: var(--spacing-sm); }
 .mt-3 { margin-top: var(--spacing-md); }
-.mt-4 { margin-top: var(--spacing-lg); }
 
 .hidden { display: none; }
 .visible { display: block; }
@@ -722,7 +717,11 @@ textarea.form-control {
    14. RESPONSIVE
    ========================================================================== */
 
-/* Mobile < 768px */
+/* 
+ * MOBILE FIRST - Mobile < 768px
+ * Tous les éléments s'adaptent automatiquement
+ */
+
 @media (max-width: 767px) {
     .main-content {
         padding: var(--spacing-md);
@@ -998,15 +997,6 @@ body.dark-mode .sidebar-link.active {
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
-}
-
-.slide-in {
-    animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-    from { transform: translateX(-20px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
 }
 
 /* Réduire les animations pour les utilisateurs sensibles */

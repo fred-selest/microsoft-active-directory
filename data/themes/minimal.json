@@ -1,0 +1,17 @@
+{
+  "name": "Minimaliste",
+  "primary_color": "#333333",
+  "secondary_color": "#666666",
+  "danger_color": "#cc0000",
+  "warning_color": "#ff9900",
+  "info_color": "#0066cc",
+  "success_color": "#009900",
+  "bg_light": "#ffffff",
+  "bg_dark": "#000000",
+  "text_light": "#000000",
+  "text_dark": "#ffffff",
+  "border_radius": "0px",
+  "font_family": "Helvetica, Arial, sans-serif",
+  "sidebar_position": "top",
+  "layout": "minimal"
+}

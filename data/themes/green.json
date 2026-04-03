@@ -1,0 +1,17 @@
+{
+  "name": "Vert Nature",
+  "primary_color": "#228B22",
+  "secondary_color": "#32CD32",
+  "danger_color": "#DC143C",
+  "warning_color": "#FFD700",
+  "info_color": "#20B2AA",
+  "success_color": "#006400",
+  "bg_light": "#f0fff0",
+  "bg_dark": "#1a3a1a",
+  "text_light": "#1a3a1a",
+  "text_dark": "#ffffff",
+  "border_radius": "10px",
+  "font_family": "Verdana, sans-serif",
+  "sidebar_position": "left",
+  "layout": "green"
+}

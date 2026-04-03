@@ -1,0 +1,17 @@
+{
+  "name": "Défaut",
+  "primary_color": "#0078d4",
+  "secondary_color": "#107c10",
+  "danger_color": "#d13438",
+  "warning_color": "#ffb900",
+  "info_color": "#00b7c3",
+  "success_color": "#28a745",
+  "bg_light": "#ffffff",
+  "bg_dark": "#1a1a2e",
+  "text_light": "#333333",
+  "text_dark": "#ffffff",
+  "border_radius": "8px",
+  "font_family": "Segoe UI, sans-serif",
+  "sidebar_position": "left",
+  "layout": "default"
+}

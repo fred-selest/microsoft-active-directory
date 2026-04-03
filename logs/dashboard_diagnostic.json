@@ -1,0 +1,16 @@
+{
+  "css_rules": {
+    "computed": {},
+    "cssRules": []
+  },
+  "overflow": {
+    "html_overflow": true,
+    "body_overflow": false,
+    "diff": 8,
+    "body_width": 1928,
+    "window_width": 1920
+  },
+  "cut_elements": [],
+  "card_dimensions": [],
+  "screenshot": "logs/screenshots/dashboard_avant.png"
+}

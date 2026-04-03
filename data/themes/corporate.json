@@ -1,0 +1,17 @@
+{
+  "name": "Entreprise",
+  "primary_color": "#1a365d",
+  "secondary_color": "#2c5282",
+  "danger_color": "#c53030",
+  "warning_color": "#d69e2e",
+  "info_color": "#3182ce",
+  "success_color": "#2f855a",
+  "bg_light": "#f7fafc",
+  "bg_dark": "#1a202c",
+  "text_light": "#1a202c",
+  "text_dark": "#ffffff",
+  "border_radius": "6px",
+  "font_family": "Segoe UI, sans-serif",
+  "sidebar_position": "left",
+  "layout": "corporate"
+}

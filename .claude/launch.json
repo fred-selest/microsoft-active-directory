@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "AD Web Interface",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["run.py"],
+      "port": 5000
+    }
+  ]
+}

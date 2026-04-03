@@ -1,0 +1,385 @@
+{% extends 'base.html' %}
+
+{% block title %}Paramètres - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>⚙️ Paramètres de l'Application</h2>
+</div>
+
+<div class="settings-container">
+    <!-- Navigation latérale -->
+    <div class="settings-nav card fade-in">
+        <a href="#general" class="settings-nav-item active">
+            <span>📋</span> Général
+        </a>
+        <a href="#security" class="settings-nav-item">
+            <span>🔒</span> Sécurité
+        </a>
+        <a href="#appearance" class="settings-nav-item">
+            <span>🎨</span> Apparence
+        </a>
+        <a href="#notifications" class="settings-nav-item">
+            <span>🔔</span> Notifications
+        </a>
+        <a href="#advanced" class="settings-nav-item">
+            <span>⚡</span> Avancé
+        </a>
+    </div>
+    
+    <!-- Contenu principal -->
+    <div class="settings-content">
+        <!-- Général -->
+        <section id="general" class="settings-section card fade-in active">
+            <h3>📋 Paramètres Généraux</h3>
+            
+            <form method="POST" action="{{ url_for('admin.save_settings') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group">
+                    <label>Titre de l'application</label>
+                    <input type="text" name="app_title" class="form-control" 
+                           value="{{ settings.title or 'AD Web Interface' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Logo</label>
+                    <div class="file-upload">
+                        <input type="file" name="logo" accept="image/*" class="form-control">
+                        {% if settings.logo %}
+                        <div class="current-logo">
+                            <img src="{{ url_for('static', filename='images/' + settings.logo) }}" 
+                                 alt="Logo actuel" style="max-height: 50px;">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Langue par défaut</label>
+                    <select name="default_language" class="form-control">
+                        <option value="fr" {{ 'selected' if settings.language == 'fr' }}>Français</option>
+                        <option value="en" {{ 'selected' if settings.language == 'en' }}>English</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Fuseau horaire</label>
+                    <select name="timezone" class="form-control">
+                        <option value="Europe/Paris" {{ 'selected' if settings.timezone == 'Europe/Paris' }}>Paris (UTC+1)</option>
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">New York (UTC-5)</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                    <button type="reset" class="btn btn-secondary">🔄 Réinitialiser</button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- Sécurité -->
+        <section id="security" class="settings-section card fade-in">
+            <h3>🔒 Paramètres de Sécurité</h3>
+            
+            <form method="POST" action="{{ url_for('admin.save_settings') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="require_https" id="require_https" 
+                           {{ 'checked' if settings.require_https }}>
+                    <label for="require_https">Forcer HTTPS</label>
+                </div>
+                
+                <div class="form-group">
+                    <label>Durée de session (minutes)</label>
+                    <input type="number" name="session_timeout" class="form-control" 
+                           value="{{ settings.session_timeout or 30 }}" min="5" max="480">
+                </div>
+                
+                <div class="form-group">
+                    <label>Tentatives de connexion max</label>
+                    <input type="number" name="max_login_attempts" class="form-control" 
+                           value="{{ settings.max_attempts or 5 }}" min="1" max="20">
+                </div>
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="enable_2fa" id="enable_2fa">
+                    <label for="enable_2fa">Activer l'authentification 2FA (Bientôt)</label>
+                </div>
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="audit_logs" id="audit_logs" 
+                           {{ 'checked' if settings.audit_logs }}>
+                    <label for="audit_logs">Activer les logs d'audit</label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- Apparence -->
+        <section id="appearance" class="settings-section card fade-in">
+            <h3>🎨 Apparence</h3>
+            
+            <form method="POST" action="{{ url_for('admin.save_settings') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group">
+                    <label>Thème</label>
+                    <div class="theme-selector">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="light" 
+                                   {{ 'checked' if settings.theme == 'light' }}>
+                            <span>☀️ Clair</span>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="dark" 
+                                   {{ 'checked' if settings.theme == 'dark' }}>
+                            <span>🌙 Sombre</span>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="auto" 
+                                   {{ 'checked' if settings.theme == 'auto' }}>
+                            <span>🔄 Auto</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Couleur principale</label>
+                    <input type="color" name="primary_color" class="form-control" 
+                           value="{{ settings.primary_color or '#0078d4' }}">
+                </div>
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="compact_mode" id="compact_mode">
+                    <label for="compact_mode">Mode compact</label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- Notifications -->
+        <section id="notifications" class="settings-section card fade-in">
+            <h3>🔔 Notifications</h3>
+            
+            <form method="POST" action="{{ url_for('admin.save_settings') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="email_alerts" id="email_alerts">
+                    <label for="email_alerts">Alertes par email</label>
+                </div>
+                
+                <div class="form-group">
+                    <label>Email d'alerte</label>
+                    <input type="email" name="alert_email" class="form-control" 
+                           placeholder="admin@company.com">
+                </div>
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="browser_notifications" id="browser_notifications" checked>
+                    <label for="browser_notifications">Notifications navigateur</label>
+                </div>
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="alert_expiring_accounts" id="alert_expiring_accounts" checked>
+                    <label for="alert_expiring_accounts">Comptes expirant bientôt</label>
+                </div>
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="alert_locked_accounts" id="alert_locked_accounts" checked>
+                    <label for="alert_locked_accounts">Comptes verrouillés</label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                    <button type="button" class="btn btn-secondary" onclick="testNotification()">
+                        🔔 Tester
+                    </button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- Avancé -->
+        <section id="advanced" class="settings-section card fade-in">
+            <h3>⚡ Paramètres Avancés</h3>
+            
+            <div class="alert alert-warning">
+                ⚠️ Attention : Ces paramètres sont réservés aux administrateurs expérimentés.
+            </div>
+            
+            <form method="POST" action="{{ url_for('admin.save_settings') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group">
+                    <label>LDAP Base DN</label>
+                    <input type="text" name="ldap_base_dn" class="form-control" 
+                           value="{{ settings.ldap_base_dn or 'DC=company,DC=local' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Timeout LDAP (secondes)</label>
+                    <input type="number" name="ldap_timeout" class="form-control" 
+                           value="{{ settings.ldap_timeout or 30 }}" min="5" max="120">
+                </div>
+                
+                <div class="form-group checkbox">
+                    <input type="checkbox" name="debug_mode" id="debug_mode" 
+                           {{ 'checked' if config.DEBUG }}>
+                    <label for="debug_mode">Mode debug (développeurs uniquement)</label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                    <button type="button" class="btn btn-danger" onclick="resetAllSettings()">
+                        ⚠️ Réinitialiser tout
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+</div>
+
+<style>
+.settings-container {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 1.5rem;
+}
+
+.settings-nav {
+    padding: 1rem;
+    height: fit-content;
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    color: #666;
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s;
+}
+
+.settings-nav-item:hover {
+    background: #f8f9fa;
+    color: #0078d4;
+}
+
+.settings-nav-item.active {
+    background: #0078d4;
+    color: white;
+}
+
+.settings-section {
+    display: none;
+}
+
+.settings-section.active {
+    display: block;
+}
+
+.theme-selector {
+    display: flex;
+    gap: 1rem;
+}
+
+.theme-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.theme-option:hover {
+    border-color: #0078d4;
+}
+
+.theme-option input[type="radio"]:checked + span {
+    color: #0078d4;
+    font-weight: bold;
+}
+
+.current-logo {
+    margin-top: 0.5rem;
+}
+
+/* Mobile */
+@media (max-width: 1024px) {
+    .settings-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .settings-nav {
+        display: flex;
+        overflow-x: auto;
+        padding: 0.5rem;
+    }
+    
+    .settings-nav-item {
+        white-space: nowrap;
+        margin-bottom: 0;
+        margin-right: 0.5rem;
+    }
+}
+</style>
+
+<script>
+// Navigation between sections
+document.querySelectorAll('.settings-nav-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Update nav
+        document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Update section
+        const target = this.getAttribute('href').substring(1);
+        document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(target).classList.add('active');
+    });
+});
+
+// Test notification
+function testNotification() {
+    if (Notification.permission === 'granted') {
+        new Notification('Test de notification', {
+            body: 'Les notifications fonctionnent correctement!',
+            icon: '/static/icons/icon.svg'
+        });
+    } else {
+        Notification.requestPermission();
+    }
+}
+
+// Reset all settings
+function resetAllSettings() {
+    if (confirm('⚠️ Êtes-vous sûr de vouloir réinitialiser TOUS les paramètres ?')) {
+        fetch('/api/settings/reset', {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Paramètres réinitialisés');
+                    location.reload();
+                }
+            });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,22 @@
+{
+  "css": {
+    "main": {
+      "width": 1640,
+      "scrollWidth": 1640,
+      "overflowX": "hidden"
+    },
+    "table": {
+      "width": 1600,
+      "scrollWidth": 1600
+    },
+    "tableContainer": {
+      "width": 1600,
+      "scrollWidth": 1600
+    },
+    "html_overflow": false,
+    "body_overflow": false,
+    "diff": 0
+  },
+  "cut_elements": [],
+  "screenshot": "logs/screenshots/computers.png"
+}

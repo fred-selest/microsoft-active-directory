@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}404 - Page Non Trouvée{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-card">
+        <div class="error-icon">🔍</div>
+        <h1>404</h1>
+        <h2>Page Non Trouvée</h2>
+        <p>La page que vous recherchez n'existe pas ou a été déplacée.</p>
+        
+        <div class="error-details">
+            <p><strong>URL demandée :</strong> <code>{{ request.path }}</code></p>
+            {% if error %}
+            <p><strong>Erreur :</strong> <code>{{ error }}</code></p>
+            {% endif %}
+        </div>
+        
+        <div class="error-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                📊 Retour au Dashboard
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                🏠 Page d'Accueil
+            </a>
+            {% if connected %}
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">
+                👥 Utilisateurs
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="error-help">
+            <h3>💡 Que faire ?</h3>
+            <ul>
+                <li>Vérifiez l'URL dans la barre d'adresse</li>
+                <li>Utilisez le menu de navigation</li>
+                <li>Contactez l'administrateur si le problème persiste</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+
+.error-card {
+    background: white;
+    padding: 3rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    max-width: 600px;
+    width: 100%;
+}
+
+.error-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+}
+
+.error-card h1 {
+    font-size: 6rem;
+    margin: 0;
+    color: #0078d4;
+    line-height: 1;
+}
+
+.error-card h2 {
+    font-size: 2rem;
+    margin: 1rem 0;
+    color: #333;
+}
+
+.error-card p {
+    color: #666;
+    margin: 1rem 0;
+}
+
+.error-details {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    text-align: left;
+}
+
+.error-details code {
+    background: #e9ecef;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    word-break: break-all;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+}
+
+.error-help {
+    background: #e7f3ff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+}
+
+.error-help h3 {
+    margin-top: 0;
+    color: #0078d4;
+}
+
+.error-help ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.error-help li {
+    margin: 0.5rem 0;
+    color: #555;
+}
+
+/* Dark mode */
+body.dark-mode .error-card {
+    background: var(--dark-bg-secondary);
+}
+
+body.dark-mode .error-card h2 {
+    color: var(--dark-text-primary);
+}
+
+body.dark-mode .error-card p {
+    color: var(--dark-text-secondary);
+}
+
+body.dark-mode .error-details {
+    background: var(--dark-bg-primary);
+}
+
+body.dark-mode .error-details code {
+    background: var(--dark-bg-tertiary);
+}
+
+body.dark-mode .error-help {
+    background: rgba(0, 120, 212, 0.1);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .error-card {
+        padding: 2rem;
+    }
+    
+    .error-card h1 {
+        font-size: 4rem;
+    }
+    
+    .error-actions {
+        flex-direction: column;
+    }
+    
+    .error-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

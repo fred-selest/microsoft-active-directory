@@ -1,0 +1,17 @@
+{
+  "name": "Thème personnalisé",
+  "primary_color": "#6b3fa0",
+  "secondary_color": "#9370db",
+  "danger_color": "#dc143c",
+  "warning_color": "#ffa500",
+  "info_color": "#00ced1",
+  "success_color": "#228b22",
+  "bg_light": "#f8f0ff",
+  "bg_dark": "#2d1b4e",
+  "text_light": "#2d1b4e",
+  "text_dark": "#ffffff",
+  "border_radius": "15px",
+  "font_family": "Georgia, serif",
+  "sidebar_position": "left",
+  "layout": ""
+}

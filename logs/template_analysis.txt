@@ -1,0 +1,170 @@
+RAPPORT D'ANALYSE DES TEMPLATES
+======================================================================
+
+📄 advanced_search.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 alerts_page.html
+   ❌ Double endblock détecté
+
+📄 api_docs.html
+   ❌ Double endblock détecté
+   ⚠️ Tableau sans container responsive
+
+📄 audit.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 backups.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 backup_detail.html
+   ❌ Double endblock détecté
+   ⚠️ Tableau sans container responsive
+
+📄 base.html
+   ⚠️ overflow-x non défini
+
+📄 base_old.html
+   ⚠️ overflow-x non défini
+
+📄 bitlocker.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 bulk_operations.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 compare_users.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 compare_users_form.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 computers.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 connect.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 create_group.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 create_user.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 dashboard.html
+   ⚠️ overflow-x non défini
+
+📄 diagnostic.html
+   ⚠️ Tableau sans container responsive
+   ⚠️ overflow-x non défini
+
+📄 duplicate_user.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 errors.html
+   ⚠️ overflow-x non défini
+
+📄 expiring_accounts.html
+   ❌ Double endblock détecté
+   ⚠️ Tableau sans container responsive
+   ⚠️ Actions sans flexbox
+
+📄 favorites_page.html
+   ❌ Double endblock détecté
+
+📄 global_search.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 groups.html
+   ⚠️ overflow-x non défini
+
+📄 group_details.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 group_form.html
+   ⚠️ overflow-x non défini
+
+📄 history.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 import_users.html
+   ❌ Double endblock détecté
+
+📄 index.html
+   ⚠️ Tableau sans container responsive
+
+📄 laps.html
+   ⚠️ overflow-x non défini
+
+📄 locked_accounts.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 login_history.html
+   ❌ Double endblock détecté
+
+📄 nested_groups.html
+   ❌ Double endblock détecté
+
+📄 ous.html
+   ❌ Double endblock détecté
+
+📄 ou_form.html
+   ⚠️ overflow-x non défini
+
+📄 password_audit.html
+   ⚠️ overflow-x non défini
+
+📄 password_policy.html
+   ❌ Double endblock détecté
+   ⚠️ Tableau sans container responsive
+   ⚠️ overflow-x non défini
+
+📄 recycle_bin.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 reset_password.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 search.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 template_form.html
+   ⚠️ overflow-x non défini
+
+📄 tree.html
+   ❌ Double endblock détecté
+
+📄 update.html
+   ❌ Double endblock détecté
+   ⚠️ Tableau sans container responsive
+
+📄 users.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 user_form.html
+   ❌ Double endblock détecté
+   ⚠️ overflow-x non défini
+
+📄 user_templates.html
+   ❌ Double endblock détecté
+
