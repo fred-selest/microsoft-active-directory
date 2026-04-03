@@ -862,10 +862,89 @@ def api_error_logs():
 
 # === CORRECTION PROTOCOLES OBSOLÈTES ===
 
-@app.route('/api/fix-protocol', methods=['POST'])
+@app.route('/security-audit')
 @require_connection
 @require_permission('admin')
-def fix_protocol():
+def security_audit():
+    """Audit de sécurité renforcé avec réparations."""
+    from security_audit import check_security_issues
+    from ldap3 import SUBTREE
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('dashboard'))
+    
+    base_dn = session.get('ad_base_dn', '')
+    
+    # Lancer l'audit
+    issues = check_security_issues(conn, base_dn)
+    conn.unbind()
+    
+    # Calculer les stats
+    stats = {
+        'total': len(issues),
+        'critical': len([i for i in issues if i.get('severity') == 'critical']),
+        'high': len([i for i in issues if i.get('severity') == 'high']),
+        'warning': len([i for i in issues if i.get('severity') == 'warning']),
+        'fixable': len([i for i in issues if i.get('fix_available')])
+    }
+    
+    return render_template('security_audit.html',
+                         issues=issues,
+                         stats=stats,
+                         connected=is_connected())
+
+
+@app.route('/api/security-fix', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_security_fix():
+    """API pour appliquer une réparation de sécurité."""
+    from security_audit import (
+        fix_assign_manager, fix_delete_empty_groups,
+        fix_disable_unconstrained_delegation,
+        fix_enable_password_expiry, fix_disable_inactive_accounts
+    )
+    import json
+    
+    data = request.get_json() if request.is_json else request.form
+    fix_type = data.get('fix_type')
+    accounts = data.get('accounts', [])
+    base_dn = session.get('ad_base_dn', '')
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Connexion échouée'}), 500
+    
+    results = {'success': False, 'message': 'Réparation inconnue'}
+    
+    try:
+        if fix_type == 'assign_manager':
+            manager_dn = data.get('manager_dn')
+            if manager_dn:
+                results = fix_assign_manager(conn, base_dn, accounts, manager_dn)
+        elif fix_type == 'delete_empty_groups':
+            results = fix_delete_empty_groups(conn, base_dn, accounts)
+        elif fix_type == 'disable_unconstrained_delegation':
+            results = fix_disable_unconstrained_delegation(conn, base_dn, accounts)
+        elif fix_type == 'enable_password_expiry':
+            results = fix_enable_password_expiry(conn, base_dn, accounts)
+        elif fix_type == 'disable_inactive_accounts':
+            results = fix_disable_inactive_accounts(conn, base_dn, accounts)
+        else:
+            results = {'success': False, 'error': 'Type de réparation inconnu'}
+    except Exception as e:
+        results = {'success': False, 'error': str(e)}
+    
+    conn.unbind()
+    
+    # Log l'action
+    from audit import log_action, ACTIONS
+    log_action(ACTIONS['OTHER'], session.get('ad_username', 'unknown'),
+              {'action': f'security_fix_{fix_type}', 'results': results}, True)
+    
+    return jsonify(results)
     """API pour appliquer les corrections de protocoles."""
     import subprocess
     import os

@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit de Sécurité Renforcé{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>🔐 Audit de Sécurité Renforcé</h2>
+    <div class="page-actions">
+        <button class="btn btn-primary" onclick="location.reload()">
+            🔄 Rafraîchir l'audit
+        </button>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="stats-grid" style="margin-bottom: 1.5rem;">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(220, 53, 69, 0.2);">🔴</div>
+        <div>
+            <div class="stat-value" style="color: #dc3545;">{{ stats.critical }}</div>
+            <div class="stat-label">Critiques</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(255, 193, 7, 0.2);">🟠</div>
+        <div>
+            <div class="stat-value" style="color: #ffc107;">{{ stats.high }}</div>
+            <div class="stat-label">Élevés</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(255, 193, 7, 0.1);">🟡</div>
+        <div>
+            <div class="stat-value" style="color: #ffc107;">{{ stats.warning }}</div>
+            <div class="stat-label">Avertissements</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(40, 167, 69, 0.2);">🔧</div>
+        <div>
+            <div class="stat-value" style="color: #28a745;">{{ stats.fixable }}</div>
+            <div class="stat-label">Réparables</div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des problèmes -->
+<div class="security-issues">
+    {% for issue in issues %}
+    <div class="card fade-in" style="margin-bottom: 1.5rem; border-left: 4px solid {% if issue.severity == 'critical' %}#dc3545{% elif issue.severity == 'high' %}#ffc107{% else %}#ffc107{% endif %};">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div style="flex: 1;">
+                <h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">
+                    {% if issue.severity == 'critical' %}🔴{% elif issue.severity == 'high' %}🟠{% else %}🟡{% endif %}
+                    {{ issue.title }}
+                </h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 0.9375rem;">
+                    {{ issue.description }}
+                </p>
+            </div>
+            <span class="badge badge-{% if issue.severity == 'critical' %}danger{% elif issue.severity == 'high' %}warning{% else %}warning{% endif %}">
+                {{ issue.severity|upper }}
+            </span>
+        </div>
+
+        <!-- Comptes affectés -->
+        {% if issue.affected %}
+        <div style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; max-height: 150px; overflow-y: auto;">
+            <strong style="font-size: 0.875rem; color: var(--text-secondary);">Comptes concernés ({{ issue.total }}):</strong>
+            <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.8125rem; color: var(--text-primary);">
+                {% for item in issue.affected %}
+                <li style="margin-bottom: 0.25rem;">{{ item }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Recommandation -->
+        <div style="background: rgba(0, 120, 212, 0.1); padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; border-left: 3px solid #0078d4;">
+            <strong style="font-size: 0.875rem; color: #0078d4;">💡 Recommandation :</strong>
+            <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: var(--text-primary);">
+                {{ issue.remediation }}
+            </p>
+        </div>
+
+        <!-- Bouton de réparation -->
+        {% if issue.fix_available %}
+        <div style="text-align: right;">
+            <button class="btn btn-success" onclick="showFixModal('{{ issue.id }}', '{{ issue.fix_script }}', {{ issue.affected|length }})">
+                🔧 Réparer ce problème
+            </button>
+            {% if issue.manual_check_required %}
+            <span style="margin-left: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                ⚠️ Vérification manuelle requise
+            </span>
+            {% endif %}
+        </div>
+        {% else %}
+        <div style="text-align: right; color: var(--text-secondary); font-size: 0.875rem;">
+            ℹ️ Aucune réparation automatique disponible
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="card fade-in" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
+        <h3 style="color: #28a745; margin-bottom: 0.5rem;">Aucun problème de sécurité détecté</h3>
+        <p style="color: var(--text-secondary);">Votre Active Directory semble bien configuré !</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal de réparation -->
+<div id="fix-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3 id="modal-title">🔧 Réparation</h3>
+        <div id="modal-body">
+            <p id="modal-description"></p>
+            <div id="modal-warning" style="background: rgba(255, 193, 7, 0.1); padding: 1rem; border-radius: 4px; margin: 1rem 0; border-left: 3px solid #ffc107;">
+                <strong>⚠️ Attention :</strong>
+                <p style="margin: 0.5rem 0 0 0;">Cette action est irréversible. Assurez-vous d'avoir fait une sauvegarde.</p>
+            </div>
+            <div id="modal-inputs"></div>
+        </div>
+        <div class="modal-actions" style="margin-top: 1.5rem; text-align: right;">
+            <button class="btn btn-secondary" onclick="closeFixModal()">Annuler</button>
+            <button class="btn btn-success" id="confirm-fix-btn" onclick="confirmFix()">
+                ✅ Confirmer la réparation
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentFix = null;
+let currentAccounts = [];
+
+function showFixModal(issueId, fixScript, count) {
+    currentFix = fixScript;
+    
+    const modal = document.getElementById('fix-modal');
+    const title = document.getElementById('modal-title');
+    const description = document.getElementById('modal-description');
+    const inputs = document.getElementById('modal-inputs');
+    
+    // Titres et descriptions selon le type
+    const configs = {
+        'assign_manager': {
+            title: '👤 Assigner un manager',
+            desc: `Assigner un manager à ${count} compte(s).`,
+            inputs: `
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">DN du manager :</label>
+                <input type="text" id="manager-dn" placeholder="CN=John Doe,OU=Users,DC=domain,DC=local" 
+                       style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);">
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    Exemple: CN=Administrateur,CN=Users,DC=company,DC=local
+                </p>
+            `
+        },
+        'delete_empty_groups': {
+            title: '🗑️ Supprimer les groupes vides',
+            desc: `Supprimer ${count} groupe(s) de sécurité vide(s).`,
+            inputs: ''
+        },
+        'disable_unconstrained_delegation': {
+            title: '🔒 Désactiver délégation non contrainte',
+            desc: `Désactiver la délégation non contrainte pour ${count} compte(s).`,
+            inputs: ''
+        },
+        'enable_password_expiry': {
+            title: '⏰ Activer expiration MDP',
+            desc: `Activer l'expiration des mots de passe pour ${count} compte(s).`,
+            inputs: ''
+        },
+        'disable_inactive_accounts': {
+            title: '😴 Désactiver comptes inactifs',
+            desc: `Désactiver ${count} compte(s) inactif(s) depuis >90 jours.`,
+            inputs: ''
+        }
+    };
+    
+    const config = configs[fixScript] || { title: '🔧 Réparation', desc: '', inputs: '' };
+    
+    title.textContent = config.title;
+    description.textContent = config.desc;
+    inputs.innerHTML = config.inputs;
+    
+    modal.style.display = 'flex';
+}
+
+function closeFixModal() {
+    document.getElementById('fix-modal').style.display = 'none';
+    currentFix = null;
+    currentAccounts = [];
+}
+
+function confirmFix() {
+    if (!currentFix) return;
+    
+    const btn = document.getElementById('confirm-fix-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ En cours...';
+    
+    let data = {
+        fix_type: currentFix,
+        accounts: currentAccounts
+    };
+    
+    // Ajouter le manager DN si nécessaire
+    if (currentFix === 'assign_manager') {
+        const managerDn = document.getElementById('manager-dn').value;
+        if (!managerDn) {
+            alert('Veuillez saisir le DN du manager');
+            btn.disabled = false;
+            btn.textContent = '✅ Confirmer la réparation';
+            return;
+        }
+        data.manager_dn = managerDn;
+    }
+    
+    fetch('/api/security-fix', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(`✅ Réparation réussie !\n\nSuccès: ${result.success}\nÉchecs: ${result.failed || 0}`);
+            location.reload();
+        } else {
+            alert('❌ Échec: ' + (result.error || 'Erreur inconnue'));
+            btn.disabled = false;
+            btn.textContent = '✅ Confirmer la réparation';
+        }
+    })
+    .catch(error => {
+        alert('❌ Erreur: ' + error);
+        btn.disabled = false;
+        btn.textContent = '✅ Confirmer la réparation';
+    });
+}
+
+// Fermer le modal si clic en dehors
+window.onclick = function(event) {
+    const modal = document.getElementById('fix-modal');
+    if (event.target === modal) {
+        closeFixModal();
+    }
+}
+</script>
+
+<style>
+.security-issues {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* Dark mode adjustments */
+body.dark-mode .security-issues .card {
+    background: var(--bg-secondary);
+}
+</style>
+{% endblock %}
