@@ -51,9 +51,6 @@
                     {% endif %}
                 </td>
                 <td class="actions">
-                    <a href="{{ url_for('computers.edit_computer', dn=computer.dn) }}" class="btn btn-sm btn-primary" title="Modifier">
-                        ✏️
-                    </a>
                     <form method="post" action="{{ url_for('computers.toggle_computer', dn=computer.dn) }}" style="display: inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if computer.disabled %}

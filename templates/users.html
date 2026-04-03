@@ -238,6 +238,24 @@
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
 }
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .data-table td:nth-child(2) strong {
+        font-size: 0.9375rem;
+    }
+    .mobile-only small {
+        color: var(--text-secondary);
+        font-size: 0.8125rem;
+    }
+    .badge {
+        font-size: 0.6875rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .actions {
+        min-width: 180px;
+    }
+}
 </style>
 {% endblock %}
 
