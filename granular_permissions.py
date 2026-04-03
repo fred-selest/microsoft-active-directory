@@ -95,6 +95,32 @@ PREDEFINED_ROLES = {
     },
 }
 
+# Anciennes permissions (système legacy) -> Nouvelles permissions
+LEGACY_PERMISSION_MAPPING = {
+    'read': [
+        'users:read', 'groups:read', 'computers:read', 'ous:read'
+    ],
+    'write': [
+        'users:read', 'users:update', 'users:create',
+        'groups:read', 'groups:update', 'groups:create',
+        'computers:read', 'computers:update', 'computers:create',
+        'ous:read', 'ous:update', 'ous:create',
+        'tools:locked_accounts', 'tools:expiring_accounts',
+        'tools:password_policy', 'tools:password_audit'
+    ],
+    'delete': [
+        'users:delete', 'groups:delete', 'computers:delete', 'ous:delete'
+    ],
+    'admin': list(ALL_PERMISSIONS.keys()),
+    'audit_logs': ['admin:audit_logs'],
+    'password_reset': ['users:update', 'users:read'],
+    'user_create': ['users:create', 'users:read', 'users:update'],
+    'user_delete': ['users:delete', 'users:read'],
+    'group_modify': ['groups:update', 'groups:read', 'groups:create'],
+    'backup_restore': ['admin:backups', 'admin:audit_logs'],
+    'debug_access': ['admin:diagnostic'],
+}
+
 
 def ensure_data_dir():
     """S'assurer que le répertoire data existe."""
@@ -168,23 +194,35 @@ def get_group_permissions(group_name, user_groups=None):
 def has_permission(user_groups, required_permission):
     """
     Vérifier si un utilisateur a une permission spécifique.
-    
+    Gère à la fois les nouvelles permissions granulaires et les anciennes (legacy).
+
     Args:
         user_groups: Liste des groupes AD de l'utilisateur
-        required_permission: Permission requise (ex: 'users:create')
-    
+        required_permission: Permission requise (ex: 'users:create' ou 'write')
+
     Returns:
         bool: True si l'utilisateur a la permission
     """
     if not user_groups:
         return False
-    
+
+    # Vérifier si c'est une ancienne permission (legacy)
+    if required_permission in LEGACY_PERMISSION_MAPPING:
+        # Convertir vers les nouvelles permissions
+        required_permissions = LEGACY_PERMISSION_MAPPING[required_permission]
+    else:
+        # C'est déjà une nouvelle permission
+        required_permissions = [required_permission]
+
     # Vérifier chaque groupe de l'utilisateur
     for group in user_groups:
         group_perms = get_group_permissions(group, user_groups)
-        if required_permission in group_perms:
-            return True
-    
+        
+        # Vérifier si au moins une des permissions requises est présente
+        for perm in required_permissions:
+            if perm in group_perms:
+                return True
+
     return False
 
 
