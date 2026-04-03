@@ -1,8 +1,8 @@
 // Service Worker for AD Web Interface PWA
-const CACHE_NAME = 'ad-web-interface-v1.22.0';
+const CACHE_NAME = 'ad-web-interface-v1.25.2';
 const urlsToCache = [
   '/',
-  '/static/css/style.css',
+  '/static/css/styles.css',
   '/static/js/main.js',
   '/static/icons/icon.svg'
 ];
