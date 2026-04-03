@@ -23,165 +23,110 @@
 </div>
 {% endif %}
 
+<!-- Widgets Dashboard -->
+<div class="dashboard-widgets-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    
+    <!-- Widget Score de Sécurité -->
+    <div class="card fade-in">
+        <h3 style="margin-top: 0; color: var(--text-primary);">📊 Score de Sécurité</h3>
+        <div style="text-align: center; padding: 1rem;">
+            {% if widgets.score_evolution.current > 0 %}
+            <div style="font-size: 3rem; font-weight: bold; color: {% if widgets.score_evolution.current >= 80 %}#28a745{% elif widgets.score_evolution.current >= 60 %}#ffc107{% else %}#dc3545{% endif %};">
+                {{ widgets.score_evolution.current }}
+            </div>
+            <p style="color: var(--text-secondary); margin: 0.5rem 0;">/ 100</p>
+            <div style="margin-top: 1rem;">
+                {% if widgets.score_evolution.trend == 'improving' %}
+                <span style="color: #28a745;">↗️ En amélioration</span>
+                {% elif widgets.score_evolution.trend == 'degrading' %}
+                <span style="color: #dc3545;">↘️ En dégradation</span>
+                {% else %}
+                <span style="color: var(--text-secondary);">➡️ Stable</span>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('tools.password_audit') }}" class="btn btn-sm btn-primary" style="margin-top: 1rem;">
+                🔍 Lancer un audit
+            </a>
+            {% else %}
+            <p style="color: var(--text-secondary);">Aucun audit réalisé</p>
+            <a href="{{ url_for('tools.password_audit') }}" class="btn btn-sm btn-primary" style="margin-top: 1rem;">
+                🔍 Premier audit
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Widget Actions Requises -->
+    <div class="card fade-in">
+        <h3 style="margin-top: 0; color: var(--text-primary);">⚡ Actions Requises</h3>
+        <div style="padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <span style="color: var(--text-secondary);">Critiques</span>
+                <span style="font-size: 1.5rem; font-weight: bold; color: #dc3545;">{{ widgets.quick_stats.critical_count or 0 }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <span style="color: var(--text-secondary);">Avertissements</span>
+                <span style="font-size: 1.5rem; font-weight: bold; color: #ffc107;">{{ widgets.quick_stats.warning_count or 0 }}</span>
+            </div>
+            <div style="border-top: 1px solid var(--border-color); margin-top: 1rem; padding-top: 1rem;">
+                <a href="{{ url_for('tools.locked_accounts') }}" class="btn btn-sm btn-secondary" style="width: 100%; margin-bottom: 0.5rem;">
+                    🔓 Comptes verrouillés
+                </a>
+                <a href="{{ url_for('tools.expiring_accounts') }}" class="btn btn-sm btn-secondary" style="width: 100%;">
+                    ⏰ Comptes expirants
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Widget Statistiques Audit -->
+    <div class="card fade-in">
+        <h3 style="margin-top: 0; color: var(--text-primary);">📈 Statistiques Audit</h3>
+        <div style="padding: 1rem;">
+            <div style="margin-bottom: 0.75rem;">
+                <div style="font-size: 0.875rem; color: var(--text-secondary);">Audits réalisés</div>
+                <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">{{ widgets.quick_stats.total_audits or 0 }}</div>
+            </div>
+            <div style="margin-bottom: 0.75rem;">
+                <div style="font-size: 0.875rem; color: var(--text-secondary);">Score moyen</div>
+                <div style="font-size: 1.5rem; font-weight: bold; color: {% if widgets.quick_stats.avg_score >= 80 %}#28a745{% elif widgets.quick_stats.avg_score >= 60 %}#ffc107{% else %}#dc3545{% endif %};">{{ widgets.quick_stats.avg_score or 0 }}</div>
+            </div>
+            <div style="margin-bottom: 0.75rem;">
+                <div style="font-size: 0.875rem; color: var(--text-secondary);">Meilleur score</div>
+                <div style="font-size: 1.5rem; font-weight: bold; color: #28a745;">{{ widgets.quick_stats.best_score or 0 }}</div>
+            </div>
+            <a href="{{ url_for('tools.password_audit_history') }}" class="btn btn-sm btn-secondary" style="width: 100%; margin-top: 1rem;">
+                📋 Voir l'historique
+            </a>
+        </div>
+    </div>
+
+    <!-- Widget Accès Rapide -->
+    <div class="card fade-in">
+        <h3 style="margin-top: 0; color: var(--text-primary);">⚡ Accès Rapide</h3>
+        <div style="padding: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+            <a href="{{ url_for('users.create_user') }}" class="btn btn-sm btn-primary">
+                👤 Nouvel utilisateur
+            </a>
+            <a href="{{ url_for('groups.create_group') }}" class="btn btn-sm btn-primary">
+                👥 Nouveau groupe
+            </a>
+            <a href="{{ url_for('ous') }}" class="btn btn-sm btn-secondary">
+                📁 OUs
+            </a>
+            <a href="{{ url_for('computers.list_computers') }}" class="btn btn-sm btn-secondary">
+                💻 Ordinateurs
+            </a>
+            <a href="{{ url_for('tools.locked_accounts') }}" class="btn btn-sm btn-secondary">
+                🔓 Comptes verrouillés
+            </a>
+            <a href="{{ url_for('tools.expiring_accounts') }}" class="btn btn-sm btn-secondary">
+                ⏰ Comptes expirants
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<!-- Stats Grid (existant) -->
 <div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon users-icon">&#x1F465;</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ stats.total_users }}</div>
-            <div class="stat-label">Utilisateurs</div>
-        </div>
-    </div>
-
-    <div class="stat-card stat-success">
-        <div class="stat-icon">&#x2714;</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ stats.active_users }}</div>
-            <div class="stat-label">Comptes actifs</div>
-        </div>
-    </div>
-
-    <div class="stat-card stat-danger">
-        <div class="stat-icon">&#x26D4;</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ stats.disabled_users }}</div>
-            <div class="stat-label">Comptes desactives</div>
-        </div>
-    </div>
-
-    <div class="stat-card">
-        <div class="stat-icon">&#x1F465;</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ stats.total_groups }}</div>
-            <div class="stat-label">Groupes</div>
-        </div>
-    </div>
-
-    <div class="stat-card stat-warning">
-        <div class="stat-icon">&#x26A0;</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ stats.empty_groups }}</div>
-            <div class="stat-label">Groupes vides</div>
-        </div>
-    </div>
-
-    <div class="stat-card">
-        <div class="stat-icon">&#x1F4C1;</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ stats.total_ous }}</div>
-            <div class="stat-label">Unites d'organisation</div>
-        </div>
-    </div>
-</div>
-
-<div class="dashboard-section">
-    <h3>Acces rapide</h3>
-    <div class="quick-actions">
-        <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
-        <a href="{{ url_for('groups.create_group') }}" class="btn btn-secondary">Nouveau groupe</a>
-        <a href="{{ url_for('ous') }}" class="btn btn-secondary">Unites d'organisation</a>
-        <a href="{{ url_for('users.import_users') }}" class="btn btn-secondary">Importer utilisateurs</a>
-        <a href="{{ url_for('users.export_users') }}" class="btn btn-secondary">Exporter utilisateurs</a>
-        <a href="{{ url_for('computers.list_computers') }}" class="btn btn-secondary">Ordinateurs</a>
-        <a href="{{ url_for('tools.locked_accounts') }}" class="btn btn-secondary">Comptes verrouilles</a>
-        <a href="{{ url_for('tools.password_policy') }}" class="btn btn-secondary">Politique mots de passe</a>
-    </div>
-</div>
-
-<div class="charts-grid">
-    <div class="dashboard-section">
-        <h3>Repartition des utilisateurs</h3>
-        <canvas id="usersChart"></canvas>
-    </div>
-    <div class="dashboard-section">
-        <h3>Types de groupes</h3>
-        <canvas id="groupsChart"></canvas>
-    </div>
-</div>
-
-<div class="dashboard-section">
-    <h3>Activite recente</h3>
-    {% if logs %}
-    <div class="table-container">
-        <table class="data-table sortable">
-            <thead>
-                <tr>
-                    <th>Date/Heure</th>
-                    <th>Action</th>
-                    <th>Utilisateur</th>
-                    <th>Statut</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <tr>
-                    <td>{{ log.timestamp }}</td>
-                    <td>{{ log.action }}</td>
-                    <td>{{ log.user }}</td>
-                    <td>
-                        {% if log.status == 'SUCCESS' %}
-                        <span class="badge badge-success">Succes</span>
-                        {% else %}
-                        <span class="badge badge-danger">Echec</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <p><a href="{{ url_for('audit_logs') }}">Voir tous les logs d'audit</a></p>
-    {% else %}
-    <p class="text-muted">Aucune activite recente.</p>
-    {% endif %}
-</div>
-
-{% endblock %}
-
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Graphique des utilisateurs
-const usersCtx = document.getElementById('usersChart').getContext('2d');
-new Chart(usersCtx, {
-    type: 'doughnut',
-    data: {
-        labels: ['Actifs', 'Desactives'],
-        datasets: [{
-            data: [{{ stats.active_users }}, {{ stats.disabled_users }}],
-            backgroundColor: ['#28a745', '#dc3545'],
-            borderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
-        }
-    }
-});
-
-// Graphique des groupes
-const groupsCtx = document.getElementById('groupsChart').getContext('2d');
-new Chart(groupsCtx, {
-    type: 'pie',
-    data: {
-        labels: ['Avec membres', 'Vides'],
-        datasets: [{
-            data: [{{ stats.total_groups - stats.empty_groups }}, {{ stats.empty_groups }}],
-            backgroundColor: ['#0078d4', '#ffc107'],
-            borderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
-        }
-    }
-});
-</script>
-{% endblock %}

@@ -278,9 +278,18 @@ def toggle_dark_mode():
 def dashboard():
     """Tableau de bord."""
     from ldap3 import SUBTREE
+    from dashboard_widgets import get_dashboard_widgets
+    
     conn, error = get_ad_connection()
     stats = {'total_users': 0, 'active_users': 0, 'disabled_users': 0,
              'total_groups': 0, 'empty_groups': 0, 'total_ous': 0}
+    critical_alerts = []
+    widgets = {
+        'alerts': [],
+        'score_evolution': {'current': 0, 'trend': 'stable', 'last_audit': ''},
+        'quick_stats': {'total_audits': 0, 'avg_score': 0, 'best_score': 0, 'critical_count': 0, 'warning_count': 0},
+        'recent_actions': []
+    }
 
     if conn:
         base_dn = session.get('ad_base_dn', '')
@@ -307,11 +316,21 @@ def dashboard():
             # Compter OUs
             conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['name'])
             stats['total_ous'] = len(conn.entries)
+            
+            # Récupérer widgets
+            widgets = get_dashboard_widgets()
+            
+            # Alertes critiques
+            critical_alerts = widgets.get('alerts', [])
         except:
             pass
         conn.unbind()
 
-    return render_template('dashboard.html', stats=stats, connected=is_connected())
+    return render_template('dashboard.html', 
+                         stats=stats, 
+                         widgets=widgets,
+                         critical_alerts=critical_alerts,
+                         connected=is_connected())
 
 
 # === OUS ===
