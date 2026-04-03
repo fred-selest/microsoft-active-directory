@@ -514,3 +514,41 @@ def test_email_config_route():
         return jsonify({'success': True, 'message': 'Configuration email valide'})
     else:
         return jsonify({'success': False, 'message': result['error']}), 400
+
+
+@tools_bp.route('/api/password-audit/alerts-summary')
+@require_connection
+@require_permission('admin')
+def api_password_audit_alerts_summary():
+    """API - Résumé des alertes critiques."""
+    from auto_alerts import get_alert_summary
+    from audit_history import get_audit_history
+    
+    # Récupérer le dernier audit
+    audits = get_audit_history(limit=1)
+    
+    if not audits:
+        return jsonify({
+            'total': 0,
+            'critical': 0,
+            'high': 0,
+            'alerts': [],
+            'message': 'Aucun audit dans l\'historique'
+        })
+    
+    # Reconstruire un objet audit_result minimal
+    audit = audits[0]
+    audit_result = {
+        'summary': {
+            'global_score': audit.get('score', 0),
+            'critical_issues': audit.get('critical_issues', 0),
+            'warning_issues': audit.get('warning_issues', 0),
+        },
+        'admin_weak_accounts': [],
+        'service_accounts': [],
+        'legacy_protocols': [],
+        'policy': {}
+    }
+    
+    summary = get_alert_summary(audit_result)
+    return jsonify(summary)

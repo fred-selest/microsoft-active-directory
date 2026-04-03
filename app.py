@@ -498,6 +498,7 @@ def api_password_audit():
     """API d'audit des mots de passe."""
     from password_audit import run_password_audit
     from audit_history import save_audit
+    from auto_alerts import send_critical_alerts
     from audit import log_action, ACTIONS
 
     conn, error = get_ad_connection()
@@ -512,6 +513,12 @@ def api_password_audit():
     
     # Sauvegarder dans l'historique
     save_audit(audit_result, domain_name)
+    
+    # Envoyer les alertes critiques automatiquement
+    try:
+        send_critical_alerts(audit_result)
+    except Exception as e:
+        logger.warning(f"Erreur envoi alertes automatiques: {e}")
 
     # Journaliser l'audit
     log_action(

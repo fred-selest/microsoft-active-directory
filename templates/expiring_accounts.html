@@ -137,6 +137,21 @@
     font-style: italic;
     padding: 1rem 0;
 }
+
+/* Dark mode */
+body.dark-mode .section-card {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+body.dark-mode .section-card h3 {
+    color: var(--primary-light);
+}
+body.dark-mode .section-desc {
+    color: var(--text-secondary);
+}
+body.dark-mode .no-data {
+    color: var(--text-muted);
+}
 </style>
 {% endblock %}
 {% endblock %}
