@@ -31,11 +31,14 @@
     <table class="data-table sortable">
         <thead>
             <tr>
+                <th><input type="checkbox" id="select-all-users" onchange="toggleAllUsers(this)"></th>
                 <th>Nom d'affichage</th>
                 <th>Identifiant</th>
                 <th>Email</th>
                 <th>Service</th>
                 <th>Fonction</th>
+                <th>Groupe</th>
+                <th>OU</th>
                 <th>Statut</th>
                 <th data-no-sort>Actions</th>
             </tr>
@@ -43,11 +46,28 @@
         <tbody>
             {% for user in users %}
             <tr class="{% if user.disabled %}disabled-user{% endif %}">
+                <td><input type="checkbox" class="user-checkbox" data-dn="{{ user.dn }}" data-name="{{ user.displayName or user.cn }}"></td>
                 <td>{{ user.displayName or user.cn }}</td>
                 <td>{{ user.sAMAccountName }}</td>
                 <td>{{ user.mail }}</td>
                 <td>{{ user.department }}</td>
                 <td>{{ user.title }}</td>
+                <td>
+                    <select class="quick-select" data-type="group" data-dn="{{ user.dn }}" onchange="quickChange(this)">
+                        <option value="">-- Changer groupe --</option>
+                        {% for group in groups %}
+                        <option value="{{ group.dn }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select class="quick-select" data-type="ou" data-dn="{{ user.dn }}" onchange="quickChange(this)">
+                        <option value="">-- Changer OU --</option>
+                        {% for ou in ous %}
+                        <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
                 <td>
                     {% if user.disabled %}
                     <span class="badge badge-danger">Desactive</span>
@@ -76,8 +96,30 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="text-center">Aucun utilisateur trouve.</td>
+                <td colspan="10" class="text-center">Aucun utilisateur trouve.</td>
             </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Barre d'actions masse -->
+<div id="bulk-action-bar" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px;">
+    <span id="selected-count" style="font-weight: bold; margin-right: 1rem;">0 utilisateur(s) sélectionné(s)</span>
+    <select id="bulk-group-change" style="margin-right: 0.5rem; padding: 0.5rem;">
+        <option value="">-- Changer groupe --</option>
+        {% for group in groups %}
+        <option value="{{ group.dn }}">{{ group.name }}</option>
+        {% endfor %}
+    </select>
+    <select id="bulk-ou-change" style="margin-right: 0.5rem; padding: 0.5rem;">
+        <option value="">-- Changer OU --</option>
+        {% for ou in ous %}
+        <option value="{{ ou.dn }}">{{ ou.name }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn btn-success btn-sm" onclick="applyBulkChange()">🔄 Appliquer aux sélectionnés</button>
+</div>
             {% endfor %}
         </tbody>
     </table>
@@ -201,6 +243,148 @@ document.getElementById('moveModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeMoveModal();
     }
+});
+
+/**
+ * Sélectionner/désélectionner tous les utilisateurs
+ */
+function toggleAllUsers(checkbox) {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelectedCount();
+}
+
+/**
+ * Mettre à jour le compteur d'utilisateurs sélectionnés
+ */
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    const countSpan = document.getElementById('selected-count');
+    const actionBar = document.getElementById('bulk-action-bar');
+    
+    if (countSpan) {
+        countSpan.textContent = `${checkboxes.length} utilisateur(s) sélectionné(s)`;
+    }
+    
+    if (actionBar) {
+        actionBar.style.display = checkboxes.length > 0 ? 'block' : 'none';
+    }
+}
+
+/**
+ * Changement rapide (groupe ou OU)
+ */
+function quickChange(select) {
+    const dn = select.dataset.dn;
+    const type = select.dataset.type;
+    const newValue = select.value;
+    
+    if (!newValue) return;
+    
+    const confirmMsg = type === 'group' 
+        ? `Changer le groupe pour cet utilisateur ?`
+        : `Changer l'OU pour cet utilisateur ?`;
+    
+    if (!confirm(confirmMsg)) {
+        select.value = '';
+        return;
+    }
+    
+    // Afficher état de chargement
+    select.disabled = true;
+    select.style.opacity = '0.5';
+    
+    fetch('/api/users/quick-change', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            dn: dn,
+            type: type,
+            value: newValue
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(`✅ ${result.message}`);
+            location.reload();
+        } else {
+            alert(`❌ Échec: ${result.error}`);
+            select.disabled = false;
+            select.style.opacity = '1';
+            select.value = '';
+        }
+    })
+    .catch(error => {
+        alert(`❌ Erreur: ${error}`);
+        select.disabled = false;
+        select.style.opacity = '1';
+        select.value = '';
+    });
+}
+
+/**
+ * Appliquer changement en masse
+ */
+function applyBulkChange() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('⚠️ Veuillez sélectionner au moins un utilisateur.');
+        return;
+    }
+    
+    const groupSelect = document.getElementById('bulk-group-change');
+    const ouSelect = document.getElementById('bulk-ou-change');
+    const groupValue = groupSelect.value;
+    const ouValue = ouSelect.value;
+    
+    if (!groupValue && !ouValue) {
+        alert('⚠️ Veuillez sélectionner un groupe ou une OU.');
+        return;
+    }
+    
+    const users = Array.from(checkboxes).map(cb => ({
+        dn: cb.dataset.dn,
+        name: cb.dataset.name
+    }));
+    
+    const confirmMsg = `Appliquer les changements à ${users.length} utilisateur(s) ?\n\n` +
+                       (groupValue ? `Groupe: ${groupSelect.options[groupSelect.selectedIndex].text}\n` : '') +
+                       (ouValue ? `OU: ${ouSelect.options[ouSelect.selectedIndex].text}\n` : '');
+    
+    if (!confirm(confirmMsg)) return;
+    
+    fetch('/api/users/bulk-change', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            users: users,
+            group: groupValue,
+            ou: ouValue
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(`✅ ${result.message}`);
+            location.reload();
+        } else {
+            alert(`❌ Échec: ${result.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Erreur: ${error}`);
+    });
+}
+
+// Ajouter les écouteurs pour les checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
 });
 </script>
 {% endblock %}
