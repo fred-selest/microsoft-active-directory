@@ -222,6 +222,9 @@ def connect():
             # Rôle utilisateur
             user_role, debug_info = get_user_role_from_groups(conn, username, debug=True)
             session['user_role'] = user_role
+            
+            # Sauvegarder les groupes de l'utilisateur (pour permissions granulaires)
+            session['user_groups'] = debug_info.get('groups', [])
 
             # Permissions granulaires
             from routes.core import get_user_permissions
