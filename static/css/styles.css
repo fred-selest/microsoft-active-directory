@@ -742,38 +742,72 @@ textarea.form-control {
     /* Tableaux - mode carte sur mobile */
     .table-container {
         overflow-x: auto;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-md);
     }
-    
+
     .data-table thead {
         display: none;
     }
-    
+
     .data-table tbody tr {
         display: block;
         margin-bottom: var(--spacing-md);
         padding: var(--spacing-md);
-        background: var(--gray-100);
+        background: var(--white);
         border-radius: var(--border-radius);
         border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
     }
-    
+
+    .data-table tbody tr:hover {
+        background: var(--gray-100);
+    }
+
     .data-table tbody td {
         display: flex;
         justify-content: space-between;
-        padding: var(--spacing-xs) 0;
-        border: none;
+        align-items: center;
+        padding: var(--spacing-sm) 0;
+        border-bottom: 1px solid var(--gray-200);
+        font-size: 0.9375rem;
     }
-    
+
+    .data-table tbody td:last-child {
+        border-bottom: none;
+    }
+
     .data-table tbody td::before {
         content: attr(data-label);
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--primary);
         text-transform: uppercase;
         font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+        margin-right: var(--spacing-md);
+        min-width: 100px;
     }
-    
+
     .data-table .actions {
         justify-content: flex-end;
+        width: 100%;
+        margin-top: var(--spacing-sm);
+        padding-top: var(--spacing-sm);
+        border-top: 1px solid var(--border-color);
+    }
+
+    .data-table .actions .btn {
+        flex: 1;
+        min-width: auto;
+        font-size: 0.8125rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+    
+    /* Badge styling on mobile */
+    .data-table .badge {
+        font-size: 0.75rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
     }
 }
 
@@ -782,6 +816,20 @@ textarea.form-control {
     .stats-grid {
         grid-template-columns: repeat(3, 1fr);
         gap: var(--spacing-md);
+    }
+    
+    /* Tableaux sur tablette - scroll horizontal avec header sticky */
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .data-table {
+        font-size: 0.875rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: var(--spacing-sm);
     }
 }
 
