@@ -97,11 +97,18 @@ img {
 
 /* Tableaux responsive avec scroll horizontal */
 .table-container {
-    overflow-x: auto;
+    overflow-x: visible;
     -webkit-overflow-scrolling: touch;
     width: 100%;
     margin: 1rem 0;
     max-width: 100%;
+}
+
+/* Mobile : scroll horizontal pour les tableaux */
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: auto;
+    }
 }
 
 table.data-table {
@@ -406,7 +413,7 @@ html {
    ========================================================================== */
 
 .table-container {
-    overflow-x: auto;
+    overflow-x: visible;
     -webkit-overflow-scrolling: touch;
 }
 
