@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+
+{% block title %}Permissions Granulaires{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>🔐 Permissions Granulaires par Groupe AD</h2>
+    <div class="page-actions">
+        <button class="btn btn-primary" onclick="showAddGroupModal()">
+            ➕ Ajouter un groupe
+        </button>
+        <button class="btn btn-secondary" onclick="location.reload()">
+            🔄 Actualiser
+        </button>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="stats-grid" style="margin-bottom: 1.5rem;">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div>
+            <div class="stat-value">{{ groups|length }}</div>
+            <div class="stat-label">Groupes configurés</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div>
+            <div class="stat-value">{{ groups|selectattr('enabled')|list|length }}</div>
+            <div class="stat-label">Groupes actifs</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div>
+            <div class="stat-value">{{ permissions|length }}</div>
+            <div class="stat-label">Permissions disponibles</div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des groupes -->
+<div class="card fade-in">
+    <h3>📋 Groupes AD avec Permissions</h3>
+    
+    {% if groups %}
+    <div class="table-container">
+        <table class="data-table sortable">
+            <thead>
+                <tr>
+                    <th>Groupe</th>
+                    <th>Description</th>
+                    <th>Permissions</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group_name, group_data in groups.items() %}
+                <tr>
+                    <td>
+                        <strong>{{ group_name }}</strong>
+                        {% if group_data.custom %}
+                        <span class="badge badge-info" style="font-size: 0.625rem; margin-left: 0.25rem;">Perso</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ group_data.description or '-' }}</td>
+                    <td>
+                        <span class="badge badge-success" style="cursor: pointer;" onclick="showPermissionsDetail('{{ group_name }}')">
+                            🔢 {{ group_data.permissions|length }} permissions
+                        </span>
+                    </td>
+                    <td>
+                        {% if group_data.enabled %}
+                        <span class="badge badge-success">✅ Actif</span>
+                        {% else %}
+                        <span class="badge badge-secondary">⏸️ Désactivé</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editGroup('{{ group_name }}')">
+                            ✏️ Modifier
+                        </button>
+                        {% if group_data.custom %}
+                        <button class="btn btn-sm btn-danger" onclick="deleteGroup('{{ group_name }}')">
+                            🗑️ Supprimer
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted" style="padding: 2rem; text-align: center;">
+        Aucun groupe configuré. Les groupes prédéfinis s'appliquent automatiquement.
+    </p>
+    {% endif %}
+</div>
+
+<!-- Modal Ajouter/Modifier Groupe -->
+<div id="group-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+        <h3 id="modal-title">➕ Ajouter un groupe</h3>
+        
+        <form id="group-form" onsubmit="saveGroup(event)">
+            <input type="hidden" id="edit-group-name" value="">
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Nom du groupe AD :</label>
+                <input type="text" id="group-name" required
+                       placeholder="ex: IT Support, Helpdesk, CN=MyGroup,OU=..."
+                       style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);">
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                    Utilisez le nom exact du groupe AD (ex: "IT Support" ou "CN=MyGroup,OU=Users,DC=domain,DC=local")
+                </p>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Description :</label>
+                <input type="text" id="group-description"
+                       placeholder="ex: Support informatique - Lecture + Modification limitée"
+                       style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);">
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Permissions :</label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.5rem;">
+                    {% for category, perms in categories.items() %}
+                    <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 4px;">
+                        <h4 style="margin: 0 0 0.75rem 0; font-size: 0.9375rem; color: var(--primary);">
+                            {% if category == 'users' %}👤
+                            {% elif category == 'groups' %}👥
+                            {% elif category == 'computers' %}💻
+                            {% elif category == 'ous' %}📁
+                            {% elif category == 'tools' %}🔧
+                            {% elif category == 'admin' %}⚙️
+                            {% endif %}
+                            {{ category|title }}
+                        </h4>
+                        {% for perm in perms %}
+                        <label style="display: flex; align-items: center; margin-bottom: 0.5rem; font-size: 0.8125rem; cursor: pointer;">
+                            <input type="checkbox" name="permissions" value="{{ perm }}"
+                                   style="margin-right: 0.5rem;">
+                            {{ perm.split(':')[1]|replace('_', ' ')|title }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="group-enabled" checked style="margin-right: 0.5rem;">
+                    <strong>Groupe activé</strong>
+                </label>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; margin-left: 1.5rem;">
+                    Un groupe désactivé conserve sa configuration mais n'applique pas ses permissions
+                </p>
+            </div>
+            
+            <div class="modal-actions" style="text-align: right;">
+                <button type="button" class="btn btn-secondary" onclick="closeGroupModal()">Annuler</button>
+                <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Détail Permissions -->
+<div id="permissions-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3 id="perm-modal-title">📋 Permissions du groupe</h3>
+        <div id="permissions-list" style="max-height: 400px; overflow-y: auto;"></div>
+        <div class="modal-actions" style="margin-top: 1.5rem; text-align: right;">
+            <button class="btn btn-secondary" onclick="closePermissionsModal()">Fermer</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const allPermissions = {{ permissions|tojson }};
+
+function showAddGroupModal() {
+    document.getElementById('modal-title').textContent = '➕ Ajouter un groupe';
+    document.getElementById('group-form').reset();
+    document.getElementById('edit-group-name').value = '';
+    document.getElementById('group-name').disabled = false;
+    document.getElementById('group-modal').style.display = 'flex';
+}
+
+function editGroup(groupName) {
+    const groups = {{ groups|tojson }};
+    const group = groups[groupName];
+    
+    if (!group) return;
+    
+    document.getElementById('modal-title').textContent = '✏️ Modifier le groupe';
+    document.getElementById('edit-group-name').value = groupName;
+    document.getElementById('group-name').value = groupName;
+    document.getElementById('group-name').disabled = true;
+    document.getElementById('group-description').value = group.description || '';
+    document.getElementById('group-enabled').checked = group.enabled !== false;
+    
+    // Cocher les permissions
+    document.querySelectorAll('input[name="permissions"]').forEach(cb => {
+        cb.checked = group.permissions.includes(cb.value);
+    });
+    
+    document.getElementById('group-modal').style.display = 'flex';
+}
+
+function closeGroupModal() {
+    document.getElementById('group-modal').style.display = 'none';
+}
+
+function saveGroup(event) {
+    event.preventDefault();
+    
+    const groupName = document.getElementById('group-name').value;
+    const editName = document.getElementById('edit-group-name').value;
+    const description = document.getElementById('group-description').value;
+    const enabled = document.getElementById('group-enabled').checked;
+    
+    const permissions = [];
+    document.querySelectorAll('input[name="permissions"]:checked').forEach(cb => {
+        permissions.push(cb.value);
+    });
+    
+    fetch('/api/permissions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            group_name: groupName,
+            edit_name: editName || null,
+            permissions: permissions,
+            description: description,
+            enabled: enabled
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('✅ Groupe enregistré avec succès !');
+            location.reload();
+        } else {
+            alert('❌ Erreur: ' + (result.error || 'Erreur inconnue'));
+        }
+    })
+    .catch(error => {
+        alert('❌ Erreur: ' + error);
+    });
+}
+
+function deleteGroup(groupName) {
+    if (confirm('Voulez-vous vraiment supprimer le groupe "' + groupName + '" ?\n\nLes permissions personnalisées seront perdues.')) {
+        fetch('/api/permissions/' + encodeURIComponent(groupName), {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('✅ Groupe supprimé !');
+                location.reload();
+            } else {
+                alert('❌ Erreur: ' + (result.error || 'Erreur inconnue'));
+            }
+        })
+        .catch(error => {
+            alert('❌ Erreur: ' + error);
+        });
+    }
+}
+
+function showPermissionsDetail(groupName) {
+    const groups = {{ groups|tojson }};
+    const group = groups[groupName];
+    
+    if (!group) return;
+    
+    document.getElementById('perm-modal-title').textContent = '📋 Permissions de "' + groupName + '"';
+    
+    const list = document.getElementById('permissions-list');
+    if (group.permissions.length === 0) {
+        list.innerHTML = '<p class="text-muted">Aucune permission spécifique</p>';
+    } else {
+        list.innerHTML = '<ul style="padding-left: 1.25rem;">' + 
+            group.permissions.map(p => {
+                const desc = allPermissions[p] || p;
+                return `<li style="margin-bottom: 0.5rem;"><strong>${p}</strong> - ${desc}</li>`;
+            }).join('') +
+            '</ul>';
+    }
+    
+    document.getElementById('permissions-modal').style.display = 'flex';
+}
+
+function closePermissionsModal() {
+    document.getElementById('permissions-modal').style.display = 'none';
+}
+
+// Fermer les modals si clic en dehors
+window.onclick = function(event) {
+    if (event.target.id === 'group-modal') closeGroupModal();
+    if (event.target.id === 'permissions-modal') closePermissionsModal();
+}
+</script>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 800px;
+    width: 90%;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+</style>
+{% endblock %}

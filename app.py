@@ -945,6 +945,82 @@ def api_security_fix():
               {'action': f'security_fix_{fix_type}', 'results': results}, True)
     
     return jsonify(results)
+
+
+# === PERMISSIONS GRANULAIRES ===
+
+@app.route('/permissions')
+@require_connection
+@require_permission('admin:settings')
+def permissions_page():
+    """Page de gestion des permissions granulaires."""
+    from granular_permissions import get_all_groups_with_permissions, get_available_permissions, get_permission_categories
+    
+    groups = get_all_groups_with_permissions()
+    permissions = get_available_permissions()
+    categories = get_permission_categories()
+    
+    return render_template('permissions.html',
+                         groups=groups,
+                         permissions=permissions,
+                         categories=categories,
+                         connected=is_connected())
+
+
+@app.route('/api/permissions', methods=['POST'])
+@require_connection
+@require_permission('admin:settings')
+def api_permissions():
+    """API pour sauvegarder les permissions d'un groupe."""
+    from granular_permissions import set_group_permissions
+    import json
+    
+    data = request.get_json() if request.is_json else request.form
+    group_name = data.get('group_name')
+    edit_name = data.get('edit_name')
+    permissions = data.get('permissions', [])
+    description = data.get('description', '')
+    enabled = data.get('enabled', True)
+    
+    if not group_name:
+        return jsonify({'success': False, 'error': 'Nom du groupe requis'}), 400
+    
+    # Si edit_name différent de group_name, on supprime l'ancien
+    if edit_name and edit_name != group_name:
+        from granular_permissions import delete_group_permissions
+        delete_group_permissions(edit_name)
+    
+    result = set_group_permissions(group_name, permissions, description, enabled)
+    
+    if result:
+        # Log l'action
+        from audit import log_action, ACTIONS
+        log_action(ACTIONS['OTHER'], session.get('ad_username', 'unknown'),
+                  {'action': f'permissions_update', 'group': group_name, 'permissions_count': len(permissions)}, True)
+        
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Erreur lors de la sauvegarde'}), 500
+
+
+@app.route('/api/permissions/<group_name>', methods=['DELETE'])
+@require_connection
+@require_permission('admin:settings')
+def api_delete_permissions(group_name):
+    """API pour supprimer les permissions d'un groupe."""
+    from granular_permissions import delete_group_permissions
+    
+    result = delete_group_permissions(group_name)
+    
+    if result:
+        # Log l'action
+        from audit import log_action, ACTIONS
+        log_action(ACTIONS['OTHER'], session.get('ad_username', 'unknown'),
+                  {'action': f'permissions_delete', 'group': group_name}, True)
+        
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Groupe non trouvé'}), 404
     """API pour appliquer les corrections de protocoles."""
     import subprocess
     import os
