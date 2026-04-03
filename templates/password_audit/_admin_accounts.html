@@ -7,9 +7,10 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h3 style="margin: 0;">👑 Comptes Administrateurs à Risque</h3>
         <button class="btn btn-success" onclick="showQuickFixModal('enable_password_expiry_admin')" id="btn-quick-fix-admin" style="display: none;">
-            🔧 Activer expiration MDP pour tous
+            🔧 Correction Rapide
         </button>
     </div>
+    <p id="admin-accounts-summary" style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.875rem; display: none;"></p>
     <div class="alert alert-warning" style="margin-bottom: 1rem;">
         <strong>⚠️ Priorité critique :</strong> Ces comptes ont des privilèges élevés et des configurations de mot de passe faibles.
     </div>
@@ -17,6 +18,10 @@
         <table class="data-table" id="admin-accounts-table">
             <thead>
                 <tr>
+                    <th>
+                        <input type="checkbox" id="select-all-admin" onchange="toggleSelectAll('admin')" style="margin-right: 0.5rem;">
+                        Sélection
+                    </th>
                     <th>Utilisateur</th>
                     <th>Nom affiché</th>
                     <th>Email</th>
@@ -27,9 +32,15 @@
             </thead>
             <tbody id="admin-accounts-body">
                 <tr>
-                    <td colspan="6" class="text-center text-muted">Aucun compte administrateur à risque détecté</td>
+                    <td colspan="7" class="text-center text-muted">Aucun compte administrateur à risque détecté</td>
                 </tr>
             </tbody>
         </table>
+    </div>
+    <div id="admin-actions-bar" style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; display: none;">
+        <span id="admin-selected-count" style="font-weight: bold; margin-right: 1rem;">0 compte(s) sélectionné(s)</span>
+        <button class="btn btn-success btn-sm" onclick="applySelectedFix('enable_password_expiry_admin')">
+            🔧 Appliquer aux sélectionnés
+        </button>
     </div>
 </div>

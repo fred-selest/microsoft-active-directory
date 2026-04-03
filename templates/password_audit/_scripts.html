@@ -250,15 +250,29 @@ function displayRecommendations(recommendations) {
  */
 function displayWeakAccounts(accounts) {
     const tbody = document.getElementById('weak-accounts-body');
+    const summary = document.getElementById('weak-accounts-summary');
+    const actionsBar = document.getElementById('weak-actions-bar');
+    const btnPassword = document.getElementById('btn-quick-fix-password');
 
     if (!accounts || accounts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Aucun compte problématique détecté</td></tr>';
-        updateQuickFixButtons([]);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucun compte problématique détecté</td></tr>';
+        if (summary) summary.style.display = 'none';
+        if (actionsBar) actionsBar.style.display = 'none';
+        if (btnPassword) btnPassword.style.display = 'none';
         return;
     }
 
-    tbody.innerHTML = accounts.map(acc => `
+    // Afficher le résumé
+    if (summary) {
+        summary.textContent = `${accounts.length} compte(s) avec mot de passe faible détecté(s). Sélectionnez les comptes à corriger.`;
+        summary.style.display = 'block';
+    }
+
+    tbody.innerHTML = accounts.map((acc, index) => `
         <tr>
+            <td>
+                <input type="checkbox" class="account-checkbox" data-type="weak" data-dn="${escapeHtml(acc.dn)}" data-username="${escapeHtml(acc.username)}" onchange="updateSelectedCount('weak')">
+            </td>
             <td><strong>${escapeHtml(acc.username)}</strong></td>
             <td>${escapeHtml(acc.display_name || '-')}</td>
             <td>${escapeHtml(acc.issue)}</td>
@@ -272,7 +286,8 @@ function displayWeakAccounts(accounts) {
     `).join('');
     
     // Afficher le bouton de correction rapide
-    updateQuickFixButtons(accounts);
+    if (btnPassword) btnPassword.style.display = 'block';
+    if (actionsBar) actionsBar.style.display = 'none';
 }
 
 /**
@@ -282,11 +297,15 @@ function displayAdminAccounts(accounts) {
     const section = document.getElementById('admin-accounts-section');
     const tbody = document.getElementById('admin-accounts-body');
     const btnAdmin = document.getElementById('btn-quick-fix-admin');
+    const summary = document.getElementById('admin-accounts-summary');
+    const actionsBar = document.getElementById('admin-actions-bar');
 
     if (!accounts || accounts.length === 0) {
         if (section) section.style.display = 'block';
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucune donnée administrateur disponible</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Aucune donnée administrateur disponible</td></tr>';
         if (btnAdmin) btnAdmin.style.display = 'none';
+        if (summary) summary.style.display = 'none';
+        if (actionsBar) actionsBar.style.display = 'none';
         return;
     }
 
@@ -296,7 +315,7 @@ function displayAdminAccounts(accounts) {
 
     if (realAccounts.length === 0) {
         tbody.innerHTML = `<tr>
-            <td colspan="6" class="text-center" style="padding: 2rem; color: #28a745 !important;">
+            <td colspan="7" class="text-center" style="padding: 2rem; color: #28a745 !important;">
                 <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
                 <strong style="font-size: 1.125rem;">Aucun compte administrateur à risque détecté</strong>
                 <p style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.875rem;">
@@ -305,11 +324,22 @@ function displayAdminAccounts(accounts) {
             </td>
         </tr>`;
         if (btnAdmin) btnAdmin.style.display = 'none';
+        if (summary) summary.style.display = 'none';
+        if (actionsBar) actionsBar.style.display = 'none';
         return;
+    }
+
+    // Afficher le résumé
+    if (summary) {
+        summary.textContent = `${realAccounts.length} compte(s) administrateur à risque détecté(s). Sélectionnez les comptes à corriger.`;
+        summary.style.display = 'block';
     }
 
     tbody.innerHTML = realAccounts.map(acc => `
         <tr>
+            <td>
+                <input type="checkbox" class="account-checkbox" data-type="admin" data-dn="${escapeHtml(acc.dn)}" data-username="${escapeHtml(acc.username)}" onchange="updateSelectedCount('admin')">
+            </td>
             <td><strong>${escapeHtml(acc.username)}</strong></td>
             <td>${escapeHtml(acc.display_name || '-')}</td>
             <td>${escapeHtml(acc.mail || '-')}</td>
@@ -321,6 +351,7 @@ function displayAdminAccounts(accounts) {
     
     // Afficher le bouton de correction rapide
     if (btnAdmin) btnAdmin.style.display = 'block';
+    if (actionsBar) actionsBar.style.display = 'none';
 }
 
 /**
@@ -616,7 +647,7 @@ function hideLoading() {
 /**
  * Afficher modal de correction rapide
  */
-function showQuickFixModal(fixType) {
+function showQuickFixModal(fixType, accounts = null) {
     const modal = document.createElement('div');
     modal.id = 'quick-fix-modal';
     modal.className = 'modal';
@@ -625,21 +656,35 @@ function showQuickFixModal(fixType) {
     let title = '';
     let description = '';
     let warning = '';
+    let accountList = '';
+    
+    // Si accounts est fourni, afficher la liste
+    if (accounts && accounts.length > 0) {
+        accountList = `
+            <div style="max-height: 200px; overflow-y: auto; margin: 1rem 0; background: var(--bg-tertiary); padding: 1rem; border-radius: 4px;">
+                <strong>Comptes concernés (${accounts.length}) :</strong>
+                <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0;">
+                    ${accounts.map(acc => `<li style="margin-bottom: 0.25rem;"><strong>${escapeHtml(acc.username)}</strong></li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
     
     if (fixType === 'force_password_change') {
         title = '🔧 Forcer le changement de mot de passe';
-        description = 'Forcer tous les comptes avec mot de passe faible à changer leur mot de passe au prochain login.';
+        description = 'Forcer les comptes sélectionnés à changer leur mot de passe au prochain login.';
         warning = '⚠️ Les utilisateurs devront changer leur mot de passe immédiatement.';
     } else if (fixType === 'enable_password_expiry_admin') {
         title = '⏰ Activer l\'expiration des mots de passe';
-        description = 'Activer l\'expiration des mots de passe pour tous les comptes administrateurs à risque.';
+        description = 'Activer l\'expiration des mots de passe pour les comptes administrateurs sélectionnés.';
         warning = '⚠️ Les administrateurs devront changer leur mot de passe selon la politique du domaine.';
     }
     
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 600px;">
             <h3>${title}</h3>
             <p style="margin: 1rem 0;">${description}</p>
+            ${accountList}
             <div style="background: rgba(255, 193, 7, 0.1); padding: 1rem; border-radius: 4px; margin: 1rem 0; border-left: 3px solid #ffc107;">
                 <strong>${warning}</strong>
             </div>
@@ -649,6 +694,9 @@ function showQuickFixModal(fixType) {
             </div>
         </div>
     `;
+    
+    // Stocker les comptes dans le modal pour les utiliser dans applyQuickFix
+    modal.dataset.accounts = accounts ? JSON.stringify(accounts) : '';
     
     document.body.appendChild(modal);
 }
@@ -667,6 +715,10 @@ function closeQuickFixModal() {
  * Appliquer correction rapide
  */
 function applyQuickFix(fixType) {
+    const modal = document.getElementById('quick-fix-modal');
+    const accountsStr = modal ? modal.dataset.accounts : '';
+    const accounts = accountsStr ? JSON.parse(accountsStr) : [];
+    
     const btn = event.target;
     btn.disabled = true;
     btn.textContent = '⏳ En cours...';
@@ -674,12 +726,15 @@ function applyQuickFix(fixType) {
     fetch('/api/password-audit/quick-fix', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({fix_type: fixType})
+        body: JSON.stringify({
+            fix_type: fixType,
+            accounts: accounts  // Liste des comptes sélectionnés
+        })
     })
     .then(response => response.json())
     .then(result => {
         if (result.success) {
-            alert(`✅ Correction appliquée avec succès !\n\n${result.message || ''}`);
+            alert(`✅ Correction appliquée avec succès !\n\n${result.message || ''}\n${result.modified || 0} compte(s) modifié(s).`);
             closeQuickFixModal();
             location.reload();
         } else {
@@ -704,5 +759,56 @@ function updateQuickFixButtons(accounts) {
     if (btnPassword) {
         btnPassword.style.display = hasWeakPasswords ? 'block' : 'none';
     }
+}
+
+/**
+ * Tout sélectionner/désélectionner
+ */
+function toggleSelectAll(type) {
+    const checkbox = document.getElementById(`select-all-${type}`);
+    const checkboxes = document.querySelectorAll(`.account-checkbox[data-type="${type}"]`);
+    
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    
+    updateSelectedCount(type);
+}
+
+/**
+ * Mettre à jour le compteur de sélection
+ */
+function updateSelectedCount(type) {
+    const checkboxes = document.querySelectorAll(`.account-checkbox[data-type="${type}"]:checked`);
+    const countSpan = document.getElementById(`${type}-selected-count`);
+    const actionsBar = document.getElementById(`${type}-actions-bar`);
+    
+    if (countSpan) {
+        countSpan.textContent = `${checkboxes.length} compte(s) sélectionné(s)`;
+    }
+    
+    if (actionsBar) {
+        actionsBar.style.display = checkboxes.length > 0 ? 'block' : 'none';
+    }
+}
+
+/**
+ * Appliquer correction aux comptes sélectionnés
+ */
+function applySelectedFix(fixType) {
+    const checkboxes = document.querySelectorAll(`.account-checkbox:checked`);
+    
+    if (checkboxes.length === 0) {
+        alert('⚠️ Veuillez sélectionner au moins un compte.');
+        return;
+    }
+    
+    const accounts = Array.from(checkboxes).map(cb => ({
+        dn: cb.getAttribute('data-dn'),
+        username: cb.getAttribute('data-username')
+    }));
+    
+    // Afficher modal de confirmation
+    showQuickFixModal(fixType, accounts);
 }
 </script>
