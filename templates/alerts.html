@@ -5,136 +5,87 @@
 {% block content %}
 <div class="page-header fade-in">
     <h2>🔔 Centre des Alertes</h2>
-    <div class="page-actions">
-        <button class="btn btn-primary" onclick="runAlertCheck()">
-            🔄 Vérifier maintenant
-        </button>
-        <button class="btn btn-secondary" onclick="exportAlerts()">
-            📥 Exporter
-        </button>
-    </div>
 </div>
 
 <!-- Statistiques -->
-<div class="alert-stats">
-    <div class="stat-card critical">
-        <div class="stat-value">{{ counts.by_severity.get('critical', 0) }}</div>
-        <div class="stat-label">Critiques</div>
-    </div>
-    <div class="stat-card error">
-        <div class="stat-value">{{ counts.by_severity.get('error', 0) }}</div>
-        <div class="stat-label">Erreurs</div>
+<div class="alert-stats stats-grid">
+    <div class="stat-card warning">
+        <div class="stat-value">{{ counts.expiring_accounts }}</div>
+        <div class="stat-label">Comptes expirant</div>
     </div>
     <div class="stat-card warning">
-        <div class="stat-value">{{ counts.by_severity.get('warning', 0) }}</div>
-        <div class="stat-label">Avertissements</div>
+        <div class="stat-value">{{ counts.password_expiring }}</div>
+        <div class="stat-label">Mots de passe expirant</div>
     </div>
     <div class="stat-card info">
-        <div class="stat-value">{{ counts.by_severity.get('info', 0) }}</div>
-        <div class="stat-label">Informations</div>
+        <div class="stat-value">{{ counts.inactive_accounts }}</div>
+        <div class="stat-label">Comptes inactifs</div>
     </div>
-    <div class="stat-card total">
-        <div class="stat-value">{{ counts.unacknowledged }}</div>
-        <div class="stat-label">Non acquittées</div>
+    <div class="stat-card error">
+        <div class="stat-value">{{ counts.locked_accounts }}</div>
+        <div class="stat-label">Comptes verrouillés</div>
     </div>
-</div>
-
-<!-- Filtres -->
-<div class="card fade-in" style="margin-bottom: 1.5rem;">
-    <h3>🔍 Filtres</h3>
-    <form method="get" action="{{ url_for('alerts_page') }}" class="filter-form">
-        <div class="form-group">
-            <label>Type d'alerte</label>
-            <select name="type" class="form-control">
-                <option value="">Tous les types</option>
-                <option value="expiring_account" {{ 'selected' if current_type == 'expiring_account' }}>Comptes expirants</option>
-                <option value="password_expiring" {{ 'selected' if current_type == 'password_expiring' }}>Mots de passe expirant</option>
-                <option value="inactive_account" {{ 'selected' if current_type == 'inactive_account' }}>Comptes inactifs</option>
-                <option value="locked_account" {{ 'selected' if current_type == 'locked_account' }}>Comptes verrouillés</option>
-                <option value="security" {{ 'selected' if current_type == 'security' }}>Sécurité</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Sévérité</label>
-            <select name="severity" class="form-control">
-                <option value="">Toutes</option>
-                <option value="critical" {{ 'selected' if current_severity == 'critical' }}>🔴 Critique</option>
-                <option value="error" {{ 'selected' if current_severity == 'error' }}>🔴 Erreur</option>
-                <option value="warning" {{ 'selected' if current_severity == 'warning' }}>🟡 Avertissement</option>
-                <option value="info" {{ 'selected' if current_severity == 'info' }}>🔵 Information</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Statut</label>
-            <select name="acknowledged" class="form-control">
-                <option value="">Tous</option>
-                <option value="false" {{ 'selected' if request.args.get('acknowledged') == 'false' }}>Non acquittées</option>
-                <option value="true" {{ 'selected' if request.args.get('acknowledged') == 'true' }}>Acquittées</option>
-            </select>
-        </div>
-        <div class="form-actions" style="margin-top: 1rem;">
-            <button type="submit" class="btn btn-primary">Filtrer</button>
-            <a href="{{ url_for('alerts_page') }}" class="btn btn-secondary">Réinitialiser</a>
-        </div>
-    </form>
+    <div class="stat-card info">
+        <div class="stat-value">{{ counts.empty_groups }}</div>
+        <div class="stat-label">Groupes vides</div>
+    </div>
 </div>
 
 <!-- Liste des alertes -->
 <div class="card fade-in">
     <h3>📋 Alertes ({{ alerts|length }})</h3>
-    
+
     {% if alerts %}
     <div class="alerts-list">
         {% for alert in alerts %}
-        <div class="alert-item alert-{{ alert.severity }} {{ 'acknowledged' if alert.acknowledged else '' }}" id="alert-{{ alert.id }}">
-            <div class="alert-header">
-                <div class="alert-icon">
-                    {% if alert.severity == 'critical' %}🔴
-                    {% elif alert.severity == 'error' %}🔴
-                    {% elif alert.severity == 'warning' %}🟡
-                    {% else %}🔵{% endif %}
+        <div class="alert-item" style="margin-bottom: 1rem; padding: 1rem; border-left: 4px solid {% if alert.severity == 'error' %}#dc3545{% elif alert.severity == 'warning' %}#ffc107{% else %}#17a2b8{% endif %}; background: var(--gray-100); border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+                <div style="flex: 1;">
+                    <strong style="font-size: 1rem; color: var(--text-primary);">{{ alert.title }}</strong>
+                    <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.9375rem;">{{ alert.message }}</p>
                 </div>
-                <div class="alert-content">
-                    <div class="alert-title">
-                        {{ alert.title }}
-                        {% if alert.acknowledged %}
-                        <span class="badge badge-success" style="margin-left: 0.5rem;">✅ Acquittée</span>
-                        {% endif %}
-                    </div>
-                    <div class="alert-message">{{ alert.message }}</div>
-                    <div class="alert-meta">
-                        <span>📅 {{ alert.created[:16].replace('T', ' ') }}</span>
-                        {% if alert.acknowledged %}
-                        <span>👤 {{ alert.acknowledged_by or 'Inconnu' }}</span>
-                        <span>✅ {{ alert.acknowledged_at[:16].replace('T', ' ') }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="alert-actions">
-                    {% if not alert.acknowledged %}
-                    <button class="btn btn-sm btn-success" onclick="acknowledgeAlert('{{ alert.id }}')">
-                        ✅ Acquitter
-                    </button>
-                    {% endif %}
-                    <button class="btn btn-sm btn-danger" onclick="deleteAlert('{{ alert.id }}')">
-                        🗑️ Supprimer
-                    </button>
-                </div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap;">{{ alert.date }}</span>
             </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="no-alerts">
-        <div class="no-alerts-icon">✅</div>
-        <h3>Aucune alerte</h3>
-        <p>Toutes les alertes ont été traitées ou aucune alerte n'a été détectée.</p>
-        <button class="btn btn-primary" onclick="runAlertCheck()">
-            🔄 Lancer une vérification
-        </button>
+    <div class="no-alerts" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+        <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Aucune alerte</h3>
+        <p style="color: var(--text-secondary);">Toutes les alertes ont été traitées ou aucune alerte n'a été détectée.</p>
     </div>
     {% endif %}
 </div>
+
+<style>
+.alert-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    .alert-stats {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .alert-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .alert-item {
+        flex-direction: column;
+    }
+    
+    .alert-item span {
+        align-self: flex-end;
+    }
+}
+</style>
 
 <style>
 .alert-stats {
