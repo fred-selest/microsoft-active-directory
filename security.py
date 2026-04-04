@@ -58,12 +58,14 @@ def sanitize_dn_component(value):
 
 # Stockage des tentatives de connexion (en memoire)
 _login_attempts = {}
+_action_attempts = {}  # Pour les actions sensibles
+_api_attempts = {}
 _cleanup_time = 0
 
 
 def _cleanup_old_attempts():
     """Nettoyer les anciennes tentatives."""
-    global _login_attempts, _cleanup_time
+    global _login_attempts, _action_attempts, _api_attempts, _cleanup_time
     current_time = time.time()
 
     # Nettoyer toutes les 5 minutes
@@ -71,12 +73,20 @@ def _cleanup_old_attempts():
         cutoff = current_time - 900  # 15 minutes
         _login_attempts = {
             ip: data for ip, data in _login_attempts.items()
-            if data['last_attempt'] > cutoff
+            if data.get('last_attempt', 0) > cutoff
+        }
+        _action_attempts = {
+            (ip, action): data for (ip, action), data in _action_attempts.items()
+            if data.get('last_attempt', 0) > cutoff
+        }
+        _api_attempts = {
+            ip: data for ip, data in _api_attempts.items()
+            if data.get('last_attempt', 0) > cutoff
         }
         _cleanup_time = current_time
 
 
-def check_rate_limit(ip_address, max_attempts=5, window_seconds=300):
+def check_rate_limit(ip_address, max_attempts=5, window_seconds=300, action=None):
     """
     Verifier si une IP a depasse la limite de tentatives.
 
@@ -84,59 +94,98 @@ def check_rate_limit(ip_address, max_attempts=5, window_seconds=300):
         ip_address: Adresse IP a verifier
         max_attempts: Nombre maximum de tentatives autorisees
         window_seconds: Fenetre de temps en secondes
+        action: Nom de l'action (pour rate limiting par action)
 
     Returns:
-        tuple: (autorise, temps_restant)
+        tuple: (autorise, temps_restant, tentatives_restantes)
     """
     _cleanup_old_attempts()
     current_time = time.time()
 
-    if ip_address not in _login_attempts:
-        return True, 0
+    # Clé unique : IP seule ou IP + action
+    key = (ip_address, action) if action else ip_address
+    attempts_dict = _action_attempts if action else _login_attempts
 
-    data = _login_attempts[ip_address]
+    if key not in attempts_dict:
+        return True, 0, max_attempts
+
+    data = attempts_dict[key]
 
     # Verifier si la fenetre est expiree
-    if current_time - data['first_attempt'] > window_seconds:
-        del _login_attempts[ip_address]
-        return True, 0
+    if current_time - data.get('first_attempt', 0) > window_seconds:
+        if key in attempts_dict:
+            del attempts_dict[key]
+        return True, 0, max_attempts
+
+    # Calculer le temps restant et les tentatives restantes
+    elapsed = current_time - data.get('first_attempt', 0)
+    remaining_time = int(window_seconds - elapsed)
+    attempts_left = max(0, max_attempts - data.get('count', 0))
 
     # Verifier le nombre de tentatives
-    if data['count'] >= max_attempts:
-        remaining = int(window_seconds - (current_time - data['first_attempt']))
-        return False, remaining
+    if data.get('count', 0) >= max_attempts:
+        return False, remaining_time, 0
 
-    return True, 0
+    return True, remaining_time, attempts_left
 
 
-def record_login_attempt(ip_address, success=False):
+def record_attempt(ip_address, success=False, action=None):
     """
-    Enregistrer une tentative de connexion.
+    Enregistrer une tentative (login ou action sensible).
 
     Args:
         ip_address: Adresse IP
-        success: Si la connexion a reussi
+        success: Si l'action a reussi
+        action: Nom de l'action (pour les actions sensibles)
     """
     current_time = time.time()
 
+    # Clé unique : IP seule ou IP + action
+    key = (ip_address, action) if action else ip_address
+    attempts_dict = _action_attempts if action else _login_attempts
+
     if success:
         # Reinitialiser les tentatives en cas de succes
-        if ip_address in _login_attempts:
-            del _login_attempts[ip_address]
+        if key in attempts_dict:
+            del attempts_dict[key]
         return
 
-    if ip_address not in _login_attempts:
-        _login_attempts[ip_address] = {
+    if key not in attempts_dict:
+        attempts_dict[key] = {
             'count': 1,
             'first_attempt': current_time,
-            'last_attempt': current_time
+            'last_attempt': current_time,
+            'action': action
         }
     else:
-        _login_attempts[ip_address]['count'] += 1
-        _login_attempts[ip_address]['last_attempt'] = current_time
+        attempts_dict[key]['count'] += 1
+        attempts_dict[key]['last_attempt'] = current_time
 
 
-def rate_limit(max_attempts=5, window_seconds=300):
+def get_rate_limit_status(ip_address, action=None):
+    """
+    Obtenir le statut du rate limiting pour une IP.
+    Utile pour afficher les informations dans l'UI.
+    """
+    key = (ip_address, action) if action else ip_address
+    attempts_dict = _action_attempts if action else _login_attempts
+
+    if key not in attempts_dict:
+        return {'limited': False, 'attempts': 0, 'max_attempts': 5, 'remaining_time': 0}
+
+    data = attempts_dict[key]
+    current_time = time.time()
+    elapsed = current_time - data.get('first_attempt', 0)
+
+    return {
+        'limited': data.get('count', 0) >= 5,
+        'attempts': data.get('count', 0),
+        'max_attempts': 5,
+        'remaining_time': max(0, int(300 - elapsed))
+    }
+
+
+def rate_limit(max_attempts=5, window_seconds=300, action=None):
     """
     Decorateur pour limiter le nombre de requetes.
     """
@@ -144,14 +193,57 @@ def rate_limit(max_attempts=5, window_seconds=300):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             ip = request.remote_addr
-            allowed, remaining = check_rate_limit(ip, max_attempts, window_seconds)
+            allowed, remaining, attempts_left = check_rate_limit(
+                ip, max_attempts, window_seconds, action
+            )
 
             if not allowed:
-                return jsonify({
-                    'success': False,
-                    'error': f'Trop de tentatives. Reessayez dans {remaining} secondes.'
-                }), 429
+                # Enregistrer la tentative échouée
+                record_attempt(ip, success=False, action=action)
 
+                # Réponse adaptée selon le type de requête
+                if request.is_json or request.endpoint.startswith('api_'):
+                    return jsonify({
+                        'success': False,
+                        'error': 'Trop de tentatives',
+                        'retry_after': remaining,
+                        'attempts_remaining': attempts_left
+                    }), 429
+
+                # Page HTML pour les requêtes normales
+                from flask import render_template
+                return render_template('rate_limited.html',
+                                       action=action or 'login',
+                                       retry_after=remaining,
+                                       attempts_remaining=attempts_left), 429
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def rate_limit_api(max_attempts=100, window_seconds=60):
+    """
+    Decorateur spécial pour les endpoints API.
+    Plus permissif pour permettre l'automatisation.
+    """
+    def decorator(f):
+        @wraps(f)
+        @rate_limit(max_attempts, window_seconds, action='api')
+        def decorated_function(*args, **kwargs):
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def rate_limit_sensitive(max_attempts=10, window_seconds=300):
+    """
+    Decorateur pour les actions sensibles (delete, unlock, restore).
+    """
+    def decorator(f):
+        @wraps(f)
+        @rate_limit(max_attempts, window_seconds)
+        def decorated_function(*args, **kwargs):
             return f(*args, **kwargs)
         return decorated_function
     return decorator

@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+{% block title %}Connexion réussie - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="success-container">
+    <div class="success-card">
+        <div class="success-icon">✅</div>
+        <h1>Connexion réussie</h1>
+        <h2>Bienvenue, {{ username }}</h2>
+        
+        <div class="success-details">
+            <h3>📋 Informations de connexion</h3>
+            <table class="info-table">
+                <tr>
+                    <td><strong>Utilisateur :</strong></td>
+                    <td>{{ username }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Rôle :</strong></td>
+                    <td>
+                        <span class="role-badge role-{{ user_role }}">
+                            {{ user_role | capitalize }}
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Serveur AD :</strong></td>
+                    <td>{{ ad_server }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Groupes :</strong></td>
+                    <td>
+                        {% if user_groups %}
+                            <ul class="groups-list">
+                            {% for group in user_groups[:5] %}
+                                <li>{{ group }}</li>
+                            {% endfor %}
+                            {% if user_groups | length > 5 %}
+                                <li class="text-muted">+ {{ user_groups | length - 5 }} autre(s)...</li>
+                            {% endif %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Aucun groupe détecté</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Date/heure :</strong></td>
+                    <td>{{ now.strftime('%d/%m/%Y à %H:%M') }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="success-actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">
+                📊 Accéder au tableau de bord
+            </a>
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary btn-lg">
+                👥 Voir les utilisateurs
+            </a>
+        </div>
+
+        {% if user_role == 'admin' %}
+        <div class="admin-hint">
+            <p>💡 <strong>Accès admin activé :</strong> Vous avez accès à toutes les fonctionnalités d'administration.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.success-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+.success-card {
+    background: white;
+    border-radius: 12px;
+    padding: 3rem;
+    max-width: 700px;
+    width: 100%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+.success-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+}
+.success-card h1 {
+    color: #107c10;
+    font-size: 2.5rem;
+    margin: 0;
+}
+.success-card h2 {
+    color: #333;
+    margin: 0.5rem 0 2rem;
+    font-size: 1.5rem;
+}
+.success-details {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin: 2rem 0;
+    border-left: 4px solid #107c10;
+}
+.success-details h3 {
+    margin-top: 0;
+    color: #107c10;
+    font-size: 1.1rem;
+}
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.info-table tr {
+    border-bottom: 1px solid #e0e0e0;
+}
+.info-table tr:last-child {
+    border-bottom: none;
+}
+.info-table td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: top;
+}
+.info-table td:first-child {
+    font-weight: 500;
+    width: 40%;
+    color: #555;
+}
+.groups-list {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: #555;
+}
+.role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.role-admin {
+    background: #d4edda;
+    color: #155724;
+}
+.role-operator {
+    background: #fff3cd;
+    color: #856404;
+}
+.role-reader {
+    background: #e2e3e5;
+    color: #383d41;
+}
+.success-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+}
+.admin-hint {
+    background: #e7f3ff;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: left;
+    margin-top: 1.5rem;
+}
+.admin-hint p {
+    margin: 0;
+    color: #0078d4;
+}
+.text-muted {
+    color: #999;
+}
+/* Dark mode */
+body.dark-mode .success-card {
+    background: var(--dark-bg-secondary);
+}
+body.dark-mode .success-details {
+    background: var(--dark-bg-primary);
+}
+body.dark-mode .info-table td:first-child {
+    color: #aaa;
+}
+body.dark-mode .groups-list {
+    color: #ccc;
+}
+</style>
+{% endblock %}

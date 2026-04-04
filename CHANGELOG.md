@@ -5,6 +5,46 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.32.0] - 2026-04-04
+
+### Ajouté
+
+- **🔐 Rate Limiting renforcé** — Protection anti-brute force sur login (5 tentatives/5min) et actions sensibles (10 tentatives/5min)
+- **Pages de confirmation** — `/login-success` et `/logged-out` remplacent les redirections 302
+- **Page de limitation** — Template `rate_limited.html` avec compte à rebours et informations de sécurité
+- **Session permanente** — La session persiste après fermeture du navigateur (configurable via `SESSION_TIMEOUT`)
+- **Restauration objet AD** — Fonction `restore_deleted_object()` pour restaurer depuis la corbeille AD
+- **Déblocage massif** — Fonction `bulk_unlock_accounts()` améliorée avec support `unlock_all`
+- **Feature Flags** — Activation de `FEATURE_RECYCLE_BIN_ENABLED` et `FEATURE_LOCKED_ACCOUNTS_ENABLED`
+- **Logging amélioré** — Audit des actions de déblocage et restauration avec détails utilisateurs
+- **CSS pages** — Styles complets pour `/connect`, `/laps`, et topbar
+
+### Corrigé
+
+- **Rôle admin non attribué** — Correction de `get_user_role_from_groups()` pour vérifier les groupes AD
+- **Encodage UTF-8** — Fonction `decode_ldap_value()` améliorée pour caractères spéciaux (latin-1, cp1252)
+- **Bug déconnexion** — Conversion correcte de `_login_time` (string ISO → datetime)
+- **Bug rate limiting** — Correction unpacking `check_rate_limit()` (3 valeurs retournées)
+- **Affichage utilisateur** — Topbar avec avatar circulaire et nom complet (ex: `SELEST\admin`)
+
+### Modifié
+
+- **`security.py`** — Refonte complète du rate limiting avec `record_attempt()`, `get_rate_limit_status()`, décorateurs spécialisés
+- **`routes/core.py`** — Fonction `get_user_role_from_groups()` corrigée + logging détaillé
+- **`routes/tools.py`** — Fonctions `restore_deleted_object()` et `bulk_unlock_accounts()` implémentées + rate limiting
+- **`app.py`** — Routes `/connect` et `/disconnect` avec pages dédiées + session permanente
+- **`templates/connect.html`** — CSS complet avec support mode sombre
+- **`templates/laps.html`** — CSS amélioré + JavaScript avec feedback visuel
+- **`templates/partials/_topbar.html`** — Avatar circulaire + CSS inline
+- **`.env`** — Feature flags activés + groupes admin étendus
+
+### Sécurité
+
+- **Rate limiting** — 5 tentatives maximum pour login, 10 pour actions sensibles
+- **Temps de blocage** — 5 minutes après dépassement du seuil
+- **API rate limiting** — 100 requêtes/minute pour endpoints API
+- **Nettoyage automatique** — Purge des tentatives après 15 minutes
+
 ## [1.23.0] - 2026-04-02
 
 ### Ajouté

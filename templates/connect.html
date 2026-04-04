@@ -138,13 +138,111 @@
 
 {% block extra_css %}
 <style>
+.form-container {
+    max-width: 500px;
+    margin: 3rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.form-container h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #333;
+    text-align: center;
+}
+.form-group {
+    margin-bottom: 1.5rem;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group input[type="number"],
+.form-group input[type="email"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color, #0078d4);
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+}
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #666;
+}
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+.checkbox label {
+    margin: 0;
+    font-weight: normal;
+}
 .advanced-row {
     display: grid;
     grid-template-columns: 1fr 2fr;
     gap: 1rem;
 }
+.alert {
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+.alert-info {
+    background: #e7f3ff;
+    border-left: 4px solid #0078d4;
+    color: #0078d4;
+}
+.mt-3 { margin-top: 1.5rem; }
 @media (max-width: 600px) {
+    .form-container {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
     .advanced-row { grid-template-columns: 1fr; }
+}
+/* Dark mode */
+body.dark-mode .form-container {
+    background: var(--dark-bg-secondary, #1e1e1e);
+}
+body.dark-mode .form-container h2 {
+    color: #fff;
+}
+body.dark-mode .form-group label {
+    color: #ccc;
+}
+body.dark-mode .form-group input[type="text"],
+body.dark-mode .form-group input[type="password"],
+body.dark-mode .form-group input[type="number"] {
+    background: var(--dark-bg-primary, #2d2d2d);
+    border-color: #444;
+    color: #fff;
+}
+body.dark-mode .form-text {
+    color: #999;
+}
+body.dark-mode .alert-info {
+    background: rgba(0, 120, 212, 0.2);
+    border-left-color: #4da3ff;
+    color: #4da3ff;
 }
 </style>
 {% endblock %}

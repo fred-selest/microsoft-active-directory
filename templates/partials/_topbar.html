@@ -1,4 +1,28 @@
 <header class="top-bar">
+    <style>
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .user-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--primary-color, #0078d4);
+        color: white;
+        font-weight: bold;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+    }
+    .user-name {
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    </style>
     <div class="top-bar-left">
         <button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">
             <span></span>
@@ -20,10 +44,12 @@
     <div class="top-bar-right">
         {% if connected %}
         <span class="user-info">
-            <span class="user-avatar">{{ session.get('ad_username', 'U')[0]|upper }}</span>
-            <span class="user-name">{{ session.get('ad_username', 'Utilisateur') }}</span>
+            {% set username = session.get('ad_username', 'U')|string %}
+            {% set first_char = username[0] if username else 'U' %}
+            <span class="user-avatar">{{ first_char|upper }}</span>
+            <span class="user-name">{{ username }}</span>
             <span class="user-role badge badge-{{ 'success' if session.get('user_role') == 'admin' else 'info' if session.get('user_role') == 'operator' else 'warning' }}">
-                {{ session.get('user_role', 'reader') }}
+                {{ session.get('user_role', 'reader')|capitalize }}
             </span>
         </span>
         <a href="{{ url_for('disconnect') }}" class="btn btn-logout" title="Déconnexion">
