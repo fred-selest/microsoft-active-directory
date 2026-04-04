@@ -83,16 +83,101 @@
 
 {% block extra_css %}
 <style>
+.search-box {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+.search-box form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.search-box .form-group {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 0;
+}
+.search-box input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
 .password-field {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: wrap;
 }
 .password-field code {
     background: #f5f5f5;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
-    font-family: monospace;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.875rem;
+    border: 1px solid #e0e0e0;
+}
+.password-visible {
+    background: #d4edda !important;
+    border-color: #28a745 !important;
+    color: #155724;
+}
+.results-count {
+    margin-top: 1rem;
+    color: #666;
+    font-size: 0.875rem;
+}
+.alert-warning {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+.alert-warning h4 {
+    margin-top: 0;
+    color: #856404;
+}
+.alert-warning p {
+    color: #856404;
+}
+.alert-warning a {
+    color: #0078d4;
+    text-decoration: underline;
+}
+/* Dark mode */
+body.dark-mode .search-box {
+    background: var(--dark-bg-primary, #2d2d2d);
+}
+body.dark-mode .search-box input {
+    background: var(--dark-bg-secondary, #1e1e1e);
+    border-color: #444;
+    color: #fff;
+}
+body.dark-mode .password-field code {
+    background: #2d2d2d;
+    border-color: #444;
+    color: #fff;
+}
+body.dark-mode .password-visible {
+    background: #155724 !important;
+    border-color: #28a745 !important;
+}
+body.dark-mode .alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-left-color: #ffc107;
+}
+body.dark-mode .alert-warning h4,
+body.dark-mode .alert-warning p {
+    color: #ffc107;
+}
+body.dark-mode .results-count {
+    color: #999;
 }
 </style>
 {% endblock %}
@@ -102,19 +187,49 @@
 function togglePassword(index) {
     const hidden = document.getElementById('pwd-' + index);
     const visible = document.getElementById('pwd-clear-' + index);
+    const btn = event.target;
+    
     if (hidden.style.display !== 'none') {
         hidden.style.display = 'none';
         visible.style.display = 'inline';
+        btn.textContent = 'Masquer';
+        btn.classList.add('btn-warning');
     } else {
         hidden.style.display = 'inline';
         visible.style.display = 'none';
+        btn.textContent = 'Afficher';
+        btn.classList.remove('btn-warning');
     }
 }
 
 function copyPassword(password) {
+    if (!password) {
+        alert('Aucun mot de passe à copier');
+        return;
+    }
+    
     navigator.clipboard.writeText(password).then(() => {
-        alert('Mot de passe copie!');
+        // Afficher un message temporaire
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✓ Copié!';
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('btn-success');
+        }, 2000);
+    }).catch(err => {
+        alert('Erreur lors de la copie: ' + err);
     });
 }
+
+// Focus automatique sur le champ de recherche
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('.search-box input[type="text"]');
+    if (searchInput) {
+        searchInput.focus();
+    }
+});
 </script>
 {% endblock %}

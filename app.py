@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from ad_detect import get_local_domain, detect_ad_config
 from config import get_config
-from security import generate_csrf_token, validate_csrf_token, add_security_headers, get_secure_session_config, check_rate_limit, record_login_attempt
+from security import generate_csrf_token, validate_csrf_token, add_security_headers, get_secure_session_config, check_rate_limit, record_attempt
 from translations import Translator
 from audit import log_action, ACTIONS
 from alerts import get_alert_counts
@@ -169,7 +169,7 @@ def connect():
             return render_template('connect.html', connected=is_connected())
 
         ip = request.remote_addr
-        allowed, remaining = check_rate_limit(ip)
+        allowed, remaining, attempts_left = check_rate_limit(ip)
         if not allowed:
             flash(f'Trop de tentatives. Réessayez dans {remaining}s.', 'error')
             return render_template('connect.html', connected=is_connected())
@@ -207,7 +207,7 @@ def connect():
         conn, error = get_ad_connection(server, username, password, use_ssl, port)
 
         if conn:
-            record_login_attempt(ip, success=True)
+            record_attempt(ip, success=True, action='login')
             session['ad_server'] = server
             session['ad_username'] = username
             session['ad_password'] = encrypt_password(password)
@@ -225,19 +225,27 @@ def connect():
             # Sauvegarder les groupes de l'utilisateur (pour permissions granulaires)
             session['user_groups'] = debug_info.get('groups', [])
 
+            # Rendre la session permanente pour conserver la connexion
+            session.permanent = True
+            
+            # Stocker l'heure de connexion pour calculer la durée de session
+            from datetime import datetime
+            session['_login_time'] = datetime.now().isoformat()
+
             conn.unbind()
 
             log_action(ACTIONS['LOGIN'], username, {'server': server, 'role': user_role}, True, ip)
-            flash(f'Connexion réussie! Role: {user_role}', 'success')
-
-            if debug_info.get('groups'):
-                flash(f'Groupes: {", ".join(debug_info["groups"][:5])}', 'info')
-            if debug_info.get('error'):
-                flash(f'Erreur: {debug_info["error"]}', 'warning')
-
-            return redirect(url_for('dashboard'))
+            
+            # Afficher la page de succès de connexion au lieu de rediriger
+            from datetime import datetime
+            return render_template('login_success.html',
+                                   username=username,
+                                   user_role=user_role,
+                                   user_groups=debug_info.get('groups', []),
+                                   ad_server=server,
+                                   now=datetime.now())
         else:
-            record_login_attempt(ip, success=False)
+            record_attempt(ip, success=False, action='login')
             log_action(ACTIONS['LOGIN'], username, {'error': error}, False, ip)
             flash(f'Erreur: {error}', 'error')
 
@@ -257,10 +265,37 @@ def connect():
 @app.route('/disconnect')
 def disconnect():
     """Déconnexion."""
-    log_action(ACTIONS['LOGOUT'], session.get('ad_username', 'unknown'), {}, True, request.remote_addr)
+    from datetime import datetime, timedelta
+
+    username = session.get('ad_username', 'unknown')
+
+    # Calculer la durée de session si disponible
+    session_start = session.get('_login_time')
+    if session_start:
+        # Convertir la chaîne ISO en datetime
+        try:
+            login_time = datetime.fromisoformat(session_start)
+            duration = datetime.now() - login_time
+            hours, remainder = divmod(int(duration.total_seconds()), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            session_duration = f"{hours}h {minutes}min"
+        except (ValueError, TypeError):
+            session_duration = "N/A"
+    else:
+        session_duration = "N/A"
+
+    log_action(ACTIONS['LOGOUT'], username, {'session_duration': session_duration}, True, request.remote_addr)
+
+    # Sauvegarder le nom d'utilisateur pour la page de déconnexion
     session.clear()
-    flash('Déconnecté.', 'success')
-    return redirect(url_for('index'))
+    session['_logged_out_user'] = username
+
+    # Afficher la page de déconnexion au lieu de rediriger
+    return render_template('logged_out.html',
+                           username=username,
+                           session_duration=session_duration,
+                           now=datetime.now(),
+                           quick_reconnect=False)
 
 
 @app.route('/toggle-dark-mode')

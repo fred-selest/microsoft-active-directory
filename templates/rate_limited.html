@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% block title %}Trop de tentatives - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="rate-limit-container">
+    <div class="rate-limit-card">
+        <div class="rate-limit-icon">⚠️</div>
+        <h1>Trop de tentatives</h1>
+        <h2>Protection anti-brute force activée</h2>
+        
+        <div class="rate-limit-details">
+            <h3>🔒 Protection activée</h3>
+            <p>
+                Pour des raisons de sécurité, nous avons limité le nombre de tentatives 
+                pour cette action. Veuillez attendre avant de réessayer.
+            </p>
+            
+            <div class="countdown-container">
+                <div class="countdown-timer" id="countdown">
+                    <span class="time-value" id="seconds">{{ retry_after }}</span>
+                    <span class="time-label">secondes</span>
+                </div>
+                <p class="countdown-text">Temps d'attente restant</p>
+            </div>
+
+            <table class="info-table">
+                <tr>
+                    <td><strong>Action :</strong></td>
+                    <td>
+                        <code>{{ action }}</code>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Tentatives restantes :</strong></td>
+                    <td>
+                        <span class="attempts-badge attempts-{{ attempts_remaining }}">
+                            {{ attempts_remaining }} / 5
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Fenêtre de temps :</strong></td>
+                    <td>5 minutes</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="rate-limit-actions">
+            <button onclick="history.back()" class="btn btn-secondary btn-lg">
+                ← Page précédente
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                🏠 Accueil
+            </a>
+        </div>
+
+        <div class="security-info">
+            <h4>🛡️ Pourquoi cette limitation ?</h4>
+            <ul>
+                <li>Protection contre les attaques par force brute</li>
+                <li>Prévention des tentatives de connexion massives</li>
+                <li>Sécurisation des actions sensibles (suppression, déblocage, restauration)</li>
+            </ul>
+        </div>
+
+        {% if action == 'login' %}
+        <div class="login-help">
+            <h4>💡 Problème de connexion ?</h4>
+            <ul>
+                <li>Vérifiez vos identifiants (nom d'utilisateur et mot de passe)</li>
+                <li>Vérifiez que le domaine est correct</li>
+                <li>Assurez-vous que le serveur AD est accessible</li>
+                <li>Contactez votre administrateur si le problème persiste</li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.rate-limit-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+.rate-limit-card {
+    background: white;
+    border-radius: 12px;
+    padding: 3rem;
+    max-width: 650px;
+    width: 100%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+.rate-limit-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+}
+.rate-limit-card h1 {
+    color: #ffb900;
+    font-size: 2.5rem;
+    margin: 0;
+}
+.rate-limit-card h2 {
+    color: #333;
+    margin: 0.5rem 0 2rem;
+    font-size: 1.3rem;
+}
+.rate-limit-details {
+    background: #fff3cd;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin: 2rem 0;
+    border-left: 4px solid #ffb900;
+}
+.rate-limit-details h3 {
+    margin-top: 0;
+    color: #856404;
+    font-size: 1.1rem;
+}
+.rate-limit-details p {
+    color: #856404;
+    margin-bottom: 1.5rem;
+}
+.countdown-container {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    margin: 1.5rem 0;
+}
+.countdown-timer {
+    display: inline-block;
+    background: #ffb900;
+    color: #000;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+.countdown-timer .time-label {
+    display: block;
+    font-size: 1rem;
+    font-weight: normal;
+    margin-top: 0.25rem;
+}
+.countdown-text {
+    color: #856404;
+    font-size: 0.9rem;
+}
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+}
+.info-table tr {
+    border-bottom: 1px solid #e0e0e0;
+}
+.info-table tr:last-child {
+    border-bottom: none;
+}
+.info-table td {
+    padding: 0.75rem 0.5rem;
+    text-align: left;
+}
+.info-table td:first-child {
+    font-weight: 500;
+    width: 50%;
+    color: #555;
+}
+.info-table td:last-child {
+    color: #333;
+}
+.attempts-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+.attempts-0 {
+    background: #d4edda;
+    color: #155724;
+}
+.attempts-1 {
+    background: #fff3cd;
+    color: #856404;
+}
+.attempts-2 {
+    background: #ffe5a0;
+    color: #856404;
+}
+.attempts-3 {
+    background: #ffc107;
+    color: #000;
+}
+.attempts-4, .attempts-5 {
+    background: #e2e3e5;
+    color: #383d41;
+}
+.rate-limit-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+}
+.security-info {
+    background: #e7f3ff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin-top: 1.5rem;
+}
+.security-info h4 {
+    margin-top: 0;
+    color: #0078d4;
+    font-size: 1rem;
+}
+.security-info ul {
+    margin: 1rem 0 0 0;
+    padding-left: 1.5rem;
+    color: #555;
+}
+.security-info li {
+    margin: 0.5rem 0;
+}
+.login-help {
+    background: #d1ecf1;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin-top: 1.5rem;
+}
+.login-help h4 {
+    margin-top: 0;
+    color: #0c5460;
+    font-size: 1rem;
+}
+.login-help ul {
+    margin: 1rem 0 0 0;
+    padding-left: 1.5rem;
+    color: #555;
+}
+.login-help li {
+    margin: 0.5rem 0;
+}
+code {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+}
+/* Dark mode */
+body.dark-mode .rate-limit-card {
+    background: var(--dark-bg-secondary);
+}
+body.dark-mode .rate-limit-details {
+    background: rgba(255, 185, 0, 0.1);
+}
+body.dark-mode .rate-limit-details p {
+    color: #ffc107;
+}
+body.dark-mode .countdown-container {
+    background: var(--dark-bg-primary);
+}
+body.dark-mode .info-table td:first-child {
+    color: #aaa;
+}
+body.dark-mode .info-table td:last-child {
+    color: #ccc;
+}
+body.dark-mode .security-info {
+    background: rgba(0, 120, 212, 0.1);
+}
+body.dark-mode .security-info ul {
+    color: #ccc;
+}
+body.dark-mode .login-help {
+    background: rgba(0, 183, 195, 0.1);
+}
+body.dark-mode .login-help ul {
+    color: #ccc;
+}
+</style>
+
+<script>
+// Compte à rebours
+let seconds = {{ retry_after }};
+const countdownEl = document.getElementById('seconds');
+
+const countdownInterval = setInterval(() => {
+    seconds--;
+    
+    if (seconds <= 0) {
+        clearInterval(countdownInterval);
+        countdownEl.textContent = '0';
+        // Recharger la page quand le compte à rebours est terminé
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    } else {
+        countdownEl.textContent = seconds;
+    }
+}, 1000);
+
+// Nettoyer l'intervalle si l'utilisateur quitte la page
+window.addEventListener('beforeunload', () => {
+    clearInterval(countdownInterval);
+});
+</script>
+{% endblock %}

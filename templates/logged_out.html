@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Déconnecté - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="logout-container">
+    <div class="logout-card">
+        <div class="logout-icon">👋</div>
+        <h1>Déconnexion réussie</h1>
+        <h2>À bientôt, {{ username }}</h2>
+        
+        <div class="logout-details">
+            <h3>📋 Résumé de votre session</h3>
+            <table class="info-table">
+                <tr>
+                    <td><strong>Utilisateur :</strong></td>
+                    <td>{{ username }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Durée de session :</strong></td>
+                    <td>{{ session_duration }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Date de déconnexion :</strong></td>
+                    <td>{{ now.strftime('%d/%m/%Y à %H:%M') }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="logout-actions">
+            <a href="{{ url_for('connect') }}" class="btn btn-primary btn-lg">
+                🔐 Se reconnecter
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary btn-lg">
+                🏠 Accueil
+            </a>
+        </div>
+
+        <div class="security-hint">
+            <p>🔒 <strong>Session terminée :</strong> Votre session a été complètement fermée. 
+            Pour des raisons de sécurité, veuillez fermer votre navigateur si vous êtes sur un poste partagé.</p>
+        </div>
+
+        {% if quick_reconnect %}
+        <form action="{{ url_for('connect') }}" method="POST" class="quick-reconnect">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="username" value="{{ username }}">
+            <button type="submit" class="btn btn-outline btn-sm">
+                ⚡ Reconnexion rapide
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.logout-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+.logout-card {
+    background: white;
+    border-radius: 12px;
+    padding: 3rem;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+.logout-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+}
+.logout-card h1 {
+    color: #0078d4;
+    font-size: 2.5rem;
+    margin: 0;
+}
+.logout-card h2 {
+    color: #333;
+    margin: 0.5rem 0 2rem;
+    font-size: 1.5rem;
+}
+.logout-details {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: left;
+    margin: 2rem 0;
+    border-left: 4px solid #0078d4;
+}
+.logout-details h3 {
+    margin-top: 0;
+    color: #0078d4;
+    font-size: 1.1rem;
+}
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.info-table tr {
+    border-bottom: 1px solid #e0e0e0;
+}
+.info-table tr:last-child {
+    border-bottom: none;
+}
+.info-table td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: top;
+}
+.info-table td:first-child {
+    font-weight: 500;
+    width: 50%;
+    color: #555;
+}
+.logout-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 2rem 0;
+}
+.security-hint {
+    background: #fff3cd;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: left;
+    margin-top: 1.5rem;
+}
+.security-hint p {
+    margin: 0;
+    color: #856404;
+}
+.quick-reconnect {
+    margin-top: 1.5rem;
+}
+/* Dark mode */
+body.dark-mode .logout-card {
+    background: var(--dark-bg-secondary);
+}
+body.dark-mode .logout-details {
+    background: var(--dark-bg-primary);
+}
+body.dark-mode .info-table td:first-child {
+    color: #aaa;
+}
+body.dark-mode .security-hint {
+    background: rgba(255, 185, 0, 0.1);
+}
+body.dark-mode .security-hint p {
+    color: #ffc107;
+}
+</style>
+{% endblock %}

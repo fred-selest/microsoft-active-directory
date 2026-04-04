@@ -36,12 +36,18 @@ def decode_ldap_value(value):
     if val is None:
         return ''
     if isinstance(val, bytes):
-        try:
-            return val.decode('utf-8')
-        except:
-            return val.decode('latin-1')
+        # Essayer UTF-8 d'abord, puis latin-1, puis cp1252 (Windows)
+        for encoding in ['utf-8', 'latin-1', 'cp1252']:
+            try:
+                return val.decode(encoding)
+            except:
+                continue
+        return val.decode('utf-8', errors='replace')
     if isinstance(val, list):
         return [decode_ldap_value(v) for v in val]
+    # Pour les strings, s'assurer de l'encodage correct
+    if isinstance(val, str):
+        return val
     return str(val)
 
 
@@ -243,7 +249,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
 def get_user_role_from_groups(conn, username, debug=False):
     """Déterminer le rôle utilisateur selon ses groupes AD (legacy - pour compatibilité)."""
     info = {'groups': [], 'error': None}
-    
+
     try:
         base_dn = session.get('ad_base_dn', '')
         if not base_dn and conn.server.info and conn.server.info.naming_contexts:
@@ -255,19 +261,54 @@ def get_user_role_from_groups(conn, username, debug=False):
 
         if not conn.entries:
             info['error'] = f'Utilisateur {search_user} non trouvé'
+            logger.warning(f"Utilisateur {search_user} non trouvé dans AD")
             return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
         # Extraire les groupes
         if hasattr(conn.entries[0], 'memberOf') and conn.entries[0].memberOf:
             for dn in conn.entries[0].memberOf.values:
-                if str(dn).upper().startswith('CN='):
-                    info['groups'].append(str(dn).split(',')[0][3:])
+                # Utiliser decode_ldap_value pour gérer correctement l'UTF-8
+                dn_str = decode_ldap_value(dn)
+                if dn_str.upper().startswith('CN='):
+                    # Extraire le nom du groupe (CN=GroupName,DC=...)
+                    group_name = dn_str.split(',')[0][3:]
+                    info['groups'].append(group_name)
 
-        # Retourner le rôle par défaut (le système granulaire gère les permissions)
-        return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
+        logger.info(f"Groupes AD détectés pour {username}: {info['groups']}")
+        logger.info(f"Groupes admin configurés: {config.ADMIN_GROUPS}")
+
+        # Déterminer le rôle selon les groupes AD (ordre: admin > operator > reader)
+        user_role = config.DEFAULT_ROLE
+        
+        # Vérifier les groupes admin en premier
+        for admin_group in config.ADMIN_GROUPS:
+            if admin_group in info['groups']:
+                logger.info(f"Correspondance admin trouvée: {admin_group}")
+                user_role = 'admin'
+                break
+        
+        # Si pas admin, vérifier les groupes operator
+        if user_role == config.DEFAULT_ROLE:
+            for operator_group in config.OPERATOR_GROUPS:
+                if operator_group in info['groups']:
+                    logger.info(f"Correspondance operator trouvée: {operator_group}")
+                    user_role = 'operator'
+                    break
+        
+        # Si aucun groupe spécifique, vérifier les groupes reader
+        if user_role == config.DEFAULT_ROLE and config.READER_GROUPS:
+            for reader_group in config.READER_GROUPS:
+                if reader_group in info['groups']:
+                    logger.info(f"Correspondance reader trouvée: {reader_group}")
+                    user_role = 'reader'
+                    break
+
+        logger.info(f"Rôle déterminé pour {username}: {user_role}")
+        return (user_role, info) if debug else user_role
 
     except Exception as e:
         info['error'] = str(e)
+        logger.error(f"Erreur détermination rôle pour {username}: {e}", exc_info=True)
         return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
 

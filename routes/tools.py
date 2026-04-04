@@ -7,7 +7,7 @@ from ldap3.core.exceptions import LDAPException
 
 from .core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, require_permission, config)
-from security import escape_ldap_filter
+from security import escape_ldap_filter, rate_limit_sensitive, record_attempt
 
 tools_bp = Blueprint('tools', __name__)
 
@@ -198,26 +198,95 @@ def recycle_bin():
 @tools_bp.route('/recycle-bin/<path:dn>/restore', methods=['POST'])
 @require_connection
 @require_permission('admin')
+@rate_limit_sensitive(max_attempts=10, window_seconds=300)
 def restore_deleted_object(dn):
     """
     Restaurer un objet supprimé de la corbeille AD.
     Note: Cette fonctionnalité nécessite que la corbeille AD soit activée.
+
+    Pour restaurer un objet supprimé:
+    1. L'objet doit être dans la corbeille AD (isDeleted=TRUE)
+    2. Il faut modifier le distinguishedName pour lui redonner un chemin valide
+    3. Positionner isDeleted à FALSE
     """
+    from ldap3.core.exceptions import LDAPException
+
+    ip = request.remote_addr
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.recycle_bin'))
-    
+
     try:
-        # La restauration d'objets supprimés nécessite des opérations spéciales
-        # Cette implémentation est un placeholder
-        flash('La restauration d\'objets supprimés n\'est pas encore implémentée. '
-              'Cette fonctionnalité nécessite des permissions élevées et la corbeille AD activée.', 'warning')
+        # Décoder le DN (url-encoded)
+        from urllib.parse import unquote
+        deleted_dn = unquote(dn)
+        
+        # Récupérer le nouveau DN depuis le form
+        new_parent_dn = request.form.get('new_parent_dn', '')
+        
+        if not new_parent_dn:
+            # Utiliser le parent d'origine de l'objet supprimé
+            # Extraire le RDN (CN=...) et le parent DN
+            parts = deleted_dn.split(',', 1)
+            if len(parts) != 2:
+                flash('DN invalide ou parent DN manquant.', 'error')
+                return redirect(url_for('tools.recycle_bin'))
+            
+            rdn = parts[0]  # ex: CN=John Doe
+            # Le parent est déjà dans le DN original (après suppression de CN=...)
+            # Pour un objet supprimé, le DN est comme: CN=John Doe\0ADEL:...
+            new_parent_dn = parts[1]
+        
+        # Construire le nouveau DN
+        # Pour un objet supprimé, le DN contient \0ADEL:guid
+        # Il faut le retirer
+        rdn_parts = deleted_dn.split(',', 1)[0].split('=')
+        if len(rdn_parts) >= 2:
+            rdn_clean = f"{rdn_parts[0]}={rdn_parts[1]}"  # Garde seulement CN=Value sans \0ADEL
+        else:
+            rdn_clean = rdn_parts[0]
+        
+        new_dn = f"{rdn_clean},{new_parent_dn}"
+        
+        logger.info(f"Restauration: {deleted_dn} -> {new_dn}")
+        
+        # Opération de restauration:
+        # 1. Modifier le DN pour retirer \0ADEL:guid et replacer l'objet
+        # 2. Set isDeleted à FALSE (implicite dans laopération de rename)
+        conn.rename(deleted_dn, new_dn)
+        
+        if conn.result['result'] == 0:
+            # Succès
+            object_name = deleted_dn.split(',')[0].split('=')[1] if '=' in deleted_dn.split(',')[0] else deleted_dn
+            flash(f'Objet "{object_name}" restauré avec succès.', 'success')
+            record_attempt(ip, success=True, action='restore_object')
+            log_action('RESTORE_OBJECT', session.get('ad_username'),
+                      {'dn': deleted_dn, 'new_dn': new_dn}, True, request.remote_addr)
+        else:
+            # Erreur - enregistrer comme tentative échouée
+            record_attempt(ip, success=False, action='restore_object')
+            error_msg = conn.result['message']
+            if 'insufficient access' in error_msg.lower() or 'unwilling' in error_msg.lower():
+                flash('Erreur: Permissions insuffisantes ou corbeille AD non activée. '
+                      'Vérifiez que la corbeille AD est activée et que vous avez les droits.', 'error')
+            else:
+                flash(f'Erreur lors de la restauration: {error_msg}', 'error')
+                
+    except LDAPException as e:
+        error_msg = str(e)
+        if 'isDeleted' in error_msg or 'naming' in error_msg.lower():
+            flash('Erreur: La corbeille AD n\'est probablement pas activée sur ce domaine. '
+                  'Activez-la avec: Enable-ADOptionalFeature -Identity "Recycle Bin Feature"', 'error')
+        else:
+            flash(f'Erreur LDAP: {error_msg}', 'error')
+        logger.error(f"Erreur restauration: {error_msg}", exc_info=True)
     except Exception as e:
         flash(f'Erreur lors de la restauration: {str(e)}', 'error')
+        logger.error(f"Erreur restauration: {str(e)}", exc_info=True)
     finally:
         conn.unbind()
-    
+
     return redirect(url_for('tools.recycle_bin'))
 
 
@@ -258,47 +327,81 @@ def locked_accounts():
 @tools_bp.route('/locked-accounts/unlock', methods=['POST'])
 @require_connection
 @require_permission('admin')
+@rate_limit_sensitive(max_attempts=10, window_seconds=300)
 def bulk_unlock_accounts():
     """
     Débloquer un ou plusieurs comptes utilisateurs.
+    Utilise ldap3 pour réinitialiser l'attribut lockoutTime à 0.
     """
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.locked_accounts'))
-    
+
     # Récupérer les comptes à débloquer
     selected_accounts = request.form.getlist('selected_accounts')
-    
-    if not selected_accounts:
+    unlock_all = request.form.get('unlock_all', 'false') == 'true'
+
+    if not selected_accounts and not unlock_all:
         flash('Aucun compte sélectionné.', 'warning')
         return redirect(url_for('tools.locked_accounts'))
-    
+
+    ip = request.remote_addr
+
     unlocked_count = 0
     failed_count = 0
-    
+    unlocked_users = []
+
     try:
+        # Si unlock_all, récupérer tous les comptes verrouillés
+        if unlock_all:
+            base_dn = session.get('ad_base_dn', '')
+            conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
+                       attributes=['distinguishedName', 'sAMAccountName'])
+            selected_accounts = [decode_ldap_value(entry.distinguishedName) for entry in conn.entries]
+
         for dn in selected_accounts:
             try:
-                # Débloquer le compte en réinitialisant lockoutTime
-                conn.modify(dn, {'lockoutTime': [(0, [(0, b'\x00\x00\x00\x00\x00\x00\x00\x00')])]})
-                if conn.result['result'] == 0:
+                # Débloquer le compte en réinitialisant lockoutTime à 0
+                # Format: lockoutTime: INTEGER (0 = débloqué)
+                result = conn.modify(dn, {'lockoutTime': 0})
+                
+                if result:
                     unlocked_count += 1
+                    # Extraire le nom d'utilisateur pour le log
+                    user_dn_parts = dn.split(',')
+                    user_cn = user_dn_parts[0].split('=')[1] if '=' in user_dn_parts[0] else user_dn_parts[0]
+                    unlocked_users.append(user_cn)
+                    logger.info(f"Compte débloqué: {user_cn}")
                 else:
                     failed_count += 1
-            except Exception:
+                    logger.warning(f"Échec déblocage: {dn} - {conn.result.get('message', 'Unknown')}")
+                    
+            except Exception as e:
                 failed_count += 1
-        
+                logger.error(f"Erreur déblocage {dn}: {str(e)}")
+
+        # Messages de résultat
         if unlocked_count > 0:
-            flash(f'{unlocked_count} compte(s) débloqué(s).', 'success')
+            flash(f'{unlocked_count} compte(s) débloqué(s) avec succès.', 'success')
+            record_attempt(ip, success=True, action='unlock_accounts')
+            log_action('BULK_UNLOCK_ACCOUNTS', session.get('ad_username'),
+                      {'unlocked': unlocked_count, 'failed': failed_count,
+                       'users': unlocked_users[:10]},  # Limite à 10 pour le log
+                      True, request.remote_addr)
+        else:
+            # Échec total - enregistrer comme tentative échouée
+            record_attempt(ip, success=False, action='unlock_accounts')
+
         if failed_count > 0:
             flash(f'{failed_count} échec(s) lors du déblocage.', 'warning')
-            
+
     except Exception as e:
         flash(f'Erreur lors du déblocage: {str(e)}', 'error')
+        logger.error(f"Erreur déblocage massif: {str(e)}", exc_info=True)
     finally:
         conn.unbind()
-    
+
     return redirect(url_for('tools.locked_accounts'))
 
 
