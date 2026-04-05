@@ -5,6 +5,35 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.33.0] - 2026-04-05
+
+### Ajouté
+
+- **Logging détaillé toggle_user** — Traces complètes pour débogage (DN, action, UAC, résultat)
+
+### Corrigé
+
+- **Activation/désactivation utilisateurs** — Route `/users/toggle` corrigée :
+  - DN passé comme champ caché (plus dans l'URL)
+  - Bouton avec soumission JavaScript explicite
+  - Encodage URL simplifié
+- **Création utilisateur** — OU de destination par défaut utilise `base_dn` de la session
+- **Template users.html** — Fonction `showMoveUserModal` → `showMoveModal` (cohérence)
+- **Template users.html** — Boutons toggle avec IDs uniques pour soumission fiable
+
+### Modifié
+
+- **`routes/users.py`** — Route `toggle_user()` refactorisée :
+  - URL: `/users/toggle` (au lieu de `/users/<path:dn>/toggle`)
+  - DN récupéré depuis `request.form.get('dn')`
+  - Logging détaillé ajouté
+- **`templates/users.html`** — Formulaire toggle simplifié :
+  - `<input type="hidden" name="dn" value="{{ user.dn }}">`
+  - Bouton `type="button"` avec `onclick="form.submit()"`
+- **`routes/users.py`** — Fonction `create_user()` :
+  - Gestion correcte de l'OU par défaut
+  - Utilise `session.get('ad_base_dn')` si aucune OU spécifiée
+
 ## [1.32.0] - 2026-04-04
 
 ### Ajouté

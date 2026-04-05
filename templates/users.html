@@ -72,17 +72,20 @@
                         🔑
                     </a>
                     <div class="btn-group-mobile">
-                        <form method="post" action="{{ url_for('users.toggle_user', dn=user.dn) }}" style="display: inline;">
+                        <form id="toggle-form-{{ loop.index }}" method="post" action="{{ url_for('users.toggle_user') }}" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="dn" value="{{ user.dn }}">
                             <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
-                            <button type="submit" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}" title="{{ 'Activer' if user.disabled else 'Désactiver' }}">
-                                {{ '✅' if user.disabled else '⏸️' }}
-                            </button>
                         </form>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn }}', '{{ user.displayName or user.cn }}')" title="Déplacer">
+                        <button type="button" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}" 
+                                title="{{ 'Activer' if user.disabled else 'Désactiver' }}"
+                                onclick="document.getElementById('toggle-form-{{ loop.index }}').submit();">
+                            {{ '✅' if user.disabled else '⏸️' }}
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn|replace("'", "\\'") }}', '{{ (user.displayName or user.cn)|replace("'", "\\'") }}')" title="Déplacer">
                             📍
                         </button>
-                        <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
+                        <form method="post" action="{{ url_for('users.delete_user', dn=user.dn|urlencode) }}"
                               style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">

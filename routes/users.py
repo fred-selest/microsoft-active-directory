@@ -183,12 +183,21 @@ def create_user():
         last_name = request.form.get('last_name', '').strip()
         password = request.form.get('password', '')
         must_change_password = request.form.get('must_change_password') == 'on'
-        target_ou = request.form.get('target_ou', base_dn)
+        target_ou = request.form.get('target_ou', '').strip()
         email = request.form.get('email', '').strip()
 
         if not username:
             flash('Nom d\'utilisateur requis.', 'error')
             return render_template('create_user.html', ous=ou_list, connected=is_connected())
+
+        # Si aucune OU spécifiée, utiliser le base_dn ou le conteneur Users par défaut
+        if not target_ou:
+            # Essayer d'utiliser le base_dn de la session
+            target_ou = session.get('ad_base_dn', '')
+            # Si pas de base_dn, utiliser le conteneur Users par défaut
+            if not target_ou:
+                flash('OU de destination requise. Veuillez sélectionner une unité organisationnelle.', 'error')
+                return render_template('create_user.html', ous=ou_list, connected=is_connected())
 
         cn = f"{first_name} {last_name}".strip() or username
         user_dn = f"CN={cn},{target_ou}"
@@ -401,11 +410,14 @@ def reset_password(dn):
                            connected=is_connected())
 
 
-@users_bp.route('/<path:dn>/toggle', methods=['POST'])
+@users_bp.route('/toggle', methods=['POST'])
 @require_connection
 @require_permission('write')
-def toggle_user(dn):
+def toggle_user():
     """Activer ou désactiver un compte utilisateur."""
+    import logging
+    logger = logging.getLogger('users')
+    
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('users.list_users'))
@@ -416,32 +428,70 @@ def toggle_user(dn):
         return redirect(url_for('users.list_users'))
 
     base_dn = session.get('ad_base_dn', '')
+    
+    # Récupérer le DN depuis le formulaire (passé comme champ caché)
+    dn = request.form.get('dn', '').strip()
+    action = request.form.get('action', '')
+    
+    logger.info(f"toggle_user: DN reçu = {dn}")
+    logger.info(f"toggle_user: base_dn = {base_dn}")
+    logger.info(f"toggle_user: action = {action}")
+
+    if not dn:
+        flash('DN utilisateur manquant.', 'error')
+        conn.unbind()
+        return redirect(url_for('users.list_users'))
 
     try:
-        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
-                   attributes=['userAccountControl'])
+        # Rechercher l'utilisateur par son DN exact
+        search_filter = f'(distinguishedName={escape_ldap_filter(dn)})'
+        logger.info(f"toggle_user: search_filter = {search_filter}")
+        
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['userAccountControl', 'distinguishedName', 'sAMAccountName'])
+        
+        logger.info(f"toggle_user: entries trouvées = {len(conn.entries)}")
+        
         if not conn.entries:
-            flash('Utilisateur introuvable.', 'error')
+            logger.error(f"toggle_user: Utilisateur introuvable: {dn}")
+            flash(f'Utilisateur introuvable: {dn}', 'error')
             conn.unbind()
             return redirect(url_for('users.list_users'))
 
-        uac = conn.entries[0].userAccountControl.value
+        entry = conn.entries[0]
+        uac = entry.userAccountControl.value
         uac = int(uac) if uac else 512
-        action = request.form.get('action', '')
+        
+        # Récupérer le DN réel (peut être différent après recherche)
+        actual_dn = str(entry.distinguishedName)
+        username = entry.sAMAccountName.value if entry.sAMAccountName else 'inconnu'
+        
+        logger.info(f"toggle_user: actual_dn = {actual_dn}")
+        logger.info(f"toggle_user: username = {username}")
+        logger.info(f"toggle_user: uac = {uac}, action = {action}")
+        
         if action == 'enable':
-            new_uac = uac & ~2
+            new_uac = uac & ~2  # Activer (enlever ACCOUNTDISABLE)
         else:
-            new_uac = uac | 2
+            new_uac = uac | 2   # Désactiver (ajouter ACCOUNTDISABLE)
 
-        conn.modify(dn, {'userAccountControl': [(MODIFY_REPLACE, [new_uac])]})
+        logger.info(f"toggle_user: new_uac = {new_uac}")
+        logger.info(f"toggle_user: modification en cours...")
+        
+        conn.modify(actual_dn, {'userAccountControl': [(MODIFY_REPLACE, [new_uac])]})
+        
+        logger.info(f"toggle_user: résultat = {conn.result}")
+        
         if conn.result['result'] == 0:
             label = 'activé' if action == 'enable' else 'désactivé'
             log_action(ACTIONS.get('TOGGLE_USER', 'toggle_user'), session.get('ad_username'),
-                      {'dn': dn, 'action': action}, True, request.remote_addr)
+                      {'dn': actual_dn, 'username': username, 'action': action}, True, request.remote_addr)
             flash(f'Utilisateur {label}.', 'success')
         else:
+            logger.error(f"toggle_user: erreur LDAP = {conn.result}")
             flash(f'Erreur: {conn.result["description"]}', 'error')
     except Exception as e:
+        logger.error(f"toggle_user: exception = {str(e)}", exc_info=True)
         flash(f'Erreur: {str(e)}', 'error')
     finally:
         conn.unbind()
