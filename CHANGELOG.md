@@ -5,6 +5,41 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.34.0] - 2026-04-05
+
+### Ajouté
+
+- **📧 Configuration SMTP** — Page Admin → Configuration SMTP avec :
+  - Serveur, port, TLS, authentification
+  - Email d'expédition et nom d'expéditeur
+  - Test d'envoi d'email en direct
+- **🔍 Audit sécurité amélioré** — Exclusion des groupes système Windows :
+  - 80+ groupes système exclus (Domain Computers, Administrators, etc.)
+  - Groupes French/English supportés
+  - Patterns SID et BUILTIN exclus automatiquement
+
+### Corrigé
+
+- **Audit sécurité - faux positifs** — Groupes système incorrectement listés comme "vides" :
+  - `Ordinateurs du domaine` (Domain Computers) — membres implicites
+  - `WseManagedGroups` — Windows Server Essentials
+  - `DnsUpdateProxy` — DNS dynamique
+  - `Contrôleurs de domaine en lecture seule` — RODC
+  - `Contrôleurs de domaine clonables` — Cloneable DC
+  - `Administrateurs clés` — Key Admins (FR)
+  - +70 autres groupes système exclus
+
+### Modifié
+
+- **`settings_manager.py`** — Section `smtp` ajoutée aux DEFAULT_SETTINGS
+- **`routes/admin.py`** — Routes `/save/smtp` et `/test/smtp` ajoutées
+- **`templates/admin.html`** — Section Configuration SMTP avec formulaire et test
+- **`security_audit.py`** — Fonction `check_empty_security_groups()` refactorisée :
+  - Liste EXCLUDED_GROUPS étendue (80+ groupes)
+  - Liste EXCLUDED_PATTERNS pour SID et groupes générés
+  - Logging détaillé pour débogage
+- **`app.py`** — TEMPLATES_AUTO_RELOAD activé même en production (dev friendly)
+
 ## [1.33.0] - 2026-04-05
 
 ### Ajouté

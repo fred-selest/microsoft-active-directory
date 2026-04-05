@@ -114,7 +114,87 @@
         </div>
     </div>
 
-    <!-- Section 4: Fonctionnalités Désactivées -->
+    <!-- Section 4: Configuration SMTP -->
+    <div class="admin-section card fade-in">
+        <h3>📧 Configuration SMTP</h3>
+        <form method="POST" action="{{ url_for('admin.save_smtp_settings') }}" class="smtp-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-row">
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="smtp_enabled" name="smtp_enabled" {% if settings.smtp.enabled %}checked{% endif %}>
+                    <label for="smtp_enabled">Activer SMTP</label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="smtp_server">Serveur SMTP</label>
+                    <input type="text" id="smtp_server" name="smtp_server" value="{{ settings.smtp.server or '' }}" placeholder="smtp.office365.com">
+                </div>
+                <div class="form-group">
+                    <label for="smtp_port">Port</label>
+                    <input type="number" id="smtp_port" name="smtp_port" value="{{ settings.smtp.port or 587 }}" placeholder="587">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="smtp_use_tls" name="smtp_use_tls" {% if settings.smtp.use_tls %}checked{% endif %}>
+                    <label for="smtp_use_tls">Utiliser TLS</label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="smtp_use_auth" name="smtp_use_auth" {% if settings.smtp.use_auth %}checked{% endif %}>
+                    <label for="smtp_use_auth">Utiliser l'authentification</label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="smtp_username">Nom d'utilisateur</label>
+                    <input type="text" id="smtp_username" name="smtp_username" value="{{ settings.smtp.username or '' }}" placeholder="admin@domaine.com">
+                </div>
+                <div class="form-group">
+                    <label for="smtp_password">Mot de passe</label>
+                    <input type="password" id="smtp_password" name="smtp_password" placeholder="••••••••">
+                    <small class="form-hint">Laissez vide pour conserver le mot de passe actuel</small>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="smtp_from_email">Email d'expédition</label>
+                    <input type="email" id="smtp_from_email" name="smtp_from_email" value="{{ settings.smtp.from_email or '' }}" placeholder="ad-interface@domaine.com">
+                </div>
+                <div class="form-group">
+                    <label for="smtp_from_name">Nom d'expéditeur</label>
+                    <input type="text" id="smtp_from_name" name="smtp_from_name" value="{{ settings.smtp.from_name or 'AD Web Interface' }}" placeholder="AD Web Interface">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+
+        <hr style="margin: 1.5rem 0;">
+
+        <h4>🧪 Tester l'envoi d'email</h4>
+        <form method="POST" action="{{ url_for('admin.test_smtp') }}" class="smtp-test-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <input type="email" name="test_email" placeholder="destinataire@domaine.com" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-secondary">Envoyer email de test</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Section 5: Fonctionnalités Désactivées -->
     {% set disabled_features = [] %}
     {% if not config.FEATURE_RECYCLE_BIN_ENABLED %}
         {% set _ = disabled_features.append({'id': 'recycle_bin', 'name': 'Corbeille AD'}) %}
@@ -157,6 +237,102 @@
     color: #0078d4;
     margin-bottom: 1rem;
     font-size: 1.25rem;
+}
+
+/* Formulaire SMTP */
+.smtp-form, .smtp-test-form {
+    margin-top: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-row .form-group {
+    margin-bottom: 0;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-group label {
+    margin: 0;
+    cursor: pointer;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.smtp-test-form .form-row {
+    grid-template-columns: 3fr 1fr;
+    align-items: end;
+}
+
+.smtp-test-form input {
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .smtp-test-form .form-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .admin-grid {

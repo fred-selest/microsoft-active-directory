@@ -48,6 +48,10 @@ if config.DEBUG:
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
     app.jinja_env.auto_reload = True
+else:
+    # En production, permettre le reload manuel si nécessaire
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.jinja_env.auto_reload = True
 
 # Flask Debug Toolbar
 if config.DEBUG:
