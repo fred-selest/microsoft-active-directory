@@ -129,16 +129,177 @@ def check_admin_without_mfa(conn, base_dn):
 def check_empty_security_groups(conn, base_dn):
     """Vérifier les groupes de sécurité vides."""
     issues = []
+
+    # Groupes système à exclure (ont des membres implicites ou sont critiques)
+    # Inclut les groupes built-in Windows et les groupes spéciaux
+    EXCLUDED_GROUPS = [
+        # Domain Groups
+        'Domain Computers', 'Ordinateurs du domaine',
+        'Domain Users', 'Utilisateurs du domaine',
+        'Domain Controllers', 'Contrôleurs de domaine',
+        'Domain Guests', 'Invités du domaine',
+        'Domain Admins', 'Administrateurs du domaine',
+        
+        # Built-in Windows Groups (français et anglais)
+        'Administrators', 'Administrateurs',
+        'Users', 'Utilisateurs',
+        'Guests', 'Invités',
+        'Print Operators', 'Opérateurs d\'impression',
+        'Server Operators', 'Opérateurs de serveur',
+        'Account Operators', 'Opérateurs de compte',
+        'Backup Operators', 'Opérateurs de sauvegarde',
+        'Replicator', 'Réplicateur',
+        
+        # Enterprise/Schema Admins
+        'Enterprise Admins', 'Administrateurs de l\'entreprise',
+        'Schema Admins', 'Administrateurs du schéma',
+        'Key Admins', 'Administrateurs de clés', 'Administrateurs clés',
+        'Enterprise Key Admins', 'Administrateurs de clés de l\'entreprise',
+        
+        # Read-only Domain Controllers
+        'Enterprise Read-only Domain Controllers',
+        'Read-only Domain Controllers',
+        'ReadOnly Domain Controllers',
+        'Contrôleurs de domaine en lecture seule',  # FR
+        'Contrôleurs de domaine clonables',  # FR - Cloneable Domain Controllers
+        
+        # Protected Users
+        'Protected Users', 'Utilisateurs protégés',
+        
+        # Special Identity Groups (membres implicites)
+        'Everyone', 'Tout le monde',
+        'Authenticated Users', 'Utilisateurs authentifiés',
+        'ANONYMOUS LOGON', 'Ouverture de session anonyme',
+        'NT AUTHORITY\\SYSTEM', 'Système local',
+        'NT AUTHORITY\\NETWORK', 'Réseau',
+        'NT AUTHORITY\\INTERACTIVE', 'Interactif',
+        'NT AUTHORITY\\SERVICE', 'Service',
+        'NT AUTHORITY\\LOCAL SERVICE', 'Service local',
+        'NT AUTHORITY\\NETWORK SERVICE', 'Service réseau',
+        'BUILTIN\\Administrators',
+        'BUILTIN\\Users',
+        'BUILTIN\\Guests',
+        'BUILTIN\\Power Users',
+        
+        # RAS/IIS Groups
+        'RAS and IAS Servers', 'Serveurs RAS et IAS',
+        'IIS_IUSRS',
+        'Windows Authorization Access Group',
+        
+        # Compatibility Groups
+        'Pre-Windows 2000 Compatible Access', 'Accès compatible avant Windows 2000',
+        'Terminal Server License Servers',
+        'Distributed COM Users', 'Utilisateurs DCOM',
+        
+        # Certificate Groups
+        'Certificate Service DCOM Access',
+        'Cert Publishers', 'Éditeurs de certificat',
+        
+        # Hyper-V Groups
+        'Hyper-V Administrators',
+        
+        # Remote Groups
+        'Remote Desktop Users', 'Utilisateurs du Bureau à distance',
+        'Remote Management Users', 'Utilisateurs de gestion à distance',
+        
+        # Storage Groups
+        'Storage Replica Administrators',
+        
+        # Update Groups
+        'Update Readers',
+        
+        # Event Log Groups
+        'Event Log Readers', 'Lecteurs des journaux d\'événements',
+        
+        # Crypto Groups
+        'Cryptographic Operators', 'Opérateurs cryptographiques',
+        
+        # Log Cache Groups
+        'Performance Log Users', 'Utilisateurs des journaux de performance',
+        'Performance Monitor Users', 'Utilisateurs du moniteur de performance',
+        
+        # Network Groups
+        'Network Configuration Operators', 'Opérateurs de configuration réseau',
+        'Incoming Forest Trust Builders',
+        
+        # Directory Groups
+        'Enterprise Read-Only Domain Controllers',
+        
+        # Azure AD Groups
+        'Azure AD Sync',
+        'ADSyncAdmins',
+        
+        # Windows Server Essentials
+        'WseManagedGroups',
+        
+        # DNS Groups
+        'DnsUpdateProxy',
+        'DnsAdmins',
+        
+        # Microsoft Groups
+        'Microsoft Windows Group',
+    ]
     
+    # Patterns à exclure (pour les groupes générés automatiquement)
+    EXCLUDED_PATTERNS = [
+        'CN=S-1-5-',  # Security Identifiers
+        'CN=WinRM',   # Windows Remote Management
+        'CN=RDP',     # Remote Desktop
+        'CN=WSMAN',   # WS-Management
+        'CN=Certificate',  # Certificates
+        'OU=DomainControllers',  # Domain Controllers OU
+    ]
+
     try:
+        # Chercher TOUS les groupes de sécurité (groupType: -2147483646 = Security Group)
         conn.search(base_dn, '(&(objectClass=group)(groupType=-2147483646))',
-                   SUBTREE, attributes=['cn', 'distinguishedName', 'member'])
+                   SUBTREE, attributes=['cn', 'distinguishedName', 'member', 'sAMAccountName'])
+
+        import logging
+        logger = logging.getLogger('security_audit')
         
         empty_groups = []
-        for entry in conn.entries:
-            if not entry.member or len(entry.member.values) == 0:
-                empty_groups.append(str(entry.cn))
+        all_groups_checked = []
         
+        for entry in conn.entries:
+            # Obtenir le nom du groupe
+            group_name = str(entry.cn) if hasattr(entry, 'cn') else ''
+            sam_name = str(entry.sAMAccountName) if hasattr(entry, 'sAMAccountName') else ''
+            dn = str(entry.distinguishedName) if hasattr(entry, 'distinguishedName') else ''
+            
+            all_groups_checked.append({'cn': group_name, 'sam': sam_name, 'dn': dn})
+
+            # Exclure les groupes système par nom
+            if group_name in EXCLUDED_GROUPS or sam_name in EXCLUDED_GROUPS:
+                continue
+            
+            # Exclure les groupes système par pattern (DN ou nom)
+            if any(pattern in dn or pattern in group_name for pattern in EXCLUDED_PATTERNS):
+                continue
+
+            # Vérifier si member est vide ou inexistant
+            has_members = False
+            if hasattr(entry, 'member') and entry.member:
+                # member peut être une liste ou un objet LDAP
+                if hasattr(entry.member, 'values'):
+                    has_members = len(entry.member.values) > 0
+                elif isinstance(entry.member, list):
+                    has_members = len(entry.member) > 0
+                else:
+                    has_members = bool(entry.member)
+
+            if not has_members:
+                empty_groups.append({'cn': group_name, 'sam': sam_name, 'dn': dn})
+                logger.warning(f"Groupe vide trouvé: {group_name} (SAM: {sam_name})")
+
+        logger.info(f"Groupes de sécurité vérifiés: {len(all_groups_checked)}")
+        logger.info(f"Groupes vides trouvés: {len(empty_groups)}")
+        
+        # Afficher les groupes vides pour débogage
+        if empty_groups:
+            for g in empty_groups:
+                logger.info(f"  - {g['cn']} | {g['sam']} | {g['dn']}")
+
         if empty_groups:
             issues.append({
                 'id': 'empty_security_groups',
@@ -151,9 +312,31 @@ def check_empty_security_groups(conn, base_dn):
                 'fix_available': True,
                 'fix_script': 'delete_empty_groups'
             })
+        else:
+            # Aucun groupe vide trouvé
+            issues.append({
+                'id': 'no_empty_security_groups',
+                'title': 'Aucun groupe de sécurité vide',
+                'severity': 'success',
+                'description': 'Tous les groupes de sécurité ont des membres.',
+                'affected': [],
+                'total': 0,
+                'remediation': '',
+                'fix_available': False
+            })
     except Exception as e:
-        pass
-    
+        # En cas d'erreur, retourner une issue avec le détail
+        issues.append({
+            'id': 'empty_security_groups_error',
+            'title': 'Erreur vérification groupes vides',
+            'severity': 'info',
+            'description': f'Erreur lors de la vérification: {str(e)}',
+            'affected': [],
+            'total': 0,
+            'remediation': 'Vérifier les logs pour plus de détails',
+            'fix_available': False
+        })
+
     return issues
 
 

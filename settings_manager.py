@@ -64,6 +64,17 @@ DEFAULT_SETTINGS = {
         'max_login_attempts': 5,
         'require_https': False
     },
+    'smtp': {
+        'enabled': False,
+        'server': '',
+        'port': 587,
+        'use_tls': True,
+        'username': '',
+        'password': '',  # Sera encrypté dans le futur
+        'from_email': '',
+        'from_name': 'AD Web Interface',
+        'use_auth': True
+    },
     'branding': {
         'primary_color': '#0078d4',
         'secondary_color': '#107c10',
