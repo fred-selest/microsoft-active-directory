@@ -39,7 +39,7 @@
         <h3>📊 Surveillance</h3>
         <div class="admin-grid">
             {% if config.FEATURE_AUDIT_LOGS_ENABLED %}
-            <a href="{{ url_for('admin.audit_logs') }}" class="admin-card">
+            <a href="{{ url_for('main.audit_logs') }}" class="admin-card">
                 <div class="admin-card-icon">📜</div>
                 <div class="admin-card-content">
                     <h4>Journal d'audit</h4>
@@ -48,7 +48,7 @@
             </a>
             {% endif %}
 
-            <a href="{{ url_for('error_logs') }}" class="admin-card">
+            <a href="{{ url_for('admin_tools.error_logs') }}" class="admin-card">
                 <div class="admin-card-icon">📋</div>
                 <div class="admin-card-content">
                     <h4>Erreurs</h4>
