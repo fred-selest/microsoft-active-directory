@@ -9,12 +9,13 @@
 
 {% if not laps_available %}
 <div class="alert alert-warning">
-    <h4>⚠️ Windows LAPS n'est pas configuré</h4>
-    <p>Windows LAPS est natif dans Windows Server 2022 mais n'a pas encore été activé sur ce domaine.</p>
-    <p>Pour utiliser LAPS, vous devez :</p>
+    <h4>⚠️ Aucun mot de passe LAPS détecté</h4>
+    <p>La GPO Windows LAPS est configurée mais les ordinateurs n'ont pas encore envoyé leurs mots de passe.</p>
+    <p><strong>Options :</strong></p>
     <ol>
-        <li>Activer LAPS via Politique de Groupe</li>
-        <li>Les ordinateurs enverront automatiquement leur mot de passe</li>
+        <li>Attendre le cycle automatique (90 minutes max)</li>
+        <li>Forcer la mise à jour sur un ordinateur spécifique (voir ci-dessous)</li>
+        <li>Redémarrer les ordinateurs</li>
     </ol>
     
     <div class="laps-config-actions">
@@ -51,6 +52,24 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
             📖 Documentation Microsoft Windows LAPS
         </a>
     </p>
+    
+    <hr style="margin: 2rem 0; border-color: #ffc107;">
+    
+    <div class="force-refresh-section">
+        <h4>🔄 Forcer la mise à jour LAPS sur un ordinateur</h4>
+        <p>La GPO est configurée mais les ordinateurs n'ont pas encore envoyé leurs mots de passe. Forcez la mise à jour :</p>
+        
+        <form method="post" action="{{ url_for('tools.laps_force_refresh') }}" class="force-laps-form-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="computer_name" placeholder="Nom de l'ordinateur (ex: fred-dell)" required>
+            <button type="submit" class="btn btn-primary">🔄 Forcer la mise à jour LAPS</button>
+        </form>
+        
+        <p class="help-text" style="margin-top: 0.5rem; font-size: 0.875rem; color: #856404;">
+            <strong>💡 Note :</strong> Si l'ordinateur est en VPN ou inaccessible, exécutez cette commande <strong>directement sur l'ordinateur</strong> en PowerShell admin :<br>
+            <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">Invoke-LapsPolicyProcessing</code> ou <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">gpupdate /force</code>
+        </p>
+    </div>
 </div>
 
 <style>
@@ -62,6 +81,32 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
 }
 .laps-config-actions form {
     margin-bottom: 1rem;
+}
+.force-refresh-section {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+}
+.force-refresh-section h4 {
+    margin-top: 0;
+    color: #155724;
+}
+.force-laps-form-inline {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+.force-laps-form-inline input[type="text"] {
+    padding: 0.75rem 1rem;
+    border: 2px solid #28a745;
+    border-radius: 6px;
+    font-size: 1rem;
+    flex: 1;
+    min-width: 200px;
 }
 .manual-config {
     margin-top: 1rem;
@@ -122,6 +167,7 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
                 <th>Type LAPS</th>
                 <th>Mot de passe</th>
                 <th>Expiration</th>
+                <th data-no-sort>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -141,10 +187,31 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
                     </div>
                 </td>
                 <td>{{ computer.laps_expiration }}</td>
+                <td class="actions">
+                    <form method="post" action="{{ url_for('tools.laps_force_refresh', computer_dn=computer.dn) }}" style="display: inline;" onsubmit="return confirm('Forcer la mise a jour LAPS sur {{ computer.cn }} ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="computer_name" value="{{ computer.cn }}">
+                        <button type="submit" class="btn btn-sm btn-primary" title="Forcer la mise a jour LAPS">🔄 Rafraichir</button>
+                    </form>
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" class="text-center">Aucun mot de passe LAPS trouve.</td>
+                <td colspan="6" class="text-center">
+                    <div class="no-laps-data">
+                        <p><strong>Aucun mot de passe LAPS trouve.</strong></p>
+                        <p>Les ordinateurs n'ont pas encore envoyé leurs mots de passe LAPS.</p>
+                        <p>Forcez la mise a jour sur un ordinateur specifique:</p>
+                        
+                        <form method="post" action="{{ url_for('tools.laps_force_refresh') }}" class="force-laps-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="form-group">
+                                <input type="text" name="computer_name" placeholder="Nom de l'ordinateur (ex: fred-dell)" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">🔄 Forcer la mise a jour LAPS</button>
+                        </form>
+                    </div>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -207,6 +274,35 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
     color: #666;
     font-size: 0.875rem;
 }
+.no-laps-data {
+    padding: 2rem;
+    text-align: center;
+}
+.no-laps-data p {
+    margin: 0.5rem 0;
+    color: #666;
+}
+.no-laps-data strong {
+    color: #333;
+}
+.force-laps-form {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.force-laps-form .form-group {
+    margin: 0;
+}
+.force-laps-form input {
+    padding: 0.75rem 1rem;
+    border: 1px solid #0078d4;
+    border-radius: 6px;
+    font-size: 1rem;
+    min-width: 250px;
+}
 .alert-warning {
     background: #fff3cd;
     border-left: 4px solid #ffc107;
@@ -253,6 +349,36 @@ body.dark-mode .alert-warning p {
 }
 body.dark-mode .results-count {
     color: #999;
+}
+body.dark-mode .no-laps-data p {
+    color: #aaa;
+}
+body.dark-mode .no-laps-data strong {
+    color: #fff;
+}
+body.dark-mode .force-laps-form input {
+    background: var(--dark-bg-secondary, #1e1e1e);
+    border-color: #0078d4;
+    color: #fff;
+}
+body.dark-mode .force-refresh-section {
+    background: rgba(40, 167, 69, 0.2);
+    border-left-color: #28a745;
+}
+body.dark-mode .force-refresh-section h4 {
+    color: #5cb85c;
+}
+body.dark-mode .force-laps-form-inline input[type="text"] {
+    background: var(--dark-bg-secondary, #1e1e1e);
+    border-color: #28a745;
+    color: #fff;
+}
+body.dark-mode .help-text {
+    color: #aaa !important;
+}
+body.dark-mode .help-text code {
+    background: #2d2d2d;
+    color: #fff;
 }
 </style>
 {% endblock %}
