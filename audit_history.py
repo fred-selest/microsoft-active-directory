@@ -14,36 +14,80 @@ HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 def save_audit(audit_result, domain_name='Unknown'):
     """
     Sauvegarder un résultat d'audit dans l'historique.
-    
+
     Args:
         audit_result: Dictionnaire contenant les résultats de l'audit
         domain_name: Nom du domaine AD
-    
+
     Returns:
         str: ID de l'audit sauvegardé
     """
     timestamp = datetime.now()
     audit_id = timestamp.strftime('%Y%m%d_%H%M%S')
-    
+
+    # Données complètes de l'audit
     audit_data = {
         'id': audit_id,
         'timestamp': timestamp.isoformat(),
         'domain_name': domain_name,
         'score': audit_result.get('summary', {}).get('global_score', 0),
         'score_color': audit_result.get('summary', {}).get('score_color', 'unknown'),
+        'score_label': audit_result.get('summary', {}).get('score_label', 'Unknown'),
         'total_issues': audit_result.get('summary', {}).get('total_issues', 0),
         'critical_issues': audit_result.get('summary', {}).get('critical_issues', 0),
         'warning_issues': audit_result.get('summary', {}).get('warning_issues', 0),
         'accounts_audited': audit_result.get('summary', {}).get('accounts_audited', 0),
         'policy_compliant': audit_result.get('summary', {}).get('policy_compliant', False),
         'recommendations_count': len(audit_result.get('recommendations', [])),
+        
+        # NOUVEAU: Détails supplémentaires
+        'weak_accounts_count': len(audit_result.get('weak_accounts', [])),
+        'admin_weak_accounts_count': len(audit_result.get('admin_weak_accounts', [])),
+        'service_accounts_count': len(audit_result.get('service_accounts', [])),
+        'old_passwords_count': len(audit_result.get('old_passwords', [])),
+        'tiering_violations_count': len(audit_result.get('tiering_violations', [])),
+        'delegations_count': len(audit_result.get('delegations', [])),
+        'legacy_protocols_count': len(audit_result.get('legacy_protocols', [])),
+        'spray_vulnerabilities_count': len(audit_result.get('spray_vulnerabilities', [])),
+        'protected_users_count': len(audit_result.get('protected_users', [])),
+        'privileged_groups_count': len(audit_result.get('privileged_groups', [])),
+        'siem_logging_count': len(audit_result.get('siem_logging', [])),
+        
+        # Politique de mot de passe
+        'policy': {
+            'min_length': audit_result.get('policy', {}).get('minPasswordLength', 0),
+            'max_age': audit_result.get('policy', {}).get('maxPasswordAge', 0),
+            'complexity': audit_result.get('policy', {}).get('complexity_enabled', False),
+            'history_length': audit_result.get('policy', {}).get('passwordHistoryLength', 0),
+        },
+        
+        # Top 5 des problèmes critiques
+        'top_critical_issues': [],
     }
     
+    # Extraire les problèmes critiques
+    critical_issues = []
+    for acc in audit_result.get('weak_accounts', [])[:3]:
+        if acc.get('severity') == 'critical':
+            critical_issues.append({
+                'type': 'weak_account',
+                'username': acc.get('username', ''),
+                'issue': acc.get('issue', '')
+            })
+    for acc in audit_result.get('admin_weak_accounts', [])[:2]:
+        if acc.get('severity') == 'critical':
+            critical_issues.append({
+                'type': 'admin_account',
+                'username': acc.get('username', ''),
+                'issue': acc.get('issue', '')
+            })
+    audit_data['top_critical_issues'] = critical_issues[:5]
+
     # Sauvegarder dans un fichier JSON
     filepath = HISTORY_DIR / f'{audit_id}.json'
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(audit_data, f, indent=2, ensure_ascii=False)
-    
+
     return audit_id
 
 
@@ -205,12 +249,12 @@ def delete_audit(audit_id):
 def get_history_stats():
     """
     Obtenir des statistiques sur l'historique.
-    
+
     Returns:
         dict: Statistiques de l'historique
     """
     audits = get_audit_history(limit=100)
-    
+
     if not audits:
         return {
             'total_audits': 0,
@@ -219,20 +263,28 @@ def get_history_stats():
             'worst_score': 0,
             'trend': 'stable'
         }
-    
+
     scores = [a.get('score', 0) for a in audits]
-    
+
     # Calculer la tendance (comparer les 5 derniers aux 5 précédents)
     trend = 'stable'
     if len(audits) >= 10:
         recent_avg = sum(scores[:5]) / 5
         older_avg = sum(scores[5:10]) / 5
-        
+
         if recent_avg > older_avg + 5:
             trend = 'improving'
         elif recent_avg < older_avg - 5:
             trend = 'degrading'
-    
+
+    # Statistiques détaillées
+    total_weak = sum(a.get('weak_accounts_count', 0) for a in audits)
+    total_admin = sum(a.get('admin_weak_accounts_count', 0) for a in audits)
+    total_service = sum(a.get('service_accounts_count', 0) for a in audits)
+    total_tiering = sum(a.get('tiering_violations_count', 0) for a in audits)
+    total_delegations = sum(a.get('delegations_count', 0) for a in audits)
+    total_protocols = sum(a.get('legacy_protocols_count', 0) for a in audits)
+
     return {
         'total_audits': len(audits),
         'avg_score': sum(scores) / len(scores) if scores else 0,
@@ -241,4 +293,14 @@ def get_history_stats():
         'trend': trend,
         'first_audit': audits[-1].get('timestamp') if audits else None,
         'last_audit': audits[0].get('timestamp') if audits else None,
+        
+        # NOUVEAU: Statistiques détaillées
+        'total_weak_accounts': total_weak,
+        'total_admin_accounts': total_admin,
+        'total_service_accounts': total_service,
+        'total_tiering_violations': total_tiering,
+        'total_delegations': total_delegations,
+        'total_legacy_protocols': total_protocols,
+        'avg_critical_issues': sum(a.get('critical_issues', 0) for a in audits) / len(audits) if audits else 0,
+        'avg_warning_issues': sum(a.get('warning_issues', 0) for a in audits) / len(audits) if audits else 0,
     }

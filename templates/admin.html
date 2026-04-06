@@ -119,7 +119,7 @@
         <h3>📧 Configuration SMTP</h3>
         <form method="POST" action="{{ url_for('admin.save_smtp_settings') }}" class="smtp-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
+
             <div class="form-row">
                 <div class="form-group checkbox-group">
                     <input type="checkbox" id="smtp_enabled" name="smtp_enabled" {% if settings.smtp.enabled %}checked{% endif %}>
@@ -148,6 +148,82 @@
                     <label for="smtp_use_auth">Utiliser l'authentification</label>
                 </div>
             </div>
+
+    <!-- Section 3.5: Mot de passe par défaut -->
+    <div class="admin-section card fade-in">
+        <h3>🔑 Mot de passe par défaut</h3>
+        <p class="text-muted">Configurez un mot de passe par défaut pour les créations et réinitialisations d'utilisateurs.</p>
+        
+        <form method="POST" action="{{ url_for('admin.save_password_settings') }}" class="password-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="default_password">Mot de passe par défaut</label>
+                    <div class="input-group">
+                        <input type="text" id="default_password" name="default_password" 
+                               value="{{ settings.password.default_password or '' }}" 
+                               placeholder="Laisser vide pour générer automatiquement"
+                               class="password-input">
+                        <button type="button" class="btn btn-secondary" onclick="copyPassword()">
+                            📋 Copier
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="togglePasswordVisibility()">
+                            👁️ Voir
+                        </button>
+                    </div>
+                    <small class="text-muted">Laisser vide pour générer automatiquement un mot de passe complexe</small>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password_complexity">Complexité</label>
+                    <select id="password_complexity" name="password_complexity">
+                        <option value="low" {% if settings.password.password_complexity == 'low' %}selected{% endif %}>Faible (10 caractères)</option>
+                        <option value="medium" {% if settings.password.password_complexity == 'medium' %}selected{% endif %}>Moyenne (12 caractères)</option>
+                        <option value="high" {% if settings.password.password_complexity == 'high' %}selected{% endif %}>Élevée (16 caractères)</option>
+                        <option value="very_high" {% if settings.password.password_complexity == 'very_high' %}selected{% endif %}>Très élevée (20 caractères)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="password_length">Longueur personnalisée</label>
+                    <input type="number" id="password_length" name="password_length" 
+                           value="{{ settings.password.password_length or 16 }}" 
+                           min="8" max="128" placeholder="16">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="exclude_ambiguous_chars" name="exclude_ambiguous_chars" 
+                           {% if settings.password.exclude_ambiguous_chars %}checked{% endif %}>
+                    <label for="exclude_ambiguous_chars">Exclure caractères ambigus (0, O, 1, l, I)</label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="must_change_at_next_login" name="must_change_at_next_login" 
+                           {% if settings.password.must_change_at_next_login %}checked{% endif %}>
+                    <label for="must_change_at_next_login">Obliger le changement au prochain login</label>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                <button type="button" class="btn btn-secondary" onclick="generateNewPassword()">
+                    🔄 Générer nouveau mot de passe
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="checkPasswordStrength()">
+                    📊 Vérifier la force
+                </button>
+            </div>
+        </form>
+        
+        <!-- Zone de résultat pour la force du mot de passe -->
+        <div id="password-strength-result" style="display:none; margin-top: 1rem;" class="card">
+            <h4>Résultat de l'analyse</h4>
+            <div id="password-strength-details"></div>
+        </div>
+    </div>
 
             <div class="form-row">
                 <div class="form-group">
@@ -438,5 +514,205 @@ body.dark-mode .admin-card-icon {
 body.dark-mode .disabled-features-list li {
     background: rgba(255, 193, 7, 0.1);
 }
+
+/* Password form styles */
+.password-form .input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.password-form .password-input {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+}
+
+#password-strength-result {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.strength-bar {
+    height: 8px;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+    transition: all 0.3s ease;
+}
+
+.strength-weak { background: #dc3545; }
+.strength-medium { background: #ffc107; }
+.strength-strong { background: #28a745; }
+.strength-very-strong { background: #007bff; }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * Générer un nouveau mot de passe par défaut
+ */
+function generateNewPassword() {
+    const complexity = document.getElementById('password_complexity').value;
+    const length = document.getElementById('password_length').value;
+    const excludeAmbiguous = document.getElementById('exclude_ambiguous_chars').checked;
+    
+    const formData = new FormData();
+    formData.append('complexity', complexity);
+    formData.append('length', length);
+    formData.append('exclude_ambiguous', excludeAmbiguous ? 'on' : 'off');
+    formData.append('csrf_token', '{{ csrf_token() }}');
+    
+    fetch('{{ url_for("admin.api_generate_password") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('default_password').value = data.password;
+            showToast('✅ Nouveau mot de passe généré !', 'success');
+        } else {
+            showToast('❌ Erreur: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('❌ Erreur: ' + error, 'error');
+    });
+}
+
+/**
+ * Vérifier la force d'un mot de passe
+ */
+function checkPasswordStrength() {
+    const password = document.getElementById('default_password').value;
+    
+    if (!password) {
+        showToast('⚠️ Veuillez saisir un mot de passe', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('password', password);
+    formData.append('csrf_token', '{{ csrf_token() }}');
+    
+    fetch('{{ url_for("admin.api_check_password_strength") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayPasswordStrength(data.complexity);
+        } else {
+            showToast('❌ Erreur: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('❌ Erreur: ' + error, 'error');
+    });
+}
+
+/**
+ * Afficher le résultat de la force du mot de passe
+ */
+function displayPasswordStrength(result) {
+    const container = document.getElementById('password-strength-result');
+    const details = document.getElementById('password-strength-details');
+    
+    // Déterminer la couleur
+    let strengthClass = 'strength-weak';
+    if (result.strength === 'Fort') strengthClass = 'strength-strong';
+    else if (result.strength === 'Très fort') strengthClass = 'strength-very-strong';
+    else if (result.strength === 'Moyen') strengthClass = 'strength-medium';
+    
+    details.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span><strong>Force :</strong> ${result.strength}</span>
+            <span><strong>Score :</strong> ${result.score}/${result.max_score}</span>
+        </div>
+        
+        <div class="strength-bar ${strengthClass}" style="width: ${(result.score / result.max_score) * 100}%"></div>
+        
+        <div style="margin-top: 1rem;">
+            <strong>Critères :</strong>
+            <ul style="margin-top: 0.5rem;">
+                <li style="color: ${result.length_ok ? '#28a745' : '#dc3545'};">
+                    ${result.length_ok ? '✅' : '❌'} Longueur: ${result.length} caractères ${result.length >= 8 ? '(OK)' : '(min 8 requis)'}
+                </li>
+                <li style="color: ${result.has_uppercase ? '#28a745' : '#dc3545'};">
+                    ${result.has_uppercase ? '✅' : '❌'} Majuscules
+                </li>
+                <li style="color: ${result.has_lowercase ? '#28a745' : '#dc3545'};">
+                    ${result.has_lowercase ? '✅' : '❌'} Minuscules
+                </li>
+                <li style="color: ${result.has_digit ? '#28a745' : '#dc3545'};">
+                    ${result.has_digit ? '✅' : '❌'} Chiffres
+                </li>
+                <li style="color: ${result.has_special ? '#28a745' : '#dc3545'};">
+                    ${result.has_special ? '✅' : '❌'} Caractères spéciaux
+                </li>
+                <li style="color: ${!result.has_ambiguous ? '#28a745' : '#ffc107'};">
+                    ${!result.has_ambiguous ? '✅' : '⚠️'} Caractères ambigus ${!result.has_ambiguous ? 'exclus' : 'présents (0,O,1,l,I)'}
+                </li>
+            </ul>
+        </div>
+    `;
+    
+    container.style.display = 'block';
+}
+
+/**
+ * Copier le mot de passe dans le presse-papier
+ */
+function copyPassword() {
+    const passwordInput = document.getElementById('default_password');
+    passwordInput.select();
+    passwordInput.setSelectionRange(0, 99999); // Mobile
+    
+    navigator.clipboard.writeText(passwordInput.value).then(() => {
+        showToast('📋 Mot de passe copié !', 'success');
+    }).catch(err => {
+        showToast('❌ Erreur lors de la copie', 'error');
+    });
+}
+
+/**
+ * Afficher/masquer le mot de passe
+ */
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('default_password');
+    const button = event.target;
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        button.textContent = '🙈 Cacher';
+    } else {
+        passwordInput.type = 'password';
+        button.textContent = '👁️ Voir';
+    }
+}
+
+/**
+ * Afficher un message toast
+ */
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type}`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        animation: slideIn 0.3s ease-in;
+    `;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
 {% endblock %}

@@ -18,6 +18,14 @@ DEFAULT_SETTINGS = {
         'theme_color': '#0078d4',
         'custom_css': ''  # CSS personnalise additionnel
     },
+    'password': {
+        'default_password': '',  # Mot de passe par défaut (vide = généré automatiquement)
+        'password_complexity': 'high',  # low, medium, high, very_high
+        'must_change_at_next_login': True,  # Obliger le changement au prochain login
+        'exclude_ambiguous_chars': False,  # Exclure 0,O,1,l,I
+        'password_length': 16,  # Longueur du mot de passe (8-128)
+        'password_history': []  # Historique des derniers mots de passe générés
+    },
     'menu': {
         # Section "Gestion" — visible par tous les utilisateurs connectés
         # endpoint : nom Flask complet (blueprint.fonction ou fonction)
@@ -109,6 +117,101 @@ def load_settings():
             print(f"Erreur chargement parametres: {e}")
 
     return DEFAULT_SETTINGS.copy()
+
+
+def get_default_password():
+    """
+    Obtenir le mot de passe par défaut configuré.
+    Si vide, générer un nouveau mot de passe automatique.
+    
+    Returns:
+        Tuple (password, must_change)
+    """
+    from password_generator import generate_ad_password
+    
+    settings = load_settings()
+    password_config = settings.get('password', {})
+    
+    # Mot de passe configuré manuellement
+    default_pwd = password_config.get('default_password', '')
+    
+    if default_pwd:
+        return default_pwd, password_config.get('must_change_at_next_login', True)
+    
+    # Générer automatiquement un mot de passe
+    complexity = password_config.get('password_complexity', 'high')
+    length = password_config.get('password_length', 16)
+    exclude_ambiguous = password_config.get('exclude_ambiguous_chars', False)
+    
+    password = generate_ad_password(complexity)
+    
+    # Sauvegarder dans l'historique
+    history = password_config.get('password_history', [])
+    history.append({
+        'password': password,
+        'generated_at': __import__('datetime').datetime.now().isoformat(),
+        'complexity': complexity
+    })
+    history = history[-10:]  # Garder les 10 derniers
+    
+    # Mettre à jour les paramètres
+    password_config['default_password'] = password
+    password_config['password_history'] = history
+    settings['password'] = password_config
+    save_settings(settings)
+    
+    return password, password_config.get('must_change_at_next_login', True)
+
+
+def generate_new_default_password(
+    complexity: str = 'high',
+    length: int = 16,
+    exclude_ambiguous: bool = False
+) -> str:
+    """
+    Générer et sauvegarder un nouveau mot de passe par défaut.
+    
+    Args:
+        complexity: Niveau de complexité
+        length: Longueur du mot de passe
+        exclude_ambiguous: Exclure les caractères ambigus
+    
+    Returns:
+        Nouveau mot de passe généré
+    """
+    from password_generator import generate_password
+    
+    password = generate_password(
+        length=length,
+        use_uppercase=True,
+        use_lowercase=True,
+        use_digits=True,
+        use_special=True,
+        exclude_ambiguous=exclude_ambiguous
+    )
+    
+    # Sauvegarder dans les paramètres
+    settings = load_settings()
+    password_config = settings.get('password', {})
+    password_config['default_password'] = password
+    password_config['password_complexity'] = complexity
+    password_config['password_length'] = length
+    password_config['exclude_ambiguous_chars'] = exclude_ambiguous
+    
+    # Ajouter à l'historique
+    history = password_config.get('password_history', [])
+    history.append({
+        'password': password,
+        'generated_at': __import__('datetime').datetime.now().isoformat(),
+        'complexity': complexity
+    })
+    history = history[-10:]  # Garder les 10 derniers
+    password_config['password_history'] = history
+    
+    settings['password'] = password_config
+    save_settings(settings)
+    
+    return password
 
 
 def save_settings(settings):

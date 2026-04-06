@@ -1,8 +1,21 @@
+# -*- coding: utf-8 -*-
 """Vérifications de sécurité AD : comptes faibles, délégations, groupes privilégiés, SIEM."""
 from datetime import datetime, timedelta
 from ldap3 import SUBTREE
 
 from security import escape_ldap_filter
+
+
+def _clean_str(s):
+    """Nettoyer une chaîne (UTF-8)."""
+    if s is None:
+        return ''
+    s = str(s)
+    # Décoder les séquences d'échappement Unicode (ex: \xe9 → é)
+    try:
+        return s.encode('latin-1').decode('unicode_escape').encode('latin-1').decode('utf-8', errors='replace')
+    except:
+        return s
 
 
 def check_weak_passwords_ad(conn, base_dn):
@@ -16,10 +29,10 @@ def check_weak_passwords_ad(conn, base_dn):
         for entry in conn.entries:
             weak_accounts.append({
                 'type': 'password_never_expires',
-                'username': str(entry.sAMAccountName),
-                'display_name': str(entry.displayName) if entry.displayName else '',
-                'mail': str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
-                'dn': str(entry.distinguishedName),
+                'username': _clean_str(entry.sAMAccountName),
+                'display_name': _clean_str(entry.displayName) if entry.displayName else '',
+                'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
+                'dn': _clean_str(entry.distinguishedName),
                 'issue': "Le mot de passe n'expire jamais",
                 'severity': 'warning',
                 'remediation': "Désactiver \"Le mot de passe n'expire jamais\" dans les propriétés du compte",
@@ -32,10 +45,10 @@ def check_weak_passwords_ad(conn, base_dn):
         for entry in conn.entries:
             weak_accounts.append({
                 'type': 'no_password_required',
-                'username': str(entry.sAMAccountName),
-                'display_name': str(entry.displayName) if entry.displayName else '',
-                'mail': str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
-                'dn': str(entry.distinguishedName),
+                'username': _clean_str(entry.sAMAccountName),
+                'display_name': _clean_str(entry.displayName) if entry.displayName else '',
+                'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
+                'dn': _clean_str(entry.distinguishedName),
                 'issue': 'Mot de passe non requis',
                 'severity': 'critical',
                 'remediation': 'Exiger un mot de passe pour ce compte',
@@ -50,10 +63,10 @@ def check_weak_passwords_ad(conn, base_dn):
             if uac & 64:
                 weak_accounts.append({
                     'type': 'admin_password_never_expires',
-                    'username': str(entry.sAMAccountName),
-                    'display_name': str(entry.displayName) if entry.displayName else '',
-                    'mail': str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
-                    'dn': str(entry.distinguishedName),
+                    'username': _clean_str(entry.sAMAccountName),
+                    'display_name': _clean_str(entry.displayName) if entry.displayName else '',
+                    'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
+                    'dn': _clean_str(entry.distinguishedName),
                     'issue': "Compte administrateur avec mot de passe n'expirant jamais",
                     'severity': 'critical',
                     'remediation': "Activer l'expiration du mot de passe pour les comptes privilégiés",
@@ -81,10 +94,10 @@ def check_password_age(conn, base_dn, max_age_days=90):
                 if last_change < threshold_date:
                     days_old = (datetime.now() - last_change).days
                     old_passwords.append({
-                        'username': str(entry.sAMAccountName),
-                        'display_name': str(entry.displayName) if entry.displayName else '',
-                        'mail': str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
-                        'dn': str(entry.distinguishedName),
+                        'username': _clean_str(entry.sAMAccountName),
+                        'display_name': _clean_str(entry.displayName) if entry.displayName else '',
+                        'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
+                        'dn': _clean_str(entry.distinguishedName),
                         'pwdLastSet': last_change.strftime('%Y-%m-%d'),
                         'days_old': days_old,
                         'severity': 'critical' if days_old > max_age_days * 2 else 'warning',
@@ -103,10 +116,10 @@ def check_password_spray_vulnerability(conn, base_dn):
                     attributes=['sAMAccountName', 'displayName', 'distinguishedName', 'mail'])
         for entry in conn.entries:
             vulnerable.append({
-                'username': str(entry.sAMAccountName),
-                'display_name': str(entry.displayName) if entry.displayName else '',
-                'mail': str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
-                'dn': str(entry.distinguishedName),
+                'username': _clean_str(entry.sAMAccountName),
+                'display_name': _clean_str(entry.displayName) if entry.displayName else '',
+                'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
+                'dn': _clean_str(entry.distinguishedName),
                 'issue': 'Vulnérable au spray de mot de passe (verrouillage non configuré)',
                 'severity': 'medium',
             })
@@ -151,7 +164,7 @@ def check_delegations(conn, base_dn):
                 'recommendation': 'Désactiver ou remplacer par délégation contrainte (KCD)',
                 'severity': 'critical',
                 'reference': 'ANSSI: Gestion des délégations de privilèges',
-                'dn': str(entry.distinguishedName),
+                'dn': _clean_str(entry.distinguishedName),
             })
 
         conn.search(base_dn, '(&(objectClass=user)(msDS-AllowedToDelegateTo=*))', SUBTREE,
@@ -165,7 +178,7 @@ def check_delegations(conn, base_dn):
                 'issue': f'Délégation contrainte vers {count} service(s)',
                 'recommendation': 'Vérifier que la délégation est nécessaire et documentée',
                 'severity': 'medium',
-                'dn': str(entry.distinguishedName),
+                'dn': _clean_str(entry.distinguishedName),
             })
     except Exception as ex:
         issues.append({'error': str(ex)})

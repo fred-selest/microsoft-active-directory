@@ -1,6 +1,7 @@
 """
 Blueprint pour la gestion des groupes.
 """
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3.core.exceptions import LDAPException
@@ -10,6 +11,7 @@ from .core import (get_ad_connection, decode_ldap_value, is_connected,
 from security import escape_ldap_filter, validate_csrf_token
 from audit import log_action, ACTIONS
 
+logger = logging.getLogger('groups')
 groups_bp = Blueprint('groups', __name__, url_prefix='/groups')
 
 
@@ -35,16 +37,57 @@ def list_groups():
 
     try:
         conn.search(base_dn, search_filter, SUBTREE,
-                   attributes=['cn', 'description', 'distinguishedName', 'member', 'groupType'])
+                   attributes=['cn', 'description', 'distinguishedName', 'member', 'groupType', 'distinguishedName'])
 
         group_list = []
         for entry in conn.entries:
             members = entry.member.values if hasattr(entry, 'member') and entry.member else []
+            dn = str(entry.distinguishedName).lower()
+            cn = str(entry.cn).lower() if entry.cn else ''
+            
+            # Détection des groupes spéciaux AD
+            is_special_group = False
+            actual_member_count = len(members)
+            
+            # Groupes spéciaux dont les membres sont basés sur primaryGroupID
+            special_groups = [
+                'domain computers', 'ordinateurs du domaine',
+                'domain users', 'utilisateurs du domaine',
+                'domain controllers', 'contrôleurs de domaine',
+                'domain guests', 'invités du domaine',
+                'enterprise admins', 'administrateurs de l\'entreprise',
+                'schema admins', 'administrateurs du schéma'
+            ]
+            
+            for special in special_groups:
+                if special in cn or special in dn:
+                    is_special_group = True
+                    print(f"*** DETECTED special group: {entry.cn} (cn={cn}, dn={dn})")
+                    # Compter les membres réels via primaryGroupID
+                    if 'computers' in special or 'ordinateurs' in special:
+                        # Compter les ordinateurs
+                        print(f"*** Counting computers in {base_dn}...")
+                        conn.search(base_dn, '(&(objectClass=computer)(objectCategory=computer))', SUBTREE, attributes=['cn'])
+                        actual_member_count = len(conn.entries)
+                        print(f"*** Found {actual_member_count} computers")
+                    elif 'users' in special or 'utilisateurs' in special:
+                        # Compter les utilisateurs
+                        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE, attributes=['cn'])
+                        actual_member_count = len(conn.entries)
+                    elif 'controllers' in special or 'contrôleurs' in special:
+                        # Compter les DC
+                        conn.search(base_dn, '(objectClass=domainController)', SUBTREE, attributes=['cn'])
+                        actual_member_count = len(conn.entries)
+                    break
+            
+            print(f"*** Group {entry.cn}: member_count={actual_member_count}, is_special={is_special_group}")
+            
             group_list.append({
                 'cn': decode_ldap_value(entry.cn),
                 'description': decode_ldap_value(entry.description),
                 'dn': decode_ldap_value(entry.distinguishedName),
-                'member_count': len(members)
+                'member_count': actual_member_count,
+                'is_special_group': is_special_group
             })
         conn.unbind()
 

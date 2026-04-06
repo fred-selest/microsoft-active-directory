@@ -7,6 +7,7 @@ from .checks import (check_weak_passwords_ad, check_password_age,
                      check_delegations, check_protected_users,
                      check_privileged_group_memberships, check_siem_logging)
 from .protocol import check_legacy_protocols
+from .admin import check_admin_weak_passwords, check_service_accounts
 
 
 def run_password_audit(conn, base_dn, max_age_days=90):
@@ -22,6 +23,10 @@ def run_password_audit(conn, base_dn, max_age_days=90):
     protected_users = check_protected_users(conn, base_dn)
     privileged_groups = check_privileged_group_memberships(conn, base_dn)
     siem_logging = check_siem_logging(conn, base_dn)
+    
+    # NOUVEAU: Comptes admin et service
+    admin_weak_accounts = check_admin_weak_passwords(conn, base_dn)
+    service_accounts = check_service_accounts(conn, base_dn)
 
     recommendations = generate_password_recommendations(policy, weak_accounts, old_passwords, fgpps)
     security_recommendations = []
@@ -86,6 +91,8 @@ def run_password_audit(conn, base_dn, max_age_days=90):
         'policy': policy,
         'fgpps': fgpps,
         'weak_accounts': weak_accounts,
+        'admin_weak_accounts': admin_weak_accounts,
+        'service_accounts': service_accounts,
         'old_passwords': old_passwords,
         'spray_vulnerabilities': spray_vulns,
         'tiering_violations': tiering_violations,
@@ -96,13 +103,13 @@ def run_password_audit(conn, base_dn, max_age_days=90):
         'siem_logging': siem_logging,
         'recommendations': recommendations + security_recommendations,
         'summary': {
-            'total_issues': len(weak_accounts) + len(old_passwords),
+            'total_issues': len(weak_accounts) + len(old_passwords) + len(admin_weak_accounts) + len(service_accounts),
             'critical_issues': critical_issues,
             'warning_issues': sum(1 for a in weak_accounts if a.get('severity') == 'warning'),
             'global_score': global_score,
             'score_label': score_label,
             'score_color': score_color,
-            'accounts_audited': len(weak_accounts) + len(old_passwords),
+            'accounts_audited': len(weak_accounts) + len(old_passwords) + len(admin_weak_accounts) + len(service_accounts),
             'policy_compliant': global_score >= 80,
             'tiering_issues': len(tiering_violations),
             'protocol_issues': len(legacy_protocols),
