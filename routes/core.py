@@ -62,7 +62,7 @@ def require_connection(f):
     def decorated(*args, **kwargs):
         if not is_connected():
             flash('Veuillez vous connecter à Active Directory.', 'warning')
-            return redirect(url_for('connect'))
+            return redirect(url_for('main.connect'))
         return f(*args, **kwargs)
     return decorated
 
@@ -74,11 +74,11 @@ def require_permission(permission):
         def decorated(*args, **kwargs):
             if config.RBAC_ENABLED:
                 user_groups = session.get('user_groups', [])
-                
+
                 if not user_groups or not has_granular_permission(user_groups, permission):
                     flash('Permission refusée.', 'error')
-                    return redirect(url_for('index'))
-            
+                    return redirect(url_for('main.index'))
+
             return f(*args, **kwargs)
         return decorated
     return decorator

@@ -18,7 +18,7 @@ def list_users():
     """Liste des utilisateurs Active Directory."""
     conn, error = get_ad_connection()
     if not conn:
-        return redirect(url_for('connect'))
+        return redirect(url_for('main.connect'))
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')

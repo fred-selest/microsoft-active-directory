@@ -17,7 +17,7 @@ def recycle_bin():
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('connect'))
+        return redirect(url_for('main.connect'))
 
     deleted_objects = []
     try:
@@ -66,7 +66,7 @@ def locked_accounts():
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('connect'))
+        return redirect(url_for('main.connect'))
 
     base_dn = session.get('ad_base_dn', '')
     locked = []
@@ -177,7 +177,7 @@ def expiring_accounts():
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('connect'))
+        return redirect(url_for('main.connect'))
 
     base_dn = session.get('ad_base_dn', '')
     now = datetime.now().replace(tzinfo=None)  # Rendre naive pour comparaison
