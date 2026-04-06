@@ -9,6 +9,8 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente.
 
+**Dernière version :** v1.34.1 - Décembre 2025
+
 ---
 
 ## ✨ Fonctionnalités Principales
@@ -17,9 +19,9 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 | Fonctionnalité | Description |
 |---------------|-------------|
-| 👤 **Utilisateurs** | Créer, modifier, supprimer, importer, exporter |
-| 👥 **Groupes** | Groupes de sécurité et distribution |
-| 💻 **Ordinateurs** | Machines jointes au domaine |
+| 👤 **Utilisateurs** | Créer, modifier, supprimer, réinitialiser MDP, activer/désactiver |
+| 👥 **Groupes** | Groupes de sécurité et distribution (détection groupes spéciaux) |
+| 💻 **Ordinateurs** | Machines jointes au domaine avec détails complets |
 | 📁 **OUs** | Unités d'organisation avec arborescence |
 | 🔐 **LAPS** | Gestion des mots de passe locaux |
 | 🔒 **BitLocker** | Récupération des clés de chiffrement |
@@ -28,11 +30,12 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 | Fonctionnalité | Description |
 |---------------|-------------|
-| 🔍 **Audit MDP** | Analyse complète des mots de passe |
-| 🔐 **Audit Sécurité** | 8 problèmes détectés + 5 réparations |
-| 🔑 **Permissions** | 40 permissions granulaires par groupe |
+| 🔍 **Audit MDP** | Analyse complète des mots de passe + score 0-100 |
+| 🔐 **Audit Sécurité** | 8 problèmes détectés + 5 réparations automatiques |
+| 🔑 **Permissions** | 40 permissions granulaires par groupe AD |
 | 📋 **Logs d'audit** | Journal complet de toutes les actions |
 | 🚨 **Alertes auto** | Notifications automatiques par email |
+| 🎲 **Générateur MDP** | Mots de passe sécurisés avec complexité configurable |
 
 ### 📊 Tableau de Bord
 
