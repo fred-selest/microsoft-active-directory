@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Installer LAPS - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📦 Installer LAPS</h2>
+    <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card">
+    <h3>Installation de LAPS (Local Administrator Password Solution)</h3>
+    
+    <div class="alert alert-info">
+        <strong>📋 Ce que fait ce script :</strong>
+        <ul>
+            <li>Vérifie si LAPS est déjà installé</li>
+            <li>Télécharge LAPS depuis Microsoft</li>
+            <li>Installe LAPS silencieusement</li>
+            <li>Nettoie les fichiers temporaires</li>
+        </ul>
+    </div>
+    
+    <form method="POST" onsubmit="return confirm('Installer LAPS sur ce serveur ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+            <label>Chemin d'installation :</label>
+            <input type="text" class="form-control" value="C:\Program Files\AdmPwd\Core\AdmPwd.dll" disabled>
+            <small class="text-muted">Chemin par défaut de AdmPwd.dll</small>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">📦 Installer LAPS</button>
+            <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Prérequis</h3>
+    <ul>
+        <li>✅ Windows Server 2012 ou supérieur</li>
+        <li>✅ .NET Framework 4.5 ou supérieur</li>
+        <li>✅ Droits Administrateur local</li>
+        <li>✅ Accès Internet pour le téléchargement</li>
+    </ul>
+</div>
+{% endblock %}

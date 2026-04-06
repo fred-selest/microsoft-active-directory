@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Configurer GPO LAPS - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🔧 Configurer la GPO LAPS</h2>
+    <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card">
+    <h3>Créer et configurer la stratégie de groupe LAPS</h3>
+    
+    <div class="alert alert-info">
+        <strong>📋 Paramètres configurés :</strong>
+        <ul>
+            <li>Activation de LAPS</li>
+            <li>Longueur du mot de passe</li>
+            <li>Âge du mot de passe (jours)</li>
+            <li>Nom du compte administrateur local</li>
+        </ul>
+    </div>
+    
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+            <label for="gpo_name">Nom de la GPO :</label>
+            <input type="text" id="gpo_name" name="gpo_name" class="form-control" value="LAPS Configuration" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="target_ou">OU cible (optionnel) :</label>
+            <select id="target_ou" name="target_ou" class="form-control">
+                <option value="">Domaine entier</option>
+                {% for ou in ous %}
+                <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">Laissez vide pour appliquer au domaine entier</small>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="password_length">Longueur du mot de passe :</label>
+                <input type="number" id="password_length" name="password_length" class="form-control" value="14" min="8" max="30" required>
+                <small class="text-muted">8-30 caractères (recommandé: 14+)</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="password_age">Âge du mot de passe (jours) :</label>
+                <input type="number" id="password_age" name="password_age" class="form-control" value="30" min="1" max="365" required>
+                <small class="text-muted">1-365 jours (recommandé: 30)</small>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="admin_account">Nom du compte administrateur local :</label>
+            <input type="text" id="admin_account" name="admin_account" class="form-control" value="Administrator" required>
+            <small class="text-muted">Laissez "Administrator" pour le compte par défaut</small>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">🔧 Créer la GPO</button>
+            <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

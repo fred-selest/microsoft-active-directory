@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Créer compte admin local - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>👤 Créer le compte administrateur local</h2>
+    <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card">
+    <h3>Script pour créer le compte administrateur local personnalisé</h3>
+    
+    <div class="alert alert-warning">
+        <strong>⚠️ Important :</strong>
+        <p>Ce script génère un script PowerShell à déployer via GPO Preferences.</p>
+        <p>Le compte sera créé sur tous les ordinateurs ciblés par la GPO.</p>
+    </div>
+    
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+            <label for="account_name">Nom du compte :</label>
+            <input type="text" id="account_name" name="account_name" class="form-control" value="LocalAdmin" required>
+            <small class="text-muted">Ex: LocalAdmin, AdminLAPS, etc.</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="full_name">Nom complet :</label>
+            <input type="text" id="full_name" name="full_name" class="form-control" value="Administrateur Local">
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description :</label>
+            <input type="text" id="description" name="description" class="form-control" value="Compte administrateur local géré par LAPS">
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">👤 Générer le script</button>
+            <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Déploiement via GPO</h3>
+    <ol>
+        <li>Ouvrez <strong>Gestion de stratégie de groupe</strong></li>
+        <li>Modifiez la GPO LAPS</li>
+        <li>Naviguez vers :
+            <code>Configuration ordinateur → Préférences → Paramètres du Panneau de configuration → Utilisateurs locaux</code>
+        </li>
+        <li>Clic droit → <strong>Nouveau → Utilisateur local</strong></li>
+        <li>Utilisez les paramètres générés ci-dessus</li>
+        <li>Définissez l'action sur <strong>Mettre à jour</strong></li>
+    </ol>
+</div>
+{% endblock %}
