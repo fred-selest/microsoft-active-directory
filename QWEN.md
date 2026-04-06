@@ -135,22 +135,25 @@ C:\AD-WebInterface\
 │   ├── core.py                     # AD connection, RBAC, permissions
 │   ├── main.py                     # Main routes (index, connect, dashboard)
 │   ├── api.py                      # REST API endpoints
-│   ├── admin_tools.py              # Admin settings, password config
-│   ├── users/                      # Users blueprint (7 modules)
-│   │   ├── __init__.py             # Blueprint registration
-│   │   ├── list_users.py           # List/search users
-│   │   ├── create.py               # Create user
-│   │   ├── delete.py               # Delete/move user
-│   │   ├── update.py               # Edit user
-│   │   ├── password.py             # Reset password, toggle status
-│   │   ├── helpers.py              # Utility functions
-│   │   └── validators.py           # Input validation
-│   ├── groups/                     # Groups blueprint
-│   ├── computers/                  # Computers blueprint
-│   ├── ous/                        # OUs blueprint
-│   ├── tools/                      # Tools blueprint
-│   ├── admin/                      # Admin blueprint
-│   └── debug/                      # Debug blueprint
+│   ├── admin_tools.py              # Admin settings, password config, SMTP
+│   ├── groups/                     # Groups blueprint (modular)
+│   │   └── __init__.py             # 8 routes: list, view, create, edit, delete, add/remove member, nested
+│   ├── computers/                  # Computers blueprint (modular)
+│   │   └── __init__.py             # 4 routes: list, toggle, delete, move
+│   ├── ous/                        # OUs blueprint (modular)
+│   │   └── __init__.py             # 4 routes: list, create, edit, delete
+│   ├── tools/                      # Tools blueprint (modular)
+│   │   ├── __init__.py             # Blueprint registration + routes import
+│   │   ├── laps.py                 # LAPS passwords
+│   │   ├── bitlocker.py            # BitLocker keys
+│   │   ├── accounts.py             # Recycle bin, locked accounts, expiring
+│   │   ├── password.py             # Password policy, audit, history
+│   │   ├── backups.py              # Backups management
+│   │   └── misc.py                 # Templates, favorites, API docs
+│   ├── admin/                      # Admin blueprint (modular)
+│   │   └── __init__.py             # 12 routes: settings, permissions, security audit, alerts
+│   └── debug/                      # Debug blueprint (modular)
+│       └── __init__.py             # 8 routes: debug dashboard, logs, routes, templates
 │
 ├── templates/                      # Jinja2 HTML templates (51 files)
 │   ├── base.html                   # Base template
