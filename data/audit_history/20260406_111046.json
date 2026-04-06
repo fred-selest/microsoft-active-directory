@@ -1,0 +1,53 @@
+{
+  "id": "20260406_111046",
+  "timestamp": "2026-04-06T11:10:46.854056",
+  "domain_name": "Domaine AD",
+  "score": 5,
+  "score_color": "danger",
+  "score_label": "Critique",
+  "total_issues": 6,
+  "critical_issues": 4,
+  "warning_issues": 0,
+  "accounts_audited": 6,
+  "policy_compliant": false,
+  "recommendations_count": 14,
+  "weak_accounts_count": 3,
+  "admin_weak_accounts_count": 1,
+  "service_accounts_count": 1,
+  "old_passwords_count": 1,
+  "tiering_violations_count": 4,
+  "delegations_count": 1,
+  "legacy_protocols_count": 4,
+  "spray_vulnerabilities_count": 11,
+  "protected_users_count": 1,
+  "privileged_groups_count": 0,
+  "siem_logging_count": 3,
+  "policy": {
+    "min_length": 7,
+    "max_age": 180,
+    "complexity": true,
+    "history_length": 24
+  },
+  "top_critical_issues": [
+    {
+      "type": "weak_account",
+      "username": "Invit�",
+      "issue": "Mot de passe non requis"
+    },
+    {
+      "type": "weak_account",
+      "username": "DefaultAccount",
+      "issue": "Mot de passe non requis"
+    },
+    {
+      "type": "weak_account",
+      "username": "fred",
+      "issue": "Mot de passe non requis"
+    },
+    {
+      "type": "admin_account",
+      "username": "fred",
+      "issue": "Compte administrateur sans mot de passe requis"
+    }
+  ]
+}

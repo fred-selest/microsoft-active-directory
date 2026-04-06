@@ -1,0 +1,11 @@
+<service>
+    <id>ADWebInterface</id>
+    <name>AD Web Interface</name>
+    <description>Interface Web pour Microsoft Active Directory</description>
+    <executable>C:\AD-WebInterface\venv\Scripts\python.exe</executable>
+    <argument>C:\AD-WebInterface\run.py</argument>
+    <logmode>reset</logmode>
+    <onfailure action="restart" delay="5000"/>
+    <workingdirectory>C:\AD-WebInterface</workingdirectory>
+    <env name="OPENSSL_CONF" value="C:\AD-WebInterface\openssl_legacy.cnf"/>
+</service>

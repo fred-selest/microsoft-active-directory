@@ -1,0 +1,98 @@
+{
+  "timestamp": "2026-04-06T01:04:12.230327",
+  "total_pages": 8,
+  "total_errors": 9,
+  "total_warnings": 11,
+  "results": [
+    {
+      "page": "users_list",
+      "errors": [
+        "❌ Tableau utilisateurs manquant",
+        "❌ Boutons d'action manquants",
+        "❌ Bouton \"Nouvel utilisateur\" manquant"
+      ],
+      "warnings": [
+        "✅ Pas d'overflow horizontal"
+      ]
+    },
+    {
+      "page": "users_search",
+      "errors": [
+        "❌ Champ de recherche manquant"
+      ],
+      "warnings": [
+        "✅ Pas d'overflow horizontal"
+      ]
+    },
+    {
+      "page": "users_create",
+      "errors": [
+        "❌ Champ first_name manquant",
+        "❌ Champ last_name manquant",
+        "❌ Champ target_ou manquant"
+      ],
+      "warnings": [
+        "✅ Pas d'overflow horizontal",
+        "✅ Champ username présent",
+        "✅ Champ password présent",
+        "✅ Bouton submit présent"
+      ]
+    },
+    {
+      "page": "users_edit_structure",
+      "errors": [
+        "❌ Aucun bouton d'action"
+      ],
+      "warnings": [
+        "⚠️ Aucun lien d'édition (aucun utilisateur ?)"
+      ]
+    },
+    {
+      "page": "users_reset_password",
+      "errors": [],
+      "warnings": [
+        "⚠️ Aucun lien reset MDP visible"
+      ]
+    },
+    {
+      "page": "users_toggle",
+      "errors": [],
+      "warnings": [
+        "⚠️ Aucun formulaire toggle trouvé"
+      ]
+    },
+    {
+      "page": "users_move",
+      "errors": [
+        "❌ Modal déplacement manquant"
+      ],
+      "warnings": [
+        "⚠️ Aucun bouton déplacer"
+      ]
+    },
+    {
+      "page": "users_delete",
+      "errors": [],
+      "warnings": [
+        "⚠️ Aucun formulaire suppression"
+      ]
+    }
+  ],
+  "errors": [
+    "users_list: Tableau manquant",
+    "users_list: Boutons manquants",
+    "users_list: Bouton créer manquant",
+    "users_search: Champ recherche manquant",
+    "users_create: Champ first_name manquant",
+    "users_create: Champ last_name manquant",
+    "users_create: Champ target_ou manquant",
+    "users_edit: Aucun bouton d'action",
+    "users_move: Modal manquant"
+  ],
+  "screenshots": [
+    "logs/screenshots/users_users_list.png",
+    "logs/screenshots/users_users_search.png",
+    "logs/screenshots/users_users_create.png",
+    "logs/screenshots/users_users_edit_check.png"
+  ]
+}

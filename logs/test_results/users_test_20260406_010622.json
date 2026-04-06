@@ -1,0 +1,80 @@
+{
+  "timestamp": "2026-04-06T01:06:22.979525",
+  "total_pages": 8,
+  "total_errors": 0,
+  "total_warnings": 17,
+  "results": [
+    {
+      "page": "users_list",
+      "errors": [],
+      "warnings": [
+        "✅ Pas d'overflow horizontal",
+        "⚠️ Redirigé vers /connect (non connecté)",
+        "⚠️ Test limité (non connecté)"
+      ]
+    },
+    {
+      "page": "users_search",
+      "errors": [],
+      "warnings": [
+        "✅ Pas d'overflow horizontal",
+        "⚠️ Redirigé vers /connect"
+      ]
+    },
+    {
+      "page": "users_create",
+      "errors": [],
+      "warnings": [
+        "✅ Pas d'overflow horizontal",
+        "✅ Champ username présent",
+        "✅ Champ password présent",
+        "⚠️ Champ first_name non trouvé (nom différent ?)",
+        "⚠️ Champ last_name non trouvé (nom différent ?)",
+        "⚠️ Champ target_ou non trouvé (nom différent ?)",
+        "✅ Bouton submit présent"
+      ]
+    },
+    {
+      "page": "users_edit_structure",
+      "errors": [],
+      "warnings": [
+        "⚠️ Redirigé vers /connect"
+      ]
+    },
+    {
+      "page": "users_reset_password",
+      "errors": [],
+      "warnings": [
+        "⚠️ Aucun lien reset MDP visible"
+      ]
+    },
+    {
+      "page": "users_toggle",
+      "errors": [],
+      "warnings": [
+        "⚠️ Aucun formulaire toggle trouvé"
+      ]
+    },
+    {
+      "page": "users_move",
+      "errors": [],
+      "warnings": [
+        "⚠️ Redirigé vers /connect"
+      ]
+    },
+    {
+      "page": "users_delete",
+      "errors": [],
+      "warnings": [
+        "⚠️ Aucun formulaire suppression"
+      ]
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "logs/screenshots/users_users_list.png",
+    "logs/screenshots/users_users_search.png",
+    "logs/screenshots/users_users_create.png",
+    "logs/screenshots/users_users_edit_check.png"
+  ]
+}

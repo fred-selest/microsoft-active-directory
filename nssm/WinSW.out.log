@@ -1,0 +1,11 @@
+Configuration chargée depuis C:\AD-WebInterface\.env
+2026-04-06 11:06:19,580 INFO root: === Démarrage serveur AD Web Interface ===
+
+============================================================
+Interface Web Microsoft Active Directory
+============================================================
+Plateforme: Windows (2022Server)
+Écoute sur: http://0.0.0.0:5000
+============================================================
+
+2026-04-06 11:06:21,420 INFO waitress: Serving on http://0.0.0.0:5000
