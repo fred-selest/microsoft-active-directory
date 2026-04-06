@@ -3,6 +3,7 @@
 Suppression et déplacement d'utilisateurs Active Directory.
 """
 import logging
+from urllib.parse import unquote
 from flask import request, redirect, url_for, flash, session
 from ldap3 import SUBTREE
 
@@ -20,6 +21,9 @@ from ldap_errors import format_ldap_error, handle_ldap_exception
 def delete_user(dn):
     """Supprimer un utilisateur."""
     logger = logging.getLogger('users')
+
+    # Décoder le DN si nécessaire (peut être URL-encodé)
+    dn = unquote(dn)
     
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
@@ -84,6 +88,9 @@ def delete_user(dn):
 @require_permission('write')
 def move_user(dn):
     """Déplacer un utilisateur vers une autre OU."""
+    # Décoder le DN si nécessaire (peut être URL-encodé)
+    dn = unquote(dn)
+
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('users.list_users'))

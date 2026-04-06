@@ -3,6 +3,7 @@
 Gestion des mots de passe utilisateurs.
 """
 import logging
+from urllib.parse import unquote
 from flask import render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE, MODIFY_REPLACE
 
@@ -21,7 +22,8 @@ from ldap_errors import format_ldap_error, handle_ldap_exception
 def reset_password(dn):
     """Réinitialiser le mot de passe d'un utilisateur."""
     logger = logging.getLogger('users')
-    
+    dn = unquote(dn)  # Décoder le DN si URL-encodé
+
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
@@ -127,6 +129,7 @@ def reset_password(dn):
 def toggle_user_status(dn):
     """Activer ou désactiver un compte utilisateur."""
     logger = logging.getLogger('users')
+    dn = unquote(dn)  # Décoder le DN si URL-encodé
 
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')

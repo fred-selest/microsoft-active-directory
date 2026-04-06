@@ -41,7 +41,6 @@ DEFAULT_SETTINGS = {
         # Section "Outils" — visible par les admins uniquement
         'tool_items': [
             {'id': 'laps',          'label': 'LAPS',            'endpoint': 'tools.laps_passwords',  'icon': '🔑', 'feature': 'FEATURE_LAPS_ENABLED',             'enabled': True,  'order': 1},
-            {'id': 'laps_mgmt',     'label': 'Gestion LAPS',    'endpoint': 'tools.laps_passwords', 'icon': '??', 'feature': 'FEATURE_LAPS_ENABLED', 'enabled': True,  'order': 2},
             {'id': 'bitlocker',     'label': 'BitLocker',       'endpoint': 'tools.bitlocker_keys',  'icon': '🔐', 'feature': 'FEATURE_BITLOCKER_ENABLED',         'enabled': True,  'order': 2},
             {'id': 'recycle',       'label': 'Corbeille',       'endpoint': 'tools.recycle_bin',     'icon': '🗑️', 'feature': 'FEATURE_RECYCLE_BIN_ENABLED',       'enabled': True,  'order': 3},
             {'id': 'locked',        'label': 'Comptes verrouillés', 'endpoint': 'tools.locked_accounts', 'icon': '🔒', 'feature': 'FEATURE_LOCKED_ACCOUNTS_ENABLED', 'enabled': True, 'order': 4},
@@ -52,12 +51,12 @@ DEFAULT_SETTINGS = {
         # Section "Administration" — visible par les admins uniquement
         'admin_items': [
             {'id': 'alerts',     'label': 'Alertes',      'endpoint': 'admin_tools.alerts_page',       'icon': '🔔', 'feature': None,                          'enabled': True,  'order': 1},
-            {'id': 'audit',      'label': 'Audit',        'endpoint': 'admin_tools.error_logs',       'icon': '📋', 'feature': 'FEATURE_AUDIT_LOGS_ENABLED',  'enabled': True,  'order': 2},
+            {'id': 'audit',      'label': 'Audit',        'endpoint': 'api.api_error_logs',            'icon': '📋', 'feature': 'FEATURE_AUDIT_LOGS_ENABLED',  'enabled': True,  'order': 2},
             {'id': 'security',   'label': 'Sécurité',     'endpoint': 'admin_tools.security_audit',     'icon': '🔐', 'feature': None,                          'enabled': True,  'order': 3},
             {'id': 'permissions','label': 'Permissions',  'endpoint': 'admin_tools.permissions_page',   'icon': '🔑', 'feature': None,                          'enabled': True,  'order': 4},
             {'id': 'diagnostic', 'label': 'Diagnostic',   'endpoint': 'admin_tools.diagnostic_page',    'icon': '🔧', 'feature': 'FEATURE_DIAGNOSTIC_ENABLED',  'enabled': True,  'order': 5},
-            {'id': 'backups',    'label': 'Sauvegardes',  'endpoint': 'tools.backups',      'icon': '💾', 'feature': 'FEATURE_BACKUPS_ENABLED',     'enabled': True,  'order': 6},
-            {'id': 'admin',      'label': 'Admin',        'endpoint': 'admin.admin_page',   'icon': '⚙️', 'feature': 'FEATURE_SETTINGS_ENABLED',   'enabled': True,  'order': 7},
+            {'id': 'backups',    'label': 'Sauvegardes',  'endpoint': 'tools.backups',                  'icon': '💾', 'feature': 'FEATURE_BACKUPS_ENABLED',     'enabled': True,  'order': 6},
+            {'id': 'admin',      'label': 'Admin',        'endpoint': 'admin.admin_page',               'icon': '⚙️', 'feature': 'FEATURE_SETTINGS_ENABLED',    'enabled': True,  'order': 7},
         ],
     },
     'features': {
@@ -326,5 +325,6 @@ def update_menu_item(item_id, updates, is_dropdown=False):
             break
 
     return save_settings(settings)
+
 
 

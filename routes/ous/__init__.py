@@ -25,6 +25,7 @@ def list_ous():
 
     base_dn = session.get('ad_base_dn', '')
     ou_list = []
+    tree = None
 
     try:
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
@@ -37,12 +38,56 @@ def list_ous():
                 'dn': decode_ldap_value(e.distinguishedName),
             })
 
+        # Construire l'arborescence
+        tree = build_ou_tree(base_dn, ou_list)
+
         conn.unbind()
-        return render_template('ous.html', ous=ou_list, connected=is_connected())
+        return render_template('ous.html', ous=ou_list, tree=tree, connected=is_connected())
     except Exception as ex:
         flash(f'Erreur: {str(ex)}', 'error')
         conn.unbind()
-        return render_template('ous.html', ous=[], connected=is_connected())
+        return render_template('ous.html', ous=[], tree=None, connected=is_connected())
+
+
+def build_ou_tree(base_dn, ous):
+    """Construire une arborescence à partir d'une liste d'OUs."""
+    root = {
+        'name': base_dn.split(',')[0].replace('DC=', '') if base_dn else 'Domaine',
+        'dn': base_dn,
+        'type': 'domain',
+        'children': []
+    }
+
+    def add_ou_to_tree(parent, ou):
+        """Ajouter une OU à l'arborescence."""
+        dn_parts = ou['dn'].split(',')
+        # Trouver le parent direct
+        for i, part in enumerate(dn_parts):
+            if part.startswith('OU='):
+                ou_name = part[3:]
+                # Chercher si cette OU existe déjà dans les enfants
+                found = None
+                for child in parent['children']:
+                    if child['name'] == ou_name:
+                        found = child
+                        break
+                if not found:
+                    found = {
+                        'name': ou_name,
+                        'dn': ou['dn'],
+                        'type': 'ou',
+                        'children': []
+                    }
+                    parent['children'].append(found)
+                parent = found
+
+    # Trier les OUs par profondeur (nombre de OU= dans le DN)
+    sorted_ous = sorted(ous, key=lambda x: x['dn'].count('OU='))
+
+    for ou in sorted_ous:
+        add_ou_to_tree(root, ou)
+
+    return root
 
 
 @ous_bp.route('/create', methods=['GET', 'POST'])

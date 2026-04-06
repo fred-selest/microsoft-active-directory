@@ -536,3 +536,48 @@ System.ComponentModel.Win32Exception (6): Descripteur non valide
 2026-04-06 18:50:28,654 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
 2026-04-06 18:50:28,798 INFO  - Started process 23980
 2026-04-06 18:50:28,848 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-06 18:52:42,654 INFO  - Stopping ADWebInterface
+2026-04-06 18:52:42,655 DEBUG - ProcessKill 23980
+2026-04-06 18:52:42,669 DEBUG - Stopping process 23980...
+2026-04-06 18:52:43,200 DEBUG - Process 23980 canceled with code 0.
+2026-04-06 18:52:43,259 INFO  - Finished ADWebInterface
+2026-04-06 18:52:48,762 DEBUG - Starting WinSW in service mode
+2026-04-06 18:52:49,493 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-06 18:52:49,586 INFO  - Started process 23732
+2026-04-06 18:52:49,624 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-06 18:54:18,070 INFO  - Stopping ADWebInterface
+2026-04-06 18:54:18,071 DEBUG - ProcessKill 23732
+2026-04-06 18:54:18,082 DEBUG - Stopping process 23732...
+2026-04-06 18:54:19,546 DEBUG - Process 23732 canceled with code 0.
+2026-04-06 18:54:19,561 INFO  - Finished ADWebInterface
+2026-04-06 18:54:23,663 DEBUG - Starting WinSW in service mode
+2026-04-06 18:54:24,762 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-06 18:54:24,860 INFO  - Started process 21608
+2026-04-06 18:54:24,909 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-06 18:57:13,167 INFO  - Stopping ADWebInterface
+2026-04-06 18:57:13,170 DEBUG - ProcessKill 21608
+2026-04-06 18:57:13,176 DEBUG - Stopping process 21608...
+2026-04-06 18:57:14,143 DEBUG - Process 21608 canceled with code 0.
+2026-04-06 18:57:14,195 INFO  - Finished ADWebInterface
+2026-04-06 18:57:17,317 DEBUG - Starting WinSW in service mode
+2026-04-06 18:57:17,938 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-06 18:57:18,033 INFO  - Started process 22604
+2026-04-06 18:57:18,087 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-06 18:57:22,280 INFO  - Stopping ADWebInterface
+2026-04-06 18:57:22,281 DEBUG - ProcessKill 22604
+2026-04-06 18:57:22,292 DEBUG - Stopping process 22604...
+2026-04-06 18:57:22,894 DEBUG - Process 22604 canceled with code 0.
+2026-04-06 18:57:22,956 INFO  - Finished ADWebInterface
+2026-04-06 18:57:27,734 DEBUG - Starting WinSW in service mode
+2026-04-06 18:57:28,385 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-06 18:57:28,492 INFO  - Started process 9736
+2026-04-06 18:57:28,541 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-06 18:59:30,906 INFO  - Stopping ADWebInterface
+2026-04-06 18:59:30,913 DEBUG - ProcessKill 9736
+2026-04-06 18:59:30,923 DEBUG - Stopping process 9736...
+2026-04-06 18:59:31,381 DEBUG - Process 9736 canceled with code 0.
+2026-04-06 18:59:31,436 INFO  - Finished ADWebInterface
+2026-04-06 18:59:36,620 DEBUG - Starting WinSW in service mode
+2026-04-06 18:59:37,576 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-06 18:59:37,688 INFO  - Started process 14612
+2026-04-06 18:59:37,741 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
