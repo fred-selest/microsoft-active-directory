@@ -25,7 +25,7 @@ def configure_laps():
     base_dn = session.get('ad_base_dn', '')
     domain_dn = base_dn
 
-    # Script PowerShell avec verification de version
+    # Script PowerShell avec verification de version et extension schema
     ps_script = f'''
 # Configuration automatique de Windows LAPS
 $ErrorActionPreference = "Stop"
@@ -41,16 +41,12 @@ $buildNumber = $osInfo.BuildNumber
 Write-Host "Systeme detecte: $osName (Build $buildNumber)" -ForegroundColor Green
 
 # Verifier si Windows LAPS est supporte nativement
-# Windows Server 2019 = Build 17763+
-# Windows Server 2022 = Build 20348+
 $supportsNativeLAPS = $buildNumber -ge 17763
 
 if (-not $supportsNativeLAPS) {{
     Write-Host ""
     Write-Host "ATTENTION: Ce serveur ne supporte pas Windows LAPS nativement." -ForegroundColor Yellow
     Write-Host "Windows LAPS natif necessite Windows Server 2019 ou superieur." -ForegroundColor Yellow
-    Write-Host "Build actuel: $buildNumber (minimum requis: 17763)" -ForegroundColor Yellow
-    Write-Host ""
     Write-Host "LEGACY_REQUIRED"
     exit 0
 }}
@@ -58,7 +54,51 @@ if (-not $supportsNativeLAPS) {{
 Write-Host "OK Windows LAPS natif est supporte sur ce serveur." -ForegroundColor Green
 Write-Host ""
 
-# 2. Verifier si la GPO existe deja
+# 2. Verifier et etendre le schema AD pour LAPS
+Write-Host "=== Verification du schema AD ===" -ForegroundColor Cyan
+
+$schemaNC = (Get-ADRootDSE).schemaNamingContext
+$lapsSchemaObjects = Get-ADObject -LDAPFilter "(name=ms-LAPS-*)" -SearchBase $schemaNC -ErrorAction SilentlyContinue
+
+if ($lapsSchemaObjects) {{
+    Write-Host "OK Le schema AD contient deja les attributs LAPS ($($lapsSchemaObjects.Count) objets)." -ForegroundColor Green
+}} else {{
+    Write-Host "Le schema AD ne contient pas les attributs LAPS." -ForegroundColor Yellow
+    Write-Host "Extension du schema AD pour Windows LAPS..." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "IMPORTANT: Cette operation requiert les droits Schema Admins." -ForegroundColor Yellow
+    Write-Host ""
+    
+    try {{
+        # Importer le module LAPS
+        Import-Module Laps -ErrorAction SilentlyContinue
+        
+        # Etendre le schema
+        Initialize-LapsADSchema -ErrorAction Stop
+        Write-Host ""
+        Write-Host "OK Schema AD etendu avec succes pour Windows LAPS!" -ForegroundColor Green
+        
+        # Attendre la replication
+        Write-Host "Attente de la replication du schema (30 secondes)..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 30
+        
+    }} catch {{
+        Write-Host ""
+        Write-Host "ERREUR: Impossible d'etendre le schema AD." -ForegroundColor Red
+        Write-Host "Raison: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Solutions possibles:" -ForegroundColor Yellow
+        Write-Host "  1. Verifiez que votre compte est membre du groupe 'Schema Admins'" -ForegroundColor White
+        Write-Host "  2. Executez manuellement: Initialize-LapsADSchema" -ForegroundColor White
+        Write-Host ""
+        Write-Host "SCHEMA_ERROR"
+        exit 0
+    }}
+}}
+
+Write-Host ""
+
+# 3. Verifier si la GPO existe deja
 $gpoName = "Windows LAPS"
 Write-Host "=== Configuration de la GPO ===" -ForegroundColor Cyan
 
@@ -73,27 +113,23 @@ if ($existingGpo) {{
     Write-Host "OK GPO creee avec succes." -ForegroundColor Green
 }}
 
-# 3. Configurer les parametres LAPS
+# 4. Configurer les parametres LAPS
 Write-Host ""
 Write-Host "Configuration des parametres LAPS..." -ForegroundColor Green
 
-# Activer LAPS
 Set-GPRegistryValue -Name $gpoName -Key "HKLM\\Software\\Policies\\Microsoft\\Windows\\LAPS" -ValueName "EnableLAPS" -Type DWord -Value 1 -ErrorAction SilentlyContinue | Out-Null
 Write-Host "  OK LAPS active" -ForegroundColor White
 
-# Longueur du mot de passe (14 caracteres)
 Set-GPRegistryValue -Name $gpoName -Key "HKLM\\Software\\Policies\\Microsoft\\Windows\\LAPS" -ValueName "PasswordLength" -Type DWord -Value 14 -ErrorAction SilentlyContinue | Out-Null
 Write-Host "  OK Longueur mot de passe: 14 caracteres" -ForegroundColor White
 
-# Duree de validite (30 jours)
 Set-GPRegistryValue -Name $gpoName -Key "HKLM\\Software\\Policies\\Microsoft\\Windows\\LAPS" -ValueName "PasswordAgeDays" -Type DWord -Value 30 -ErrorAction SilentlyContinue | Out-Null
 Write-Host "  OK Duree de validite: 30 jours" -ForegroundColor White
 
-# Complexite du mot de passe
 Set-GPRegistryValue -Name $gpoName -Key "HKLM\\Software\\Policies\\Microsoft\\Windows\\LAPS" -ValueName "PasswordComplexity" -Type DWord -Value 1 -ErrorAction SilentlyContinue | Out-Null
 Write-Host "  OK Complexite: Haute" -ForegroundColor White
 
-# 4. Lier la GPO au domaine
+# 5. Lier la GPO au domaine
 Write-Host ""
 Write-Host "Liaison de la GPO au domaine..." -ForegroundColor Green
 
@@ -105,7 +141,6 @@ try {{
         Write-Host "OK La GPO est deja liee au domaine." -ForegroundColor Yellow
     }} else {{
         Write-Host "Impossible de lier la GPO: $($_.Exception.Message)" -ForegroundColor Yellow
-        Write-Host "Vous pouvez la lier manuellement via GPMC." -ForegroundColor Yellow
     }}
 }}
 
@@ -114,11 +149,10 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "     CONFIGURATION TERMINEE AVEC SUCCES" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "La GPO '$gpoName' a ete configuree." -ForegroundColor Green
-Write-Host "Les ordinateurs appliqueront la politique au prochain:" -ForegroundColor White
-Write-Host "  - Redemarrage de l'ordinateur" -ForegroundColor White
-Write-Host "  - Execution de 'gpupdate /force'" -ForegroundColor White
-Write-Host "  - Cycle automatique (90 minutes max)" -ForegroundColor White
+Write-Host "Prochaines etapes:" -ForegroundColor White
+Write-Host "  1. Sur chaque ordinateur: gpupdate /force" -ForegroundColor White
+Write-Host "  2. Ou: Invoke-LapsPolicyProcessing" -ForegroundColor White
+Write-Host "  3. Les mots de passe apparaitront dans AD" -ForegroundColor White
 Write-Host ""
 Write-Host "SUCCESS"
 '''
@@ -128,36 +162,35 @@ Write-Host "SUCCESS"
             ['powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
             capture_output=True,
             text=True,
-            timeout=90
+            timeout=120
         )
 
         stdout = result.stdout or ''
         stderr = result.stderr or ''
-        
+
         logger.info(f"LAPS Configure: returncode={result.returncode}")
         logger.info(f"LAPS Configure: stdout={stdout[:500]}")
 
         if 'LEGACY_REQUIRED' in stdout:
             flash('Ce serveur ne supporte pas Windows LAPS natif. Windows Server 2019 ou superieur est requis. Installez Legacy LAPS depuis Microsoft.', 'warning')
+        elif 'SCHEMA_ERROR' in stdout:
+            flash('Erreur lors de l\'extension du schema AD. Verifiez que votre compte est membre du groupe "Schema Admins" et reessayez. Vous pouvez aussi executer manuellement: Initialize-LapsADSchema', 'error')
         elif result.returncode == 0 and 'SUCCESS' in stdout:
-            # Extraire les infos du stdout pour le message
             lines = stdout.split('\n')
             server_info = next((l for l in lines if 'Systeme detecte' in l), '')
-            flash(f'Windows LAPS configure avec succes!\n\n{server_info}\n\nLa GPO "Windows LAPS" a ete creee. Les ordinateurs appliqueront la politique au prochain redemarrage ou apres gpupdate /force.', 'success')
+            schema_info = 'Schema etendu' if 'Schema AD etendu' in stdout else 'Schema deja configure'
+            flash(f'Windows LAPS configure avec succes!\n\n{server_info}\n{schema_info}\n\nExecutez "Invoke-LapsPolicyProcessing" sur les ordinateurs pour generer les mots de passe.', 'success')
         else:
             error_msg = stderr if stderr else stdout
             logger.error(f"LAPS Configure: error={error_msg[:500]}")
 
             if error_msg:
                 if 'Access is denied' in error_msg or 'permission' in error_msg.lower():
-                    flash('Erreur de permissions. Cette action necessite des droits Domain Admin.', 'error')
+                    flash('Erreur de permissions. Cette action necessite des droits Schema Admins et Domain Admin.', 'error')
                 elif 'already linked' in error_msg.lower():
-                    # GPO deja liee = succes
                     lines = stdout.split('\n') if stdout else []
                     server_info = next((l for l in lines if 'Systeme detecte' in l), '')
-                    flash(f'Windows LAPS deja configure!\n\n{server_info}\n\nLa GPO "Windows LAPS" existe et est deja liee au domaine.', 'success')
-                elif 'Group Policy' in error_msg or 'GPO' in error_msg:
-                    flash(f'Erreur GPO: {error_msg[:300]}', 'error')
+                    flash(f'Windows LAPS deja configure!\n\n{server_info}', 'success')
                 else:
                     flash(f'Erreur lors de la configuration: {error_msg[:300]}', 'error')
             else:
@@ -165,7 +198,7 @@ Write-Host "SUCCESS"
 
     except subprocess.TimeoutExpired:
         logger.error("LAPS Configure: Timeout")
-        flash('Timeout lors de la configuration. Verifiez les permissions et reessayez.', 'error')
+        flash('Timeout lors de la configuration. L\'extension du schema peut prendre du temps.', 'error')
     except Exception as e:
         logger.error(f"LAPS Configure: Exception={e}", exc_info=True)
         flash(f'Erreur: {str(e)}', 'error')
@@ -215,7 +248,6 @@ def laps_passwords():
         # Si pas detecte dans le schema, essayer de chercher directement
         if not has_legacy_laps and not has_new_laps:
             logger.info("LAPS: Not detected in schema, trying direct search...")
-            # Essayer chaque attribut separement
             test_attrs_list = [
                 ('ms-Mcs-AdmPwd', 'legacy'),
                 ('msLAPS-Password', 'new'),
@@ -233,10 +265,8 @@ def laps_passwords():
                             if val and val.value:
                                 if laps_type == 'legacy':
                                     has_legacy_laps = True
-                                    logger.info(f"LAPS: Found legacy LAPS attribute {attr_name} on {entry.cn}")
                                 else:
                                     has_new_laps = True
-                                    logger.info(f"LAPS: Found Windows LAPS attribute {attr_name} on {entry.cn}")
                                 break
                     if has_legacy_laps or has_new_laps:
                         break
@@ -248,7 +278,6 @@ def laps_passwords():
         if not has_legacy_laps and not has_new_laps:
             laps_available = False
             logger.warning("LAPS: No LAPS attributes found in schema or on computers")
-            flash("Windows LAPS n'est pas configure sur ce domaine. Activez LAPS via GPO : Computer Configuration > Administrative Templates > System > LAPS > Enable LAPS.", 'warning')
         else:
             attrs = ['cn', 'distinguishedName', 'operatingSystem']
             if has_legacy_laps:
@@ -313,3 +342,102 @@ def laps_passwords():
 
     return render_template('laps.html', computers=computers, search=search_query,
                            connected=is_connected(), laps_available=laps_available)
+
+
+@tools_bp.route('/laps/refresh', methods=['POST'])
+@tools_bp.route('/laps/refresh/<path:computer_dn>', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def laps_force_refresh(computer_dn=''):
+    """Forcer la mise a jour LAPS sur un ordinateur."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF inval.', 'error')
+        return redirect(url_for('tools.laps_passwords'))
+
+    computer_name = request.form.get('computer_name', '').strip()
+
+    if not computer_name:
+        flash('Nom d\'ordinateur requis.', 'error')
+        return redirect(url_for('tools.laps_passwords'))
+
+    # Construire le FQDN
+    base_dn = session.get('ad_base_dn', '')
+    domain = base_dn.replace('DC=', '').replace(',', '.')
+    computer_fqdn = f"{computer_name}.{domain}" if '.' not in computer_name else computer_name
+
+    logger.info(f"LAPS Force Refresh: Attempting to refresh LAPS on {computer_fqdn}")
+
+    # Script PowerShell pour forcer la mise a jour LAPS
+    ps_script = f'''
+$ErrorActionPreference = "Stop"
+$computerName = "{computer_fqdn}"
+
+Write-Host "=== Force LAPS Update on $computerName ===" -ForegroundColor Cyan
+
+try {{
+    if (Test-Connection -ComputerName $computerName -Count 1 -Quiet) {{
+        Write-Host "Connection OK: $computerName is reachable" -ForegroundColor Green
+
+        $result = Invoke-Command -ComputerName $computerName -ScriptBlock {{
+            try {{
+                Invoke-LapsPolicyProcessing -ErrorAction SilentlyContinue
+                Write-Host "LAPS policy processed" -ForegroundColor Green
+                "SUCCESS_NATIVE"
+            }} catch {{
+                try {{
+                    Restart-Service LAPS -Force -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 3
+                    "SUCCESS_SERVICE"
+                }} catch {{
+                    gpupdate /force /target:computer 2>&1 | Out-Null
+                    "SUCCESS_GPUPDATE"
+                }}
+            }}
+        }} -ErrorAction Stop
+
+        Write-Host "Result: $result" -ForegroundColor Green
+        Write-Host "SUCCESS"
+    }} else {{
+        Write-Host "ERROR: Computer $computerName is not reachable" -ForegroundColor Red
+        Write-Host "OFFLINE"
+    }}
+}} catch {{
+    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "ERROR"
+}}
+'''
+
+    try:
+        result = subprocess.run(
+            ['powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        stdout = result.stdout or ''
+        stderr = result.stderr or ''
+
+        logger.info(f"LAPS Force Refresh: stdout={stdout}")
+
+        if 'SUCCESS' in stdout:
+            flash(f'Mise a jour LAPS reussie sur {computer_name}! Rafraichissez la page.', 'success')
+        elif 'OFFLINE' in stdout:
+            flash(f'L\'ordinateur {computer_name} est inaccessible. Verifiez qu\'il est allume et connecte au reseau.', 'warning')
+        elif 'ERROR' in stdout:
+            error_msg = stderr if stderr else stdout
+            if 'Access is denied' in error_msg:
+                flash(f'Acces refuse sur {computer_name}. Verifiez les permissions WinRM.', 'error')
+            else:
+                flash(f'Erreur lors de la mise a jour LAPS: {error_msg[:200]}', 'error')
+        else:
+            flash(f'Resultat inattendu.', 'warning')
+
+    except subprocess.TimeoutExpired:
+        logger.error("LAPS Force Refresh: Timeout")
+        flash(f'Timeout lors de la connexion a {computer_name}.', 'error')
+    except Exception as e:
+        logger.error(f"LAPS Force Refresh: Exception={e}", exc_info=True)
+        flash(f'Erreur: {str(e)}', 'error')
+
+    return redirect(url_for('tools.laps_passwords'))
