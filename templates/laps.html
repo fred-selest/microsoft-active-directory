@@ -9,20 +9,95 @@
 
 {% if not laps_available %}
 <div class="alert alert-warning">
-    <h4>⚠️ LAPS non installé</h4>
-    <p>Le schéma LAPS n'est pas installé sur ce domaine Active Directory.</p>
+    <h4>⚠️ Windows LAPS n'est pas configuré</h4>
+    <p>Windows LAPS est natif dans Windows Server 2022 mais n'a pas encore été activé sur ce domaine.</p>
     <p>Pour utiliser LAPS, vous devez :</p>
     <ol>
-        <li>Installer <strong>Windows LAPS</strong> (recommandé) ou <strong>Legacy LAPS</strong></li>
-        <li>Étendre le schéma Active Directory avec les attributs LAPS</li>
-        <li>Configurer les politiques de groupe pour LAPS</li>
+        <li>Activer LAPS via Politique de Groupe</li>
+        <li>Les ordinateurs enverront automatiquement leur mot de passe</li>
     </ol>
-    <p><strong>Liens utiles :</strong></p>
-    <ul>
-        <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/laps/laps-management" target="_blank">Documentation Microsoft Windows LAPS</a></li>
-        <li><a href="https://www.microsoft.com/en-us/download/details.aspx?id=46899" target="_blank">Télécharger Legacy LAPS</a></li>
-    </ul>
+    
+    <div class="laps-config-actions">
+        <form method="post" action="{{ url_for('tools.configure_laps') }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-lg" onclick="return confirm('Configurer Windows LAPS sur ce domaine ?\n\nCette action va :\n- Créer une GPO Windows LAPS\n- Configurer les paramètres par défaut\n- Activer LAPS pour tous les ordinateurs');">
+                🔧 Configurer Windows LAPS automatiquement
+            </button>
+        </form>
+        
+        <details class="manual-config">
+            <summary><strong>Configuration manuelle (avancé)</strong></summary>
+            <div class="manual-config-content">
+                <h5>Via GPO :</h5>
+                <ol>
+                    <li>Ouvrir <strong>Group Policy Management</strong></li>
+                    <li>Créer une GPO : <code>Computer Configuration > Administrative Templates > System > LAPS</code></li>
+                    <li>Activer <strong>Enable LAPS</strong></li>
+                    <li>Configurer la longueur et l'expiration du mot de passe</li>
+                </ol>
+                
+                <h5>Via PowerShell :</h5>
+                <pre><code># Créer et configurer la GPO LAPS
+New-GPO -Name "Windows LAPS" -Comment "Enable Windows LAPS"
+Set-GPRegistryValue -Name "Windows LAPS" -Key "HKLM\Software\Policies\Microsoft\Windows\LAPS" -ValueName "EnableLAPS" -Type DWord -Value 1
+Set-GPRegistryValue -Name "Windows LAPS" -Key "HKLM\Software\Policies\Microsoft\Windows\LAPS" -ValueName "PasswordLength" -Type DWord -Value 14
+New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
+            </div>
+        </details>
+    </div>
+    
+    <p class="docs-link">
+        <a href="https://learn.microsoft.com/en-us/windows-server/identity/laps/laps-management" target="_blank">
+            📖 Documentation Microsoft Windows LAPS
+        </a>
+    </p>
 </div>
+
+<style>
+.laps-config-actions {
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    background: rgba(0, 120, 212, 0.1);
+    border-radius: 8px;
+}
+.laps-config-actions form {
+    margin-bottom: 1rem;
+}
+.manual-config {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+.manual-config summary {
+    cursor: pointer;
+    padding: 0.5rem;
+}
+.manual-config-content {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ddd;
+}
+.manual-config-content pre {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.875rem;
+}
+.manual-config-content code {
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+.docs-link {
+    margin-top: 1rem;
+}
+.docs-link a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+</style>
 {% else %}
 
 <div class="search-box">
