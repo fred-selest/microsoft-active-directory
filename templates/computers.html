@@ -32,8 +32,10 @@
         </thead>
         <tbody>
             {% for computer in computers %}
-            <tr class="{% if computer.disabled %}disabled-row{% endif %}">
-                <td><input type="checkbox" class="computer-checkbox" data-dn="{{ computer.dn }}" data-name="{{ computer.cn }}"></td>
+            <tr class="computer-row {% if computer.disabled %}disabled-row{% endif %}" 
+                onclick="showComputerDetails('{{ computer.dn }}', '{{ computer.cn }}', '{{ computer.os or '-' }}', '{{ computer.dns_name or '-' }}', '{{ computer.ou_path or '-' }}')"
+                style="cursor: pointer;">
+                <td><input type="checkbox" class="computer-checkbox" data-dn="{{ computer.dn }}" data-name="{{ computer.cn }}" onclick="event.stopPropagation();"></td>
                 <td>
                     <strong>{{ computer.cn }}</strong>
                     <div class="mobile-only"><small class="text-muted">{{ computer.dns_name or '-' }}</small></div>
@@ -50,7 +52,7 @@
                     <span class="badge badge-success">Actif</span>
                     {% endif %}
                 </td>
-                <td class="actions">
+                <td class="actions" onclick="event.stopPropagation();">
                     <form method="post" action="{{ url_for('computers.toggle_computer', dn=computer.dn) }}" style="display: inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if computer.disabled %}
@@ -83,6 +85,38 @@
 </div>
 
 <p class="results-count">{{ computers|length }} ordinateur(s) trouve(s)</p>
+
+<!-- Modal pour voir les détails -->
+<div id="computerModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>📋 Détails de l'ordinateur</h3>
+        <div class="detail-grid">
+            <div class="detail-row">
+                <strong>Nom :</strong>
+                <span id="computerDetailName"></span>
+            </div>
+            <div class="detail-row">
+                <strong>Système d'exploitation :</strong>
+                <span id="computerDetailOS"></span>
+            </div>
+            <div class="detail-row">
+                <strong>Nom DNS :</strong>
+                <span id="computerDetailDNS"></span>
+            </div>
+            <div class="detail-row">
+                <strong>OU :</strong>
+                <span id="computerDetailOU"></span>
+            </div>
+            <div class="detail-row">
+                <strong>Distinguished Name :</strong>
+                <span id="computerDetailDN" style="font-family: monospace; font-size: 0.85em; word-break: break-all;"></span>
+            </div>
+        </div>
+        <div class="form-actions" style="margin-top: 1.5rem;">
+            <button type="button" class="btn btn-primary" onclick="closeComputerModal()">Fermer</button>
+        </div>
+    </div>
+</div>
 
 <!-- Modal pour deplacer -->
 <div id="moveModal" class="modal" style="display: none;">
@@ -154,11 +188,89 @@
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
 }
+
+/* Modal styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    min-width: 400px;
+    max-width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: var(--primary-color, #0078d4);
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-row strong {
+    color: var(--text-secondary, #666);
+    font-size: 0.875rem;
+}
+
+/* Dark mode support */
+body.dark-mode .modal-content {
+    background: var(--dark-bg-secondary, #2d2d2d);
+}
+
+body.dark-mode .detail-row strong {
+    color: var(--text-muted, #aaa);
+}
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+/**
+ * Afficher les détails d'un ordinateur dans un modal
+ */
+function showComputerDetails(dn, cn, os, dns, ou) {
+    document.getElementById('computerDetailName').textContent = cn;
+    document.getElementById('computerDetailOS').textContent = os;
+    document.getElementById('computerDetailDNS').textContent = dns || '-';
+    document.getElementById('computerDetailOU').textContent = ou || '-';
+    document.getElementById('computerDetailDN').textContent = dn;
+    document.getElementById('computerModal').style.display = 'flex';
+}
+
+function closeComputerModal() {
+    document.getElementById('computerModal').style.display = 'none';
+}
+
+document.getElementById('computerModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeComputerModal();
+    }
+});
+
 function showMoveModal(dn, name) {
     document.getElementById('moveComputerName').textContent = 'Ordinateur: ' + name;
     document.getElementById('moveForm').action = '/computers/' + encodeURIComponent(dn) + '/move';

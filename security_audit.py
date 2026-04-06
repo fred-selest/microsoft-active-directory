@@ -1,6 +1,7 @@
 """
 Audit de Sécurité Renforcé - Détection et réparation automatique
 """
+# -*- coding: utf-8 -*-
 from datetime import datetime
 from ldap3 import SUBTREE, MODIFY_REPLACE
 
@@ -290,15 +291,15 @@ def check_empty_security_groups(conn, base_dn):
 
             if not has_members:
                 empty_groups.append({'cn': group_name, 'sam': sam_name, 'dn': dn})
-                logger.warning(f"Groupe vide trouvé: {group_name} (SAM: {sam_name})")
+                logger.warning("Groupe vide trouvé: %s (SAM: %s)", group_name, sam_name)
 
-        logger.info(f"Groupes de sécurité vérifiés: {len(all_groups_checked)}")
-        logger.info(f"Groupes vides trouvés: {len(empty_groups)}")
-        
+        logger.info("Groupes de sécurité vérifiés: %d", len(all_groups_checked))
+        logger.info("Groupes vides trouvés: %d", len(empty_groups))
+
         # Afficher les groupes vides pour débogage
         if empty_groups:
             for g in empty_groups:
-                logger.info(f"  - {g['cn']} | {g['sam']} | {g['dn']}")
+                logger.info("  - %s | %s | %s", g['cn'], g['sam'], g['dn'])
 
         if empty_groups:
             issues.append({

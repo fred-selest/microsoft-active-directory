@@ -535,16 +535,11 @@ def api_documentation():
 
 
 # === POLITIQUE DE MOTS DE PASSE ===
-# Route déplacée vers routes/tools/password.py (éviter doublon)
+# Routes déplacées vers routes/tools/password.py
 
 
 # === AUDIT MOTS DE PASSE ===
-@tools_bp.route('/password-audit')
-@require_connection
-@require_permission('admin')
-def password_audit():
-    """Page d'audit des mots de passe."""
-    return render_template('password_audit.html', connected=is_connected())
+# Routes déplacées vers routes/tools/password.py
 
 
 # === BACKUPS ===
@@ -569,56 +564,3 @@ def view_backup(filename):
         flash('Backup introuvable.', 'error')
         return redirect(url_for('tools.backups'))
     return render_template('backup_detail.html', backup=backup, connected=is_connected())
-
-
-# === EXPORT AUDIT MOTS DE PASSE ===
-@tools_bp.route('/password-audit/export/csv')
-@require_connection
-@require_permission('admin')
-def export_password_audit_csv():
-    """Exporter l'audit des mots de passe en CSV."""
-    from flask import Response
-    from password_audit import run_password_audit, export_audit_to_csv
-    
-    conn, error = get_ad_connection()
-    if not conn:
-        flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('tools.password_audit'))
-    
-    base_dn = session.get('ad_base_dn', '')
-    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
-    conn.unbind()
-    
-    csv_data = export_audit_to_csv(audit_result)
-    
-    return Response(
-        csv_data,
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment;filename=password_audit.csv'}
-    )
-
-
-@tools_bp.route('/password-audit/export/json')
-@require_connection
-@require_permission('admin')
-def export_password_audit_json():
-    """Exporter l'audit des mots de passe en JSON."""
-    from flask import Response
-    from password_audit import run_password_audit, export_audit_to_json
-    
-    conn, error = get_ad_connection()
-    if not conn:
-        flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('tools.password_audit'))
-    
-    base_dn = session.get('ad_base_dn', '')
-    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
-    conn.unbind()
-    
-    json_data = export_audit_to_json(audit_result)
-    
-    return Response(
-        json_data,
-        mimetype='application/json',
-        headers={'Content-Disposition': 'attachment;filename=password_audit.json'}
-    )

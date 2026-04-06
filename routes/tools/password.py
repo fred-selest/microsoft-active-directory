@@ -1,8 +1,18 @@
+# -*- coding: utf-8 -*-
 """Routes politique de mots de passe et audit."""
 from flask import render_template, redirect, url_for, flash, session, Response, request, jsonify
 
 from . import tools_bp
 from ..core import get_ad_connection, is_connected, require_connection, require_permission
+
+
+def _clean_ldap_string(s):
+    """Nettoyer une chaîne LDAP (encodage UTF-8)."""
+    if s is None:
+        return ''
+    if isinstance(s, bytes):
+        return s.decode('utf-8', errors='replace')
+    return str(s)
 
 
 def _get_filetime_days(entry, attr):
@@ -381,6 +391,56 @@ def export_password_audit_pdf():
             'Content-Disposition': f'attachment;filename=audit_mdp_{domain_name.replace(" ", "_")}_{datetime.now().strftime("%Y%m%d")}.pdf'
         }
     )
+
+
+@tools_bp.route('/password-audit/report')
+@require_connection
+@require_permission('admin')
+def password_auditor_report():
+    """Générer un rapport style Specops Password Auditor."""
+    from password_audit import run_password_audit, generate_auditor_issues
+    from datetime import datetime
+    from updater import get_current_version
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('tools.password_audit'))
+
+    base_dn = session.get('ad_base_dn', '')
+    domain = base_dn.replace('DC=', '').replace(',', '.').strip('.') if base_dn else session.get('ad_server', 'domaine.local')
+
+    # Lancer l'audit complet
+    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
+    conn.unbind()
+
+    # Générer les issues formatées style Specops
+    issues = generate_auditor_issues(audit_result)
+
+    # Calculer le score (0-100)
+    total_issues = sum(issue['weight'] for issue in issues)
+    max_score = 100
+    score = max(0, max_score - total_issues)
+
+    # Déterminer la classe CSS pour le score
+    if score >= 80:
+        score_class = 'success'
+    elif score >= 50:
+        score_class = 'warning'
+    else:
+        score_class = 'critical'
+
+    version = get_current_version()
+
+    return render_template('password_auditor_report.html',
+                         domain=domain,
+                         base_dn=base_dn,
+                         issues=issues,
+                         score=score,
+                         score_class=score_class,
+                         now=datetime.now(),
+                         version=version,
+                         connected=is_connected())
 
 
 # === HISTORIQUE DES AUDITS ===

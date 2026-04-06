@@ -294,3 +294,84 @@ def export_settings():
         mimetype='application/json',
         headers={'Content-Disposition': 'attachment;filename=ad_settings.json'}
     )
+
+
+@admin_bp.route('/save/password', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def save_password_settings():
+    """Sauvegarder les paramètres de mot de passe par défaut."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('admin.admin_page'))
+
+    from settings_manager import load_settings, save_settings
+
+    settings = load_settings()
+    
+    # Paramètres de mot de passe
+    settings['password']['default_password'] = request.form.get('default_password', '')
+    settings['password']['password_complexity'] = request.form.get('password_complexity', 'high')
+    settings['password']['password_length'] = int(request.form.get('password_length', 16))
+    settings['password']['exclude_ambiguous_chars'] = request.form.get('exclude_ambiguous_chars') == 'on'
+    settings['password']['must_change_at_next_login'] = request.form.get('must_change_at_next_login') == 'on'
+    
+    save_settings(settings)
+    flash('Paramètres de mot de passe sauvegardés.', 'success')
+    
+    return redirect(url_for('admin.admin_page'))
+
+
+@admin_bp.route('/generate-password', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_generate_password():
+    """Générer un nouveau mot de passe par défaut."""
+    from settings_manager import generate_new_default_password
+    from flask import jsonify
+    
+    complexity = request.form.get('complexity', 'high')
+    length = int(request.form.get('length', 16))
+    exclude_ambiguous = request.form.get('exclude_ambiguous') == 'on'
+    
+    try:
+        password = generate_new_default_password(
+            complexity=complexity,
+            length=length,
+            exclude_ambiguous=exclude_ambiguous
+        )
+        
+        return jsonify({
+            'success': True,
+            'password': password,
+            'message': 'Nouveau mot de passe généré et sauvegardé.'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@admin_bp.route('/check-password-strength', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_check_password_strength():
+    """Vérifier la force d'un mot de passe."""
+    from password_generator import check_password_complexity
+    from flask import jsonify
+    
+    password = request.form.get('password', '')
+    
+    if not password:
+        return jsonify({
+            'success': False,
+            'error': 'Mot de passe requis'
+        }), 400
+    
+    result = check_password_complexity(password)
+    
+    return jsonify({
+        'success': True,
+        'complexity': result
+    })

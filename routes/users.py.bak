@@ -11,6 +11,17 @@ from security import escape_ldap_filter, validate_csrf_token
 from audit import log_action, ACTIONS
 from backup import backup_object, record_change
 
+
+def _clean_str(s):
+    """Nettoyer une chaîne (UTF-8)."""
+    if s is None:
+        return ''
+    s = str(s)
+    try:
+        return s.encode('latin-1').decode('unicode_escape').encode('latin-1').decode('utf-8', errors='replace')
+    except:
+        return s
+
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 
 
@@ -44,20 +55,20 @@ def list_users():
             uac = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 512
             is_disabled = bool(int(uac) & 2) if uac else False
             user_list.append({
-                'cn': decode_ldap_value(entry.cn),
-                'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
-                'mail': decode_ldap_value(entry.mail),
-                'dn': decode_ldap_value(entry.distinguishedName),
-                'displayName': decode_ldap_value(entry.displayName),
-                'department': decode_ldap_value(entry.department),
-                'title': decode_ldap_value(entry.title),
+                'cn': str(entry.cn.value) if entry.cn else '',
+                'sAMAccountName': str(entry.sAMAccountName.value) if entry.sAMAccountName else '',
+                'mail': str(entry.mail.value) if entry.mail else '',
+                'dn': str(entry.distinguishedName),
+                'displayName': str(entry.displayName.value) if entry.displayName else '',
+                'department': str(entry.department.value) if entry.department else '',
+                'title': str(entry.title.value) if entry.title else '',
                 'disabled': is_disabled
             })
 
         # OUs pour affichage
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
-        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+        ou_list = [{'name': str(e.name.value) if e.name else '', 'dn': str(e.distinguishedName)}
                    for e in conn.entries]
         
         conn.unbind()
@@ -83,6 +94,9 @@ def list_users():
 @require_permission('delete')
 def delete_user(dn):
     """Supprimer un utilisateur."""
+    import logging
+    logger = logging.getLogger('users')
+    
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('users.list_users'))
@@ -95,20 +109,46 @@ def delete_user(dn):
     base_dn = session.get('ad_base_dn', '')
 
     try:
-        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE, attributes=['*'])
+        # Recherche avec attributs de base uniquement (évite les erreurs LDAP)
+        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                   attributes=['sAMAccountName', 'cn', 'displayName', 'distinguishedName'])
+        
         attributes = {}
         if conn.entries:
             entry = conn.entries[0]
-            attributes = {attr: str(entry[attr].value) for attr in entry.entry_attributes}
+            username = entry.sAMAccountName.value if entry.sAMAccountName else 'Unknown'
+            attributes = {
+                'sAMAccountName': str(username),
+                'cn': str(entry.cn.value) if entry.cn else '',
+                'displayName': str(entry.displayName.value) if entry.displayName else '',
+                'distinguishedName': str(entry.distinguishedName)
+            }
+            logger.info(f"delete_user: backup attributes = {attributes}")
+        
         backup_object('user', dn, attributes)
+        
+        logger.info(f"delete_user: tentative de suppression de {dn}")
         conn.delete(dn)
-        if conn.result['result'] == 0:
+        
+        logger.info(f"delete_user: résultat = {conn.result}")
+        
+        if conn.result.get('result') == 0:
             log_action(ACTIONS['DELETE_USER'], session.get('ad_username'),
                       {'dn': dn}, True, request.remote_addr)
             flash('Utilisateur supprimé.', 'success')
         else:
-            flash(f'Erreur: {conn.result["description"]}', 'error')
+            error_desc = conn.result.get('description', 'Erreur inconnue')
+            error_msg = conn.result.get('message', '')
+            
+            # Messages d'erreur précis
+            if 'protected' in str(error_msg).lower() or 'accidental' in str(error_desc).lower():
+                flash(f'Erreur AD: Compte protégé. Exécutez: Set-ADUser -Identity "{username}" -ProtectedFromAccidentalDeletion $false', 'error')
+            elif 'unwilling' in str(error_desc).lower() or error_desc == 'unwillingToPerform':
+                flash(f'Erreur AD: Le serveur refuse. Le compte est peut-être protégé ou a des objets enfants.', 'error')
+            else:
+                flash(f'Erreur: {error_desc}', 'error')
     except Exception as e:
+        logger.error(f"delete_user: exception = {str(e)}", exc_info=True)
         flash(f'Erreur: {str(e)}', 'error')
     finally:
         conn.unbind()
@@ -138,7 +178,7 @@ def move_user(dn):
     try:
         cn = dn.split(',')[0]
         conn.modify_dn(dn, cn, new_superior=target_ou)
-        if conn.result['result'] == 0:
+        if conn.result.get('result') == 0:
             log_action(ACTIONS.get('MOVE_USER', 'move_user'), session.get('ad_username'),
                       {'dn': dn, 'target': target_ou}, True, request.remote_addr)
             flash('Utilisateur déplacé.', 'success')
@@ -168,7 +208,7 @@ def create_user():
     try:
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
-        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+        ou_list = [{'name': str(e.name.value) if e.name else "", 'dn': str(e.distinguishedName)}
                    for e in conn.entries]
     except:
         ou_list = []
@@ -216,7 +256,7 @@ def create_user():
 
         try:
             conn.add(user_dn, attributes=attributes)
-            if conn.result['result'] == 0:
+            if conn.result.get('result') == 0:
                 # Définir le mot de passe si fourni
                 if password:
                     unicode_pwd = f'"{password}"'.encode('utf-16-le')
@@ -269,15 +309,15 @@ def edit_user(dn):
         uac = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 512
         user = {
             'dn': dn,
-            'cn': decode_ldap_value(entry.cn),
-            'givenName': decode_ldap_value(entry.givenName),
-            'sn': decode_ldap_value(entry.sn),
-            'displayName': decode_ldap_value(entry.displayName),
-            'mail': decode_ldap_value(entry.mail),
-            'telephoneNumber': decode_ldap_value(entry.telephoneNumber),
-            'department': decode_ldap_value(entry.department),
-            'title': decode_ldap_value(entry.title),
-            'description': decode_ldap_value(entry.description),
+            'cn': str(entry.cn.value) if entry.cn else "",
+            'givenName': str(entry.givenName.value) if entry.givenName else "",
+            'sn': str(entry.sn.value) if entry.sn else "",
+            'displayName': str(entry.displayName.value) if entry.displayName else "",
+            'mail': str(entry.mail.value) if entry.mail else "",
+            'telephoneNumber': str(entry.telephoneNumber.value) if entry.telephoneNumber else "",
+            'department': str(entry.department.value) if entry.department else "",
+            'title': str(entry.title.value) if entry.title else "",
+            'description': str(entry.description.value) if entry.description else "",
             'disabled': bool(int(uac) & 2) if uac else False,
         }
     except Exception as e:
@@ -352,9 +392,9 @@ def reset_password(dn):
         entry = conn.entries[0]
         user = {
             'dn': dn,
-            'cn': decode_ldap_value(entry.cn),
-            'displayName': decode_ldap_value(entry.displayName),
-            'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+            'cn': str(entry.cn.value) if entry.cn else "",
+            'displayName': str(entry.displayName.value) if entry.displayName else "",
+            'sAMAccountName': str(entry.sAMAccountName.value) if entry.sAMAccountName else "",
         }
     except Exception as e:
         flash(f'Erreur: {str(e)}', 'error')
@@ -385,7 +425,7 @@ def reset_password(dn):
         try:
             unicode_pwd = f'"{new_password}"'.encode('utf-16-le')
             conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
-            if conn.result['result'] == 0:
+            if conn.result.get('result') == 0:
                 if must_change:
                     conn.modify(dn, {'pwdLastSet': [(MODIFY_REPLACE, [0])]})
                 log_action(ACTIONS.get('RESET_PASSWORD', 'reset_password'), session.get('ad_username'),
@@ -417,7 +457,7 @@ def toggle_user():
     """Activer ou désactiver un compte utilisateur."""
     import logging
     logger = logging.getLogger('users')
-    
+
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('users.list_users'))
@@ -428,14 +468,14 @@ def toggle_user():
         return redirect(url_for('users.list_users'))
 
     base_dn = session.get('ad_base_dn', '')
-    
-    # Récupérer le DN depuis le formulaire (passé comme champ caché)
     dn = request.form.get('dn', '').strip()
     action = request.form.get('action', '')
-    
+
     logger.info(f"toggle_user: DN reçu = {dn}")
     logger.info(f"toggle_user: base_dn = {base_dn}")
     logger.info(f"toggle_user: action = {action}")
+    logger.info(f"toggle_user: username session = {session.get('ad_username')}")
+    logger.info(f"toggle_user: user_groups = {session.get('user_groups')}")
 
     if not dn:
         flash('DN utilisateur manquant.', 'error')
@@ -443,15 +483,24 @@ def toggle_user():
         return redirect(url_for('users.list_users'))
 
     try:
-        # Rechercher l'utilisateur par son DN exact
         search_filter = f'(distinguishedName={escape_ldap_filter(dn)})'
         logger.info(f"toggle_user: search_filter = {search_filter}")
-        
+
+        # Recherche avec attributs nécessaires
         conn.search(base_dn, search_filter, SUBTREE,
-                   attributes=['userAccountControl', 'distinguishedName', 'sAMAccountName'])
-        
+                   attributes=['userAccountControl', 'distinguishedName', 'sAMAccountName',
+                              'adminCount', 'memberOf', 'pwdLastSet', 'displayName', 'mail'])
+
+        # Récupérer tous les attributs pour analyse
+        attributes = {}
+        if conn.entries:
+            entry = conn.entries[0]
+            attributes = {attr: str(entry[attr].value) if entry[attr].value else 'None'
+                         for attr in entry.entry_attributes}
+            logger.info(f"toggle_user: attributs du compte = {attributes}")
+
         logger.info(f"toggle_user: entries trouvées = {len(conn.entries)}")
-        
+
         if not conn.entries:
             logger.error(f"toggle_user: Utilisateur introuvable: {dn}")
             flash(f'Utilisateur introuvable: {dn}', 'error')
@@ -461,35 +510,73 @@ def toggle_user():
         entry = conn.entries[0]
         uac = entry.userAccountControl.value
         uac = int(uac) if uac else 512
-        
-        # Récupérer le DN réel (peut être différent après recherche)
+
         actual_dn = str(entry.distinguishedName)
         username = entry.sAMAccountName.value if entry.sAMAccountName else 'inconnu'
         
+        # Vérifier attributs de protection
+        admin_count = entry.adminCount.value if hasattr(entry, 'adminCount') and entry.adminCount.value else 0
+        protected = entry.protectedFromAccidentalDeletion.value if hasattr(entry, 'protectedFromAccidentalDeletion') else False
+        member_of = entry.memberOf.value if hasattr(entry, 'memberOf') else []
+
         logger.info(f"toggle_user: actual_dn = {actual_dn}")
         logger.info(f"toggle_user: username = {username}")
         logger.info(f"toggle_user: uac = {uac}, action = {action}")
-        
+        logger.info(f"toggle_user: adminCount = {admin_count}")
+        logger.info(f"toggle_user: protectedFromAccidentalDeletion = {protected}")
+        logger.info(f"toggle_user: memberOf = {member_of}")
+
         if action == 'enable':
             new_uac = uac & ~2  # Activer (enlever ACCOUNTDISABLE)
         else:
             new_uac = uac | 2   # Désactiver (ajouter ACCOUNTDISABLE)
 
-        logger.info(f"toggle_user: new_uac = {new_uac}")
+        logger.info(f"toggle_user: uac actuel = {uac}, nouveau uac = {new_uac}")
         logger.info(f"toggle_user: modification en cours...")
         
+        # Afficher les permissions de l'utilisateur actuel sur cet objet
+        try:
+            logger.info(f"toggle_user: tentative de modification sur {actual_dn}")
+        except:
+            pass
+
         conn.modify(actual_dn, {'userAccountControl': [(MODIFY_REPLACE, [new_uac])]})
-        
+
         logger.info(f"toggle_user: résultat = {conn.result}")
-        
-        if conn.result['result'] == 0:
+
+        if conn.result.get('result') == 0:
             label = 'activé' if action == 'enable' else 'désactivé'
             log_action(ACTIONS.get('TOGGLE_USER', 'toggle_user'), session.get('ad_username'),
                       {'dn': actual_dn, 'username': username, 'action': action}, True, request.remote_addr)
             flash(f'Utilisateur {label}.', 'success')
         else:
             logger.error(f"toggle_user: erreur LDAP = {conn.result}")
-            flash(f'Erreur: {conn.result["description"]}', 'error')
+            error_desc = conn.result.get('description', 'Erreur inconnue')
+            error_message = conn.result.get('message', '')
+            error_code = conn.result.get('result', -1)
+            error_dn = conn.result.get('dn', '')
+            
+            logger.error(f"toggle_user: error_code={error_code}, error_desc={error_desc}, error_message={error_message}, error_dn={error_dn}")
+            
+            # Message d'erreur détaillé
+            if error_code == 53 or 'unwilling' in str(error_desc).lower() or 'will_not_perform' in str(error_message).lower():
+                # Vérifier les causes possibles
+                causes = []
+                if admin_count == 1:
+                    causes.append("Compte protégé (adminCount=1)")
+                if protected:
+                    causes.append("Protégé contre suppression")
+                if member_of and any('Protected Users' in str(m) for m in member_of):
+                    causes.append("Membre Protected Users")
+                if attributes.get('pwdLastSet', '').startswith('1601'):
+                    causes.append("Jamais de mot de passe défini")
+                
+                if causes:
+                    flash(f'Erreur AD: {", ".join(causes)}. Définis un mot de passe puis réessaie.', 'error')
+                else:
+                    flash(f'Erreur AD: Droits insuffisants. Utilise PowerShell.', 'error')
+            else:
+                flash(f'Erreur: {error_desc}', 'error')
     except Exception as e:
         logger.error(f"toggle_user: exception = {str(e)}", exc_info=True)
         flash(f'Erreur: {str(e)}', 'error')
@@ -523,17 +610,17 @@ def duplicate_user(dn):
         member_of = entry.memberOf.values if hasattr(entry, 'memberOf') and entry.memberOf else []
         user = {
             'dn': dn,
-            'cn': decode_ldap_value(entry.cn),
-            'givenName': decode_ldap_value(entry.givenName),
-            'sn': decode_ldap_value(entry.sn),
-            'displayName': decode_ldap_value(entry.displayName),
-            'department': decode_ldap_value(entry.department),
-            'title': decode_ldap_value(entry.title),
-            'memberOf': [decode_ldap_value(g) for g in member_of],
+            'cn': str(entry.cn.value) if entry.cn else "",
+            'givenName': str(entry.givenName.value) if entry.givenName else "",
+            'sn': str(entry.sn.value) if entry.sn else "",
+            'displayName': str(entry.displayName.value) if entry.displayName else "",
+            'department': str(entry.department.value) if entry.department else "",
+            'title': str(entry.title.value) if entry.title else "",
+            'memberOf': [str(g) for g in member_of],
         }
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
-        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+        ou_list = [{'name': str(e.name.value) if e.name else "", 'dn': str(e.distinguishedName)}
                    for e in conn.entries]
     except Exception as e:
         flash(f'Erreur: {str(e)}', 'error')
@@ -579,7 +666,7 @@ def duplicate_user(dn):
 
         try:
             conn.add(new_dn, attributes=attributes)
-            if conn.result['result'] == 0:
+            if conn.result.get('result') == 0:
                 if password:
                     unicode_pwd = f'"{password}"'.encode('utf-16-le')
                     conn.modify(new_dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
@@ -620,9 +707,9 @@ def compare_users():
     try:
         conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
                    attributes=['cn', 'sAMAccountName', 'distinguishedName'])
-        user_list = [{'cn': decode_ldap_value(e.cn),
-                      'sAMAccountName': decode_ldap_value(e.sAMAccountName),
-                      'dn': decode_ldap_value(e.distinguishedName)}
+        user_list = [{'cn': str(e.cn.value) if e.cn else "",
+                      'sAMAccountName': str(e.sAMAccountName.value) if e.sAMAccountName else "",
+                      'dn': str(e.distinguishedName)}
                      for e in conn.entries]
     except Exception as e:
         flash(f'Erreur: {str(e)}', 'error')
@@ -656,7 +743,7 @@ def compare_users():
                     result[attr] = str(val) if val is not None else ''
             except Exception:
                 result[attr] = ''
-        result['cn'] = decode_ldap_value(entry.cn)
+        result['cn'] = str(entry.cn.value) if entry.cn else ""
         return result
 
     try:
@@ -693,9 +780,9 @@ def bulk_operations():
         for e in conn.entries:
             uac = e.userAccountControl.value if hasattr(e, 'userAccountControl') and e.userAccountControl else 512
             user_list.append({
-                'cn': decode_ldap_value(e.cn),
-                'sAMAccountName': decode_ldap_value(e.sAMAccountName),
-                'dn': decode_ldap_value(e.distinguishedName),
+                'cn': str(e.cn.value) if e.cn else "",
+                'sAMAccountName': str(e.sAMAccountName.value) if e.sAMAccountName else "",
+                'dn': str(e.distinguishedName),
                 'disabled': bool(int(uac) & 2),
             })
     except Exception as e:
@@ -744,15 +831,21 @@ def bulk_operations():
                     unicode_pwd = f'"{new_password}"'.encode('utf-16-le')
                     conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]})
                 elif action == 'delete':
-                    conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE, attributes=['*'])
+                    conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+                               attributes=['sAMAccountName', 'cn', 'displayName', 'distinguishedName'])
                     attributes = {}
                     if conn.entries:
                         entry = conn.entries[0]
-                        attributes = {attr: str(entry[attr].value) for attr in entry.entry_attributes}
+                        attributes = {
+                            'sAMAccountName': str(entry.sAMAccountName.value) if entry.sAMAccountName else '',
+                            'cn': str(entry.cn.value) if entry.cn else '',
+                            'displayName': str(entry.displayName.value) if entry.displayName else '',
+                            'distinguishedName': str(entry.distinguishedName)
+                        }
                     from backup import backup_object
                     backup_object('user', dn, attributes)
                     conn.delete(dn)
-                if conn.result['result'] == 0:
+                if conn.result.get('result') == 0:
                     success_count += 1
                 else:
                     error_count += 1
@@ -804,12 +897,12 @@ def export_users():
 
         for entry in conn.entries:
             writer.writerow([
-                decode_ldap_value(entry.cn),
-                decode_ldap_value(entry.sAMAccountName),
-                decode_ldap_value(entry.mail),
-                decode_ldap_value(entry.displayName),
-                decode_ldap_value(entry.department),
-                decode_ldap_value(entry.title)
+                str(entry.cn.value) if entry.cn else "",
+                str(entry.sAMAccountName.value) if entry.sAMAccountName else "",
+                str(entry.mail.value) if entry.mail else "",
+                str(entry.displayName.value) if entry.displayName else "",
+                str(entry.department.value) if entry.department else "",
+                str(entry.title.value) if entry.title else ""
             ])
 
         conn.unbind()

@@ -62,7 +62,16 @@
                     </small>
                 </td>
                 <td>{{ group.description }}</td>
-                <td>{{ group.member_count }}</td>
+                <td>
+                    {% if group.is_special_group %}
+                    <span title="Groupe spécial AD - Membres via primaryGroupID">
+                        🏛️ {{ group.member_count }}
+                    </span>
+                    <br><small class="text-muted">(Groupe spécial)</small>
+                    {% else %}
+                    {{ group.member_count }}
+                    {% endif %}
+                </td>
                 <td class="actions">
                     <a href="{{ url_for('groups.view_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Membres</a>
                     <a href="{{ url_for('groups.edit_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>

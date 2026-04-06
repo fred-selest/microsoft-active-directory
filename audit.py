@@ -29,12 +29,12 @@ except PermissionError:
 audit_logger = logging.getLogger('audit')
 audit_logger.setLevel(logging.INFO)
 
-# Handler pour fichier
+# Handler pour fichier (encodage UTF-8 explicite)
 log_file = config.LOG_DIR / 'audit.log'
-file_handler = logging.FileHandler(log_file, encoding='utf-8')
+file_handler = logging.FileHandler(log_file, encoding='utf-8', mode='a')
 file_handler.setLevel(logging.INFO)
 
-# Format du log
+# Format du log avec support UTF-8
 formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 file_handler.setFormatter(formatter)
 audit_logger.addHandler(file_handler)
@@ -62,7 +62,7 @@ def log_action(action, user, details=None, success=True, ip_address=None):
 
     # Format lisible pour le log
     status = 'SUCCESS' if success else 'FAILED'
-    details_str = json.dumps(details) if details else ''
+    details_str = json.dumps(details, ensure_ascii=False) if details else ''
 
     audit_logger.info(f"{status} | {action} | {user} | {ip_address} | {details_str}")
 

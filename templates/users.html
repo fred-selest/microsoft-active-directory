@@ -6,11 +6,8 @@
 <div class="page-header">
     <h2>Utilisateurs Active Directory</h2>
     <div class="header-actions">
-        <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
-        <a href="{{ url_for('users.bulk_operations') }}" class="btn btn-secondary">Masse</a>
-        <a href="{{ url_for('users.compare_users') }}" class="btn btn-secondary">Comparer</a>
-        <a href="{{ url_for('users.import_users') }}" class="btn btn-secondary">Importer</a>
-        <a href="{{ url_for('users.export_users') }}" class="btn btn-secondary">CSV</a>
+        <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">➕ Nouvel utilisateur</a>
+        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">📋 Tous les utilisateurs</a>
     </div>
 </div>
 
@@ -72,9 +69,8 @@
                         🔑
                     </a>
                     <div class="btn-group-mobile">
-                        <form id="toggle-form-{{ loop.index }}" method="post" action="{{ url_for('users.toggle_user') }}" style="display: inline;">
+                        <form id="toggle-form-{{ loop.index }}" method="post" action="{{ url_for('users.toggle_user_status', dn=user.dn) }}" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="dn" value="{{ user.dn }}">
                             <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
                         </form>
                         <button type="button" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}" 
