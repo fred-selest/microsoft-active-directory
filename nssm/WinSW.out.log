@@ -1,0 +1,1592 @@
+Configuration chargée depuis C:\AD-WebInterface\.env
+2026-04-06 18:25:33,229 INFO root: === Démarrage serveur AD Web Interface ===
+
+============================================================
+Interface Web Microsoft Active Directory
+============================================================
+Plateforme: Windows (2022Server)
+Écoute sur: http://0.0.0.0:5000
+============================================================
+
+2026-04-06 18:25:35,092 INFO waitress: Serving on http://0.0.0.0:5000
+2026-04-06 18:25:56,576 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:25:59,670 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-06 18:26:02,706 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:02,739 INFO ad_connection: Connexion réussie (méthode automatique): 192.168.10.252
+2026-04-06 18:26:02,747 INFO ad_core: Groupes AD détectés pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau à distance', 'Administrateurs de l’entreprise', 'Administrateurs du schéma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-06 18:26:02,747 INFO ad_core: Groupes admin configurés: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schéma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-06 18:26:02,747 INFO ad_core: Correspondance admin trouvée: Administrateurs
+2026-04-06 18:26:02,747 INFO ad_core: Rôle déterminé pour selest\admin: admin
+2026-04-06 18:26:02,747 INFO audit: SUCCESS | login | selest\admin | 192.168.10.220 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-06 18:26:02,763 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:02,796 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:02,805 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:02,828 ERROR app: Exception on /connect [POST]
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:02,860 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:02,860 ERROR ad_debug: 500 Error: selest\admin - 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:02,892 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:02,900 ERROR waitress: Exception while serving /connect
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\channel.py", line 428, in service
+    task.service()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 168, in service
+    self.execute()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 434, in execute
+    app_iter = self.channel.server.application(environ, start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1478, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1458, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 810, in handle_exception
+    server_error = self.ensure_sync(handler)(server_error)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 92, in internal_error
+    return render_template('error.html', error_code=500, error_message="Erreur interne du serveur",
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:06,780 INFO ad_connection: Connexion réussie (méthode automatique): 192.168.10.252
+2026-04-06 18:26:06,790 INFO ad_core: Groupes AD détectés pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau à distance', 'Administrateurs de l’entreprise', 'Administrateurs du schéma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-06 18:26:06,790 INFO ad_core: Groupes admin configurés: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schéma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-06 18:26:06,790 INFO ad_core: Correspondance admin trouvée: Administrateurs
+2026-04-06 18:26:06,790 INFO ad_core: Rôle déterminé pour selest\admin: admin
+2026-04-06 18:26:06,790 INFO audit: SUCCESS | login | selest\admin | 192.168.10.220 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-06 18:26:06,812 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:06,823 ERROR app: Exception on /connect [POST]
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:06,828 ERROR ad_debug: 500 Error: selest\admin - 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:06,859 ERROR waitress: Exception while serving /connect
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\channel.py", line 428, in service
+    task.service()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 168, in service
+    self.execute()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 434, in execute
+    app_iter = self.channel.server.application(environ, start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1478, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1458, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 810, in handle_exception
+    server_error = self.ensure_sync(handler)(server_error)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 92, in internal_error
+    return render_template('error.html', error_code=500, error_message="Erreur interne du serveur",
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:24,969 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-06 18:26:46,996 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:47,888 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:48,508 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:49,320 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 65, in decorated
+    return redirect(url_for('connect'))
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\helpers.py", line 222, in url_for
+    return current_app.url_for(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'connect'. Did you mean 'main.connect' instead?
+2026-04-06 18:26:51,123 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-06 18:26:54,538 INFO ad_connection: Connexion réussie (méthode automatique): 192.168.10.252
+2026-04-06 18:26:54,538 INFO ad_core: Groupes AD détectés pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau à distance', 'Administrateurs de l’entreprise', 'Administrateurs du schéma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-06 18:26:54,538 INFO ad_core: Groupes admin configurés: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schéma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-06 18:26:54,538 INFO ad_core: Correspondance admin trouvée: Administrateurs
+2026-04-06 18:26:54,538 INFO ad_core: Rôle déterminé pour selest\admin: admin
+2026-04-06 18:26:54,543 INFO audit: SUCCESS | login | selest\admin | 192.168.10.220 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-06 18:26:54,561 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:54,574 ERROR app: Exception on /connect [POST]
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:54,602 ERROR ad_debug: 500 Error: selest\admin - 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:26:54,608 ERROR waitress: Exception while serving /connect
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\channel.py", line 428, in service
+    task.service()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 168, in service
+    self.execute()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 434, in execute
+    app_iter = self.channel.server.application(environ, start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1478, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1458, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 810, in handle_exception
+    server_error = self.ensure_sync(handler)(server_error)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 92, in internal_error
+    return render_template('error.html', error_code=500, error_message="Erreur interne du serveur",
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:27:12,615 INFO ad_connection: Connexion réussie (méthode automatique): 192.168.10.252
+2026-04-06 18:27:12,616 INFO ad_core: Groupes AD détectés pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau à distance', 'Administrateurs de l’entreprise', 'Administrateurs du schéma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-06 18:27:12,616 INFO ad_core: Groupes admin configurés: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schéma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-06 18:27:12,616 INFO ad_core: Correspondance admin trouvée: Administrateurs
+2026-04-06 18:27:12,616 INFO ad_core: Rôle déterminé pour selest\admin: admin
+2026-04-06 18:27:12,625 INFO audit: SUCCESS | login | selest\admin | 192.168.10.220 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-06 18:27:12,646 ERROR ad_debug: Unhandled Exception: BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:27:12,649 ERROR app: Exception on /connect [POST]
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:27:12,665 ERROR ad_debug: 500 Error: selest\admin - 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+2026-04-06 18:27:12,694 ERROR waitress: Exception while serving /connect
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 108, in connect
+    return render_template('login_success.html',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\login_success.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1455, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 869, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 759, in handle_user_exception
+    return self.ensure_sync(handler)(e)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 106, in handle_exception
+    return render_template('error.html', error_code=500,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\channel.py", line 428, in service
+    task.service()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 168, in service
+    self.execute()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\waitress\task.py", line 434, in execute
+    app_iter = self.channel.server.application(environ, start_response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1478, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1458, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 810, in handle_exception
+    server_error = self.ensure_sync(handler)(server_error)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\app.py", line 92, in internal_error
+    return render_template('error.html', error_code=500, error_message="Erreur interne du serveur",
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 152, in render_template
+    return _render(app, template, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\templating.py", line 133, in _render
+    rv = template.render(context)
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+  File "C:\AD-WebInterface\venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\AD-WebInterface\templates\error.html", line 1, in top-level template code
+    {% extends 'base.html' %}
+  File "C:\AD-WebInterface\templates\base.html", line 75, in top-level template code
+    {% include 'partials/_sidebar.html' %}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\templates\partials\_sidebar.html", line 34, in top-level template code
+    <a href="{{ url_for(item.endpoint) }}"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1071, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 1060, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\werkzeug\routing\map.py", line 919, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'tools.laps_passwords'. Did you mean '\x01.laps_passwords' instead?

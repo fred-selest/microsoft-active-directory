@@ -42,7 +42,7 @@
             
             <!-- Boutons d'action -->
             <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">
                     ← Retour au tableau de bord
                 </a>
                 {% if connected %}
@@ -162,3 +162,7 @@
     }
 </style>
 {% endblock %}
+
+
+
+

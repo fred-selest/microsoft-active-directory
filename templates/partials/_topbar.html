@@ -29,7 +29,7 @@
             <span></span>
             <span></span>
         </button>
-        <a href="{{ url_for('index') }}" class="top-bar-brand">
+        <a href="{{ url_for('main.index') }}" class="top-bar-brand">
             {% if site_settings.logo %}
             <img src="{{ url_for('static', filename='images/' + site_settings.logo) }}"
                  alt="Logo"
@@ -52,11 +52,15 @@
                 {{ session.get('user_role', 'reader')|capitalize }}
             </span>
         </span>
-        <a href="{{ url_for('disconnect') }}" class="btn btn-logout" title="Déconnexion">
+        <a href="{{ url_for('main.disconnect') }}" class="btn btn-logout" title="Déconnexion">
             <span>&#x1F6AA;</span>
         </a>
         {% else %}
-        <a href="{{ url_for('connect') }}" class="btn btn-primary btn-sm">Connexion</a>
+        <a href="{{ url_for('main.connect') }}" class="btn btn-primary btn-sm">Connexion</a>
         {% endif %}
     </div>
 </header>
+
+
+
+

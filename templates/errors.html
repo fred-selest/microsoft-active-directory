@@ -12,7 +12,7 @@
         <button class="btn btn-secondary" onclick="exportErrors()">
             📥 Exporter
         </button>
-        <a href="{{ url_for('diagnostic_page') }}" class="btn btn-secondary">
+        <a href="{{ url_for('admin.diagnostic_page') }}" class="btn btn-secondary">
             🔧 Diagnostic
         </a>
     </div>
@@ -267,3 +267,7 @@ document.addEventListener('DOMContentLoaded', loadErrors);
 setInterval(loadErrors, 30000);
 </script>
 {% endblock %}
+
+
+
+
