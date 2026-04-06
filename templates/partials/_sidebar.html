@@ -77,12 +77,12 @@
 
         {# Pied de sidebar — toujours visible #}
         <div class="sidebar-footer">
-            <a href="{{ url_for('toggle_dark_mode') }}" class="sidebar-link sidebar-footer">
+            <a href="{{ url_for('main.toggle_dark_mode') }}" class="sidebar-link sidebar-footer">
                 <span class="sidebar-icon">{% if dark_mode %}&#x2600;&#xFE0F;{% else %}&#x1F319;{% endif %}</span>
                 <span class="sidebar-text">{% if dark_mode %}Mode clair{% else %}Mode sombre{% endif %}</span>
             </a>
             {% if config.FEATURE_UPDATE_CHECK_ENABLED %}
-            <a href="{{ url_for('update_page') }}"
+            <a href="{{ url_for('admin_tools.update_page') }}"
                class="sidebar-link sidebar-footer {{ 'update-available' if update_info and update_info.update_available else '' }}">
                 <span class="sidebar-icon">&#x1F504;</span>
                 <span class="sidebar-text">Mise à jour</span>
@@ -95,3 +95,7 @@
 
     </nav>
 </aside>
+
+
+
+

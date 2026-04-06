@@ -234,7 +234,7 @@
             </tbody>
         </table>
     </div>
-    <p><a href="{{ url_for('audit_logs') }}">Voir tous les logs d'audit</a></p>
+    <p><a href="{{ url_for('admin.audit_logs') }}">Voir tous les logs d'audit</a></p>
     {% else %}
     <p class="text-muted">Aucune activité récente.</p>
     {% endif %}
@@ -290,3 +290,7 @@ new Chart(groupsCtx, {
 });
 </script>
 {% endblock %}
+
+
+
+

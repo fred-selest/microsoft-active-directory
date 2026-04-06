@@ -25,11 +25,11 @@
             <button onclick="window.location.reload()" class="btn btn-primary">
                 🔄 Rafraîchir la Page
             </button>
-            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
                 📊 Retour au Dashboard
             </a>
             {% if connected %}
-            <a href="{{ url_for('diagnostic_page') }}" class="btn btn-warning">
+            <a href="{{ url_for('admin.diagnostic_page') }}" class="btn btn-warning">
                 🔧 Diagnostic
             </a>
             {% endif %}
@@ -268,3 +268,7 @@ body.dark-mode .error-help {
 }
 </style>
 {% endblock %}
+
+
+
+

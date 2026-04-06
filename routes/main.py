@@ -228,45 +228,6 @@ def dashboard():
                          connected=is_connected())
 
 
-@main_bp.route('/ous')
-@require_connection
-def ous():
-    """Liste des OUs."""
-    conn, error = get_ad_connection()
-    if not conn:
-        flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('main.connect'))
-
-    base_dn = session.get('ad_base_dn', '')
-    ou_list = []
-    tree = None
-
-    try:
-        conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
-                   attributes=['name', 'description', 'distinguishedName'])
-
-        ous_data = []
-        for e in conn.entries:
-            ou_data = {
-                'name': decode_ldap_value(e.name),
-                'description': decode_ldap_value(e.description),
-                'dn': decode_ldap_value(e.distinguishedName),
-                'type': 'ou'
-            }
-            ou_list.append(ou_data)
-            ous_data.append(ou_data)
-
-        # Construire l'arborescence
-        tree = build_ou_tree(ous_data, base_dn)
-
-        conn.unbind()
-    except Exception as ex:
-        flash(f'Erreur: {str(ex)}', 'error')
-
-    return render_template('ous.html', ous=ou_list, tree=tree, connected=is_connected())
-
-
-def build_ou_tree(ous, base_dn):
     """Construire une arborescence à partir d'une liste plate d'OUs."""
     root = {
         'name': base_dn.split(',')[0].replace('DC=', '') if base_dn else 'Domaine',
@@ -283,28 +244,6 @@ def build_ou_tree(ous, base_dn):
     return root
 
 
-def add_ou_to_tree(node, ou):
-    """Ajouter une OU à l'arborescence."""
-    ou_dn = ou['dn']
-    node_dn = node['dn']
-
-    if ou_dn.endswith(',' + node_dn) and ou_dn.count(',') == node_dn.count(',') + 1:
-        node['children'].append({
-            'name': ou['name'],
-            'dn': ou['dn'],
-            'type': 'ou',
-            'children': []
-        })
-        return True
-
-    for child in node['children']:
-        if add_ou_to_tree(child, ou):
-            return True
-
-    return False
-
-
-@main_bp.route('/audit')
 @require_connection
 def audit_logs():
     """Logs d'audit."""

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Gestionnaire de parametres pour l'interface d'administration.
 Permet de configurer dynamiquement le logo, menus, couleurs, etc.
 """
@@ -19,45 +19,45 @@ DEFAULT_SETTINGS = {
         'custom_css': ''  # CSS personnalise additionnel
     },
     'password': {
-        'default_password': '',  # Mot de passe par dÃ©faut (vide = gÃ©nÃ©rÃ© automatiquement)
+        'default_password': '',  # Mot de passe par défaut (vide = généré automatiquement)
         'password_complexity': 'high',  # low, medium, high, very_high
         'must_change_at_next_login': True,  # Obliger le changement au prochain login
         'exclude_ambiguous_chars': False,  # Exclure 0,O,1,l,I
         'password_length': 16,  # Longueur du mot de passe (8-128)
-        'password_history': []  # Historique des derniers mots de passe gÃ©nÃ©rÃ©s
+        'password_history': []  # Historique des derniers mots de passe générés
     },
     'menu': {
-        # Section "Gestion" â€” visible par tous les utilisateurs connectÃ©s
+        # Section "Gestion" — visible par tous les utilisateurs connectés
         # endpoint : nom Flask complet (blueprint.fonction ou fonction)
-        # icon : caractÃ¨re unicode (Ã©vite les dÃ©pendances Ã  des librairies d'icÃ´nes)
+        # icon : caractère unicode (évite les dépendances à des librairies d'icônes)
         'items': [
-            {'id': 'dashboard',  'label': 'Tableau de bord', 'endpoint': 'dashboard',               'icon': 'ðŸ“Š', 'enabled': True,  'order': 1},
-            {'id': 'users',      'label': 'Utilisateurs',    'endpoint': 'users.list_users',         'icon': 'ðŸ‘¥', 'enabled': True,  'order': 2},
-            {'id': 'groups',     'label': 'Groupes',         'endpoint': 'groups.list_groups',       'icon': 'ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦', 'enabled': True,  'order': 3},
-            {'id': 'computers',  'label': 'Ordinateurs',     'endpoint': 'computers.list_computers', 'icon': 'ðŸ’»', 'enabled': True,  'order': 4},
-            {'id': 'ous',        'label': "UnitÃ©s d'org.",   'endpoint': 'ous',                      'icon': 'ðŸ“', 'enabled': True,  'order': 5},
-            {'id': 'search',     'label': 'Recherche',       'endpoint': 'global_search',            'icon': 'ðŸ”Ž', 'enabled': False, 'order': 6},
+            {'id': 'dashboard',  'label': 'Tableau de bord', 'endpoint': 'main.dashboard',               'icon': '📊', 'enabled': True,  'order': 1},
+            {'id': 'users',      'label': 'Utilisateurs',    'endpoint': 'users.list_users',         'icon': '👥', 'enabled': True,  'order': 2},
+            {'id': 'groups',     'label': 'Groupes',         'endpoint': 'groups.list_groups',       'icon': '👨‍👩‍👧‍👦', 'enabled': True,  'order': 3},
+            {'id': 'computers',  'label': 'Ordinateurs',     'endpoint': 'computers.list_computers', 'icon': '💻', 'enabled': True,  'order': 4},
+            {'id': 'ous',        'label': "Unités d'org.",   'endpoint': 'ous.list_ous',                      'icon': '📁', 'enabled': True,  'order': 5},
+            {'id': 'search',     'label': 'Recherche',       'endpoint': 'global_search',            'icon': '🔎', 'enabled': False, 'order': 6},
         ],
-        # Section "Outils" â€” visible par les admins uniquement
+        # Section "Outils" — visible par les admins uniquement
         'tool_items': [
-            {'id': 'laps',          'label': 'LAPS',            'endpoint': 'tools.laps_passwords',  'icon': 'ðŸ”‘', 'feature': 'FEATURE_LAPS_ENABLED',             'enabled': True,  'order': 1},
-            {'id': 'laps_mgmt',     'label': 'Gestion LAPS',    'endpoint': 'laps_management.laps_dashboard', 'icon': '🔐', 'feature': 'FEATURE_LAPS_ENABLED', 'enabled': True,  'order': 2},
-            {'id': 'bitlocker',     'label': 'BitLocker',       'endpoint': 'tools.bitlocker_keys',  'icon': 'ðŸ”', 'feature': 'FEATURE_BITLOCKER_ENABLED',         'enabled': True,  'order': 2},
-            {'id': 'recycle',       'label': 'Corbeille',       'endpoint': 'tools.recycle_bin',     'icon': 'ðŸ—‘ï¸', 'feature': 'FEATURE_RECYCLE_BIN_ENABLED',       'enabled': True,  'order': 3},
-            {'id': 'locked',        'label': 'Comptes verrouillÃ©s', 'endpoint': 'tools.locked_accounts', 'icon': 'ðŸ”’', 'feature': 'FEATURE_LOCKED_ACCOUNTS_ENABLED', 'enabled': True, 'order': 4},
-            {'id': 'expiring',      'label': 'Expirations',     'endpoint': 'tools.expiring_accounts', 'icon': 'â°', 'feature': 'FEATURE_EXPIRING_ACCOUNTS_ENABLED', 'enabled': True, 'order': 5},
-            {'id': 'pwd_policy',    'label': 'Politique MDP',   'endpoint': 'tools.password_policy', 'icon': 'ðŸ›¡ï¸', 'feature': 'FEATURE_PASSWORD_POLICY_ENABLED',   'enabled': True,  'order': 6},
-            {'id': 'pwd_audit',     'label': 'Audit MDP',       'endpoint': 'tools.password_audit',  'icon': 'ðŸ”', 'feature': 'FEATURE_PASSWORD_AUDIT_ENABLED',    'enabled': True,  'order': 7},
+            {'id': 'laps',          'label': 'LAPS',            'endpoint': 'tools.laps_passwords',  'icon': '🔑', 'feature': 'FEATURE_LAPS_ENABLED',             'enabled': True,  'order': 1},
+            {'id': 'laps_mgmt',     'label': 'Gestion LAPS',    'endpoint': 'tools.laps_passwords', 'icon': '??', 'feature': 'FEATURE_LAPS_ENABLED', 'enabled': True,  'order': 2},
+            {'id': 'bitlocker',     'label': 'BitLocker',       'endpoint': 'tools.bitlocker_keys',  'icon': '🔐', 'feature': 'FEATURE_BITLOCKER_ENABLED',         'enabled': True,  'order': 2},
+            {'id': 'recycle',       'label': 'Corbeille',       'endpoint': 'tools.recycle_bin',     'icon': '🗑️', 'feature': 'FEATURE_RECYCLE_BIN_ENABLED',       'enabled': True,  'order': 3},
+            {'id': 'locked',        'label': 'Comptes verrouillés', 'endpoint': 'tools.locked_accounts', 'icon': '🔒', 'feature': 'FEATURE_LOCKED_ACCOUNTS_ENABLED', 'enabled': True, 'order': 4},
+            {'id': 'expiring',      'label': 'Expirations',     'endpoint': 'tools.expiring_accounts', 'icon': '⏰', 'feature': 'FEATURE_EXPIRING_ACCOUNTS_ENABLED', 'enabled': True, 'order': 5},
+            {'id': 'pwd_policy',    'label': 'Politique MDP',   'endpoint': 'tools.password_policy', 'icon': '🛡️', 'feature': 'FEATURE_PASSWORD_POLICY_ENABLED',   'enabled': True,  'order': 6},
+            {'id': 'pwd_audit',     'label': 'Audit MDP',       'endpoint': 'tools.password_audit',  'icon': '🔍', 'feature': 'FEATURE_PASSWORD_AUDIT_ENABLED',    'enabled': True,  'order': 7},
         ],
-        # Section "Administration" â€” visible par les admins uniquement
+        # Section "Administration" — visible par les admins uniquement
         'admin_items': [
-            {'id': 'alerts',     'label': 'Alertes',      'endpoint': 'alerts_page',       'icon': 'ðŸ””', 'feature': None,                          'enabled': True,  'order': 1},
-            {'id': 'audit',      'label': 'Audit',        'endpoint': 'audit_logs',         'icon': 'ðŸ“‹', 'feature': 'FEATURE_AUDIT_LOGS_ENABLED',  'enabled': True,  'order': 2},
-            {'id': 'security',   'label': 'SÃ©curitÃ©',     'endpoint': 'security_audit',     'icon': 'ðŸ”', 'feature': None,                          'enabled': True,  'order': 3},
-            {'id': 'permissions','label': 'Permissions',  'endpoint': 'permissions_page',   'icon': 'ðŸ”‘', 'feature': None,                          'enabled': True,  'order': 4},
-            {'id': 'diagnostic', 'label': 'Diagnostic',   'endpoint': 'diagnostic_page',    'icon': 'ðŸ”§', 'feature': 'FEATURE_DIAGNOSTIC_ENABLED',  'enabled': True,  'order': 5},
-            {'id': 'backups',    'label': 'Sauvegardes',  'endpoint': 'tools.backups',      'icon': 'ðŸ’¾', 'feature': 'FEATURE_BACKUPS_ENABLED',     'enabled': True,  'order': 6},
-            {'id': 'admin',      'label': 'Admin',        'endpoint': 'admin.admin_page',   'icon': 'âš™ï¸', 'feature': 'FEATURE_SETTINGS_ENABLED',   'enabled': True,  'order': 7},
+            {'id': 'alerts',     'label': 'Alertes',      'endpoint': 'alerts_page',       'icon': '🔔', 'feature': None,                          'enabled': True,  'order': 1},
+            {'id': 'audit',      'label': 'Audit',        'endpoint': 'audit_logs',         'icon': '📋', 'feature': 'FEATURE_AUDIT_LOGS_ENABLED',  'enabled': True,  'order': 2},
+            {'id': 'security',   'label': 'Sécurité',     'endpoint': 'security_audit',     'icon': '🔐', 'feature': None,                          'enabled': True,  'order': 3},
+            {'id': 'permissions','label': 'Permissions',  'endpoint': 'permissions_page',   'icon': '🔑', 'feature': None,                          'enabled': True,  'order': 4},
+            {'id': 'diagnostic', 'label': 'Diagnostic',   'endpoint': 'diagnostic_page',    'icon': '🔧', 'feature': 'FEATURE_DIAGNOSTIC_ENABLED',  'enabled': True,  'order': 5},
+            {'id': 'backups',    'label': 'Sauvegardes',  'endpoint': 'admin_tools.backups',      'icon': '💾', 'feature': 'FEATURE_BACKUPS_ENABLED',     'enabled': True,  'order': 6},
+            {'id': 'admin',      'label': 'Admin',        'endpoint': 'admin.admin_page',   'icon': '⚙️', 'feature': 'FEATURE_SETTINGS_ENABLED',   'enabled': True,  'order': 7},
         ],
     },
     'features': {
@@ -79,7 +79,7 @@ DEFAULT_SETTINGS = {
         'port': 587,
         'use_tls': True,
         'username': '',
-        'password': '',  # Sera encryptÃ© dans le futur
+        'password': '',  # Sera encrypté dans le futur
         'from_email': '',
         'from_name': 'AD Web Interface',
         'use_auth': True
@@ -122,8 +122,8 @@ def load_settings():
 
 def get_default_password():
     """
-    Obtenir le mot de passe par dÃ©faut configurÃ©.
-    Si vide, gÃ©nÃ©rer un nouveau mot de passe automatique.
+    Obtenir le mot de passe par défaut configuré.
+    Si vide, générer un nouveau mot de passe automatique.
     
     Returns:
         Tuple (password, must_change)
@@ -133,13 +133,13 @@ def get_default_password():
     settings = load_settings()
     password_config = settings.get('password', {})
     
-    # Mot de passe configurÃ© manuellement
+    # Mot de passe configuré manuellement
     default_pwd = password_config.get('default_password', '')
     
     if default_pwd:
         return default_pwd, password_config.get('must_change_at_next_login', True)
     
-    # GÃ©nÃ©rer automatiquement un mot de passe
+    # Générer automatiquement un mot de passe
     complexity = password_config.get('password_complexity', 'high')
     length = password_config.get('password_length', 16)
     exclude_ambiguous = password_config.get('exclude_ambiguous_chars', False)
@@ -155,7 +155,7 @@ def get_default_password():
     })
     history = history[-10:]  # Garder les 10 derniers
     
-    # Mettre Ã  jour les paramÃ¨tres
+    # Mettre à jour les paramètres
     password_config['default_password'] = password
     password_config['password_history'] = history
     settings['password'] = password_config
@@ -170,15 +170,15 @@ def generate_new_default_password(
     exclude_ambiguous: bool = False
 ) -> str:
     """
-    GÃ©nÃ©rer et sauvegarder un nouveau mot de passe par dÃ©faut.
+    Générer et sauvegarder un nouveau mot de passe par défaut.
     
     Args:
-        complexity: Niveau de complexitÃ©
+        complexity: Niveau de complexité
         length: Longueur du mot de passe
-        exclude_ambiguous: Exclure les caractÃ¨res ambigus
+        exclude_ambiguous: Exclure les caractères ambigus
     
     Returns:
-        Nouveau mot de passe gÃ©nÃ©rÃ©
+        Nouveau mot de passe généré
     """
     from password_generator import generate_password
     
@@ -191,7 +191,7 @@ def generate_new_default_password(
         exclude_ambiguous=exclude_ambiguous
     )
     
-    # Sauvegarder dans les paramÃ¨tres
+    # Sauvegarder dans les paramètres
     settings = load_settings()
     password_config = settings.get('password', {})
     password_config['default_password'] = password
@@ -199,7 +199,7 @@ def generate_new_default_password(
     password_config['password_length'] = length
     password_config['exclude_ambiguous_chars'] = exclude_ambiguous
     
-    # Ajouter Ã  l'historique
+    # Ajouter à l'historique
     history = password_config.get('password_history', [])
     history.append({
         'password': password,
@@ -292,25 +292,25 @@ def _sorted_enabled(items):
 
 
 def get_menu_items():
-    """Ã‰lÃ©ments de la section Gestion (tous utilisateurs connectÃ©s)."""
+    """Éléments de la section Gestion (tous utilisateurs connectés)."""
     settings = load_settings()
     return _sorted_enabled(settings.get('menu', {}).get('items', []))
 
 
 def get_tool_items():
-    """Ã‰lÃ©ments de la section Outils (admins uniquement)."""
+    """Éléments de la section Outils (admins uniquement)."""
     settings = load_settings()
     return _sorted_enabled(settings.get('menu', {}).get('tool_items', []))
 
 
 def get_admin_items():
-    """Ã‰lÃ©ments de la section Administration (admins uniquement)."""
+    """Éléments de la section Administration (admins uniquement)."""
     settings = load_settings()
     return _sorted_enabled(settings.get('menu', {}).get('admin_items', []))
 
 
 def get_dropdown_items():
-    """Alias conservÃ© pour compatibilitÃ© â€” retourne tool_items."""
+    """Alias conservé pour compatibilité — retourne tool_items."""
     return get_tool_items()
 
 
@@ -326,3 +326,5 @@ def update_menu_item(item_id, updates, is_dropdown=False):
             break
 
     return save_settings(settings)
+
+

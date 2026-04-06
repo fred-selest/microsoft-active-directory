@@ -23,7 +23,7 @@
             {% endif %}
             
             {% if config.FEATURE_UPDATE_CHECK_ENABLED %}
-            <a href="{{ url_for('update_page') }}" class="admin-card">
+            <a href="{{ url_for('admin_tools.update_page') }}" class="admin-card">
                 <div class="admin-card-icon">🔄</div>
                 <div class="admin-card-content">
                     <h4>Mises à jour</h4>
@@ -39,7 +39,7 @@
         <h3>📊 Surveillance</h3>
         <div class="admin-grid">
             {% if config.FEATURE_AUDIT_LOGS_ENABLED %}
-            <a href="{{ url_for('audit_logs') }}" class="admin-card">
+            <a href="{{ url_for('admin.audit_logs') }}" class="admin-card">
                 <div class="admin-card-icon">📜</div>
                 <div class="admin-card-content">
                     <h4>Journal d'audit</h4>
@@ -57,7 +57,7 @@
             </a>
 
             {% if config.FEATURE_DIAGNOSTIC_ENABLED %}
-            <a href="{{ url_for('diagnostic_page') }}" class="admin-card">
+            <a href="{{ url_for('admin.diagnostic_page') }}" class="admin-card">
                 <div class="admin-card-icon">🔧</div>
                 <div class="admin-card-content">
                     <h4>Diagnostic</h4>
@@ -716,3 +716,7 @@ function showToast(message, type = 'info') {
 }
 </script>
 {% endblock %}
+
+
+
+
