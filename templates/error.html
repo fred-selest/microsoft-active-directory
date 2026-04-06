@@ -21,10 +21,10 @@
                 📊 Retour au dashboard
             </a>
             {% if connected %}
-            <a href="{{ url_for('error_logs') }}" class="btn btn-secondary">
+            <a href="{{ url_for('admin_tools.error_logs') }}" class="btn btn-secondary">
                 📋 Voir les erreurs récentes
             </a>
-            <a href="{{ url_for('admin.diagnostic_page') }}" class="btn btn-secondary">
+            <a href="{{ url_for('admin_tools.diagnostic_page') }}" class="btn btn-secondary">
                 🔧 Diagnostic
             </a>
             {% endif %}

@@ -244,6 +244,7 @@ def dashboard():
     return root
 
 
+@main_bp.route('/audit')
 @require_connection
 def audit_logs():
     """Logs d'audit."""

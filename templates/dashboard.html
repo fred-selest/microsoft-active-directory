@@ -111,7 +111,7 @@
             <a href="{{ url_for('groups.create_group') }}" class="btn btn-sm btn-primary">
                 👥 Nouveau groupe
             </a>
-            <a href="{{ url_for('ous') }}" class="btn btn-sm btn-secondary">
+            <a href="{{ url_for('ous.list_ous') }}" class="btn btn-sm btn-secondary">
                 📁 OUs
             </a>
             <a href="{{ url_for('computers.list_computers') }}" class="btn btn-sm btn-secondary">
@@ -184,7 +184,7 @@
     <div class="quick-actions">
         <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">Nouvel utilisateur</a>
         <a href="{{ url_for('groups.create_group') }}" class="btn btn-secondary">Nouveau groupe</a>
-        <a href="{{ url_for('ous') }}" class="btn btn-secondary">Unités d'organisation</a>
+        <a href="{{ url_for('ous.list_ous') }}" class="btn btn-secondary">Unités d'organisation</a>
         <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Tous les utilisateurs</a>
         <a href="{{ url_for('computers.list_computers') }}" class="btn btn-secondary">Ordinateurs</a>
         <a href="{{ url_for('tools.locked_accounts') }}" class="btn btn-secondary">Comptes verrouillés</a>
@@ -234,7 +234,7 @@
             </tbody>
         </table>
     </div>
-    <p><a href="{{ url_for('admin.audit_logs') }}">Voir tous les logs d'audit</a></p>
+    <p><a href="{{ url_for('main.audit_logs') }}">Voir tous les logs d'audit</a></p>
     {% else %}
     <p class="text-muted">Aucune activité récente.</p>
     {% endif %}
