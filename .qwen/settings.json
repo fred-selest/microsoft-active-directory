@@ -17,7 +17,14 @@
       "Bash(do *)",
       "Bash(@timeout *)",
       "Bash(f *)",
-      "Bash(timeout *)"
+      "Bash(timeout *)",
+      "Bash(get-content *)",
+      "Bash(sc *)",
+      "Bash(net *)",
+      "Bash(curl *)",
+      "Bash(get-service)",
+      "Bash(where-object *)",
+      "Bash(select-object *)"
     ]
   },
   "$version": 3
