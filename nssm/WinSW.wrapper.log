@@ -474,3 +474,12 @@ System.ComponentModel.Win32Exception (6): Descripteur non valide
 2026-04-06 18:25:32,887 INFO  - Started process 23276
 2026-04-06 18:25:32,930 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
 2026-04-06 18:25:33,115 INFO  - Service 'AD Web Interface (ADWebInterface)' restarted successfully.
+2026-04-06 18:34:15,660 INFO  - Stopping ADWebInterface
+2026-04-06 18:34:15,661 DEBUG - ProcessKill 23276
+2026-04-06 18:34:15,671 DEBUG - Stopping process 23276...
+2026-04-06 18:34:16,242 DEBUG - Process 23276 canceled with code 0.
+2026-04-06 18:34:16,260 INFO  - Finished ADWebInterface
+2026-04-06 18:34:19,706 DEBUG - Starting WinSW in service mode
+2026-04-06 18:34:20,317 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-06 18:34:20,427 INFO  - Started process 21212
+2026-04-06 18:34:20,477 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
