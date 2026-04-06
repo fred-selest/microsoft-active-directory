@@ -24,15 +24,35 @@ def recycle_bin():
         base_dn = session.get('ad_base_dn', '')
         deleted_dn = f'CN=Deleted Objects,{base_dn}'
         conn.search(deleted_dn, '(isDeleted=TRUE)', SUBTREE,
-                    attributes=['cn', 'distinguishedName', 'whenChanged', 'objectClass'],
+                    attributes=['cn', 'distinguishedName', 'whenChanged', 'objectClass', 'lastKnownParent'],
                     controls=[('1.2.840.113556.1.4.417', True, None)])
 
         for entry in conn.entries:
+            # Déterminer le type d'objet
+            obj_classes = entry.objectClass.values if hasattr(entry, 'objectClass') and entry.objectClass else []
+            if 'user' in obj_classes:
+                obj_type = 'Utilisateur'
+            elif 'group' in obj_classes:
+                obj_type = 'Groupe'
+            elif 'organizationalUnit' in obj_classes:
+                obj_type = 'OU'
+            elif 'computer' in obj_classes:
+                obj_type = 'Ordinateur'
+            else:
+                obj_type = 'Autre'
+
+            # Formater la date de suppression
+            when_changed = decode_ldap_value(entry.whenChanged) if hasattr(entry, 'whenChanged') else ''
+
+            # Emplacement d'origine
+            last_parent = decode_ldap_value(entry.lastKnownParent) if hasattr(entry, 'lastKnownParent') else ''
+
             deleted_objects.append({
                 'cn': decode_ldap_value(entry.cn),
                 'dn': decode_ldap_value(entry.distinguishedName),
-                'deleted': decode_ldap_value(entry.whenChanged),
-                'type': 'user' if 'user' in (entry.objectClass.values or []) else 'other',
+                'whenChanged': when_changed,
+                'lastKnownParent': last_parent,
+                'type': obj_type,
             })
         conn.unbind()
     except Exception as e:

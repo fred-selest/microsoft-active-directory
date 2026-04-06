@@ -36,7 +36,82 @@ def diagnostic_page():
 @require_connection
 def alerts_page():
     """Page des alertes."""
-    return render_template('alerts.html', connected=True)
+    from ldap3 import SUBTREE
+    from datetime import datetime, timedelta
+    from .core import decode_ldap_value
+    
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return render_template('alerts.html', alert_data={}, alerts=[], connected=True)
+    
+    base_dn = session.get('ad_base_dn', '')
+    
+    # Statistiques d'alertes
+    alert_data = {
+        'expiring_accounts': 0,
+        'password_expiring': 0,
+        'inactive_accounts': 0,
+        'locked_accounts': 0,
+        'empty_groups': 0
+    }
+    
+    alerts = []
+    now = datetime.now()
+    
+    try:
+        # Comptes verrouillés
+        conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'lockoutTime'])
+        alert_data['locked_accounts'] = len(conn.entries)
+        
+        if alert_data['locked_accounts'] > 0:
+            alerts.append({
+                'title': f'{alert_data["locked_accounts"]} compte(s) verrouillé(s)',
+                'message': 'Des comptes sont actuellement verrouillés. Vérifiez la page des comptes verrouillés.',
+                'severity': 'warning',
+                'date': now.strftime('%d/%m/%Y %H:%M')
+            })
+        
+        # Comptes inactifs (lastLogon > 90 jours)
+        conn.search(base_dn, '(objectClass=user)', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'lastLogon'])
+        for entry in conn.entries:
+            last_logon = decode_ldap_value(entry.lastLogon) if hasattr(entry, 'lastLogon') else None
+            # Simplified check - count accounts without recent logon
+            if not last_logon or last_logon == '0':
+                alert_data['inactive_accounts'] += 1
+        
+        if alert_data['inactive_accounts'] > 10:
+            alerts.append({
+                'title': f'{alert_data["inactive_accounts"]} compte(s) inactif(s)',
+                'message': 'Des comptes n\'ont pas été utilisés récemment. Considérez une revue.',
+                'severity': 'info',
+                'date': now.strftime('%d/%m/%Y %H:%M')
+            })
+        
+        # Groupes vides
+        conn.search(base_dn, '(objectClass=group)', SUBTREE,
+                   attributes=['cn', 'member'])
+        for entry in conn.entries:
+            member = decode_ldap_value(entry.member) if hasattr(entry, 'member') else None
+            if not member:
+                alert_data['empty_groups'] += 1
+        
+        if alert_data['empty_groups'] > 5:
+            alerts.append({
+                'title': f'{alert_data["empty_groups"]} groupe(s) vide(s)',
+                'message': 'Certains groupes n\'ont aucun membre. Vérifiez leur pertinence.',
+                'severity': 'info',
+                'date': now.strftime('%d/%m/%Y %H:%M')
+            })
+        
+        conn.unbind()
+        
+    except Exception as e:
+        flash(f'Erreur lors de la récupération des alertes: {str(e)}', 'error')
+    
+    return render_template('alerts.html', alert_data=alert_data, alerts=alerts, connected=True)
 
 
 @admin_tools_bp.route('/errors')
