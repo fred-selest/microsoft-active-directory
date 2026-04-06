@@ -281,6 +281,33 @@ C:\AD-WebInterface\
 
 ## 💻 Development
 
+### ⚠️ IMPORTANT : Redémarrage requis
+
+**Après chaque modification de code, de template ou de configuration :**
+
+```bash
+# Redémarrer le service Windows
+net stop ADWebInterface && net start ADWebInterface
+
+# Ou en mode développement
+python run.py
+```
+
+**Pourquoi ?**
+- Les templates HTML sont mis en cache
+- Les blueprints sont chargés au démarrage
+- `data/settings.json` est lu au démarrage
+- Les modules Python sont importés une seule fois
+
+**Vérification :**
+```bash
+# Vérifier que le service est actif
+sc query ADWebInterface
+
+# Vérifier la santé de l'application
+curl http://localhost:5000/api/health
+```
+
 ### Quick Start (Development)
 
 ```bash
