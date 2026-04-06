@@ -2,6 +2,7 @@
 """
 Modification des utilisateurs Active Directory.
 """
+from urllib.parse import unquote
 from flask import render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE, MODIFY_REPLACE
 
@@ -19,6 +20,7 @@ from ldap_errors import format_ldap_error, handle_ldap_exception
 @require_permission('write')
 def edit_user(dn):
     """Modifier les informations d'un utilisateur."""
+    dn = unquote(dn)  # Décoder le DN si URL-encodé
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')

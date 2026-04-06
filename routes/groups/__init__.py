@@ -75,9 +75,13 @@ def list_groups():
                         conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE, attributes=['cn'])
                         actual_member_count = len(conn.entries)
                     elif 'controllers' in special or 'contrôleurs' in special:
-                        # Compter les DC
-                        conn.search(base_dn, '(objectClass=domainController)', SUBTREE, attributes=['cn'])
-                        actual_member_count = len(conn.entries)
+                        # Compter les DC - rechercher dans l'OU Domain Controllers
+                        dc_ou = f'OU=Domain Controllers,{base_dn}'
+                        try:
+                            conn.search(dc_ou, '(objectClass=computer)', SUBTREE, attributes=['cn'])
+                            actual_member_count = len(conn.entries)
+                        except:
+                            actual_member_count = len(members)
                     break
             
             print(f"*** Group {entry.cn}: member_count={actual_member_count}, is_special={is_special_group}")

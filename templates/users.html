@@ -81,7 +81,7 @@
                         <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn|replace("'", "\\'") }}', '{{ (user.displayName or user.cn)|replace("'", "\\'") }}')" title="Déplacer">
                             📍
                         </button>
-                        <form method="post" action="{{ url_for('users.delete_user', dn=user.dn|urlencode) }}"
+                        <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
                               style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
