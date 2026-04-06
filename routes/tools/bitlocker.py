@@ -15,7 +15,7 @@ def bitlocker_keys():
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('connect'))
+        return redirect(url_for('main.connect'))
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')

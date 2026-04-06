@@ -24,7 +24,9 @@
       "Bash(curl *)",
       "Bash(get-service)",
       "Bash(where-object *)",
-      "Bash(select-object *)"
+      "Bash(select-object *)",
+      "Bash(echo.)",
+      "Bash(powershell *)"
     ]
   },
   "$version": 3
