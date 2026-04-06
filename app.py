@@ -24,7 +24,6 @@ from routes.ous import ous_bp
 from routes.debug import debug_bp
 from routes.api import api_bp
 from routes.admin_tools import admin_tools_bp
-from routes.laps import laps_bp
 
 app = Flask(__name__)
 config = get_config()
@@ -60,7 +59,6 @@ app.register_blueprint(ous_bp)
 app.register_blueprint(debug_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(admin_tools_bp)
-app.register_blueprint(laps_bp)
 
 # Debug
 if config.DEBUG:
