@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Étendre le schéma LAPS - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🌳 Étendre le schéma pour LAPS</h2>
+    <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card">
+    <h3>Extension du schéma Active Directory</h3>
+    
+    <div class="alert alert-warning">
+        <strong>⚠️ Attention :</strong>
+        <ul>
+            <li>Cette opération est irréversible</li>
+            <li>Nécessite les droits <strong>Administrateur du schéma</strong></li>
+            <li>Impacte l'ensemble de la forêt AD</li>
+        </ul>
+    </div>
+    
+    <div class="alert alert-info">
+        <strong>📋 Attributs créés :</strong>
+        <ul>
+            <li><code>ms-Mcs-AdmPwd</code> - Stocke le mot de passe LAPS</li>
+            <li><code>ms-Mcs-AdmPwdExpirationTime</code> - Date d'expiration</li>
+        </ul>
+    </div>
+    
+    <form method="POST" onsubmit="return confirm('Étendre le schéma Active Directory pour LAPS ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="force" name="force">
+            <label for="force">Forcer l'extension (même si déjà étendu)</label>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">🌳 Étendre le schéma</button>
+            <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

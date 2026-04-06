@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion LAPS - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🔐 Gestion Complète LAPS</h2>
+    <div class="header-actions">
+        <a href="{{ url_for('tools.laps_passwords') }}" class="btn btn-secondary">📋 Voir les mots de passe</a>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">💻</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.total_computers }}</div>
+            <div class="stat-label">Ordinateurs totaux</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.laps_enabled }}</div>
+            <div class="stat-label">LAPS activé</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📀</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.laps_legacy }}</div>
+            <div class="stat-label">LAPS Legacy</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🪟</div>
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.laps_windows }}</div>
+            <div class="stat-label">Windows LAPS</div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions rapides -->
+<div class="admin-section card fade-in">
+    <h3>🚀 Installation et Configuration</h3>
+    <div class="quick-actions">
+        <a href="{{ url_for('laps_management.install_laps') }}" class="btn btn-primary">
+            📦 Installer LAPS
+        </a>
+        <a href="{{ url_for('laps_management.extend_schema') }}" class="btn btn-secondary">
+            🌳 Étendre le schéma
+        </a>
+        <a href="{{ url_for('laps_management.verify_schema') }}" class="btn btn-secondary" onclick="verifySchema(); return false;">
+            ✅ Vérifier le schéma
+        </a>
+        <a href="{{ url_for('laps_management.configure_gpo') }}" class="btn btn-secondary">
+            🔧 Configurer GPO
+        </a>
+        <a href="{{ url_for('laps_management.create_admin') }}" class="btn btn-secondary">
+            👤 Créer compte admin
+        </a>
+    </div>
+</div>
+
+<!-- Permissions -->
+<div class="admin-section card fade-in">
+    <h3>🔑 Permissions</h3>
+    <div class="quick-actions">
+        <a href="{{ url_for('laps_management.set_computer_permissions') }}" class="btn btn-primary">
+            💻 Permissions ordinateurs
+        </a>
+        <a href="{{ url_for('laps_management.set_read_permissions') }}" class="btn btn-secondary">
+            👁️ Permissions lecture
+        </a>
+    </div>
+</div>
+
+<!-- Vérification du schéma -->
+<div id="schema-check-result" class="card fade-in" style="display:none;">
+    <h3>Résultat de la vérification</h3>
+    <pre id="schema-check-output" style="background:#f5f5f5; padding:1rem; border-radius:4px; overflow-x:auto;"></pre>
+</div>
+
+<script>
+function verifySchema() {
+    fetch('/laps-management/verify-schema')
+        .then(response => response.json())
+        .then(data => {
+            const resultDiv = document.getElementById('schema-check-result');
+            const outputPre = document.getElementById('schema-check-output');
+            
+            resultDiv.style.display = 'block';
+            outputPre.textContent = data.output || data.error;
+            
+            if (data.success) {
+                outputPre.style.borderLeft = '4px solid #28a745';
+            } else {
+                outputPre.style.borderLeft = '4px solid #dc3545';
+            }
+        })
+        .catch(error => {
+            alert('Erreur: ' + error);
+        });
+}
+</script>
+{% endblock %}

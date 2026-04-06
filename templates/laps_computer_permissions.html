@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Permissions ordinateurs LAPS - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>💻 Permissions LAPS pour les ordinateurs</h2>
+    <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card">
+    <h3>Accorder aux ordinateurs le droit de mettre à jour leur mot de passe</h3>
+    
+    <div class="alert alert-info">
+        <strong>📋 Ce que fait ce script :</strong>
+        <ul>
+            <li>Ajoute l'auto-permission aux ordinateurs</li>
+            <li>Permet aux ordinateurs de mettre à jour ms-Mcs-AdmPwd</li>
+            <li>S'applique à tous les ordinateurs ou à une OU spécifique</li>
+        </ul>
+    </div>
+    
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+            <label for="computer_ou">OU des ordinateurs (optionnel) :</label>
+            <select id="computer_ou" name="computer_ou" class="form-control">
+                <option value="">Tous les ordinateurs du domaine</option>
+                {% for ou in ous %}
+                <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">Laissez vide pour appliquer à tous les ordinateurs</small>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💻 Accorder les permissions</button>
+            <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Permissions lecture LAPS - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>👁️ Permissions de lecture LAPS</h2>
+    <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card">
+    <h3>Accorder la lecture/réinitialisation des mots de passe LAPS</h3>
+    
+    <div class="alert alert-info">
+        <strong>📋 Ce que fait ce script :</strong>
+        <ul>
+            <li>Ajoute la permission de lire les mots de passe LAPS</li>
+            <li>Optionnel : ajoute la permission de réinitialiser</li>
+            <li>S'applique à un groupe de sécurité AD</li>
+        </ul>
+    </div>
+    
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+            <label for="group_name">Groupe de sécurité :</label>
+            <select id="group_name" name="group_name" class="form-control" required>
+                <option value="">-- Sélectionner un groupe --</option>
+                {% for group in groups %}
+                <option value="{{ group.name }}">{{ group.name }}</option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">Ex: Domain Admins, Helpdesk, etc.</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="computer_ou">OU des ordinateurs (optionnel) :</label>
+            <select id="computer_ou" name="computer_ou" class="form-control">
+                <option value="">Tous les ordinateurs</option>
+                {% for ou in ous %}
+                <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="reset_password" name="reset_password">
+            <label for="reset_password">Accorder aussi le droit de réinitialiser</label>
+            <small class="text-muted">Recommandé pour le support IT</small>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">👁️ Accorder les permissions</button>
+            <a href="{{ url_for('laps_management.laps_dashboard') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
