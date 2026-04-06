@@ -3,8 +3,9 @@ from flask import render_template, request, flash, session
 from ldap3 import SUBTREE
 from ldap3.core.exceptions import LDAPException, LDAPAttributeError
 
-from . import tools_bp
-from ..core import get_ad_connection, decode_ldap_value, is_connected, require_connection, require_permission
+# Import tools_bp directly to avoid circular import
+from routes.tools import tools_bp
+from routes.core import get_ad_connection, decode_ldap_value, is_connected, require_connection, require_permission
 from security import escape_ldap_filter
 
 
