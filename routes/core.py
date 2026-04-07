@@ -165,14 +165,15 @@ def _try_connection(server, username, password):
             
             if conn.bind():
                 session['ad_use_ssl'] = use_ssl
+                session['ad_starttls'] = starttls
                 session['ad_port'] = port
                 return conn, None
-                
+
         except Exception as e:
             err_str = str(e)
             if _is_invalid_credentials_error(err_str):
                 return None, f"{label}: identifiants incorrects"
-            
+
             # IPv6 non supporté → réessayer en IPv4
             if 'WinError 1' in err_str:
                 try:
@@ -183,6 +184,7 @@ def _try_connection(server, username, password):
                         conn.start_tls(_tls_config)
                     if conn.bind():
                         session['ad_use_ssl'] = use_ssl
+                        session['ad_starttls'] = starttls
                         session['ad_port'] = port
                         return conn, None
                 except Exception as e2:
