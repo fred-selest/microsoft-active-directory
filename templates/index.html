@@ -2,58 +2,209 @@
 
 {% block title %}Accueil - AD Web Interface{% endblock %}
 
-{% block content %}
-<div class="hero">
-    <h1>Microsoft Active Directory Web Interface</h1>
-    <p>Interface web cross-platform compatible avec Windows et Linux</p>
-</div>
+{% block extra_css %}
+<style>
+/* ── Landing page ──────────────────────────────────────────────────────────── */
+.landing-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1rem 0 3rem;
+}
 
-<div class="features">
-    <div class="feature-card">
-        <h3>Cross-Platform</h3>
-        <p>Fonctionne sur Windows et Linux sans modification</p>
-    </div>
-    <div class="feature-card">
-        <h3>Accès Réseau</h3>
-        <p>Accessible depuis n'importe quel appareil sur le réseau</p>
-    </div>
-    <div class="feature-card">
-        <h3>LDAP/LDAPS</h3>
-        <p>Support des connexions sécurisées SSL/TLS</p>
-    </div>
-</div>
+/* Hero */
+.hero {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, var(--primary-color, #0078d4) 0%, #005a9e 100%);
+    border-radius: 12px;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(0,120,212,.35);
+}
+.hero h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 .75rem;
+    line-height: 1.2;
+}
+.hero p {
+    font-size: 1.1rem;
+    opacity: .9;
+    margin: 0 0 1.75rem;
+}
+.hero .btn {
+    font-size: 1rem;
+    padding: .75rem 2rem;
+    background: #fff;
+    color: var(--primary-color, #0078d4);
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform .15s, box-shadow .15s;
+}
+.hero .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.2);
+}
 
-<div class="system-info">
-    <h2>Information Système</h2>
-    <table>
-        <tr>
-            <th>Système d'exploitation</th>
-            <td>{{ system_info.os }}</td>
-        </tr>
-        <tr>
-            <th>Version</th>
-            <td>{{ system_info.os_version }}</td>
-        </tr>
-        <tr>
-            <th>Nom d'hôte</th>
-            <td>{{ system_info.hostname }}</td>
-        </tr>
-        <tr>
-            <th>Python</th>
-            <td>{{ system_info.python_version }}</td>
-        </tr>
-        <tr>
-            <th>Architecture</th>
-            <td>{{ system_info.architecture }}</td>
-        </tr>
-    </table>
-</div>
+/* Feature cards */
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+}
+.feature-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    border-top: 3px solid var(--primary-color, #0078d4);
+    transition: transform .15s, box-shadow .15s;
+}
+.feature-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(0,0,0,.12);
+}
+.feature-card .feature-icon {
+    font-size: 2.25rem;
+    margin-bottom: .75rem;
+}
+.feature-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-color, #0078d4);
+    margin: 0 0 .4rem;
+}
+.feature-card p {
+    font-size: .875rem;
+    color: #555;
+    margin: 0;
+    line-height: 1.5;
+}
 
-<div class="cta">
-    <a href="{{ url_for('main.connect') }}" class="btn btn-primary">Se connecter à Active Directory</a>
-</div>
+/* System info table */
+.system-info {
+    background: #fff;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.system-info h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color, #0078d4);
+    margin: 0 0 1rem;
+    padding-bottom: .5rem;
+    border-bottom: 2px solid #e8f0fe;
+}
+.system-info table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9rem;
+}
+.system-info th,
+.system-info td {
+    padding: .5rem .75rem;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+}
+.system-info th {
+    width: 45%;
+    font-weight: 500;
+    color: #666;
+}
+.system-info td { color: #222; font-weight: 500; }
+.system-info tr:last-child th,
+.system-info tr:last-child td { border-bottom: none; }
+
+/* Dark mode */
+body.dark-mode .feature-card,
+body.dark-mode .system-info {
+    background: var(--dark-bg-secondary, #2d2d2d);
+    border-color: var(--dark-border, #444);
+}
+body.dark-mode .feature-card p { color: #aaa; }
+body.dark-mode .system-info h2 { border-color: var(--dark-border, #444); }
+body.dark-mode .system-info th { color: #999; }
+body.dark-mode .system-info td { color: #eee; }
+body.dark-mode .system-info th,
+body.dark-mode .system-info td { border-color: var(--dark-border, #444); }
+
+@media (max-width: 600px) {
+    .hero h1 { font-size: 1.5rem; }
+    .hero    { padding: 2rem 1rem; }
+}
+</style>
 {% endblock %}
 
+{% block content %}
+<div class="landing-wrapper">
 
+    <!-- Hero -->
+    <div class="hero">
+        <h1>🖥️ AD Web Interface</h1>
+        <p>Gérez votre Active Directory depuis n'importe quel navigateur</p>
+        <a href="{{ url_for('main.connect') }}" class="btn">Se connecter à Active Directory</a>
+    </div>
 
+    <!-- Feature cards -->
+    <div class="features">
+        <div class="feature-card">
+            <div class="feature-icon">🌐</div>
+            <h3>Cross-Platform</h3>
+            <p>Fonctionne sur Windows et Linux sans modification</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📡</div>
+            <h3>Accès réseau</h3>
+            <p>Accessible depuis n'importe quel appareil sur le réseau</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>LDAP / LDAPS</h3>
+            <p>Support des connexions sécurisées SSL/TLS et STARTTLS</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">👥</div>
+            <h3>Gestion complète</h3>
+            <p>Utilisateurs, groupes, OUs et ordinateurs</p>
+        </div>
+    </div>
 
+    <!-- System info -->
+    <div class="system-info">
+        <h2>ℹ️ Informations système</h2>
+        <table>
+            <tr>
+                <th>Système d'exploitation</th>
+                <td>{{ system_info.os }}</td>
+            </tr>
+            <tr>
+                <th>Version</th>
+                <td>{{ system_info.os_version }}</td>
+            </tr>
+            <tr>
+                <th>Nom d'hôte</th>
+                <td>{{ system_info.hostname }}</td>
+            </tr>
+            <tr>
+                <th>Python</th>
+                <td>{{ system_info.python_version }}</td>
+            </tr>
+            <tr>
+                <th>Architecture</th>
+                <td>{{ system_info.architecture }}</td>
+            </tr>
+            <tr>
+                <th>Version de l'interface</th>
+                <td>{{ app_version }}</td>
+            </tr>
+        </table>
+    </div>
+
+</div>
+{% endblock %}
