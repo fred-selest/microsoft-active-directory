@@ -3,7 +3,7 @@ Widgets pour le Dashboard - Données en temps réel
 """
 from datetime import datetime, timedelta
 from audit_history import get_audit_history, get_history_stats
-from auto_alerts import get_alert_summary
+from alerts import get_alerts, get_alert_counts
 
 
 def get_dashboard_widgets():
@@ -22,22 +22,12 @@ def get_dashboard_widgets():
     
     # 1. Alertes critiques
     try:
+        alerts = get_alerts(limit=5)
+        widgets['alerts'] = alerts[:5] if alerts else []
+        
         audits = get_audit_history(limit=1)
         if audits:
             audit = audits[0]
-            audit_result = {
-                'summary': {
-                    'global_score': audit.get('score', 0),
-                    'critical_issues': audit.get('critical_issues', 0),
-                    'warning_issues': audit.get('warning_issues', 0),
-                },
-                'admin_weak_accounts': [],
-                'service_accounts': [],
-                'legacy_protocols': [],
-                'policy': {}
-            }
-            alerts = get_alert_summary(audit_result)
-            widgets['alerts'] = alerts.get('alerts', [])[:5]
             widgets['score_evolution'] = {
                 'current': audit.get('score', 0),
                 'trend': 'stable',

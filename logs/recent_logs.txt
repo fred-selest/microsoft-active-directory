@@ -1,0 +1,100 @@
+﻿         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 67, in decorated
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 186, in dashboard
+    from dashboard_widgets import get_dashboard_widgets
+  File "C:\AD-WebInterface\dashboard_widgets.py", line 6, in <module>
+    from auto_alerts import get_alert_summary
+ModuleNotFoundError: No module named 'auto_alerts'
+2026-04-07 14:43:43,381 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252
+2026-04-07 14:43:43,593 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252
+2026-04-07 14:43:43,933 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252
+2026-04-07 14:43:44,454 ERROR ad_debug: Unhandled Exception: ModuleNotFoundError: No module named 'auto_alerts'
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 67, in decorated
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 186, in dashboard
+    from dashboard_widgets import get_dashboard_widgets
+  File "C:\AD-WebInterface\dashboard_widgets.py", line 6, in <module>
+    from auto_alerts import get_alert_summary
+ModuleNotFoundError: No module named 'auto_alerts'
+2026-04-07 14:43:44,809 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252
+2026-04-07 14:43:45,202 ERROR ad_debug: Unhandled Exception: ModuleNotFoundError: No module named 'auto_alerts'
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 67, in decorated
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 186, in dashboard
+    from dashboard_widgets import get_dashboard_widgets
+  File "C:\AD-WebInterface\dashboard_widgets.py", line 6, in <module>
+    from auto_alerts import get_alert_summary
+ModuleNotFoundError: No module named 'auto_alerts'
+2026-04-07 14:43:45,516 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252
+2026-04-07 14:43:46,043 ERROR ad_debug: Unhandled Exception: ModuleNotFoundError: No module named 'auto_alerts'
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 67, in decorated
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 186, in dashboard
+    from dashboard_widgets import get_dashboard_widgets
+  File "C:\AD-WebInterface\dashboard_widgets.py", line 6, in <module>
+    from auto_alerts import get_alert_summary
+ModuleNotFoundError: No module named 'auto_alerts'
+2026-04-07 14:43:46,357 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252
+2026-04-07 14:43:46,870 ERROR ad_debug: Unhandled Exception: ModuleNotFoundError: No module named 'auto_alerts'
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 67, in decorated
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 186, in dashboard
+    from dashboard_widgets import get_dashboard_widgets
+  File "C:\AD-WebInterface\dashboard_widgets.py", line 6, in <module>
+    from auto_alerts import get_alert_summary
+ModuleNotFoundError: No module named 'auto_alerts'
+2026-04-07 14:43:47,142 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252
+2026-04-07 14:43:47,326 ERROR ad_debug: Unhandled Exception: ModuleNotFoundError: No module named 'auto_alerts'
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\core.py", line 67, in decorated
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 186, in dashboard
+    from dashboard_widgets import get_dashboard_widgets
+  File "C:\AD-WebInterface\dashboard_widgets.py", line 6, in <module>
+    from auto_alerts import get_alert_summary
+ModuleNotFoundError: No module named 'auto_alerts'
+2026-04-07 14:43:47,604 INFO ad_connection: Connexion reussie (methode automatique): 192.168.10.252

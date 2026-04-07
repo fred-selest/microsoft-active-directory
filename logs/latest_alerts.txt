@@ -1,0 +1,7 @@
+﻿
+ModuleNotFoundError: No module named 'auto_alerts'
+2026-04-07 14:43:47,326 ERROR ad_debug: Unhandled Exception: 
+ModuleNotFoundError: No module named 'auto_alerts'
+ModuleNotFoundError: No module named 'auto_alerts'
+
+
