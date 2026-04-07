@@ -1,0 +1,465 @@
+{% extends 'base.html' %}
+
+{% block title %}Analyse des Logs - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>📊 Analyse Automatique des Logs</h2>
+    <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="runAnalysis()">
+            🔍 Lancer l'analyse
+        </button>
+        <button class="btn btn-secondary" onclick="refreshResults()">
+            🔄 Actualiser
+        </button>
+    </div>
+</div>
+
+<!-- État du service -->
+<div class="service-status card fade-in" style="margin-bottom: 1.5rem;">
+    <h3>📈 État du Service</h3>
+    <div id="service-status-content">
+        <div class="loading">Chargement...</div>
+    </div>
+</div>
+
+<!-- Dernier rapport -->
+<div class="latest-report card fade-in" style="margin-bottom: 1.5rem;">
+    <h3>📋 Dernier Rapport d'Analyse</h3>
+    <div id="latest-report-content">
+        <div class="loading">Chargement...</div>
+    </div>
+</div>
+
+<!-- Problèmes détectés -->
+<div class="issues-section card fade-in" style="margin-bottom: 1.5rem;">
+    <h3>⚠️ Problèmes Détectés</h3>
+    <div id="issues-content">
+        <div class="loading">Chargement...</div>
+    </div>
+</div>
+
+<!-- Recommandations -->
+<div class="recommendations-section card fade-in" style="margin-bottom: 1.5rem;">
+    <h3>💡 Recommandations</h3>
+    <div id="recommendations-content">
+        <div class="loading">Chargement...</div>
+    </div>
+</div>
+
+<!-- Historique des analyses -->
+<div class="history-section card fade-in">
+    <h3>📜 Historique des Analyses</h3>
+    <div class="table-container">
+        <table class="data-table" id="history-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Statut</th>
+                    <th>Critiques</th>
+                    <th>Hautes</th>
+                    <th>Moyennes</th>
+                    <th>Actions</th>
+                    <th>Rapport</th>
+                </tr>
+            </thead>
+            <tbody id="history-body">
+                <tr>
+                    <td colspan="7" class="text-center">Chargement...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal détails rapport -->
+<div id="report-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 900px; max-height: 80vh; overflow-y: auto;">
+        <h3>📊 Détails du Rapport</h3>
+        <div id="report-details-content"></div>
+        <div class="modal-actions" style="margin-top: 1.5rem; text-align: right;">
+            <button class="btn btn-secondary" onclick="closeReportModal()">Fermer</button>
+            <button class="btn btn-primary" onclick="executeAutoFixes()">
+                ⚡ Exécuter corrections auto
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.service-status {
+    border-left: 4px solid #0078d4;
+}
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+.status-healthy {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+.status-warning {
+    background: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+.status-critical {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+.issue-card {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border-radius: 4px;
+    border-left: 4px solid;
+}
+.issue-critical {
+    background: #f8d7da;
+    border-color: #dc3545;
+}
+.issue-high {
+    background: #fff3cd;
+    border-color: #ffc107;
+}
+.issue-medium {
+    background: #e2e3e5;
+    border-color: #6c757d;
+}
+.issue-low {
+    background: #d1ecf1;
+    border-color: #17a2b8;
+}
+.recommendation-item {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.auto-fix-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.auto-fix-yes {
+    background: #d4edda;
+    color: #155724;
+}
+.auto-fix-no {
+    background: #e2e3e5;
+    color: #383d41;
+}
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentReport = null;
+
+// Charger les données au démarrage
+document.addEventListener('DOMContentLoaded', function() {
+    loadLatestReport();
+    loadHistory();
+});
+
+function loadLatestReport() {
+    fetch('/api/log-analysis/latest')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.report) {
+                currentReport = data.report;
+                displayReport(data.report);
+            } else {
+                document.getElementById('latest-report-content').innerHTML = `
+                    <div class="alert alert-info">Aucun rapport disponible. Lancez une analyse.</div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            document.getElementById('latest-report-content').innerHTML = `
+                <div class="alert alert-danger">Erreur de chargement: ${error}</div>
+            `;
+        });
+}
+
+function displayReport(report) {
+    // Statut du service
+    const statusClass = report.status === 'healthy' ? 'status-healthy' : 
+                       report.status === 'warning' ? 'status-warning' : 'status-critical';
+    const statusLabel = report.status === 'healthy' ? '✅ Service en bonne santé' :
+                       report.status === 'warning' ? '⚠️ Avertissements détectés' : '🚨 Problèmes critiques';
+    
+    document.getElementById('service-status-content').innerHTML = `
+        <div class="status-indicator ${statusClass}">
+            <span class="status-dot"></span>
+            ${statusLabel}
+        </div>
+        <div style="margin-top: 1rem; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold;">${report.summary.total_errors}</div>
+                <div style="color: #666; font-size: 0.875rem;">Total</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: #dc3545;">${report.summary.critical}</div>
+                <div style="color: #666; font-size: 0.875rem;">Critiques</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: #ffc107;">${report.summary.high}</div>
+                <div style="color: #666; font-size: 0.875rem;">Hautes</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: #6c757d;">${report.summary.medium}</div>
+                <div style="color: #666; font-size: 0.875rem;">Moyennes</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: #17a2b8;">${report.summary.low}</div>
+                <div style="color: #666; font-size: 0.875rem;">Basses</div>
+            </div>
+        </div>
+    `;
+    
+    // Problèmes
+    if (report.issues && report.issues.length > 0) {
+        document.getElementById('issues-content').innerHTML = report.issues.map(issue => `
+            <div class="issue-card issue-${issue.severity}">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <strong>${issue.description}</strong>
+                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">
+                            ${issue.message}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #999; margin-top: 0.25rem;">
+                            Source: ${issue.source} • Occurrences: ${issue.count}
+                        </div>
+                    </div>
+                    <span class="badge badge-${issue.severity}">${issue.severity.toUpperCase()}</span>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('issues-content').innerHTML = `
+            <div class="alert alert-success">✅ Aucun problème détecté</div>
+        `;
+    }
+    
+    // Recommandations
+    if (report.recommendations && report.recommendations.length > 0) {
+        document.getElementById('recommendations-content').innerHTML = report.recommendations.map(rec => `
+            <div class="recommendation-item">
+                <div>
+                    <strong>${rec.name}</strong>
+                    <div style="font-size: 0.875rem; color: #666;">${rec.description}</div>
+                </div>
+                <span class="auto-fix-badge ${rec.auto_fix_available ? 'auto-fix-yes' : 'auto-fix-no'}">
+                    ${rec.auto_fix_available ? '✅ Correction auto' : '❌ Action manuelle'}
+                </span>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('recommendations-content').innerHTML = `
+            <div class="alert alert-success">✅ Aucune recommandation</div>
+        `;
+    }
+}
+
+function loadHistory() {
+    fetch('/api/log-analysis/history')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.reports && data.reports.length > 0) {
+                document.getElementById('history-body').innerHTML = data.reports.map(report => `
+                    <tr>
+                        <td>${new Date(report.timestamp).toLocaleString('fr-FR')}</td>
+                        <td>
+                            <span class="badge badge-${report.status === 'healthy' ? 'success' : report.status === 'warning' ? 'warning' : 'danger'}">
+                                ${report.status.toUpperCase()}
+                            </span>
+                        </td>
+                        <td>${report.summary.critical}</td>
+                        <td>${report.summary.high}</td>
+                        <td>${report.summary.medium}</td>
+                        <td>${report.actions_taken ? report.actions_taken.length : 0}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="viewReport('${report.id}')">
+                                👁️ Voir
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                document.getElementById('history-body').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center">Aucun historique disponible</td>
+                    </tr>
+                `;
+            }
+        });
+}
+
+function runAnalysis() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Analyse en cours...';
+    
+    fetch('/api/log-analysis/run', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                loadLatestReport();
+                loadHistory();
+                alert('✅ Analyse terminée avec succès');
+            } else {
+                alert('❌ Erreur: ' + (data.error || 'Erreur inconnue'));
+            }
+        })
+        .catch(error => {
+            alert('❌ Erreur: ' + error);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '🔍 Lancer l\'analyse';
+        });
+}
+
+function viewReport(reportId) {
+    fetch(`/api/log-analysis/report/${reportId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                currentReport = data.report;
+                displayReportModal(data.report);
+            }
+        });
+}
+
+function displayReportModal(report) {
+    const modal = document.getElementById('report-modal');
+    const content = document.getElementById('report-details-content');
+    
+    content.innerHTML = `
+        <div style="padding: 1rem;">
+            <h4 style="color: #0078d4; margin-bottom: 1rem;">📊 Rapport du ${new Date(report.timestamp).toLocaleString('fr-FR')}</h4>
+            
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                <strong>Résumé:</strong>
+                <ul style="margin: 0.5rem 0 0 1.5rem;">
+                    <li>Total erreurs: ${report.summary.total_errors}</li>
+                    <li>Critiques: ${report.summary.critical}</li>
+                    <li>Hautes: ${report.summary.high}</li>
+                    <li>Moyennes: ${report.summary.medium}</li>
+                    <li>Basses: ${report.summary.low}</li>
+                </ul>
+            </div>
+            
+            ${report.issues && report.issues.length > 0 ? `
+                <h5>Problèmes détectés:</h5>
+                <ul style="max-height: 300px; overflow-y: auto;">
+                    ${report.issues.map(issue => `
+                        <li style="margin-bottom: 0.5rem;">
+                            <strong>[${issue.severity.toUpperCase()}]</strong> ${issue.description}
+                            <br><small style="color: #666;">${issue.message}</small>
+                        </li>
+                    `).join('')}
+                </ul>
+            ` : '<p style="color: #28a745;">✅ Aucun problème détecté</p>'}
+            
+            ${report.recommendations && report.recommendations.length > 0 ? `
+                <h5 style="margin-top: 1rem;">Recommandations:</h5>
+                <ul>
+                    ${report.recommendations.map(rec => `
+                        <li style="margin-bottom: 0.5rem;">
+                            <strong>${rec.name}</strong>
+                            ${rec.auto_fix_available ? '<span style="color: #28a745;">(✅ Auto)</span>' : '<span style="color: #dc3545;">(❌ Manuel)</span>'}
+                        </li>
+                    `).join('')}
+                </ul>
+            ` : ''}
+            
+            ${report.actions_taken && report.actions_taken.length > 0 ? `
+                <h5 style="margin-top: 1rem;">Actions exécutées:</h5>
+                <ul>
+                    ${report.actions_taken.map(action => `
+                        <li style="margin-bottom: 0.5rem;">
+                            ${action.success ? '✅' : '❌'} ${action.name}
+                        </li>
+                    `).join('')}
+                </ul>
+            ` : ''}
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+function closeReportModal() {
+    document.getElementById('report-modal').style.display = 'none';
+}
+
+function executeAutoFixes() {
+    if (!currentReport) return;
+    
+    if (!confirm('Exécuter toutes les corrections automatiques disponibles ?')) return;
+    
+    fetch('/api/log-analysis/auto-fix', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('✅ Corrections exécutées avec succès');
+                loadLatestReport();
+                closeReportModal();
+            } else {
+                alert('❌ Erreur: ' + (data.error || 'Erreur inconnue'));
+            }
+        });
+}
+
+function refreshResults() {
+    loadLatestReport();
+    loadHistory();
+}
+
+// Fermer modal avec Echap
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeReportModal();
+    }
+});
+
+// Fermer modal clic dehors
+window.onclick = function(event) {
+    const modal = document.getElementById('report-modal');
+    if (event.target === modal) {
+        closeReportModal();
+    }
+}
+</script>
+{% endblock %}

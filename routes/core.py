@@ -97,11 +97,23 @@ def _extract_domain(server, username):
         return username.split('@')[1].split('.')[0].upper()
     if server and '.' in server:
         return server.split('.')[0].upper()
+    # Utiliser la base DN de session si disponible
     base_dn = session.get('ad_base_dn', '')
     if base_dn:
         dc_parts = [p.split('=')[1] for p in base_dn.upper().split(',') if p.startswith('DC=')]
-        if dc_parts:
+        if len(dc_parts) >= 1:
+            # Retourner le premier partie (ex: SELEST pour DC=SELEST,DC=local)
             return dc_parts[0]
+    # Si pas de base_dn, essayer de détecter depuis le serveur
+    if server:
+        try:
+            # Obtenir le nom de domaine complet depuis le serveur
+            import socket
+            full_hostname = socket.getfqdn(server)
+            if '.' in full_hostname:
+                return full_hostname.split('.')[0].upper()
+        except:
+            pass
     return None
 
 
@@ -146,12 +158,14 @@ def _try_connection(server, username, password):
     errors = []
     ntlm_user = _get_ntlm_user(server, username)
     upn_user = _get_upn_user(server, username)
-    
+
     # Méthodes: (port, ssl, user, auth, label, starttls)
+    # Pour LDAPS (636), essayer d'abord NTLM (plus compatible), puis SIMPLE avec UPN
     methods = [
         (389, False, ntlm_user, NTLM, "NTLM", False),
         (389, False, upn_user, SIMPLE, "STARTTLS", True),
-        (636, True, upn_user, SIMPLE, "LDAPS", False),
+        (636, True, ntlm_user, NTLM, "LDAPS-NTLM", False),  # NTLM en LDAPS
+        (636, True, upn_user, SIMPLE, "LDAPS-SIMPLE", False),  # SIMPLE avec UPN en LDAPS
     ]
 
     for port, use_ssl, user, auth, label, starttls in methods:
@@ -223,13 +237,20 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if port != 389 or use_ssl:
         try:
             srv = _make_server(server, port, use_ssl)
-            user = _get_upn_user(server, username) if use_ssl else _get_ntlm_user(server, username)
+            # Pour LDAPS (port 636), utiliser NTLM pour accepter le format DOMAIN\\user
+            # Cela permet d'utiliser le même format que sur port 389
+            if use_ssl and port == 636:
+                user = _get_ntlm_user(server, username)
+                auth = NTLM
+            else:
+                user = _get_upn_user(server, username)
+                auth = SIMPLE
             conn = Connection(srv, user=user, password=password,
-                            authentication=SIMPLE if use_ssl else NTLM, 
+                            authentication=auth,
                             auto_bind=True,
                             receive_timeout=10)  # Timeout de réception
             if conn.bound:
-                logger.info(f"Connexion réussie: {server}:{port} (SSL={use_ssl})")
+                logger.info(f"Connexion réussie: {server}:{port} (SSL={use_ssl}, auth={auth})")
                 return conn, None
         except Exception as e:
             error_msg = str(e)

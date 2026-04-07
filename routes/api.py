@@ -377,3 +377,356 @@ def api_delete_permissions(group_name):
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# GESTION DES SCRIPTS POWERSHELL
+# =============================================================================
+
+@api_bp.route('/scripts')
+@require_connection
+@require_permission('admin')
+def api_list_scripts():
+    """API pour lister les scripts PowerShell disponibles."""
+    from core.scripts_manager import list_available_scripts
+    
+    category = request.args.get('category', None)
+    scripts = list_available_scripts(category)
+    
+    return jsonify({
+        'success': True,
+        'scripts': scripts,
+        'count': len(scripts)
+    })
+
+
+@api_bp.route('/scripts/<script_name>/execute', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_execute_script(script_name):
+    """API pour exécuter un script PowerShell."""
+    from core.scripts_manager import (
+        execute_script, 
+        check_script_prerequisites,
+        AVAILABLE_SCRIPTS
+    )
+    from core.audit import log_action, ACTIONS
+    
+    # Vérifier que le script existe dans la liste
+    if script_name not in AVAILABLE_SCRIPTS:
+        return jsonify({
+            'success': False,
+            'error': f'Script inconnu: {script_name}'
+        }), 404
+    
+    # Obtenir les paramètres optionnels
+    data = request.get_json() if request.is_json else request.form
+    arguments = data.get('arguments', [])
+    timeout = data.get('timeout', None)
+    
+    # Vérifier les prérequis
+    prereqs = check_script_prerequisites(script_name)
+    if not prereqs['ready']:
+        return jsonify({
+            'success': False,
+            'error': 'Prérequis non satisfaits',
+            'prerequisites': prereqs
+        }), 400
+    
+    # Exécuter le script
+    result = execute_script(
+        script_name=script_name,
+        arguments=arguments,
+        timeout=timeout
+    )
+    
+    # Logger l'action
+    log_action(
+        ACTIONS['OTHER'],
+        session.get('ad_username', 'unknown'),
+        {
+            'action': 'execute_script',
+            'script': script_name,
+            'success': result['success'],
+            'execution_time': result['execution_time']
+        },
+        result['success']
+    )
+    
+    return jsonify(result)
+
+
+@api_bp.route('/scripts/<script_name>/download')
+@require_connection
+@require_permission('admin')
+def api_download_script(script_name):
+    """API pour télécharger un script PowerShell."""
+    from core.scripts_manager import download_script, AVAILABLE_SCRIPTS
+    from flask import send_file
+    
+    if script_name not in AVAILABLE_SCRIPTS:
+        return jsonify({
+            'success': False,
+            'error': f'Script inconnu: {script_name}'
+        }), 404
+    
+    script_content = download_script(script_name)
+    if not script_content:
+        return jsonify({
+            'success': False,
+            'error': 'Script introuvable'
+        }), 404
+    
+    return send_file(
+        script_content,
+        mimetype='text/plain',
+        as_attachment=True,
+        download_name=script_name
+    )
+
+
+@api_bp.route('/scripts/<script_name>/content')
+@require_connection
+@require_permission('admin')
+def api_get_script_content(script_name):
+    """API pour obtenir le contenu d'un script (affichage)."""
+    from core.scripts_manager import get_script_content, AVAILABLE_SCRIPTS
+    
+    if script_name not in AVAILABLE_SCRIPTS:
+        return jsonify({
+            'success': False,
+            'error': f'Script inconnu: {script_name}'
+        }), 404
+    
+    content = get_script_content(script_name)
+    if not content:
+        return jsonify({
+            'success': False,
+            'error': 'Script introuvable'
+        }), 404
+    
+    return jsonify({
+        'success': True,
+        'script': script_name,
+        'content': content
+    })
+
+
+@api_bp.route('/scripts/<script_name>/prerequisites')
+@require_connection
+@require_permission('admin')
+def api_check_script_prerequisites(script_name):
+    """API pour vérifier les prérequis d'un script."""
+    from core.scripts_manager import check_script_prerequisites, AVAILABLE_SCRIPTS
+    
+    if script_name not in AVAILABLE_SCRIPTS:
+        return jsonify({
+            'success': False,
+            'error': f'Script inconnu: {script_name}'
+        }), 404
+    
+    prereqs = check_script_prerequisites(script_name)
+    
+    return jsonify({
+        'success': True,
+        'script': script_name,
+        'prerequisites': prereqs
+    })
+
+
+@api_bp.route('/scripts/history')
+@require_connection
+@require_permission('admin')
+def api_get_scripts_history():
+    """API pour obtenir l'historique des exécutions de scripts."""
+    from core.scripts_manager import get_execution_history
+    
+    limit = request.args.get('limit', 20, type=int)
+    history = get_execution_history(limit)
+    
+    return jsonify({
+        'success': True,
+        'history': history,
+        'count': len(history)
+    })
+
+
+@api_bp.route('/scripts/history/clear', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_clear_scripts_history():
+    """API pour vider l'historique des exécutions."""
+    from core.scripts_manager import clear_execution_history
+    from core.audit import log_action, ACTIONS
+    
+    clear_execution_history()
+    
+    log_action(
+        ACTIONS['OTHER'],
+        session.get('ad_username', 'unknown'),
+        {'action': 'clear_scripts_history'},
+        True
+    )
+    
+    return jsonify({
+        'success': True,
+        'message': 'Historique vidé'
+    })
+
+
+# =============================================================================
+# ANALYSE AUTOMATIQUE DES LOGS
+# =============================================================================
+
+@api_bp.route('/log-analysis/latest')
+@require_connection
+@require_permission('admin')
+def api_log_analysis_latest():
+    """API - Obtenir le dernier rapport d'analyse."""
+    from core.log_analyzer import analyzer
+    from pathlib import Path
+    import json
+    
+    # Chercher le dernier rapport
+    reports_dir = Path('logs')
+    report_files = list(reports_dir.glob('analysis_*.json'))
+    
+    if not report_files:
+        return jsonify({
+            'status': 'success',
+            'report': None,
+            'message': 'Aucun rapport disponible'
+        })
+    
+    # Prendre le plus récent
+    latest = max(report_files, key=lambda p: p.stat().st_mtime)
+    
+    try:
+        with open(latest, 'r', encoding='utf-8') as f:
+            report = json.load(f)
+        
+        return jsonify({
+            'status': 'success',
+            'report': report,
+            'file': latest.name
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/log-analysis/history')
+@require_connection
+@require_permission('admin')
+def api_log_analysis_history():
+    """API - Historique des analyses."""
+    from core.log_analyzer import analyzer
+    from pathlib import Path
+    import json
+    
+    reports_dir = Path('logs')
+    report_files = list(reports_dir.glob('analysis_*.json'))
+    
+    reports = []
+    for rf in sorted(report_files, key=lambda p: p.stat().st_mtime, reverse=True)[:20]:
+        try:
+            with open(rf, 'r', encoding='utf-8') as f:
+                report = json.load(f)
+                reports.append({
+                    'id': rf.stem.replace('analysis_', ''),
+                    'timestamp': report.get('timestamp', ''),
+                    'status': report.get('status', 'unknown'),
+                    'summary': report.get('summary', {}),
+                    'actions_count': len(report.get('actions_taken', []))
+                })
+        except:
+            pass
+    
+    return jsonify({
+        'status': 'success',
+        'reports': reports,
+        'count': len(reports)
+    })
+
+
+@api_bp.route('/log-analysis/report/<report_id>')
+@require_connection
+@require_permission('admin')
+def api_log_analysis_report(report_id):
+    """API - Obtenir un rapport spécifique."""
+    from pathlib import Path
+    import json
+    
+    reports_dir = Path('logs')
+    report_file = reports_dir / f'analysis_{report_id}.json'
+    
+    if not report_file.exists():
+        return jsonify({
+            'status': 'error',
+            'error': 'Rapport introuvable'
+        }), 404
+    
+    try:
+        with open(report_file, 'r', encoding='utf-8') as f:
+            report = json.load(f)
+        
+        return jsonify({
+            'status': 'success',
+            'report': report
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/log-analysis/run', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_log_analysis_run():
+    """API - Lancer une analyse manuelle."""
+    from core.log_analyzer import LogAnalyzer
+    
+    try:
+        analyzer = LogAnalyzer()
+        results = analyzer.analyze_all_logs(hours=24)
+        analyzer.execute_auto_fixes()
+        report_path = analyzer.save_report()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Analyse terminée',
+            'report_path': report_path,
+            'summary': results.get('summary', {})
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/log-analysis/auto-fix', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_log_analysis_auto_fix():
+    """API - Exécuter les corrections automatiques."""
+    from core.log_analyzer import LogAnalyzer
+    
+    try:
+        analyzer = LogAnalyzer()
+        analyzer.analyze_all_logs(hours=24)
+        results = analyzer.execute_auto_fixes()
+        
+        return jsonify({
+            'status': 'success',
+            'results': results
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500

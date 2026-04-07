@@ -67,6 +67,27 @@ if config.DEBUG:
 
 app.context_processor(inject_globals)
 
+# =============================================================================
+# ANALYSE AUTOMATIQUE DES LOGS AU DÉMARRAGE
+# =============================================================================
+def _run_startup_analysis():
+    """Exécuter l'analyse automatique des logs au démarrage."""
+    try:
+        from core.log_analyzer import analyze_logs_on_startup
+        
+        # Exécuter en arrière-plan pour ne pas bloquer le démarrage
+        import threading
+        thread = threading.Thread(target=analyze_logs_on_startup, daemon=True)
+        thread.start()
+        
+        logger.info("Analyse automatique des logs démarrée en arrière-plan")
+        
+    except Exception as e:
+        logger.error(f"Erreur initialisation analyse logs: {e}")
+
+# Lancer l'analyse après initialisation
+_run_startup_analysis()
+
 
 @app.after_request
 def after_request(response):

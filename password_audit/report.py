@@ -1,5 +1,25 @@
 """Génération du rapport style Specops Password Auditor."""
 
+# Comptes spéciaux Windows à exclure des rapports
+EXCLUDED_SYSTEM_ACCOUNTS = [
+    'guest', 'invité',
+    'defaultaccount', 'comptepar défaut',
+    'krbtgt',
+]
+
+
+def _is_system_account(username):
+    """Vérifier si un compte est un compte système à exclure."""
+    if not username:
+        return False
+    username_lower = username.lower()
+    for excluded in EXCLUDED_SYSTEM_ACCOUNTS:
+        if username_lower == excluded:
+            return True
+    if username_lower.endswith('$'):
+        return True
+    return False
+
 
 def _clean_name(name):
     """Nettoyer un nom de compte (décodage Unicode)."""
@@ -32,14 +52,19 @@ def _build_account_data(u, type_default=''):
     if not display_name:
         display_name = u.get('username', u.get('account', u.get('item', 'N/A')))
     
+    # Récupérer dernière connexion (plusieurs formats possibles)
+    last_login = u.get('lastLogon', u.get('last_login', 'Jamais'))
+    if last_login == 'Jamais' or not last_login:
+        last_login = u.get('lastLogonTimestamp', 'Jamais')
+    
     return {
         'name': _clean_name(u.get('username', u.get('account', u.get('item', '')))),
-        'dn': str(dn) if dn else '',
-        'mail': str(mail) if mail else '',
-        'display_name': str(display_name) if display_name else '',
+        'dn': str(dn) if dn else 'N/A',
+        'mail': str(mail) if mail else 'N/A',
+        'display_name': str(display_name) if display_name else 'N/A',
         'type': u.get('type', type_default),
-        'password_age': f"{u.get('password_age_days', u.get('days_old', 'N/A'))} jours",
-        'last_login': u.get('last_login', u.get('lastLogon', 'Jamais'))
+        'password_age': f"{u.get('password_age_days', u.get('days_old', u.get('password_age', 'N/A')))} jours",
+        'last_login': str(last_login) if last_login else 'Jamais'
     }
 
 
@@ -53,9 +78,10 @@ def generate_auditor_issues(audit_result):
     """
     issues = []
 
-    # 1. Comptes avec mot de passe n'expirant jamais
+    # 1. Comptes avec mot de passe n'expirant jamais (exclure comptes système)
     never_expires = [u for u in audit_result.get('weak_accounts', [])
-                     if u.get('password_never_expires', False)]
+                     if u.get('password_never_expires', False) 
+                     and not _is_system_account(u.get('username', ''))]
     if never_expires:
         issues.append({
             'title': 'Le mot de passe n\'expire jamais',
@@ -68,9 +94,10 @@ def generate_auditor_issues(audit_result):
             'show_password_age': True
         })
 
-    # 2. Mots de passe non obligatoires
+    # 2. Mots de passe non obligatoires (exclure comptes système)
     no_password_required = [u for u in audit_result.get('weak_accounts', [])
-                            if u.get('password_not_required', False)]
+                            if u.get('password_not_required', False)
+                            and not _is_system_account(u.get('username', ''))]
     if no_password_required:
         issues.append({
             'title': 'Mots de passe non obligatoires',
@@ -114,18 +141,11 @@ def generate_auditor_issues(audit_result):
             'severity': 'ELEVE',
             'description': 'Des comptes de haut niveau se connectent sur des machines de niveau inférieur, ce qui expose les identités privilégiées.',
             'remediation': 'Respectez strictement le modèle de hiérarchie administrative. Les comptes de niveau supérieur ne doivent se connecter que sur des machines de même niveau.',
-            'accounts': [{
-                'name': _clean_name(t.get('item', t.get('account', t.get('username', '')))),
-                'dn': '',
-                'mail': '',
-                'display_name': '',
-                'type': 'tiering',
-                'password_age': 'N/A',
-                'last_login': 'N/A'
-            } for t in tiering[:10]],
+            'accounts': [_build_account_data(t, 'tiering') for t in tiering[:10]],
             'count': len(tiering),
             'weight': 20,
-            'show_last_login': False
+            'show_last_login': True,
+            'show_created': False
         })
 
     # 5. Protocoles hérités (NTLMv1, SMBv1, LDAP simple)

@@ -16,6 +16,27 @@ def _clean_str(s):
         return s
 
 
+# Comptes spéciaux Windows à exclure des audits
+EXCLUDED_SYSTEM_ACCOUNTS = [
+    'guest', 'invité',
+    'defaultaccount', 'comptepar défaut',
+    'krbtgt',
+]
+
+
+def _is_system_account(username):
+    """Vérifier si un compte est un compte système à exclure."""
+    if not username:
+        return False
+    username_lower = username.lower()
+    for excluded in EXCLUDED_SYSTEM_ACCOUNTS:
+        if username_lower == excluded:
+            return True
+    if username_lower.endswith('$'):
+        return True
+    return False
+
+
 def check_admin_weak_passwords(conn, base_dn):
     """
     Vérifier les comptes administrateurs avec des configurations de mot de passe faibles.
@@ -44,6 +65,11 @@ def check_admin_weak_passwords(conn, base_dn):
         for entry in conn.entries:
             uac = int(entry.userAccountControl.value) if entry.userAccountControl.value else 0
             username = _clean_str(entry.sAMAccountName)
+            
+            # Exclure les comptes système
+            if _is_system_account(username):
+                continue
+            
             display_name = _clean_str(entry.displayName) if entry.displayName else ''
             dn = _clean_str(entry.distinguishedName)
             mail = _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else ''

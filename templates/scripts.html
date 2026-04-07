@@ -1,0 +1,622 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Scripts PowerShell - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in">
+    <h2>🛠️ Gestion des Scripts PowerShell</h2>
+    <div class="page-header-actions">
+        <button class="btn btn-secondary" onclick="loadScriptsHistory()">
+            📜 Historique
+        </button>
+        <button class="btn btn-primary" onclick="location.reload()">
+            🔄 Rafraîchir
+        </button>
+    </div>
+</div>
+
+<!-- Informations importantes -->
+<div class="alert alert-info mb-4">
+    <strong>ℹ️ Information :</strong>
+    <p class="mb-0 mt-1">
+        Cette page vous permet d'exécuter et de télécharger les scripts PowerShell de correction.
+        Certains scripts nécessitent des <strong>droits administrateur</strong> et peuvent requérir un <strong>redémarrage</strong> du service.
+    </p>
+</div>
+
+<!-- Filtres par catégorie -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">📂 Filtrer par catégorie</h5>
+        <div class="btn-group" role="group">
+            <button class="btn btn-outline-primary active" onclick="filterScripts('all')">Tous</button>
+            <button class="btn btn-outline-primary" onclick="filterScripts('system')">Système</button>
+            <button class="btn btn-outline-primary" onclick="filterScripts('security')">Sécurité</button>
+            <button class="btn btn-outline-primary" onclick="filterScripts('installation')">Installation</button>
+            <button class="btn btn-outline-primary" onclick="filterScripts('features')">Fonctionnalités</button>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des scripts -->
+<div id="scripts-container" class="scripts-grid">
+    <!-- Rempli par JavaScript -->
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Chargement...</span>
+        </div>
+        <p class="mt-2">Chargement des scripts...</p>
+    </div>
+</div>
+
+<!-- Modal d'exécution -->
+<div id="execute-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="execute-modal-title">🔧 Exécution du script</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Informations sur le script -->
+                <div id="script-info" class="mb-3"></div>
+                
+                <!-- Avertissements -->
+                <div id="script-warnings" class="alert alert-warning" style="display: none;"></div>
+                
+                <!-- Prérequis -->
+                <div id="script-prerequisites" class="mb-3"></div>
+                
+                <!-- Arguments (optionnel) -->
+                <div id="script-arguments" class="mb-3" style="display: none;">
+                    <label class="form-label">Arguments (optionnel)</label>
+                    <input type="text" id="script-args-input" class="form-control" placeholder="-Argument1 Value1 -Argument2 Value2">
+                    <small class="text-muted">Laissez vide pour exécuter avec les paramètres par défaut</small>
+                </div>
+                
+                <!-- Progress -->
+                <div id="script-progress" class="mt-3" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <p class="text-center mt-2">Exécution en cours...</p>
+                </div>
+                
+                <!-- Résultat -->
+                <div id="script-result" class="mt-3" style="display: none;">
+                    <div id="result-status"></div>
+                    <div class="mt-2">
+                        <strong>Sortie standard :</strong>
+                        <pre id="result-stdout" class="bg-light p-2 mt-1" style="max-height: 200px; overflow-y: auto;"></pre>
+                    </div>
+                    <div class="mt-2" id="result-error-container" style="display: none;">
+                        <strong>Erreurs :</strong>
+                        <pre id="result-stderr" class="bg-danger text-white p-2 mt-1" style="max-height: 200px; overflow-y: auto;"></pre>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            Temps d'exécution : <span id="result-time"></span>s
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" id="confirm-execute-btn" class="btn btn-primary" onclick="confirmExecute()">
+                    ▶️ Exécuter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de visualisation du contenu -->
+<div id="view-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="view-modal-title">📄 Contenu du script</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="script-content-display" class="bg-light p-3" style="max-height: 500px; overflow-y: auto;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-primary" onclick="downloadCurrentScript()">
+                    📥 Télécharger
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal d'historique -->
+<div id="history-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📜 Historique des exécutions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="history-content">
+                    <!-- Rempli par JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-danger" onclick="clearHistory()">
+                    🗑️ Vider l'historique
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.scripts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.script-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.script-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.script-card.critical {
+    border-left: 4px solid #dc3545;
+}
+
+.script-card.high {
+    border-left: 4px solid #ff6b35;
+}
+
+.script-card.medium {
+    border-left: 4px solid #ffc107;
+}
+
+.script-card.info {
+    border-left: 4px solid #0078d4;
+}
+
+.script-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.script-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.script-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-system { background: #6c757d; color: white; }
+.badge-security { background: #dc3545; color: white; }
+.badge-installation { background: #0078d4; color: white; }
+.badge-features { background: #28a745; color: white; }
+
+.script-description {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.script-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.script-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.script-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.script-actions .btn {
+    flex: 1;
+    min-width: 80px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+}
+
+.modal.show {
+    display: block;
+}
+
+.modal-dialog {
+    margin: 1.75rem auto;
+    max-width: 800px;
+}
+
+@media (max-width: 768px) {
+    .scripts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .script-actions {
+        flex-direction: column;
+    }
+    
+    .script-actions .btn {
+        min-width: 100%;
+    }
+}
+</style>
+
+<script>
+let currentScripts = [];
+let currentScript = null;
+let currentCategory = 'all';
+
+// Charger les scripts au démarrage
+document.addEventListener('DOMContentLoaded', function() {
+    loadScripts();
+});
+
+function loadScripts() {
+    fetch('/api/scripts')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentScripts = data.scripts;
+                displayScripts(currentScripts);
+            } else {
+                showError('Erreur de chargement des scripts');
+            }
+        })
+        .catch(error => {
+            showError('Erreur: ' + error);
+        });
+}
+
+function filterScripts(category) {
+    currentCategory = category;
+    
+    // Mettre à jour les boutons
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    if (category === 'all') {
+        displayScripts(currentScripts);
+    } else {
+        const filtered = currentScripts.filter(s => s.category === category);
+        displayScripts(filtered);
+    }
+}
+
+function displayScripts(scripts) {
+    const container = document.getElementById('scripts-container');
+    
+    if (scripts.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                Aucun script trouvé dans cette catégorie.
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = scripts.map(script => `
+        <div class="script-card ${script.severity}" data-script="${script.name}">
+            <div class="script-header">
+                <h3 class="script-title">${escapeHtml(script.display_name)}</h3>
+                <span class="script-badge badge-${script.category}">${escapeHtml(script.category)}</span>
+            </div>
+            <p class="script-description">${escapeHtml(script.description)}</p>
+            <div class="script-meta">
+                ${script.requires_admin ? '<span class="script-meta-item">🔒 Admin requis</span>' : ''}
+                ${script.requires_restart ? '<span class="script-meta-item">🔄 Redémarrage</span>' : ''}
+                <span class="script-meta-item">⏱️ ${script.timeout}s</span>
+                ${script.exists ? '<span class="script-meta-item">✅ Disponible</span>' : '<span class="script-meta-item text-danger">❌ Manquant</span>'}
+            </div>
+            <div class="script-actions">
+                <button class="btn btn-primary" onclick="showExecuteModal('${script.name}')" ${!script.exists ? 'disabled' : ''}>
+                    ▶️ Exécuter
+                </button>
+                <button class="btn btn-secondary" onclick="showViewModal('${script.name}')" ${!script.exists ? 'disabled' : ''}>
+                    👁️ Voir
+                </button>
+                <button class="btn btn-outline-primary" onclick="downloadScript('${script.name}')" ${!script.exists ? 'disabled' : ''}>
+                    📥 Télécharger
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showExecuteModal(scriptName) {
+    currentScript = currentScripts.find(s => s.name === scriptName);
+    if (!currentScript) return;
+    
+    const modal = document.getElementById('execute-modal');
+    const title = document.getElementById('execute-modal-title');
+    const info = document.getElementById('script-info');
+    const warnings = document.getElementById('script-warnings');
+    const prereqs = document.getElementById('script-prerequisites');
+    const args = document.getElementById('script-arguments');
+    
+    // Réinitialiser l'affichage
+    document.getElementById('script-progress').style.display = 'none';
+    document.getElementById('script-result').style.display = 'none';
+    document.getElementById('confirm-execute-btn').style.display = 'inline-block';
+    
+    title.textContent = `🔧 Exécution : ${currentScript.display_name}`;
+    
+    info.innerHTML = `
+        <p><strong>Description :</strong> ${escapeHtml(currentScript.description)}</p>
+        <p><strong>Sévérité :</strong> 
+            <span class="badge badge-${currentScript.severity}">${currentScript.severity.toUpperCase()}</span>
+        </p>
+        ${currentScript.requires_admin ? '<p class="text-warning">⚠️ Ce script nécessite des droits administrateur</p>' : ''}
+        ${currentScript.requires_restart ? '<p class="text-info">ℹ️ Un redémarrage peut être nécessaire après exécution</p>' : ''}
+    `;
+    
+    // Vérifier les prérequis
+    fetch(`/api/scripts/${scriptName}/prerequisites`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const prereqs = data.prerequisites;
+                
+                if (prereqs.errors.length > 0) {
+                    warnings.style.display = 'block';
+                    warnings.innerHTML = prereqs.errors.map(e => `<p class="mb-0">❌ ${escapeHtml(e)}</p>`).join('');
+                    document.getElementById('confirm-execute-btn').disabled = true;
+                } else if (prereqs.warnings.length > 0) {
+                    warnings.style.display = 'block';
+                    warnings.innerHTML = prereqs.warnings.map(w => `<p class="mb-0">⚠️ ${escapeHtml(w)}</p>`).join('');
+                } else {
+                    warnings.style.display = 'none';
+                }
+                
+                if (prereqs.checks.length > 0) {
+                    document.getElementById('script-prerequisites').innerHTML = `
+                        <strong>✅ Prérequis :</strong>
+                        <ul class="mb-0 mt-1">${prereqs.checks.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+                    `;
+                }
+            }
+        });
+    
+    // Afficher/masquer les arguments
+    if (scriptName.includes('laps') || scriptName.includes('configure')) {
+        args.style.display = 'block';
+    } else {
+        args.style.display = 'none';
+    }
+    
+    modal.style.display = 'block';
+    modal.classList.add('show');
+}
+
+function confirmExecute() {
+    if (!currentScript) return;
+    
+    const modal = document.getElementById('execute-modal');
+    const argsInput = document.getElementById('script-args-input').value;
+    
+    // Masquer le bouton et afficher la progression
+    document.getElementById('confirm-execute-btn').style.display = 'none';
+    document.getElementById('script-progress').style.display = 'block';
+    
+    // Parser les arguments
+    const arguments = argsInput.trim() ? argsInput.split(' ') : [];
+    
+    fetch(`/api/scripts/${currentScript.name}/execute`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            arguments: arguments,
+            timeout: currentScript.timeout
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('script-progress').style.display = 'none';
+        document.getElementById('script-result').style.display = 'block';
+        
+        const statusDiv = document.getElementById('result-status');
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="alert alert-success">✅ Exécution réussie</div>';
+            document.getElementById('result-error-container').style.display = 'none';
+        } else {
+            statusDiv.innerHTML = '<div class="alert alert-danger">❌ Échec de l\'exécution</div>';
+            document.getElementById('result-error-container').style.display = 'block';
+        }
+        
+        document.getElementById('result-stdout').textContent = data.stdout || 'Aucune sortie';
+        document.getElementById('result-stderr').textContent = data.stderr || data.error || 'Aucune erreur';
+        document.getElementById('result-time').textContent = (data.execution_time || 0).toFixed(2);
+        
+        // Si redémarrage requis
+        if (currentScript.requires_restart && data.success) {
+            statusDiv.innerHTML += `
+                <div class="alert alert-info mt-2">
+                    ℹ️ Un redémarrage du service est recommandé pour appliquer les changements.
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('script-progress').style.display = 'none';
+        document.getElementById('script-result').style.display = 'block';
+        document.getElementById('result-status').innerHTML = '<div class="alert alert-danger">❌ Erreur: ' + escapeHtml(error) + '</div>';
+    });
+}
+
+function showViewModal(scriptName) {
+    const script = currentScripts.find(s => s.name === scriptName);
+    if (!script) return;
+    
+    const modal = document.getElementById('view-modal');
+    const title = document.getElementById('view-modal-title');
+    const content = document.getElementById('script-content-display');
+    
+    title.textContent = `📄 ${script.display_name}`;
+    content.textContent = 'Chargement...';
+    
+    fetch(`/api/scripts/${scriptName}/content`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                content.textContent = data.content;
+            } else {
+                content.textContent = 'Erreur de chargement du contenu';
+            }
+        });
+    
+    modal.style.display = 'block';
+    modal.classList.add('show');
+    
+    currentScript = script;
+}
+
+function downloadScript(scriptName) {
+    window.location.href = `/api/scripts/${scriptName}/download`;
+}
+
+function downloadCurrentScript() {
+    if (currentScript) {
+        downloadScript(currentScript.name);
+    }
+}
+
+function loadScriptsHistory() {
+    const modal = document.getElementById('history-modal');
+    const content = document.getElementById('history-content');
+    
+    content.innerHTML = '<div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div><p>Chargement...</p></div>';
+    modal.style.display = 'block';
+    modal.classList.add('show');
+    
+    fetch('/api/scripts/history?limit=50')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.history.length > 0) {
+                content.innerHTML = `
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Script</th>
+                                <th>Date</th>
+                                <th>Statut</th>
+                                <th>Temps</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.history.map(h => `
+                                <tr>
+                                    <td>${escapeHtml(h.script)}</td>
+                                    <td>${new Date(h.timestamp).toLocaleString('fr-FR')}</td>
+                                    <td>
+                                        ${h.success 
+                                            ? '<span class="badge badge-success">✅ Succès</span>' 
+                                            : '<span class="badge badge-danger">❌ Échec</span>'}
+                                        ${h.error ? '<br><small class="text-danger">' + escapeHtml(h.error) + '</small>' : ''}
+                                    </td>
+                                    <td>${(h.execution_time || 0).toFixed(2)}s</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                content.innerHTML = '<div class="alert alert-info">Aucun historique disponible</div>';
+            }
+        });
+}
+
+function clearHistory() {
+    if (!confirm('Êtes-vous sûr de vouloir vider l\'historique ?')) return;
+    
+    fetch('/api/scripts/history/clear', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadScriptsHistory();
+            }
+        });
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.style.display = 'none';
+    modal.classList.remove('show');
+}
+
+// Fermer les modals avec Echap
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeModal('execute-modal');
+        closeModal('view-modal');
+        closeModal('history-modal');
+    }
+});
+
+// Fermer les modals en cliquant dehors
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+        event.target.classList.remove('show');
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showError(message) {
+    const container = document.getElementById('scripts-container');
+    container.innerHTML = `<div class="alert alert-danger">❌ ${escapeHtml(message)}</div>`;
+}
+</script>
+{% endblock %}

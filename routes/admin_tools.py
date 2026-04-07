@@ -32,6 +32,22 @@ def diagnostic_page():
     return render_template('diagnostic.html', connected=True)
 
 
+@admin_tools_bp.route('/scripts')
+@require_connection
+@require_permission('admin')
+def scripts_page():
+    """Page de gestion des scripts PowerShell."""
+    return render_template('scripts.html', connected=True)
+
+
+@admin_tools_bp.route('/log-analysis')
+@require_connection
+@require_permission('admin')
+def log_analysis_page():
+    """Page d'analyse automatique des logs."""
+    return render_template('log_analysis.html', connected=True)
+
+
 @admin_tools_bp.route('/alerts')
 @require_connection
 def alerts_page():
@@ -256,11 +272,11 @@ def alerts_page():
 
 
 @admin_tools_bp.route('/errors')
-@require_connection
 def error_logs():
     """Page des logs d'erreurs."""
     import os
     from pathlib import Path
+    from .core import is_connected
 
     error_log_path = Path('logs/server.log')
     errors = []
@@ -271,10 +287,12 @@ def error_logs():
                 lines = f.readlines()
                 errors = [line.strip() for line in lines if 'ERROR' in line or 'Exception' in line]
                 errors = errors[-50:]
-        except:
-            errors = ['Impossible de lire les logs']
+        except Exception as e:
+            errors = [f'Erreur de lecture: {str(e)}']
+    else:
+        errors = ['Fichier de logs introuvable. Vérifiez que le service tourne.']
 
-    return render_template('errors.html', errors=errors, connected=True)
+    return render_template('errors.html', errors=errors, connected=is_connected())
 
 
 @admin_tools_bp.route('/security-audit')

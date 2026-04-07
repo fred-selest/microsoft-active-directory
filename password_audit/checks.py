@@ -18,6 +18,33 @@ def _clean_str(s):
         return s
 
 
+# Comptes spéciaux Windows à exclure des audits
+EXCLUDED_SYSTEM_ACCOUNTS = [
+    'guest', 'invité',  # Compte Invité Windows
+    'defaultaccount', 'comptepar défaut',  # DefaultAccount Windows
+    'krbtgt',  # Compte Kerberos Ticket Granting Ticket
+    'admin$',  # Comptes système terminant par $
+]
+
+
+def _is_system_account(username):
+    """Vérifier si un compte est un compte système à exclure."""
+    if not username:
+        return False
+    username_lower = username.lower()
+    
+    # Vérifier les noms exacts
+    for excluded in EXCLUDED_SYSTEM_ACCOUNTS:
+        if username_lower == excluded:
+            return True
+    
+    # Vérifier les comptes se terminant par $ (comptes machine/service)
+    if username_lower.endswith('$'):
+        return True
+    
+    return False
+
+
 def check_weak_passwords_ad(conn, base_dn):
     """Vérifier les utilisateurs avec des configurations de mot de passe risquées."""
     weak_accounts = []
@@ -27,9 +54,15 @@ def check_weak_passwords_ad(conn, base_dn):
             '(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=64))',
             SUBTREE, attributes=['sAMAccountName', 'displayName', 'distinguishedName', 'userAccountControl', 'mail'])
         for entry in conn.entries:
+            username = _clean_str(entry.sAMAccountName)
+            
+            # Exclure les comptes système
+            if _is_system_account(username):
+                continue
+            
             weak_accounts.append({
                 'type': 'password_never_expires',
-                'username': _clean_str(entry.sAMAccountName),
+                'username': username,
                 'display_name': _clean_str(entry.displayName) if entry.displayName else '',
                 'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
                 'dn': _clean_str(entry.distinguishedName),
@@ -43,9 +76,15 @@ def check_weak_passwords_ad(conn, base_dn):
             '(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=32))',
             SUBTREE, attributes=['sAMAccountName', 'displayName', 'distinguishedName', 'mail'])
         for entry in conn.entries:
+            username = _clean_str(entry.sAMAccountName)
+            
+            # Exclure les comptes système
+            if _is_system_account(username):
+                continue
+            
             weak_accounts.append({
                 'type': 'no_password_required',
-                'username': _clean_str(entry.sAMAccountName),
+                'username': username,
                 'display_name': _clean_str(entry.displayName) if entry.displayName else '',
                 'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
                 'dn': _clean_str(entry.distinguishedName),
@@ -60,10 +99,16 @@ def check_weak_passwords_ad(conn, base_dn):
             SUBTREE, attributes=['sAMAccountName', 'displayName', 'distinguishedName', 'mail', 'userAccountControl'])
         for entry in conn.entries:
             uac = int(entry.userAccountControl.value) if entry.userAccountControl.value else 0
+            username = _clean_str(entry.sAMAccountName)
+            
+            # Exclure les comptes système
+            if _is_system_account(username):
+                continue
+            
             if uac & 64:
                 weak_accounts.append({
                     'type': 'admin_password_never_expires',
-                    'username': _clean_str(entry.sAMAccountName),
+                    'username': username,
                     'display_name': _clean_str(entry.displayName) if entry.displayName else '',
                     'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
                     'dn': _clean_str(entry.distinguishedName),
@@ -85,6 +130,12 @@ def check_password_age(conn, base_dn, max_age_days=90):
             '(&(objectClass=user)(objectCategory=person)(pwdLastSet=*))',
             SUBTREE, attributes=['sAMAccountName', 'displayName', 'pwdLastSet', 'distinguishedName', 'mail'])
         for entry in conn.entries:
+            username = _clean_str(entry.sAMAccountName)
+            
+            # Exclure les comptes système
+            if _is_system_account(username):
+                continue
+            
             pwd_last_set = entry.pwdLastSet.value
             if pwd_last_set:
                 if isinstance(pwd_last_set, datetime):
@@ -94,7 +145,7 @@ def check_password_age(conn, base_dn, max_age_days=90):
                 if last_change < threshold_date:
                     days_old = (datetime.now() - last_change).days
                     old_passwords.append({
-                        'username': _clean_str(entry.sAMAccountName),
+                        'username': username,
                         'display_name': _clean_str(entry.displayName) if entry.displayName else '',
                         'mail': _clean_str(entry.mail) if hasattr(entry, 'mail') and entry.mail else '',
                         'dn': _clean_str(entry.distinguishedName),

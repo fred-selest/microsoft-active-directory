@@ -201,11 +201,29 @@ def dashboard():
                     stats['active_users'] += 1
 
             # Compter groupes et groupes vides
-            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member'])
+            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member', 'groupType'])
             stats['total_groups'] = len(conn.entries)
+            
+            # Groupes spéciaux qui n'ont pas de membres directs mais utilisent primaryGroupID
+            special_group_patterns = [
+                'domain users', 'utilisateurs du domaine',
+                'domain computers', 'ordinateurs du domaine',
+                'domain controllers', 'contrôleurs de domaine',
+                'domain guests', 'invités du domaine',
+                'enterprise admins', 'administrateurs de l\'entreprise',
+                'schema admins', 'administrateurs du schéma',
+                'protected users', 'utilisateurs protégés'
+            ]
+            
             for e in conn.entries:
+                cn_lower = str(e.cn).lower() if e.cn else ''
                 members = e.member.values if hasattr(e, 'member') and e.member else []
-                if not members:
+                
+                # Vérifier si c'est un groupe spécial
+                is_special = any(pattern in cn_lower for pattern in special_group_patterns)
+                
+                # Un groupe est considéré vide seulement s'il n'a pas de membres ET n'est pas spécial
+                if not members and not is_special:
                     stats['empty_groups'] += 1
 
             # Compter OUs
@@ -217,7 +235,8 @@ def dashboard():
 
             # Alertes critiques
             critical_alerts = widgets.get('alerts', [])
-        except:
+        except Exception as e:
+            print(f"Dashboard error: {e}")
             pass
         conn.unbind()
 
