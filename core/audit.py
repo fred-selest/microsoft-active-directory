@@ -22,7 +22,7 @@ try:
 except PermissionError:
     # Utiliser un répertoire local si pas de permissions système
     from pathlib import Path
-    config.LOG_DIR = Path(__file__).parent / 'logs'
+    config.LOG_DIR = Path(__file__).resolve().parent.parent / 'logs'
     config.LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Configuration du logger d'audit

@@ -5,11 +5,22 @@
 {% block content %}
 <div class="page-header">
     <h2>Nouvel utilisateur</h2>
-    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour a la liste</a>
+    <div class="page-header-actions">
+        {% set use_ssl = session.get('ad_use_ssl', False) %}
+        {% set ad_port = session.get('ad_port', 389) %}
+        {% if use_ssl %}
+        <span class="badge badge-success" title="Connexion chiffrée LDAPS (port {{ ad_port }})">🔒 LDAPS</span>
+        {% elif ad_port == 389 %}
+        <span class="badge badge-warning" title="Connexion LDAP standard (non chiffrée)">⚠️ LDAP</span>
+        {% else %}
+        <span class="badge badge-info" title="Connexion LDAP avec STARTTLS (port {{ ad_port }})">🔐 STARTTLS</span>
+        {% endif %}
+        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour a la liste</a>
+    </div>
 </div>
 
 <div class="form-container">
-    <form method="post" class="user-form">
+    <form method="post" class="user-form" id="createUserForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-section">
@@ -17,12 +28,12 @@
 
             <div class="form-group">
                 <label for="username">Identifiant (login) *</label>
-                <input type="text" id="username" name="username" required placeholder="jdupont">
+                <input type="text" id="username" name="username" required placeholder="jdupont" autocomplete="off">
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="first_name">Prenom</label>
+                    <label for="first_name">Prénom</label>
                     <input type="text" id="first_name" name="first_name" placeholder="Jean">
                 </div>
                 <div class="form-group">
@@ -37,18 +48,48 @@
             </div>
 
             <div class="form-group">
-                <label for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" placeholder="Mot de passe initial">
-                <small class="form-hint">Laissez vide pour ne pas definir de mot de passe initial</small>
+                <label for="password">Mot de passe *</label>
+                <div class="input-group">
+                    <input type="password" id="password" name="password" required
+                           placeholder="Mot de passe initial" autocomplete="new-password">
+                    <button type="button" class="btn btn-secondary btn-icon" id="togglePassword"
+                            title="Afficher/masquer" onclick="togglePasswordVisibility()">👁️</button>
+                    <button type="button" class="btn btn-secondary" id="generatePassword"
+                            onclick="generatePassword()">🔀 Générer</button>
+                </div>
+                <small class="form-hint" id="passwordStrength"></small>
+            </div>
+
+            <div class="form-group form-check">
+                <input type="checkbox" id="must_change_password" name="must_change_password"
+                       class="form-check-input" checked>
+                <label for="must_change_password" class="form-check-label">
+                    L'utilisateur doit changer son mot de passe à la première connexion
+                </label>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Informations professionnelles</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="department">Service / Département</label>
+                    <input type="text" id="department" name="department" placeholder="Informatique">
+                </div>
+                <div class="form-group">
+                    <label for="title">Fonction / Titre</label>
+                    <input type="text" id="title" name="title" placeholder="Administrateur système">
+                </div>
             </div>
 
             {% if ous %}
             <div class="form-group">
-                <label for="target_ou">Unite organisationnelle (OU)</label>
+                <label for="target_ou">Unité organisationnelle (OU)</label>
                 <select id="target_ou" name="target_ou">
-                    <option value="">CN=Users (par defaut)</option>
+                    <option value="">CN=Users (par défaut)</option>
                     {% for ou in ous %}
-                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    <option value="{{ ou.dn }}">{{ ou.name }} — {{ ou.dn }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -56,24 +97,146 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Creer l'utilisateur</button>
+            <button type="submit" class="btn btn-primary">✅ Créer l'utilisateur</button>
             <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
 </div>
 
+{% block extra_js %}
+<script>
+// Afficher/masquer le mot de passe
+function togglePasswordVisibility() {
+    const input = document.getElementById('password');
+    const btn = document.getElementById('togglePassword');
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+    }
+}
+
+// Générer un mot de passe sécurisé
+function generatePassword() {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghjkmnpqrstuvwxyz';
+    const digits = '23456789';
+    const special = '!@#$%&*+-=?';
+    const all = upper + lower + digits + special;
+
+    // Garantir au moins un de chaque catégorie
+    let pwd = '';
+    pwd += upper[Math.floor(Math.random() * upper.length)];
+    pwd += lower[Math.floor(Math.random() * lower.length)];
+    pwd += digits[Math.floor(Math.random() * digits.length)];
+    pwd += special[Math.floor(Math.random() * special.length)];
+
+    // Compléter jusqu'à 16 caractères
+    for (let i = 4; i < 16; i++) {
+        pwd += all[Math.floor(Math.random() * all.length)];
+    }
+
+    // Mélanger
+    pwd = pwd.split('').sort(() => Math.random() - 0.5).join('');
+
+    const input = document.getElementById('password');
+    input.type = 'text';
+    input.value = pwd;
+    document.getElementById('togglePassword').textContent = '🙈';
+    checkPasswordStrength(pwd);
+
+    // Copier dans le presse-papier
+    navigator.clipboard.writeText(pwd).then(() => {
+        const btn = document.getElementById('generatePassword');
+        const orig = btn.textContent;
+        btn.textContent = '✅ Copié !';
+        setTimeout(() => btn.textContent = orig, 2000);
+    }).catch(() => {});
+}
+
+// Indicateur de force du mot de passe
+function checkPasswordStrength(pwd) {
+    const el = document.getElementById('passwordStrength');
+    if (!pwd) { el.textContent = ''; el.className = 'form-hint'; return; }
+
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 12) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[a-z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+
+    const levels = [
+        { min: 0, label: 'Très faible', cls: 'text-danger' },
+        { min: 2, label: 'Faible', cls: 'text-warning' },
+        { min: 4, label: 'Moyen', cls: 'text-info' },
+        { min: 5, label: 'Fort', cls: 'text-success' },
+        { min: 6, label: 'Très fort ✅', cls: 'text-success' },
+    ];
+    const level = [...levels].reverse().find(l => score >= l.min);
+    el.textContent = 'Force : ' + level.label;
+    el.className = 'form-hint ' + level.cls;
+}
+
+document.getElementById('password').addEventListener('input', function () {
+    checkPasswordStrength(this.value);
+});
+
+// Pré-remplir l'identifiant depuis prénom/nom
+function updateUsername() {
+    const fn = document.getElementById('first_name').value.trim();
+    const ln = document.getElementById('last_name').value.trim();
+    const usernameField = document.getElementById('username');
+    if (!usernameField.dataset.modified && fn && ln) {
+        const suggestion = (fn[0] + ln).toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '');
+        usernameField.value = suggestion;
+    }
+}
+
+document.getElementById('first_name').addEventListener('blur', updateUsername);
+document.getElementById('last_name').addEventListener('blur', updateUsername);
+document.getElementById('username').addEventListener('input', function () {
+    this.dataset.modified = this.value ? '1' : '';
+});
+</script>
+{% endblock %}
+
 {% block extra_css %}
 <style>
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35em 0.65em;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.badge-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.badge-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+.badge-info    { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
 .form-container {
-    max-width: 600px;
+    max-width: 680px;
     background: white;
     padding: 2rem;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .form-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
 }
 
 .form-section h3 {
@@ -99,6 +262,20 @@
     padding: 0.5rem;
     border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.input-group input {
+    flex: 1;
+}
+
+.btn-icon {
+    padding: 0.5rem 0.6rem;
 }
 
 .form-row {
@@ -107,20 +284,49 @@
     gap: 1rem;
 }
 
-.form-hint {
-    color: #666;
-    font-size: 0.875rem;
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
+
+.form-check-input {
+    width: auto !important;
+    margin: 0;
+}
+
+.form-check-label {
+    margin: 0;
+    font-weight: normal;
+}
+
+.form-hint {
+    display: block;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    color: #666;
+}
+
+.text-danger { color: #dc3545; }
+.text-warning { color: #856404; }
+.text-info    { color: #0c5460; }
+.text-success { color: #155724; }
 
 .form-actions {
     display: flex;
     gap: 1rem;
     margin-top: 1.5rem;
 }
+
+/* Dark mode */
+body.dark-mode .form-container {
+    background: var(--dark-bg-secondary, #2d2d2d);
+    border: 1px solid var(--dark-border, #444);
+}
+
+body.dark-mode .badge-success { background: #1a3a2a; color: #7dcfa0; border-color: #2d5a3e; }
+body.dark-mode .badge-warning { background: #3a3010; color: #ffd966; border-color: #5a4a10; }
+body.dark-mode .badge-info    { background: #0a2a30; color: #6dd6e6; border-color: #0a4050; }
 </style>
 {% endblock %}
 {% endblock %}
-
-
-
-
