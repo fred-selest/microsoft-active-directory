@@ -38,7 +38,7 @@ def require_admin(f):
 @require_admin
 def debug_dashboard():
     """Page de debug principale."""
-    from debug_utils import get_debug_info, log_session_data, check_feature_flags
+    from core.debug_utils import get_debug_info, log_session_data, check_feature_flags
     from flask import current_app
 
     # Récupérer les infos de debug
@@ -69,7 +69,7 @@ def debug_dashboard():
 @require_admin
 def debug_api():
     """API de debug - retourne les infos en JSON."""
-    from debug_utils import get_debug_info
+    from core.debug_utils import get_debug_info
     return jsonify(get_debug_info())
 
 

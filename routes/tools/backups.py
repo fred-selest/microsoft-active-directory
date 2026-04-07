@@ -10,7 +10,7 @@ from ..core import is_connected, require_connection, require_permission
 @require_permission('admin')
 def backups():
     """Liste des sauvegardes d'objets AD."""
-    from backup import get_backups
+    from core.backup import get_backups
     backup_list = get_backups(limit=100)
     return render_template('backups.html', backups=backup_list, connected=is_connected())
 
@@ -20,7 +20,7 @@ def backups():
 @require_permission('admin')
 def view_backup(filename):
     """Voir le détail d'une sauvegarde."""
-    from backup import get_backup_content
+    from core.backup import get_backup_content
     backup = get_backup_content(filename)
     if not backup:
         flash('Sauvegarde introuvable.', 'error')
