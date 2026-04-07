@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request, session
 import platform
 
 from .core import get_ad_connection, is_connected, require_connection, require_permission
-from features import require_feature
+from core.features import require_feature
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -15,7 +15,7 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 @api_bp.route('/health')
 def api_health():
     """Endpoint de health check pour Docker/Kubernetes."""
-    from updater import get_current_version
+    from core.updater import get_current_version
     return jsonify({
         'status': 'healthy',
         'version': get_current_version(),
@@ -26,7 +26,7 @@ def api_health():
 @api_bp.route('/system-info')
 def api_system_info():
     """Endpoint pour les informations système complètes."""
-    from updater import get_current_version
+    from core.updater import get_current_version
 
     ad_connected = False
     ad_error = None
@@ -63,7 +63,7 @@ def api_system_info():
 @api_bp.route('/diagnostic')
 def api_diagnostic():
     """API de diagnostic automatique."""
-    from diagnostic import run_full_diagnostic
+    from core.diagnostic import run_full_diagnostic
     from ldap3 import SUBTREE
 
     server = session.get('ad_server', 'localhost')
@@ -115,10 +115,10 @@ def api_diagnostic():
 def api_password_audit():
     """API d'audit des mots de passe."""
     from password_audit import run_password_audit
-    from audit_history import save_audit
-    from auto_alerts import send_critical_alerts
-    from audit import log_action, ACTIONS
-    from debug_utils import logger
+    from core.audit_history import save_audit
+    from core.auto_alerts import send_critical_alerts
+    from core.audit import log_action, ACTIONS
+    from core.debug_utils import logger
 
     conn, error = get_ad_connection()
     if not conn:
@@ -226,7 +226,7 @@ def api_password_audit_quick_fix():
 @api_bp.route('/alerts')
 def api_get_alerts():
     """API pour récupérer les alertes."""
-    from alerts import get_all_alerts
+    from core.alerts import get_all_alerts
     alert_type = request.args.get('type', 'all')
     alerts = get_all_alerts(alert_type)
     return jsonify({'alerts': alerts})
@@ -235,7 +235,7 @@ def api_get_alerts():
 @api_bp.route('/alerts/<alert_id>/acknowledge', methods=['POST'])
 def api_acknowledge_alert(alert_id):
     """API pour acquitter une alerte."""
-    from alerts import acknowledge_alert
+    from core.alerts import acknowledge_alert
     success = acknowledge_alert(alert_id)
     if success:
         return jsonify({'success': True, 'message': 'Alerte acquittée'})
@@ -245,7 +245,7 @@ def api_acknowledge_alert(alert_id):
 @api_bp.route('/alerts/<alert_id>/delete', methods=['POST'])
 def api_delete_alert(alert_id):
     """API pour supprimer une alerte."""
-    from alerts import delete_alert
+    from core.alerts import delete_alert
     success = delete_alert(alert_id)
     if success:
         return jsonify({'success': True, 'message': 'Alerte supprimée'})
@@ -255,8 +255,8 @@ def api_delete_alert(alert_id):
 @api_bp.route('/alerts/check', methods=['POST'])
 def api_check_alerts():
     """API pour vérifier les alertes."""
-    from alerts import run_full_alert_check
-    from audit import log_action, ACTIONS
+    from core.alerts import run_full_alert_check
+    from core.audit import log_action, ACTIONS
 
     results = run_full_alert_check()
     log_action(ACTIONS['OTHER'], session.get('ad_username', 'system'),
@@ -268,7 +268,7 @@ def api_check_alerts():
 @api_bp.route('/check-update')
 def api_check_update():
     """API pour vérifier les mises à jour."""
-    from updater import check_for_updates_fast
+    from core.updater import check_for_updates_fast
     update_info = check_for_updates_fast()
     return jsonify(update_info)
 
@@ -278,7 +278,7 @@ def api_perform_update():
     """API pour effectuer une mise à jour."""
     import threading
     import time
-    from updater import perform_update_fast
+    from core.updater import perform_update_fast
 
     def delayed_restart():
         time.sleep(2)
@@ -322,8 +322,8 @@ def api_error_logs():
 @require_permission('admin')
 def api_security_fix():
     """API pour appliquer des corrections de sécurité."""
-    from security_audit import apply_security_fix
-    from audit import log_action, ACTIONS
+    from core.security_audit import apply_security_fix
+    from core.audit import log_action, ACTIONS
 
     data = request.get_json() if request.is_json else request.form
     fix_type = data.get('fix_type', '')
@@ -343,8 +343,8 @@ def api_security_fix():
 @require_permission('admin')
 def api_permissions():
     """API pour sauvegarder les permissions d'un groupe."""
-    from granular_permissions import set_group_permissions
-    from audit import log_action, ACTIONS
+    from core.granular_permissions import set_group_permissions
+    from core.audit import log_action, ACTIONS
 
     data = request.get_json() if request.is_json else request.form
     group_name = data.get('group_name')
@@ -367,8 +367,8 @@ def api_permissions():
 @require_permission('admin')
 def api_delete_permissions(group_name):
     """API pour supprimer les permissions d'un groupe."""
-    from granular_permissions import delete_group_permissions
-    from audit import log_action, ACTIONS
+    from core.granular_permissions import delete_group_permissions
+    from core.audit import log_action, ACTIONS
 
     try:
         result = delete_group_permissions(group_name)

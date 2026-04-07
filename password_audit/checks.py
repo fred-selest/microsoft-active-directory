@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from ldap3 import SUBTREE
 
-from security import escape_ldap_filter
+from core.security import escape_ldap_filter
 
 
 def _clean_str(s):

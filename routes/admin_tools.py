@@ -13,7 +13,7 @@ admin_tools_bp = Blueprint('admin_tools', __name__, url_prefix='/')
 def update_page():
     """Page de mise à jour."""
     try:
-        from updater import check_for_updates_fast
+        from core.updater import check_for_updates_fast
         update_info = check_for_updates_fast()
     except Exception as e:
         update_info = {
@@ -282,7 +282,7 @@ def error_logs():
 @require_permission('admin')
 def security_audit():
     """Audit de sécurité."""
-    from security_audit import check_security_issues
+    from core.security_audit import check_security_issues
 
     conn, error = get_ad_connection()
     if not conn:
@@ -314,7 +314,7 @@ def security_audit():
 @require_permission('admin')
 def permissions_page():
     """Page de gestion des permissions."""
-    from granular_permissions import get_all_groups_with_permissions, get_available_permissions, get_permission_categories
+    from core.granular_permissions import get_all_groups_with_permissions, get_available_permissions, get_permission_categories
 
     groups = get_all_groups_with_permissions()
     all_permissions = get_available_permissions()

@@ -9,10 +9,10 @@ from ldap3 import SUBTREE, MODIFY_REPLACE
 from . import users_bp
 from ..core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, require_permission)
-from security import escape_ldap_filter, validate_csrf_token
-from audit import log_action, ACTIONS
+from core.security import escape_ldap_filter, validate_csrf_token
+from core.audit import log_action, ACTIONS
 from .helpers import get_ous, get_user_attributes
-from ldap_errors import format_ldap_error, handle_ldap_exception
+from core.ldap_errors import format_ldap_error, handle_ldap_exception
 
 
 @users_bp.route('/<path:dn>/edit', methods=['GET', 'POST'])

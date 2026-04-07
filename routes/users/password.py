@@ -10,10 +10,10 @@ from ldap3 import SUBTREE, MODIFY_REPLACE
 from . import users_bp
 from ..core import (get_ad_connection, is_connected, require_connection,
                    require_permission)
-from security import escape_ldap_filter, validate_csrf_token
-from audit import log_action, ACTIONS
+from core.security import escape_ldap_filter, validate_csrf_token
+from core.audit import log_action, ACTIONS
 from .validators import validate_password_strength
-from ldap_errors import format_ldap_error, handle_ldap_exception
+from core.ldap_errors import format_ldap_error, handle_ldap_exception
 
 
 @users_bp.route('/<path:dn>/reset-password', methods=['GET', 'POST'])

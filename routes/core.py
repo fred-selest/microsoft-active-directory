@@ -12,9 +12,9 @@ from flask import session, redirect, url_for, flash, g, current_app
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4_PREFERRED
 from ldap3.core.exceptions import LDAPException
 from config import get_config
-from security import escape_ldap_filter
-from session_crypto import decrypt_password
-from granular_permissions import has_permission as has_granular_permission
+from core.security import escape_ldap_filter
+from core.session_crypto import decrypt_password
+from core.granular_permissions import has_permission as has_granular_permission
 import logging
 
 logger = logging.getLogger('ad_core')

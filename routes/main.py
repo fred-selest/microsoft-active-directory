@@ -5,14 +5,14 @@ Contient: index, connect, disconnect, dashboard, ous, audit, toggle-dark-mode
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from .core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, get_user_role_from_groups)
-from security import validate_csrf_token, check_rate_limit, record_attempt
-from session_crypto import encrypt_password
-from audit import log_action, ACTIONS
-from ad_detect import get_local_domain, detect_ad_config
+from core.security import validate_csrf_token, check_rate_limit, record_attempt
+from core.session_crypto import encrypt_password
+from core.audit import log_action, ACTIONS
+from core.ad_detect import get_local_domain, detect_ad_config
 
 main_bp = Blueprint('main', __name__)
 
@@ -173,7 +173,7 @@ def toggle_dark_mode():
 @require_connection
 def dashboard():
     """Tableau de bord."""
-    from dashboard_widgets import get_dashboard_widgets
+    from core.dashboard_widgets import get_dashboard_widgets
 
     conn, error = get_ad_connection()
     stats = {'total_users': 0, 'active_users': 0, 'disabled_users': 0,
@@ -228,27 +228,11 @@ def dashboard():
                          connected=is_connected())
 
 
-    """Construire une arborescence à partir d'une liste plate d'OUs."""
-    root = {
-        'name': base_dn.split(',')[0].replace('DC=', '') if base_dn else 'Domaine',
-        'dn': base_dn,
-        'type': 'domain',
-        'children': []
-    }
-
-    sorted_ous = sorted(ous, key=lambda x: x['dn'].count(','))
-
-    for ou in sorted_ous:
-        add_ou_to_tree(root, ou)
-
-    return root
-
-
 @main_bp.route('/audit')
 @require_connection
 def audit_logs():
     """Logs d'audit."""
-    from audit import get_audit_logs
+    from core.audit import get_audit_logs
     page = request.args.get('page', 1, type=int)
     logs = get_audit_logs(limit=50)
     return render_template('audit.html', logs=logs, page=page, connected=is_connected())
