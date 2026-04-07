@@ -353,37 +353,51 @@ button {
    ========================================================================== */
 
 .badge {
-    display: inline-block;
-    padding: var(--spacing-xs) var(--spacing-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.3em 0.65em;
     font-size: 0.75rem;
     font-weight: 600;
     border-radius: 4px;
+    white-space: nowrap;
 }
 
 .badge-success {
     background: #d4edda;
     color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .badge-danger {
     background: #f8d7da;
     color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
 .badge-warning {
     background: #fff3cd;
     color: #856404;
+    border: 1px solid #ffeeba;
 }
 
 .badge-info {
     background: #d1ecf1;
     color: #0c5460;
+    border: 1px solid #bee5eb;
 }
 
 .badge-secondary {
     background: var(--gray-200);
     color: var(--gray-700);
+    border: 1px solid var(--gray-300);
 }
+
+body.dark-mode .badge-success { background: #1a3a2a; color: #7dcfa0; border-color: #2d5a3e; }
+body.dark-mode .badge-danger  { background: #3a1a1a; color: #f87171; border-color: #5a2a2a; }
+body.dark-mode .badge-warning { background: #3a3010; color: #ffd966; border-color: #5a4a10; }
+body.dark-mode .badge-info    { background: #0a2a30; color: #6dd6e6; border-color: #0a4050; }
+body.dark-mode .badge-secondary { background: var(--gray-200); color: var(--text-secondary); }
 
 /* ==========================================================================
    8. COMPOSANTS - CARTES
@@ -658,6 +672,7 @@ textarea.form-control {
 .text-success { color: var(--success); }
 .text-danger { color: var(--danger); }
 .text-warning { color: var(--warning); }
+.text-info { color: var(--info); }
 
 .bg-light { background: var(--gray-100); }
 .bg-white { background: var(--white); }
@@ -1268,6 +1283,177 @@ select:focus-visible,
 textarea:focus-visible {
     outline: 3px solid var(--warning);
     outline-offset: 2px;
+}
+
+/* ==========================================================================
+   16. COMPOSANTS FORMULAIRES ÉTENDUS
+   Standardisation globale — évite les redéfinitions dans chaque template
+   ========================================================================== */
+
+/* Conteneur de formulaire (page entière) */
+.form-container {
+    max-width: 680px;
+    background: var(--bg-secondary);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+}
+
+/* Section dans un formulaire (groupe de champs) */
+.form-section {
+    margin-bottom: 1.75rem;
+}
+
+.form-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+/* Grille 2 colonnes */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+@media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+}
+
+/* Input + bouton(s) côte à côte */
+.input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.input-group input,
+.input-group select {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Texte d'aide sous un champ */
+.form-hint,
+.form-text {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-xs);
+}
+
+/* Checkbox + label alignés */
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.form-check-input {
+    width: auto !important;
+    flex-shrink: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.form-check-label {
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* Actions du formulaire */
+.form-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+/* Actions dans le page-header (badge + boutons) */
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+/* Inputs et selects globaux (alias .form-control sans la classe) */
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.12);
+}
+
+/* Bouton icône seul */
+.btn-icon {
+    padding: var(--spacing-sm) 0.65rem;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   17. ALIAS DARK MODE
+   Permet aux templates d'utiliser --dark-bg-* sans redéfinir les variables
+   ========================================================================== */
+
+:root {
+    /* En mode clair, les alias pointent vers les variables normales */
+    --dark-bg-primary:   var(--bg-primary);
+    --dark-bg-secondary: var(--bg-secondary);
+    --dark-border:       var(--border-color);
+    --dark-text-primary: var(--text-primary);
+    --dark-text-secondary: var(--text-secondary);
+}
+
+body.dark-mode {
+    /* En mode sombre, les alias prennent les valeurs sombres */
+    --dark-bg-primary:   #0f0f1a;
+    --dark-bg-secondary: #1a1a2e;
+    --dark-border:       #3a3a5a;
+    --dark-text-primary: #f0f0f5;
+    --dark-text-secondary: #c0c0d0;
+}
+
+/* Formulaires en dark mode */
+body.dark-mode .form-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .form-hint,
+body.dark-mode .form-text {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .form-section h3 {
+    color: var(--primary-light);
+    border-color: var(--primary);
 }
 
 /* ==========================================================================
