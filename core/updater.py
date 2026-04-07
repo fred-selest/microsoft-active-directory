@@ -17,10 +17,13 @@ GITHUB_REPO = "fred-selest/microsoft-active-directory"
 GITHUB_BRANCH = "main"
 PRESERVE = {'.env', 'logs', 'data', 'venv', '__pycache__', '.git'}
 
+# Racine du projet = parent de core/
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 
 def get_current_version():
     """Obtenir la version actuelle."""
-    version_path = Path(__file__).parent / VERSION_FILE
+    version_path = PROJECT_ROOT / VERSION_FILE
     if version_path.exists():
         return version_path.read_text(encoding='utf-8').strip()
     return "0.0.0"
@@ -79,7 +82,7 @@ def should_skip(filepath):
 
 def perform_update():
     """Effectuer la mise a jour."""
-    app_dir = Path(__file__).parent
+    app_dir = PROJECT_ROOT
 
     print("Recuperation de la liste des fichiers...")
     files = get_file_list()
@@ -102,7 +105,7 @@ def perform_update():
 
 def update_dependencies(silent=False):
     """Mettre a jour les dependances Python."""
-    app_dir = Path(__file__).parent
+    app_dir = PROJECT_ROOT
     if platform.system() == "Windows":
         pip_path = app_dir / "venv" / "Scripts" / "pip.exe"
     else:
@@ -139,7 +142,7 @@ def update_dependencies(silent=False):
 
 def restart_server(silent=False):
     """Redemarrer le serveur."""
-    app_dir = Path(__file__).parent
+    app_dir = PROJECT_ROOT
     if platform.system() == "Windows":
         python_path = app_dir / "venv" / "Scripts" / "pythonw.exe"
         if not python_path.exists():
@@ -215,7 +218,7 @@ def perform_fast_update(silent=False):
             'errors': ['Aucune mise à jour disponible ou version distante inférieure à la version locale.']
         }
 
-    app_dir = Path(__file__).parent
+    app_dir = PROJECT_ROOT
 
     if not silent:
         print("Récupération de la liste des fichiers...")

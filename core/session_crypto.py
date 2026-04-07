@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 
-_SALT_FILE = Path(__file__).resolve().parent / 'data' / 'crypto_salt.bin'
+_SALT_FILE = Path(__file__).resolve().parent.parent / 'data' / 'crypto_salt.bin'
 
 
 def _load_or_create_salt() -> bytes:
