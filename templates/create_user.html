@@ -75,20 +75,20 @@ body.dark-mode .form-hint     { color: #aaa; }
 <div class="page-header">
     <h2>Nouvel utilisateur</h2>
     <div class="page-header-actions">
-        {% if use_ssl %}
-        <span class="badge badge-success" title="Connexion chiffrée — le mot de passe peut être défini">🔒 LDAPS</span>
+        {% if can_set_password %}
+        <span class="badge badge-success" title="Connexion chiffrée — le mot de passe peut être défini">🔒 Connexion sécurisée</span>
         {% else %}
-        <span class="badge badge-warning" title="Connexion non chiffrée — le mot de passe ne peut pas être défini via LDAP standard">⚠️ LDAP non sécurisé</span>
+        <span class="badge badge-warning" title="LDAP standard non chiffré — le mot de passe ne pourra pas être défini">⚠️ LDAP non sécurisé</span>
         {% endif %}
         <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour à la liste</a>
     </div>
 </div>
 
-{% if not use_ssl %}
+{% if not can_set_password %}
 <div class="alert alert-warning" style="margin-bottom:1rem;">
-    ⚠️ Vous êtes connecté en <strong>LDAP standard (non chiffré)</strong>.
-    La création de compte avec mot de passe requiert <strong>LDAPS (port 636)</strong> ou <strong>STARTTLS</strong>.
-    <a href="{{ url_for('main.connect') }}">Reconnectez-vous</a> avec SSL pour pouvoir définir un mot de passe.
+    ⚠️ Votre connexion AD est en <strong>LDAP non chiffré</strong>.
+    La définition du mot de passe requiert <strong>LDAPS (port 636)</strong> ou <strong>STARTTLS</strong>.
+    <a href="{{ url_for('main.connect') }}">Reconnectez-vous</a> avec une connexion sécurisée.
 </div>
 {% endif %}
 

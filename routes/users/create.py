@@ -28,7 +28,10 @@ def create_user():
         return redirect(url_for('users.list_users'))
 
     base_dn = session.get('ad_base_dn', '')
-    use_ssl = session.get('ad_use_ssl', False)
+    use_ssl      = session.get('ad_use_ssl', False)
+    use_starttls = session.get('ad_starttls', False)
+    # La définition du mot de passe requiert un canal chiffré (LDAPS ou STARTTLS)
+    can_set_password = use_ssl or use_starttls
 
     # Récupérer les OUs pour le formulaire
     try:
@@ -51,7 +54,7 @@ def create_user():
             flash('Token CSRF invalide.', 'error')
             return render_template('create_user.html',
                                    ous=ou_list, default_ou=default_ou,
-                                   use_ssl=use_ssl, connected=is_connected())
+                                   can_set_password=can_set_password, connected=is_connected())
 
         # Récupérer les valeurs du formulaire
         target_ou = request.form.get('target_ou', '').strip()
@@ -80,7 +83,7 @@ def create_user():
                 flash(err, 'error')
             return render_template('create_user.html',
                                    ous=ou_list, default_ou=default_ou,
-                                   use_ssl=use_ssl, connected=is_connected())
+                                   can_set_password=can_set_password, connected=is_connected())
 
         # Construire le DN
         cn = f"{user_req.first_name} {user_req.last_name}".strip() or user_req.username
@@ -137,9 +140,9 @@ def create_user():
                     logger.warning(f"Échec mot de passe {user_req.username}: {error_desc} {error_msg}")
                     conn.delete(user_dn)
 
-                    if not use_ssl:
-                        flash('⚠️ Connexion sécurisée (LDAPS/STARTTLS) requise pour définir le mot de passe. '
-                              'Déconnectez-vous et reconnectez via le port 636 (LDAPS).', 'warning')
+                    if not can_set_password:
+                        flash('⚠️ Connexion sécurisée requise pour définir le mot de passe. '
+                              'Déconnectez-vous et reconnectez via LDAPS (port 636) ou STARTTLS.', 'warning')
                     else:
                         flash(f'Erreur lors de la définition du mot de passe : {error_desc}. {error_msg}', 'error')
             else:
@@ -158,10 +161,10 @@ def create_user():
 
         return render_template('create_user.html',
                                ous=ou_list, default_ou=default_ou,
-                               use_ssl=use_ssl, connected=is_connected())
+                               can_set_password=can_set_password, connected=is_connected())
 
     # GET
     conn.unbind()
     return render_template('create_user.html',
                            ous=ou_list, default_ou=default_ou,
-                           use_ssl=use_ssl, connected=is_connected())
+                           can_set_password=can_set_password, connected=is_connected())
