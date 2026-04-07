@@ -71,10 +71,10 @@ if ($lapsSchemaObjects) {{
     
     try {{
         # Importer le module LAPS
-        Import-Module Laps -ErrorAction SilentlyContinue
+        Import-Module LAPS -ErrorAction SilentlyContinue
         
-        # Etendre le schema
-        Initialize-LapsADSchema -ErrorAction Stop
+        # Etendre le schema (Update-LapsADSchema = commande correcte sur WS2022)
+        Update-LapsADSchema -ErrorAction Stop
         Write-Host ""
         Write-Host "OK Schema AD etendu avec succes pour Windows LAPS!" -ForegroundColor Green
         
@@ -89,7 +89,7 @@ if ($lapsSchemaObjects) {{
         Write-Host ""
         Write-Host "Solutions possibles:" -ForegroundColor Yellow
         Write-Host "  1. Verifiez que votre compte est membre du groupe 'Schema Admins'" -ForegroundColor White
-        Write-Host "  2. Executez manuellement: Initialize-LapsADSchema" -ForegroundColor White
+        Write-Host "  2. Executez manuellement: Update-LapsADSchema" -ForegroundColor White
         Write-Host ""
         Write-Host "SCHEMA_ERROR"
         exit 0
@@ -119,6 +119,10 @@ Write-Host "Configuration des parametres LAPS..." -ForegroundColor Green
 
 Set-GPRegistryValue -Name $gpoName -Key "HKLM\\Software\\Policies\\Microsoft\\Windows\\LAPS" -ValueName "EnableLAPS" -Type DWord -Value 1 -ErrorAction SilentlyContinue | Out-Null
 Write-Host "  OK LAPS active" -ForegroundColor White
+
+# BackupDirectory = 1 (stocker dans AD)
+Set-GPRegistryValue -Name $gpoName -Key "HKLM\\Software\\Policies\\Microsoft\\Windows\\LAPS" -ValueName "BackupDirectory" -Type DWord -Value 1 -ErrorAction SilentlyContinue | Out-Null
+Write-Host "  OK Stockage: Active Directory" -ForegroundColor White
 
 Set-GPRegistryValue -Name $gpoName -Key "HKLM\\Software\\Policies\\Microsoft\\Windows\\LAPS" -ValueName "PasswordLength" -Type DWord -Value 14 -ErrorAction SilentlyContinue | Out-Null
 Write-Host "  OK Longueur mot de passe: 14 caracteres" -ForegroundColor White
@@ -368,43 +372,91 @@ def laps_force_refresh(computer_dn=''):
     logger.info(f"LAPS Force Refresh: Attempting to refresh LAPS on {computer_fqdn}")
 
     # Script PowerShell pour forcer la mise a jour LAPS
+    # Utilise plusieurs methodes: WinRM, PSExec, ou instructions manuelles
     ps_script = f'''
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $computerName = "{computer_fqdn}"
+$computerShort = "{computer_name}"
 
 Write-Host "=== Force LAPS Update on $computerName ===" -ForegroundColor Cyan
 
+# Verifier si l'ordinateur est en ligne
+if (-not (Test-Connection -ComputerName $computerName -Count 1 -Quiet -ErrorAction SilentlyContinue)) {{
+    Write-Host "ERROR: Computer $computerName is not reachable (offline or firewall)" -ForegroundColor Red
+    Write-Host "OFFLINE"
+    exit
+}}
+
+Write-Host "Connection OK: $computerName is reachable" -ForegroundColor Green
+
+# Methode 1: WinRM (Invoke-Command)
+Write-Host "Method 1: Trying WinRM..." -ForegroundColor Yellow
+$winrmResult = $null
 try {{
-    if (Test-Connection -ComputerName $computerName -Count 1 -Quiet) {{
-        Write-Host "Connection OK: $computerName is reachable" -ForegroundColor Green
-
-        $result = Invoke-Command -ComputerName $computerName -ScriptBlock {{
+    $winrmResult = Invoke-Command -ComputerName $computerName -ScriptBlock {{
+        try {{
+            $null = Invoke-LapsPolicyProcessing -ErrorAction Stop
+            "SUCCESS_WINRM"
+        }} catch {{
+            # Essayer via service LAPS
             try {{
-                Invoke-LapsPolicyProcessing -ErrorAction SilentlyContinue
-                Write-Host "LAPS policy processed" -ForegroundColor Green
-                "SUCCESS_NATIVE"
+                Restart-Service LAPS -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 3
+                "SUCCESS_SERVICE"
             }} catch {{
-                try {{
-                    Restart-Service LAPS -Force -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 3
-                    "SUCCESS_SERVICE"
-                }} catch {{
-                    gpupdate /force /target:computer 2>&1 | Out-Null
-                    "SUCCESS_GPUPDATE"
-                }}
+                $_.Exception.Message
             }}
-        }} -ErrorAction Stop
-
-        Write-Host "Result: $result" -ForegroundColor Green
+        }}
+    }} -ErrorAction Stop
+    
+    if ($winrmResult -like "SUCCESS*") {{
+        Write-Host "WinRM SUCCESS: $winrmResult" -ForegroundColor Green
         Write-Host "SUCCESS"
-    }} else {{
-        Write-Host "ERROR: Computer $computerName is not reachable" -ForegroundColor Red
-        Write-Host "OFFLINE"
+        exit
     }}
 }} catch {{
-    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "ERROR"
+    Write-Host "WinRM failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }}
+
+# Methode 2: PSExec (si disponible)
+Write-Host "Method 2: Trying PSExec..." -ForegroundColor Yellow
+$psexecPath = Get-Command psexec -ErrorAction SilentlyContinue
+if ($psexecPath) {{
+    try {{
+        $psexecOutput = & psexec "\\$computerName" -accepteula -nobanner cmd /c "gpupdate /force /target:computer" 2>&1
+        if ($LASTEXITCODE -eq 0) {{
+            Write-Host "PSExec SUCCESS" -ForegroundColor Green
+            Write-Host "SUCCESS"
+            exit
+        }}
+    }} catch {{
+        Write-Host "PSExec failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    }}
+}} else {{
+    Write-Host "PSExec not available" -ForegroundColor Yellow
+}}
+
+# Methode 3: WMI pour executer gpupdate
+Write-Host "Method 3: Trying WMI..." -ForegroundColor Yellow
+try {{
+    $process = Invoke-WmiMethod -ComputerName $computerName -Class Win32_Process -Name Create -ArgumentList "cmd /c gpupdate /force /target:computer" -ErrorAction Stop
+    if ($process.ReturnValue -eq 0) {{
+        Write-Host "WMI: GPUpdate started (PID: $($process.ProcessId))" -ForegroundColor Green
+        Write-Host "SUCCESS_WMI"
+        Write-Host "SUCCESS"
+        exit
+    }}
+}} catch {{
+    Write-Host "WMI failed: $($_.Exception.Message)" -ForegroundColor Yellow
+}}
+
+# Aucune methode n'a fonctionne
+Write-Host "ERROR: All remote methods failed" -ForegroundColor Red
+Write-Host "MANUAL_REQUIRED"
+Write-Host "To manually update LAPS, run this command on $computerShort :"
+Write-Host "  gpupdate /force /target:computer"
+Write-Host "  OR"
+Write-Host "  Invoke-LapsPolicyProcessing"
 '''
 
     try:
@@ -412,7 +464,7 @@ try {{
             ['powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=90
         )
 
         stdout = result.stdout or ''
@@ -421,21 +473,28 @@ try {{
         logger.info(f"LAPS Force Refresh: stdout={stdout}")
 
         if 'SUCCESS' in stdout:
-            flash(f'Mise a jour LAPS reussie sur {computer_name}! Rafraichissez la page.', 'success')
+            method = 'WinRM' if 'SUCCESS_WINRM' in stdout else ('WMI' if 'SUCCESS_WMI' in stdout else 'PSExec')
+            flash(f'Mise a jour LAPS reussie sur {computer_name} via {method}! Rafraichissez la page pour voir le mot de passe.', 'success')
         elif 'OFFLINE' in stdout:
             flash(f'L\'ordinateur {computer_name} est inaccessible. Verifiez qu\'il est allume et connecte au reseau.', 'warning')
+        elif 'MANUAL_REQUIRED' in stdout:
+            # Extraire les instructions manuelles
+            manual_lines = [line for line in stdout.split('\n') if line.strip() and not line.startswith('===')]
+            flash(f'Connexion impossible a {computer_name}. Executez manuellement sur l\'ordinateur:\n\nInvoke-LapsPolicyProcessing\nou\ngpupdate /force /target:computer', 'warning')
         elif 'ERROR' in stdout:
             error_msg = stderr if stderr else stdout
-            if 'Access is denied' in error_msg:
-                flash(f'Acces refuse sur {computer_name}. Verifiez les permissions WinRM.', 'error')
+            if 'Access is denied' in error_msg or 'access denied' in error_msg.lower():
+                flash(f'Acces refuse sur {computer_name}. Configurez WinRM avec: Enable-PSRemoting -Force', 'error')
             else:
-                flash(f'Erreur lors de la mise a jour LAPS: {error_msg[:200]}', 'error')
+                # Afficher le message d'erreur tronque
+                error_clean = error_msg.replace('=== Force LAPS Update', '').strip()[:300]
+                flash(f'Erreur lors de la mise a jour LAPS:\n{error_clean}', 'error')
         else:
-            flash(f'Resultat inattendu.', 'warning')
+            flash(f'Resultat inattendu. Verifiez les logs.', 'warning')
 
     except subprocess.TimeoutExpired:
         logger.error("LAPS Force Refresh: Timeout")
-        flash(f'Timeout lors de la connexion a {computer_name}.', 'error')
+        flash(f'Timeout lors de la connexion a {computer_name} (90s). L\'ordinateur est peut-etre lent ou hors ligne.', 'error')
     except Exception as e:
         logger.error(f"LAPS Force Refresh: Exception={e}", exc_info=True)
         flash(f'Erreur: {str(e)}', 'error')

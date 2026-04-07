@@ -26,7 +26,8 @@
       "Bash(where-object *)",
       "Bash(select-object *)",
       "Bash(echo.)",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "Bash(grep_search *)"
     ]
   },
   "$version": 3

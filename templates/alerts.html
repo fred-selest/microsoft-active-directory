@@ -8,7 +8,7 @@
 </div>
 
 <!-- Statistiques -->
-<div class="alert-stats stats-grid">
+<div class="alert-stats">
     <div class="stat-card warning">
         <div class="stat-value">{{ alert_data.expiring_accounts }}</div>
         <div class="stat-label">Comptes expirant</div>
@@ -33,59 +33,30 @@
 
 <!-- Liste des alertes -->
 <div class="card fade-in">
-    <h3>📋 Alertes ({{ alerts|length }})</h3>
+    <h3>📋 Alertes actives ({{ alerts|length }})</h3>
 
     {% if alerts %}
     <div class="alerts-list">
         {% for alert in alerts %}
-        <div class="alert-item" style="margin-bottom: 1rem; padding: 1rem; border-left: 4px solid {% if alert.severity == 'error' %}#dc3545{% elif alert.severity == 'warning' %}#ffc107{% else %}#17a2b8{% endif %}; background: var(--gray-100); border-radius: 4px;">
-            <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
-                <div style="flex: 1;">
-                    <strong style="font-size: 1rem; color: var(--text-primary);">{{ alert.title }}</strong>
-                    <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.9375rem;">{{ alert.message }}</p>
+        <div class="alert-item alert-{{ alert.severity }}">
+            <div class="alert-header">
+                <div class="alert-content">
+                    <div class="alert-title">{{ alert.title }}</div>
+                    <div class="alert-message">{{ alert.message }}</div>
                 </div>
-                <span style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap;">{{ alert.date }}</span>
+                <div class="alert-date">{{ alert.date }}</div>
             </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="no-alerts" style="text-align: center; padding: 3rem;">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-        <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Aucune alerte</h3>
-        <p style="color: var(--text-secondary);">Toutes les alertes ont été traitées ou aucune alerte n'a été détectée.</p>
+    <div class="no-alerts">
+        <div class="no-alerts-icon">✅</div>
+        <h3>Aucune alerte</h3>
+        <p>Toutes les alertes ont été traitées ou aucune alerte n'a été détectée.</p>
     </div>
     {% endif %}
 </div>
-
-<style>
-.alert-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-}
-
-@media (min-width: 1024px) {
-    .alert-stats {
-        grid-template-columns: repeat(5, 1fr);
-    }
-}
-
-@media (max-width: 768px) {
-    .alert-stats {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .alert-item {
-        flex-direction: column;
-    }
-    
-    .alert-item span {
-        align-self: flex-end;
-    }
-}
-</style>
 
 <style>
 .alert-stats {
@@ -96,7 +67,7 @@
 }
 
 .stat-card {
-    background: white;
+    background: var(--card-bg, white);
     padding: 1.5rem;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -104,28 +75,20 @@
     border-left: 4px solid #ccc;
 }
 
-.stat-card.critical { border-left-color: #dc3545; }
-.stat-card.error { border-left-color: #dc3545; }
+.stat-card.critical, .stat-card.error { border-left-color: #dc3545; }
 .stat-card.warning { border-left-color: #ffc107; }
 .stat-card.info { border-left-color: #17a2b8; }
-.stat-card.total { border-left-color: #0078d4; }
 
 .stat-value {
     font-size: 2rem;
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary, #333);
 }
 
 .stat-label {
-    color: #666;
+    color: var(--text-secondary, #666);
     font-size: 0.875rem;
     margin-top: 0.5rem;
-}
-
-.filter-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
 }
 
 .alerts-list {
@@ -135,62 +98,42 @@
 }
 
 .alert-item {
-    background: #f8f9fa;
+    background: var(--gray-100, #f8f9fa);
     border-left: 4px solid #ccc;
     border-radius: 8px;
     padding: 1rem;
-    transition: all 0.3s ease;
 }
 
-.alert-item.critical { border-left-color: #dc3545; background: #fff5f5; }
-.alert-item.error { border-left-color: #dc3545; background: #fff5f5; }
-.alert-item.warning { border-left-color: #ffc107; background: #fffdf5; }
-.alert-item.info { border-left-color: #17a2b8; background: #f5fcff; }
-
-.alert-item.acknowledged {
-    opacity: 0.6;
-    background: #e9ecef;
-}
+.alert-item.alert-error, .alert-item.alert-critical { border-left-color: #dc3545; background: #fff5f5; }
+.alert-item.alert-warning { border-left-color: #ffc107; background: #fffdf5; }
+.alert-item.alert-info { border-left-color: #17a2b8; background: #f5fcff; }
 
 .alert-header {
     display: flex;
-    gap: 1rem;
+    justify-content: space-between;
     align-items: flex-start;
-}
-
-.alert-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
+    gap: 1rem;
 }
 
 .alert-content {
     flex: 1;
-    min-width: 0;
 }
 
 .alert-title {
     font-weight: 600;
+    color: var(--text-primary, #333);
     margin-bottom: 0.5rem;
-    color: #333;
 }
 
 .alert-message {
-    color: #666;
-    margin-bottom: 0.5rem;
+    color: var(--text-secondary, #666);
     font-size: 0.875rem;
 }
 
-.alert-meta {
-    display: flex;
-    gap: 1rem;
+.alert-date {
     font-size: 0.75rem;
-    color: #999;
-}
-
-.alert-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-shrink: 0;
+    color: var(--text-muted, #999);
+    white-space: nowrap;
 }
 
 .no-alerts {
@@ -199,160 +142,22 @@
 }
 
 .no-alerts-icon {
-    font-size: 4rem;
+    font-size: 3rem;
     margin-bottom: 1rem;
 }
 
-.no-alerts h3 {
-    color: #333;
-    margin-bottom: 0.5rem;
-}
-
-.no-alerts p {
-    color: #666;
-    margin-bottom: 1.5rem;
-}
-
-/* Dark mode */
-body.dark-mode .stat-card {
-    background: var(--dark-bg-secondary);
-}
-
-body.dark-mode .stat-value {
-    color: var(--dark-text-primary);
-}
-
-body.dark-mode .stat-label {
-    color: var(--dark-text-secondary);
-}
-
-body.dark-mode .alert-item {
-    background: var(--dark-bg-primary);
-}
-
-body.dark-mode .alert-item.acknowledged {
-    background: var(--dark-bg-secondary);
-}
-
-body.dark-mode .alert-title {
-    color: var(--dark-text-primary);
-}
-
-body.dark-mode .alert-message {
-    color: var(--dark-text-secondary);
-}
-
-/* Responsive */
 @media (max-width: 768px) {
+    .alert-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
     .alert-header {
         flex-direction: column;
     }
-    .alert-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-    .alert-meta {
-        flex-wrap: wrap;
+    .alert-date {
+        align-self: flex-end;
     }
 }
 </style>
-
-<script>
-/**
- * Lancer une vérification des alertes
- */
-async function runAlertCheck() {
-    showLoading('Vérification en cours...');
-    
-    try {
-        const response = await fetch('/api/alerts/check', {method: 'POST'});
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(`✅ Vérification terminée!\n\n` +
-                  `📊 Résultats:\n` +
-                  `• Comptes expirants: ${data.results.expiring_accounts}\n` +
-                  `• Mots de passe expirant: ${data.results.password_expiring}\n` +
-                  `• Comptes inactifs: ${data.results.inactive_accounts}\n` +
-                  `• Total alertes: ${data.results.total_alerts}`);
-            location.reload();
-        } else {
-            showError('Erreur: ' + (data.error || 'Échec de la vérification'));
-        }
-    } catch (error) {
-        showError('Erreur de connexion: ' + error.message);
-    } finally {
-        hideLoading();
-    }
-}
-
-/**
- * Acquitter une alerte
- */
-async function acknowledgeAlert(alertId) {
-    if (!confirm('Voulez-vous acquitter cette alerte ?')) return;
-    
-    try {
-        const response = await fetch(`/api/alerts/${alertId}/acknowledge`, {method: 'POST'});
-        const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById('alert-' + alertId).classList.add('acknowledged');
-            alert('✅ Alerte acquittée');
-        } else {
-            alert('❌ Erreur: ' + (data.error || 'Échec'));
-        }
-    } catch (error) {
-        alert('❌ Erreur: ' + error.message);
-    }
-}
-
-/**
- * Supprimer une alerte
- */
-async function deleteAlert(alertId) {
-    if (!confirm('Voulez-vous vraiment supprimer cette alerte ?')) return;
-    
-    try {
-        const response = await fetch(`/api/alerts/${alertId}/delete`, {method: 'POST'});
-        const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById('alert-' + alertId).remove();
-            alert('✅ Alerte supprimée');
-        } else {
-            alert('❌ Erreur: ' + (data.error || 'Échec'));
-        }
-    } catch (error) {
-        alert('❌ Erreur: ' + error.message);
-    }
-}
-
-/**
- * Exporter les alertes
- */
-function exportAlerts() {
-    const alerts = [];
-    document.querySelectorAll('.alert-item').forEach(item => {
-        alerts.push({
-            title: item.querySelector('.alert-title')?.textContent?.trim(),
-            message: item.querySelector('.alert-message')?.textContent?.trim(),
-            severity: item.className.includes('critical') ? 'critical' : 
-                     item.className.includes('error') ? 'error' :
-                     item.className.includes('warning') ? 'warning' : 'info',
-            acknowledged: item.classList.contains('acknowledged')
-        });
-    });
-    
-    const blob = new Blob([JSON.stringify(alerts, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'alertes_' + new Date().toISOString().split('T')[0] + '.json';
-    a.click();
-    URL.revokeObjectURL(url);
-}
-</script>
 {% endblock %}
 
 
