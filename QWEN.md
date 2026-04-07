@@ -2,6 +2,8 @@
 
 > Ce fichier décrit l'architecture interne du projet **AD Web Interface** à l'intention des assistants IA (Claude, Qwen, GPT…) afin d'accélérer la compréhension du code et d'éviter les erreurs courantes.
 
+**Version actuelle :** 1.36.0 (Avril 2026)
+
 ---
 
 ## 1. Vue d'ensemble
@@ -11,7 +13,7 @@
 - **Point d'entrée :** `app.py` → importe `_openssl_init.py` EN PREMIER (fix NTLM/MD4 sur Python 3.12+)
 - **Serveur WSGI :** Waitress (`waitress.serve`) sur `0.0.0.0:5000` par défaut
 - **Configuration :** `config.py` → lit `.env` ou variables d'environnement
-- **Version :** fichier `VERSION` à la racine (ex. `1.35.0`)
+- **Version :** fichier `VERSION` à la racine (ex. `1.36.0`)
 
 ---
 
@@ -46,10 +48,12 @@ C:\AD-WebInterface\
 │   ├── backup.py             # Sauvegarde/restauration config
 │   ├── dashboard_widgets.py  # Données pour les widgets du tableau de bord
 │   ├── debug_utils.py        # Logger + helper init_debug()
-│   ├── diagnostic.py         # Diagnostic LDAP et réseau
+│   ├── diagnostic.py         # Diagnostic LDAP et réseau (19 tests, v1.36)
 │   ├── email_notifications.py# Envoi emails SMTP
 │   ├── path_security.py      # Validation chemins fichiers (traversal)
 │   ├── security_audit.py     # Audit de sécurité AD (8 problèmes)
+│   ├── scripts_manager.py    # NOUVEAU v1.36: Gestion scripts PowerShell
+│   └── log_analyzer.py       # NOUVEAU v1.36: Analyse auto des logs
 │   └── data/                 # Données runtime (gitignored)
 │       └── crypto_salt.bin   # Sel Fernet (généré au 1er démarrage)
 │
@@ -58,8 +62,9 @@ C:\AD-WebInterface\
 │   ├── core.py               # Helpers partagés : get_ad_connection(), is_connected(),
 │   │                         #   require_connection, require_permission
 │   ├── main.py               # Blueprint "main" — accueil, connexion, déconnexion
-│   ├── api.py                # Blueprint "api" — endpoints JSON
-│   ├── admin_tools.py        # Blueprint "admin_tools" — permissions, settings
+│   ├── api.py                # Blueprint "api" — endpoints JSON + scripts (v1.36)
+│   ├── admin_tools.py        # Blueprint "admin_tools" — permissions, settings,
+│   │                         #   scripts (v1.36), log-analysis (v1.36)
 │   │
 │   ├── users/                # Blueprint "users"
 │   │   ├── __init__.py       # Déclare users_bp (url_prefix='/users')
@@ -96,7 +101,7 @@ C:\AD-WebInterface\
 │   └── debug/                # Blueprint "debug" (url_prefix='/debug')
 │       └── __init__.py
 │
-├── templates/                # Templates Jinja2
+├── templates/                # Templates Jinja2 (73 fichiers)
 │   ├── base.html             # Layout principal (navbar, dark mode, flash messages)
 │   ├── index.html            # Landing page (hero + feature cards + system info)
 │   ├── connect.html          # Formulaire de connexion AD
@@ -106,11 +111,17 @@ C:\AD-WebInterface\
 │   ├── edit_user.html        # Édition utilisateur
 │   ├── list_groups.html
 │   ├── list_computers.html
-│   ├── list_ous.html
+│   ├── list_ous.html         # v1.36: stats, filtres, badges cliquables
 │   ├── permissions.html      # Gestion permissions granulaires
 │   ├── settings.html
-│   ├── admin.html
+│   ├── admin.html            # v1.36: lien vers log-analysis
 │   ├── error.html
+│   ├── diagnostic.html       # v1.36: 19 tests, infos système, export
+│   ├── expiring_accounts.html # v1.36: dates FR, exclusion comptes système
+│   ├── password_audit.html   # Audit mots de passe
+│   ├── password_audit_history.html # v1.36: tri, dates FR
+│   ├── log_analysis.html     # NOUVEAU v1.36: Analyse des logs
+│   └── scripts.html          # NOUVEAU v1.36: Gestion scripts PowerShell
 │   └── ...
 │
 ├── static/
