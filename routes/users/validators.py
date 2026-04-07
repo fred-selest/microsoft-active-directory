@@ -44,10 +44,10 @@ class UserCreateRequest:
         if self.email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', self.email):
             errors.append("Format d'email invalide")
         
-        # Validation OU
+        # Validation OU (accepte DC=, OU= et CN= comme CN=Users,DC=...)
         if not self.ou or not self.ou.strip():
             errors.append("Unité d'organisation requise")
-        elif not self.ou.startswith('DC=') and not self.ou.startswith('OU='):
+        elif not (self.ou.startswith('DC=') or self.ou.startswith('OU=') or self.ou.startswith('CN=')):
             errors.append("DN d'unité d'organisation invalide")
         
         return errors

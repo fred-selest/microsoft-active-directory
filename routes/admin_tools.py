@@ -320,7 +320,7 @@ def permissions_page():
     all_permissions = get_available_permissions()
     categories = get_permission_categories()
 
-    return render_template('admin.html',
+    return render_template('permissions.html',
                          groups=groups,
                          permissions=all_permissions,
                          categories=categories,
