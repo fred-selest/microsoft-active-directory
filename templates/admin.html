@@ -65,7 +65,25 @@
                 </div>
             </a>
             {% endif %}
-            
+
+            {% if config.DEBUG or config.FEATURE_DEBUG_ENABLED %}
+            <a href="{{ url_for('debug.debug_dashboard') }}" class="admin-card">
+                <div class="admin-card-icon">🐞</div>
+                <div class="admin-card-content">
+                    <h4>Debug</h4>
+                    <p>Outils de débogage</p>
+                </div>
+            </a>
+            {% endif %}
+
+            <a href="{{ url_for('admin_tools.log_analysis_page') }}" class="admin-card">
+                <div class="admin-card-icon">📈</div>
+                <div class="admin-card-content">
+                    <h4>Analyse des Logs</h4>
+                    <p>Analyse automatique</p>
+                </div>
+            </a>
+
             {% if config.FEATURE_BACKUPS_ENABLED %}
             <a href="{{ url_for('tools.backups') }}" class="admin-card">
                 <div class="admin-card-icon">💾</div>

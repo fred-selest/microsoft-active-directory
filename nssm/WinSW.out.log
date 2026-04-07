@@ -1,0 +1,42 @@
+Configuration chargée depuis C:\AD-WebInterface\.env
+2026-04-08 01:51:07,986 INFO root: === Démarrage serveur AD Web Interface ===
+2026-04-08 01:51:09,923 INFO core.log_analyzer: ============================================================
+2026-04-08 01:51:09,924 INFO ad_debug: Analyse automatique des logs démarrée en arrière-plan
+2026-04-08 01:51:09,924 INFO core.log_analyzer: DÉMARRAGE ANALYSE AUTOMATIQUE DES LOGS
+2026-04-08 01:51:09,925 INFO core.log_analyzer: ============================================================
+2026-04-08 01:51:09,925 INFO core.log_analyzer: Démarrage analyse des logs (dernières 24h)
+
+============================================================
+Interface Web Microsoft Active Directory
+============================================================
+Plateforme: Windows (2022Server)
+Écoute sur: http://0.0.0.0:5000
+============================================================
+
+2026-04-08 01:51:10,185 INFO waitress: Serving on http://0.0.0.0:5000
+2026-04-08 01:51:11,700 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:51:11,811 WARNING security_audit: Groupe vide trouvé: User VPN (SAM: User VPN)
+2026-04-08 01:51:11,812 WARNING security_audit: Groupe vide trouvé: Utilisateurs_O365 (SAM: Utilisateurs_O365)
+2026-04-08 01:51:11,817 INFO security_audit: Groupes de sécurité vérifiés: 24
+2026-04-08 01:51:11,817 INFO security_audit: Groupes vides trouvés: 2
+2026-04-08 01:51:11,817 INFO security_audit:   - User VPN | User VPN | CN=User VPN,CN=Users,DC=SELEST,DC=local
+2026-04-08 01:51:11,817 INFO security_audit:   - Utilisateurs_O365 | Utilisateurs_O365 | CN=Utilisateurs_O365,DC=SELEST,DC=local
+2026-04-08 01:51:13,628 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:51:19,298 INFO core.log_analyzer: Analyse terminée: 346 problème(s) détecté(s)
+2026-04-08 01:51:19,311 INFO core.log_analyzer: Exécution des corrections automatiques...
+2026-04-08 01:51:19,312 INFO core.log_analyzer: Exécution correction automatique: check_templates
+2026-04-08 01:51:19,313 INFO core.log_analyzer:   Vérifier templates: SUCCÈS
+2026-04-08 01:51:19,357 INFO core.log_analyzer: Rapport sauvegardé: logs\analysis_20260408_015119.json
+2026-04-08 01:51:19,357 INFO core.log_analyzer: Rapport sauvegardé: logs\analysis_20260408_015119.json
+2026-04-08 01:51:31,828 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:51:31,874 WARNING security_audit: Groupe vide trouvé: User VPN (SAM: User VPN)
+2026-04-08 01:51:31,875 WARNING security_audit: Groupe vide trouvé: Utilisateurs_O365 (SAM: Utilisateurs_O365)
+2026-04-08 01:51:31,875 INFO security_audit: Groupes de sécurité vérifiés: 24
+2026-04-08 01:51:31,875 INFO security_audit: Groupes vides trouvés: 2
+2026-04-08 01:51:31,875 INFO security_audit:   - User VPN | User VPN | CN=User VPN,CN=Users,DC=SELEST,DC=local
+2026-04-08 01:51:31,875 INFO security_audit:   - Utilisateurs_O365 | Utilisateurs_O365 | CN=Utilisateurs_O365,DC=SELEST,DC=local
+2026-04-08 01:51:32,283 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:51:34,398 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:51:36,856 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:52:39,724 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:52:40,358 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)

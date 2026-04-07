@@ -200,47 +200,71 @@ def expiring_accounts():
         return redirect(url_for('main.connect'))
 
     base_dn = session.get('ad_base_dn', '')
-    now = datetime.now().replace(tzinfo=None)  # Rendre naive pour comparaison
+    now = datetime.now().replace(tzinfo=None)
     expiry_threshold = now + timedelta(days=30)
-    password_threshold = now + timedelta(days=14)
+    password_threshold = now + timedelta(days=76)  # MDP de plus de 76 jours
     inactive_threshold = now - timedelta(days=90)
 
     expiring_accounts_list = []
     password_expiring_list = []
     inactive_accounts_list = []
 
+    # Comptes système à exclure
+    EXCLUDED_ACCOUNTS = ['krbtgt', 'guest', 'invité', 'defaultaccount']
+
     try:
-        conn.search(base_dn, '(&(objectClass=user)(accountExpires>=1))', SUBTREE,
+        # Recherche TOUS les utilisateurs (exclut les ordinateurs)
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
                     attributes=['cn', 'sAMAccountName', 'accountExpires',
                                 'mail', 'distinguishedName', 'pwdLastSet', 'lastLogon'])
 
         for entry in conn.entries:
+            sam = decode_ldap_value(entry.sAMAccountName)
+            
+            # Exclure les comptes système et les comptes machine
+            if sam.lower() in EXCLUDED_ACCOUNTS or sam.endswith('$'):
+                continue
+            
             data = {
                 'cn': decode_ldap_value(entry.cn),
-                'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                'sAMAccountName': sam,
                 'mail': decode_ldap_value(entry.mail) if hasattr(entry, 'mail') else None,
                 'dn': decode_ldap_value(entry.distinguishedName),
             }
 
+            # Vérifier expiration du compte
             expiry = _safe_ad_date(entry, 'accountExpires')
-            if expiry:
-                data['accountExpires'] = expiry.strftime('%Y-%m-%d')
+            if expiry and expiry.year > 1601 and expiry != datetime.max.replace(tzinfo=None):
+                data['accountExpires'] = expiry.strftime('%d/%m/%Y')
                 if expiry <= expiry_threshold:
                     expiring_accounts_list.append(dict(data))
+            else:
+                data['accountExpires'] = None
 
+            # Vérifier expiration du mot de passe
             pwd_date = _safe_ad_date(entry, 'pwdLastSet')
-            if pwd_date and pwd_date <= password_threshold:
-                data['pwdLastSet'] = pwd_date.strftime('%Y-%m-%d')
-                password_expiring_list.append(dict(data))
+            if pwd_date and pwd_date.year > 1601:
+                data['pwdLastSet'] = pwd_date.strftime('%d/%m/%Y')
+                if pwd_date <= password_threshold:
+                    password_expiring_list.append(dict(data))
 
+            # Vérifier inactivité
             last_logon = _safe_ad_date(entry, 'lastLogon')
-            data['lastLogon'] = last_logon.strftime('%Y-%m-%d') if last_logon else 'Jamais'
-            if not last_logon or last_logon <= inactive_threshold:
+            if last_logon and last_logon.year > 1601:
+                data['lastLogon'] = last_logon.strftime('%d/%m/%Y')
+                if last_logon <= inactive_threshold:
+                    inactive_accounts_list.append(dict(data))
+            else:
+                data['lastLogon'] = 'Jamais'
                 inactive_accounts_list.append(dict(data))
 
         conn.unbind()
     except Exception as e:
         flash(f'Erreur: {e}', 'error')
+
+    # Trier par date (plus récent en premier)
+    password_expiring_list.sort(key=lambda x: x.get('pwdLastSet', '9999'))
+    inactive_accounts_list.sort(key=lambda x: x.get('lastLogon', 'Jamais'))
 
     return render_template('expiring_accounts.html',
                            expiring_accounts=expiring_accounts_list,

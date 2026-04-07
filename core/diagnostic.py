@@ -8,6 +8,7 @@ import sys
 import subprocess
 import ssl
 import socket
+import shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -18,7 +19,8 @@ DIAG_RESULTS = {
     'checks': [],
     'errors': [],
     'warnings': [],
-    'suggestions': []
+    'suggestions': [],
+    'system_info': {}
 }
 
 
@@ -241,6 +243,131 @@ def check_ssl_context():
         return False
 
 
+def check_system_info():
+    """Récupérer les informations système."""
+    try:
+        import platform
+        
+        DIAG_RESULTS['system_info'] = {
+            'platform': platform.system(),
+            'platform_release': platform.release(),
+            'platform_version': platform.version(),
+            'architecture': platform.machine(),
+            'hostname': platform.node(),
+            'python_version': platform.python_version(),
+            'processor': platform.processor(),
+        }
+        
+        # Mémoire RAM
+        try:
+            ram = shutil.get_memory_usage() if hasattr(shutil, 'get_memory_usage') else None
+            if not ram:
+                # Fallback pour Windows
+                import ctypes
+                free_mem = ctypes.c_ulonglong(0)
+                ctypes.windll.kernel32.GetPhysicallyAvailableMemory(ctypes.byref(free_mem))
+                ram = f"{free_mem.value // (1024**2)} MB libres"
+            DIAG_RESULTS['system_info']['memory'] = ram
+        except:
+            DIAG_RESULTS['system_info']['memory'] = 'Non disponible'
+        
+        # Espace disque
+        try:
+            total, used, free = shutil.disk_usage('.')
+            DIAG_RESULTS['system_info']['disk'] = f"{free // (1024**3)} Go libres"
+        except:
+            DIAG_RESULTS['system_info']['disk'] = 'Non disponible'
+            
+        add_check('Informations système', True, 
+                  f"{DIAG_RESULTS['system_info']['platform']} {DIAG_RESULTS['system_info']['platform_release']}")
+        return True
+    except Exception as e:
+        add_check('Informations système', False, str(e))
+        return False
+
+
+def check_network_config():
+    """Vérifier la configuration réseau."""
+    try:
+        # Vérifier DNS
+        import socket
+        dns_servers = []
+        try:
+            dns_servers = socket.gethostbyname_ex(socket.gethostname())[2]
+        except:
+            pass
+        
+        if dns_servers:
+            add_check('Configuration DNS', True, f'Serveurs DNS: {", ".join(dns_servers[:3])}')
+        else:
+            add_check('Configuration DNS', True, 'DNS configuré')
+        
+        # Vérifier connectivité Internet
+        try:
+            socket.create_connection(('8.8.8.8', 53), timeout=2)
+            add_check('Connectivité Internet', True, 'Accès Internet disponible')
+        except:
+            add_warning('Connectivité Internet', 'Aucun accès Internet détecté')
+        
+        return True
+    except Exception as e:
+        add_check('Configuration réseau', False, str(e))
+        return False
+
+
+def check_logs_status():
+    """Vérifier l'état des logs."""
+    try:
+        logs_dir = Path('logs')
+        if not logs_dir.exists():
+            add_check('Logs', False, 'Répertoire logs inexistant')
+            return False
+        
+        log_files = list(logs_dir.glob('*.log'))
+        total_size = sum(f.stat().st_size for f in log_files)
+        
+        add_check('Logs', True, 
+                  f'{len(log_files)} fichiers, {total_size // 1024} Ko')
+        
+        # Vérifier si les logs sont récents
+        if log_files:
+            latest = max(log_files, key=lambda f: f.stat().st_mtime)
+            age_hours = (datetime.now() - datetime.fromtimestamp(latest.stat().st_mtime)).seconds / 3600
+            if age_hours > 24:
+                add_warning('Logs anciens', f'Dernier log: {age_hours:.1f}h')
+        
+        return True
+    except Exception as e:
+        add_check('Logs', False, str(e))
+        return False
+
+
+def check_database_status():
+    """Vérifier l'état de la base de données/settings."""
+    try:
+        settings_file = Path('data/settings.json')
+        if settings_file.exists():
+            size = settings_file.stat().st_size
+            add_check('Fichier de configuration', True, 
+                      f'settings.json présent ({size} octets)')
+            
+            # Vérifier si le fichier est lisible
+            import json
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                json.load(f)
+            add_check('Validité JSON', True, 'Configuration valide')
+        else:
+            add_check('Fichier de configuration', False, 'settings.json manquant')
+        
+        return True
+    except json.JSONDecodeError as e:
+        add_check('Validité JSON', False, f'JSON invalide: {str(e)}')
+        return False
+    except Exception as e:
+        add_check('Configuration', False, str(e))
+        return False
+
+
 def run_full_diagnostic(server='localhost', port=389):
     """Exécuter tous les diagnostics."""
     DIAG_RESULTS['timestamp'] = datetime.now().isoformat()
@@ -249,7 +376,8 @@ def run_full_diagnostic(server='localhost', port=389):
     DIAG_RESULTS['errors'] = []
     DIAG_RESULTS['warnings'] = []
     DIAG_RESULTS['suggestions'] = []
-    
+    DIAG_RESULTS['system_info'] = {}
+
     # Exécuter tous les checks
     check_python_version()
     check_openssl_conf()
@@ -260,17 +388,23 @@ def run_full_diagnostic(server='localhost', port=389):
     check_service_status()
     check_ad_connectivity(server, port)
     
+    # NOUVEAUX CHECKS
+    check_system_info()
+    check_network_config()
+    check_logs_status()
+    check_database_status()
+
     # Déterminer le statut global
     failed = sum(1 for c in DIAG_RESULTS['checks'] if not c['passed'])
     total = len(DIAG_RESULTS['checks'])
-    
+
     if failed == 0:
         DIAG_RESULTS['status'] = 'healthy'
     elif failed < total / 2:
         DIAG_RESULTS['status'] = 'warning'
     else:
         DIAG_RESULTS['status'] = 'error'
-    
+
     return DIAG_RESULTS
 
 

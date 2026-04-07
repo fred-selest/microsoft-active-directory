@@ -9,11 +9,14 @@ Commande ECHO d‚sactiv‚e.
 # Logs
 logs/*.log
 logs/*.png
+logs/*.txt
+logs/analysis_*.json
 Commande ECHO d‚sactiv‚e.
 # Data
 data/settings.json
 data/backups/*
 data/crypto_salt.bin
+data/audit_history/
 Commande ECHO d‚sactiv‚e.
 # Configuration locale
 .env
@@ -32,3 +35,14 @@ Commande ECHO d‚sactiv‚e.
 # Tests
 logs/screenshots/
 logs/test_results.json
+# Worktrees
+.claude/worktrees/
+.qwen/
+# Markdown (sauf README)
+*.md
+!README.md
+!*/README.md
+SCRIPTS_MANAGER.md
+# Certificates
+scripts/codesign.*
+scripts/*.cer

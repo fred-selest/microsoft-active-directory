@@ -4,50 +4,121 @@
 
 {% block content %}
 <div class="page-header">
-    <h2>Structure Active Directory</h2>
-    <a href="{{ url_for('ous.create_ou') }}" class="btn btn-primary">+ Nouvelle OU</a>
+    <h2>📁 Unités d'Organisation</h2>
+    <div class="page-header-actions">
+        <a href="{{ url_for('ous.create_ou') }}" class="btn btn-primary">+ Nouvelle OU</a>
+        <button class="btn btn-secondary" onclick="exportOUs()">📄 Export CSV</button>
+    </div>
+</div>
+
+<!-- Statistiques globales -->
+<div class="stats-grid" style="margin-bottom: 1.5rem;">
+    <div class="stat-card">
+        <div class="stat-icon">📁</div>
+        <div>
+            <div class="stat-value">{{ ous|length }}</div>
+            <div class="stat-label">Total OUs</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div>
+            <div class="stat-value">{{ ous|sum(attribute='users_count') }}</div>
+            <div class="stat-label">Utilisateurs</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">👨‍👩‍👧‍👦</div>
+        <div>
+            <div class="stat-value">{{ ous|sum(attribute='groups_count') }}</div>
+            <div class="stat-label">Groupes</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💻</div>
+        <div>
+            <div class="stat-value">{{ ous|sum(attribute='computers_count') }}</div>
+            <div class="stat-label">Ordinateurs</div>
+        </div>
+    </div>
+</div>
+
+<!-- Barre de recherche et filtres -->
+<div class="search-filters" style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+    <input type="text" id="ou-search" placeholder="🔍 Rechercher une OU..." 
+           style="flex: 1; min-width: 200px; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem;"
+           onkeyup="filterOUs()">
+    
+    <select id="ou-type-filter" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem;" onchange="filterOUs()">
+        <option value="all">Tous les types</option>
+        <option value="with-users">Avec utilisateurs</option>
+        <option value="with-groups">Avec groupes</option>
+        <option value="with-computers">Avec ordinateurs</option>
+        <option value="with-subous">Avec sous-OUs</option>
+        <option value="empty">Vides</option>
+    </select>
 </div>
 
 <div class="tabs">
-    <button class="tab-btn active" onclick="showTab('list')">Liste des OUs</button>
-    <button class="tab-btn" onclick="showTab('tree')">Arborescence</button>
+    <button class="tab-btn active" onclick="showTab('list')">📋 Liste</button>
+    <button class="tab-btn" onclick="showTab('tree')">🌳 Arborescence</button>
 </div>
 
 <div id="tab-list" class="tab-content active">
     <div class="table-container">
-        <table class="data-table sortable">
+        <table class="data-table sortable" id="ous-table">
             <thead>
                 <tr>
                     <th>Nom</th>
                     <th>Description</th>
+                    <th>Contenu</th>
                     <th>Chemin (DN)</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for ou in ous %}
-                <tr>
-                    <td>{{ ou.name }}</td>
-                    <td>{{ ou.description }}</td>
+                <tr class="ou-row">
+                    <td><strong>{{ ou.name }}</strong></td>
+                    <td>{{ ou.description or '-' }}</td>
+                    <td>
+                        <div class="ou-stats">
+                            {% if ou.users_count > 0 %}
+                            <a href="{{ url_for('users.list_users', ou=ou.dn) }}" class="badge badge-info" title="Voir les {{ ou.users_count }} utilisateur(s)" style="text-decoration: none; cursor: pointer;">👥 {{ ou.users_count }}</a>
+                            {% endif %}
+                            {% if ou.groups_count > 0 %}
+                            <a href="{{ url_for('groups.list_groups', ou=ou.dn) }}" class="badge badge-success" title="Voir les {{ ou.groups_count }} groupe(s)" style="text-decoration: none; cursor: pointer;">👨‍👩‍👧‍👦 {{ ou.groups_count }}</a>
+                            {% endif %}
+                            {% if ou.computers_count > 0 %}
+                            <a href="{{ url_for('computers.list_computers', ou=ou.dn) }}" class="badge badge-warning" title="Voir les {{ ou.computers_count }} ordinateur(s)" style="text-decoration: none; cursor: pointer;">💻 {{ ou.computers_count }}</a>
+                            {% endif %}
+                            {% if ou.sub_ous_count > 0 %}
+                            <span class="badge badge-secondary">📁 {{ ou.sub_ous_count }}</span>
+                            {% endif %}
+                            {% if ou.total_objects == 0 %}
+                            <span class="badge badge-danger">🈳 Vide</span>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td class="dn-cell">{{ ou.dn }}</td>
                     <td class="actions-cell">
-                        <a href="{{ url_for('ous.edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <a href="{{ url_for('ous.edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary" title="Modifier">✏️</a>
                         <form method="post" action="{{ url_for('ous.delete_ou', dn=ou.dn) }}" style="display:inline;"
-                              onsubmit="return confirm('Supprimer l\'OU {{ ou.name }} ? Cette action est irréversible.');">
+                              onsubmit="return confirmDeleteOU('{{ ou.name }}', {{ ou.total_objects }}, {{ ou.sub_ous_count }});">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                            <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">🗑️</button>
                         </form>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="4" class="text-center">Aucune unite d'organisation trouvee.</td>
+                    <td colspan="5" class="text-center">Aucune unité d'organisation trouvée.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <p class="results-count">{{ ous|length }} unite(s) d'organisation trouvee(s)</p>
+    <p class="results-count"><span id="ou-count">{{ ous|length }}</span> unité(s) d'organisation trouvée(s)</p>
 </div>
 
 <div id="tab-tree" class="tab-content">
@@ -88,6 +159,8 @@
         <p><span class="node-icon">&#128193;</span> Unite organisationnelle (OU)</p>
     </div>
 </div>
+
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -181,6 +254,39 @@
     color: #666;
     font-style: italic;
 }
+.ou-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+.ou-stats .badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.ou-stats a.badge:hover {
+    opacity: 0.8;
+    text-decoration: none;
+    filter: brightness(0.9);
+}
+.badge-secondary {
+    background: #6c757d;
+    color: white;
+}
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+.btn-info:hover {
+    background: #138496;
+    color: white;
+}
+.search-filters {
+    align-items: center;
+}
 </style>
 {% endblock %}
 
@@ -196,8 +302,108 @@ function showTab(tabName) {
     document.getElementById('tab-' + tabName).classList.add('active');
     event.target.classList.add('active');
 }
+
+function filterOUs() {
+    const searchInput = document.getElementById('ou-search').value.toLowerCase();
+    const typeFilter = document.getElementById('ou-type-filter').value;
+    const rows = document.querySelectorAll('.ou-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const name = row.cells[0].textContent.toLowerCase();
+        const description = row.cells[1].textContent.toLowerCase();
+        const dn = row.cells[3].textContent.toLowerCase();
+        const statsCell = row.cells[2];
+        
+        // Extraire les counts depuis les badges
+        const hasUsers = statsCell.textContent.includes('👥');
+        const hasGroups = statsCell.textContent.includes('👨‍👩‍👧‍👦');
+        const hasComputers = statsCell.textContent.includes('💻');
+        const hasSubOus = statsCell.textContent.includes('📁');
+        const isEmpty = statsCell.textContent.includes('🈳');
+        
+        // Filtre par type
+        let matchType = true;
+        switch(typeFilter) {
+            case 'with-users': matchType = hasUsers; break;
+            case 'with-groups': matchType = hasGroups; break;
+            case 'with-computers': matchType = hasComputers; break;
+            case 'with-subous': matchType = hasSubOus; break;
+            case 'empty': matchType = isEmpty; break;
+            default: matchType = true;
+        }
+        
+        // Filtre par recherche texte
+        const matchSearch = name.includes(searchInput) || description.includes(searchInput) || dn.includes(searchInput);
+        
+        if (matchType && matchSearch) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('ou-count').textContent = visibleCount;
+}
+
+function confirmDeleteOU(ouName, totalObjects, subOusCount) {
+    let message = `Supprimer l'OU "${ouName}" ?\n\n`;
+    
+    if (totalObjects > 0) {
+        message += `⚠️ ATTENTION : Cette OU contient ${totalObjects} objet(s) !\n`;
+        if (subOusCount > 0) {
+            message += `   - ${subOusCount} sous-OU(s)\n`;
+        }
+        message += `\nCette action est IRRÉVERSIBLE et supprimera tous les objets contenus.\n\n`;
+        message += `Êtes-vous ABSOLUMENT SÛR de vouloir continuer ?`;
+    } else {
+        message += `Cette action est irréversible.`;
+    }
+    
+    return confirm(message);
+}
+
+function exportOUs() {
+    // Récupérer les données du tableau
+    const rows = document.querySelectorAll('.ou-row');
+    let csv = 'Nom,Description,Utilisateurs,Groupes,Ordinateurs,Sous-OUs,Chemin DN\n';
+    
+    rows.forEach(row => {
+        const name = row.cells[0].textContent.replace(/"/g, '""');
+        const description = row.cells[1].textContent.replace(/"/g, '""');
+        
+        // Extraire les counts depuis les badges
+        const statsCell = row.cells[2];
+        let users = 0, groups = 0, computers = 0, subOus = 0;
+        
+        const badges = statsCell.querySelectorAll('.badge');
+        badges.forEach(badge => {
+            const text = badge.textContent;
+            if (text.includes('👥')) users = parseInt(text.replace(/[^0-9]/g, '')) || 0;
+            if (text.includes('👨‍👩‍👧‍👦')) groups = parseInt(text.replace(/[^0-9]/g, '')) || 0;
+            if (text.includes('💻')) computers = parseInt(text.replace(/[^0-9]/g, '')) || 0;
+            if (text.includes('📁')) subOus = parseInt(text.replace(/[^0-9]/g, '')) || 0;
+        });
+        
+        const dn = row.cells[4].querySelector('input[name="csrf_token"]').parentElement.action.split('/delete')[0].split('/ous/')[1];
+        
+        csv += `"${name}","${description}",${users},${groups},${computers},${subOus},"${dn}"\n`;
+    });
+    
+    // Télécharger le fichier CSV
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ous_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 </script>
-{% endblock %}
 {% endblock %}
 
 

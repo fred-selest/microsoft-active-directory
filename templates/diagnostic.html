@@ -9,26 +9,41 @@
 <meta http-equiv="Expires" content="0">
 
 <div class="container mt-4">
-    <h2>🔧 Diagnostic et Dépannage Automatique</h2>
-    <p class="text-muted">Vérifiez l'état de votre installation et obtenez des solutions automatiques</p>
+    <div class="page-header" style="margin-bottom: 2rem;">
+        <h2>🔧 Diagnostic et Dépannage Automatique</h2>
+        <p class="text-muted">Vérifiez l'état de votre installation et obtenez des solutions automatiques</p>
+    </div>
 
     <!-- Bouton de lancement -->
-    <div class="card mb-4">
+    <div class="card mb-4 fade-in">
         <div class="card-body">
-            <h5 class="card-title">Lancer le diagnostic</h5>
+            <h5 class="card-title">🚀 Lancer le diagnostic</h5>
             <p class="card-text">
                 Cliquez sur le bouton ci-dessous pour analyser votre configuration et détecter les problèmes.
             </p>
-            <button class="btn btn-primary" onclick="runDiagnostic()">
-                🚀 Lancer le diagnostic complet
+            <button class="btn btn-primary btn-lg" onclick="runDiagnostic()">
+                🔍 Lancer le diagnostic complet
             </button>
+            <button class="btn btn-secondary btn-lg" onclick="exportDiagnostic()" style="margin-left: 0.5rem;">
+                📄 Exporter rapport
+            </button>
+        </div>
+    </div>
+
+    <!-- Informations système -->
+    <div id="system-info-card" class="card mb-4 fade-in" style="display:none;">
+        <div class="card-header">
+            <h5 class="mb-0">💻 Informations Système</h5>
+        </div>
+        <div class="card-body">
+            <div id="system-info-content" class="row"></div>
         </div>
     </div>
 
     <!-- Résultats du diagnostic -->
     <div id="diagnostic-results" style="display:none;">
         <!-- Rapport -->
-        <div class="card mb-4">
+        <div class="card mb-4 fade-in">
             <div class="card-header">
                 <h5 class="mb-0">📊 Rapport de Diagnostic</h5>
             </div>
@@ -38,27 +53,29 @@
         </div>
 
         <!-- Vérifications -->
-        <div class="card mb-4">
+        <div class="card mb-4 fade-in">
             <div class="card-header">
                 <h5 class="mb-0">✅ Vérifications</h5>
             </div>
             <div class="card-body">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Test</th>
-                            <th>Statut</th>
-                            <th>Détails</th>
-                        </tr>
-                    </thead>
-                    <tbody id="diagnostic-checks">
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Test</th>
+                                <th>Statut</th>
+                                <th>Détails</th>
+                            </tr>
+                        </thead>
+                        <tbody id="diagnostic-checks">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <!-- Suggestions -->
-        <div class="card mb-4" id="suggestions-card" style="display:none;">
+        <div class="card mb-4 fade-in" id="suggestions-card" style="display:none;">
             <div class="card-header bg-warning">
                 <h5 class="mb-0">💡 Suggestions</h5>
             </div>
@@ -67,8 +84,18 @@
             </div>
         </div>
 
+        <!-- Avertissements -->
+        <div class="card mb-4 fade-in" id="warnings-card" style="display:none;">
+            <div class="card-header" style="background: #ff9800; color: white;">
+                <h5 class="mb-0">⚠️ Avertissements</h5>
+            </div>
+            <div class="card-body">
+                <ul id="diagnostic-warnings"></ul>
+            </div>
+        </div>
+
         <!-- Actions correctives -->
-        <div class="card mb-4" id="actions-card" style="display:none;">
+        <div class="card mb-4 fade-in" id="actions-card" style="display:none;">
             <div class="card-header bg-danger">
                 <h5 class="mb-0">🔧 Actions Correctives</h5>
             </div>
@@ -77,48 +104,122 @@
             </div>
         </div>
     </div>
+</div>
 
     <!-- Scripts -->
     <script>
+    let diagnosticData = null;
+    
     function runDiagnostic() {
         // Afficher le chargement
         document.getElementById('diagnostic-results').style.display = 'block';
-        document.getElementById('diagnostic-summary').innerHTML = '<div class="alert alert-info">Exécution du diagnostic...</div>';
+        document.getElementById('diagnostic-summary').innerHTML = '<div class="alert alert-info">🔄 Exécution du diagnostic en cours...</div>';
 
-        fetch('/api/diagnostic?t=' + Date.now())  // Cache-busting
+        fetch('/api/diagnostic?t=' + Date.now())
             .then(response => response.json())
             .then(data => {
+                diagnosticData = data;
                 displayDiagnosticResults(data);
+                displaySystemInfo(data);
             })
             .catch(error => {
                 document.getElementById('diagnostic-summary').innerHTML =
-                    '<div class="alert alert-danger">Erreur: ' + error + '</div>';
+                    '<div class="alert alert-danger">❌ Erreur: ' + error + '</div>';
             });
+    }
+    
+    function displaySystemInfo(data) {
+        const sysInfo = data.system_info || {};
+        if (Object.keys(sysInfo).length === 0) return;
+        
+        const cards = [
+            {icon: '💻', label: 'Système', value: `${sysInfo.platform} ${sysInfo.platform_release}`},
+            {icon: '🐍', label: 'Python', value: sysInfo.python_version || 'N/A'},
+            {icon: '🖥️', label: 'Hostname', value: sysInfo.hostname || 'N/A'},
+            {icon: '💾', label: 'Mémoire', value: sysInfo.memory || 'N/A'},
+            {icon: '📀', label: 'Disque', value: sysInfo.disk || 'N/A'},
+            {icon: '🏗️', label: 'Architecture', value: sysInfo.architecture || 'N/A'}
+        ];
+        
+        document.getElementById('system-info-content').innerHTML = cards.map(card => `
+            <div class="col-md-4 col-sm-6 mb-3">
+                <div class="card h-100" style="background: #f8f9fa;">
+                    <div class="card-body text-center">
+                        <div style="font-size: 2rem;">${card.icon}</div>
+                        <div style="font-weight: bold; color: #666;">${card.label}</div>
+                        <div style="font-size: 1.1rem; color: #333;">${card.value}</div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('system-info-card').style.display = 'block';
+    }
+    
+    function exportDiagnostic() {
+        if (!diagnosticData) {
+            alert('Veuillez d\'abord lancer un diagnostic');
+            return;
+        }
+        
+        const content = `
+RAPPORT DE DIAGNOSTIC - AD Web Interface
+=========================================
+Date: ${diagnosticData.timestamp}
+Statut: ${diagnosticData.status.toUpperCase()}
+
+RÉSUMÉ
+------
+Tests réussis: ${diagnosticData.checks.filter(c => c.passed).length}/${diagnosticData.checks.length}
+Erreurs: ${diagnosticData.errors.length}
+Avertissements: ${diagnosticData.warnings.length}
+
+VÉRIFICATIONS
+-------------
+${diagnosticData.checks.map(c => `[${c.passed ? '✅' : '❌'}] ${c.name}: ${c.message}`).join('\n')}
+
+SUGGESTIONS
+-----------
+${diagnosticData.suggestions.map(s => `• ${s.title}: ${s.command || s.description}`).join('\n')}
+
+INFORMATIONS SYSTÈME
+--------------------
+${Object.entries(diagnosticData.system_info || {}).map(([k,v]) => `${k}: ${v}`).join('\n')}
+        `.trim();
+        
+        const blob = new Blob([content], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `diagnostic_${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     function displayDiagnosticResults(data) {
         // Résumé
-        const statusClass = data.status === 'healthy' ? 'success' : 
+        const statusClass = data.status === 'healthy' ? 'success' :
                            data.status === 'warning' ? 'warning' : 'danger';
-        const statusIcon = data.status === 'healthy' ? '✅' : 
+        const statusIcon = data.status === 'healthy' ? '✅' :
                           data.status === 'warning' ? '⚠️' : '❌';
-        
+
         const passed = data.checks.filter(c => c.passed).length;
         const total = data.checks.length;
-        
+
         document.getElementById('diagnostic-summary').innerHTML = `
             <div class="alert alert-${statusClass}">
                 <strong>${statusIcon} Statut: ${data.status.toUpperCase()}</strong><br>
                 ${passed}/${total} vérifications passées<br>
-                ${data.errors.length > 0 ? data.errors.length + ' erreur(s) détectée(s)' : ''}
+                ${data.errors.length > 0 ? `<span style="color: #dc3545;">${data.errors.length} erreur(s)</span>` : ''}
+                ${data.warnings.length > 0 ? `<span style="color: #ff9800; margin-left: 1rem;">${data.warnings.length} avertissement(s)</span>` : ''}
             </div>
-            <p><strong>Date:</strong> ${data.timestamp}</p>
+            <p><strong>Date:</strong> ${new Date(data.timestamp).toLocaleString('fr-FR')}</p>
         `;
-        
+
         // Vérifications
         const checksHtml = data.checks.map(check => `
             <tr>
-                <td>${check.name}</td>
+                <td><strong>${check.name}</strong></td>
                 <td>
                     <span class="badge badge-${check.passed ? 'success' : 'danger'}">
                         ${check.passed ? '✅' : '❌'}
@@ -131,7 +232,7 @@
             </tr>
         `).join('');
         document.getElementById('diagnostic-checks').innerHTML = checksHtml;
-        
+
         // Suggestions
         const suggestions = data.suggestions || [];
         if (suggestions.length > 0) {
@@ -148,6 +249,21 @@
             document.getElementById('suggestions-card').style.display = 'none';
         }
         
+        // Avertissements
+        const warnings = data.warnings || [];
+        if (warnings.length > 0) {
+            document.getElementById('warnings-card').style.display = 'block';
+            const warningsHtml = warnings.map(w => `
+                <li>
+                    <strong>${w.name}</strong>: ${w.message}
+                    ${w.suggestion ? '<br><small><em>' + w.suggestion + '</em></small>' : ''}
+                </li>
+            `).join('');
+            document.getElementById('diagnostic-warnings').innerHTML = warningsHtml;
+        } else {
+            document.getElementById('warnings-card').style.display = 'none';
+        }
+
         // Actions correctives (pour les erreurs critiques)
         const criticalErrors = data.checks.filter(c => !c.passed);
         if (criticalErrors.length > 0) {
@@ -163,7 +279,7 @@
         } else {
             document.getElementById('actions-card').style.display = 'none';
         }
-        
+
         // Scroll vers les résultats
         document.getElementById('diagnostic-results').scrollIntoView({ behavior: 'smooth' });
     }

@@ -44,8 +44,12 @@ def list_computers():
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
+    ou_filter = request.args.get('ou', '')  # Filtrer par OU spécifique
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
+
+    # Déterminer la base de recherche
+    search_base = ou_filter if ou_filter else base_dn
 
     if search_query:
         safe_query = escape_ldap_filter(search_query)
@@ -54,7 +58,7 @@ def list_computers():
         search_filter = '(objectClass=computer)'
 
     try:
-        conn.search(base_dn, search_filter, SUBTREE,
+        conn.search(search_base, search_filter, SUBTREE,
                    attributes=['cn', 'description', 'distinguishedName',
                               'operatingSystem', 'lastLogon', 'userAccountControl',
                               'dNSHostName', 'operatingSystemVersion'])

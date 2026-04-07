@@ -4,10 +4,15 @@
 
 {% block content %}
 <div class="page-header">
-    <h2>Comptes expirants</h2>
+    <h2>⏰ Comptes Utilisateurs Expirants</h2>
     <div class="page-actions">
         <a href="{{ url_for('tools.export_expiring_pdf') }}" class="btn btn-secondary">Exporter PDF</a>
     </div>
+</div>
+
+<div class="alert alert-info" style="margin-bottom: 1.5rem;">
+    <strong>ℹ️ Information :</strong> Cette page affiche uniquement les <strong>comptes utilisateurs</strong>. 
+    Les ordinateurs ne sont pas inclus car ils n'ont pas de date d'expiration de compte.
 </div>
 
 <div class="expiring-sections">
@@ -33,7 +38,13 @@
                     <td>{{ account.cn }}</td>
                     <td>{{ account.sAMAccountName }}</td>
                     <td>{{ account.mail or '-' }}</td>
-                    <td>{{ account.accountExpires }}</td>
+                    <td>
+                        {% if account.accountExpires %}
+                            <span style="color: #dc3545; font-weight: bold;">{{ account.accountExpires }}</span>
+                        {% else %}
+                            <em style="color: #666;">Aucune</em>
+                        {% endif %}
+                    </td>
                     <td>
                         <a href="{{ url_for('users.edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     </td>
@@ -48,8 +59,8 @@
 
     <!-- Mots de passe expirants -->
     <div class="section-card">
-        <h3>Mots de passe expirants ({{ password_expiring|length }})</h3>
-        <p class="section-desc">Utilisateurs dont le mot de passe expire dans les 14 prochains jours</p>
+        <h3>Mots de passe anciens ({{ password_expiring|length }})</h3>
+        <p class="section-desc">Utilisateurs dont le mot de passe n'a pas été changé depuis plus de 76 jours</p>
 
         {% if password_expiring %}
         <table class="data-table">
@@ -58,6 +69,7 @@
                     <th>Nom</th>
                     <th>Identifiant</th>
                     <th>Email</th>
+                    <th>Dernier changement</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -67,15 +79,17 @@
                     <td>{{ user.cn }}</td>
                     <td>{{ user.sAMAccountName }}</td>
                     <td>{{ user.mail or '-' }}</td>
+                    <td>{{ user.pwdLastSet or 'Inconnu' }}</td>
                     <td>
                         <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-sm btn-warning">Reset MDP</a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <p class="no-data">Aucun mot de passe expirant dans les 14 prochains jours.</p>
+        <p class="no-data">Aucun mot de passe de plus de 76 jours détecté.</p>
         {% endif %}
     </div>
 
@@ -91,26 +105,27 @@
                     <th>Nom</th>
                     <th>Identifiant</th>
                     <th>Email</th>
-                    <th>Derniere connexion</th>
+                    <th>Dernière connexion</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for account in inactive_accounts %}
                 <tr>
-                    <td>{{ account.cn }}</td>
-                    <td>{{ account.sAMAccountName }}</td>
-                    <td>{{ account.mail or '-' }}</td>
-                    <td>{{ account.lastLogon }}</td>
+                    <td>{{ account.cn | escape | default('N/A') }}</td>
+                    <td>{{ account.sAMAccountName | escape | default('N/A') }}</td>
+                    <td>{{ account.mail | escape | default('-') }}</td>
+                    <td>{{ account.lastLogon | escape | default('Jamais') }}</td>
                     <td>
                         <a href="{{ url_for('users.edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                        <a href="{{ url_for('users.reset_password', dn=account.dn) }}" class="btn btn-sm btn-warning">Reset MDP</a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <p class="no-data">Aucun compte inactif detecte.</p>
+        <p class="no-data">Aucun compte inactif détecté.</p>
         {% endif %}
     </div>
 </div>

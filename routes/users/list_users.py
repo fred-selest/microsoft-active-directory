@@ -22,9 +22,11 @@ def list_users():
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
+    ou_filter = request.args.get('ou', '')  # Filtrer par OU spécifique
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
 
+    # Construire le filtre de recherche
     if search_query:
         safe_query = escape_ldap_filter(search_query)
         search_filter = (
@@ -33,9 +35,14 @@ def list_users():
         )
     else:
         search_filter = '(&(objectClass=user)(objectCategory=person))'
+    
+    # Si un OU spécifique est demandé, restreindre la recherche à cette OU
+    search_base = base_dn
+    if ou_filter:
+        search_base = ou_filter
 
     try:
-        conn.search(base_dn, search_filter, SUBTREE,
+        conn.search(search_base, search_filter, SUBTREE,
                    attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName',
                               'displayName', 'userAccountControl', 'department', 'title'])
 
@@ -72,7 +79,7 @@ def list_users():
 
         return render_template('users.html', users=paginated, search=search_query,
                              page=page, total_pages=total_pages, total=total,
-                             ous=ou_list, connected=is_connected())
+                             ous=ou_list, ou_filter=ou_filter, connected=is_connected())
                              
     except LDAPException as e:
         conn.unbind()

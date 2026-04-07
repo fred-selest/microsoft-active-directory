@@ -1,8 +1,9 @@
 """
 Blueprint pour la gestion des unités organisationnelles (OUs).
 """
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from ldap3 import SUBTREE, MODIFY_REPLACE
+from ldap3 import SUBTREE, LEVEL, MODIFY_REPLACE
 from ldap3.core.exceptions import LDAPException
 
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
@@ -10,13 +11,15 @@ from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
 from core.security import validate_csrf_token
 from core.audit import log_action
 
+logger = logging.getLogger(__name__)
+
 ous_bp = Blueprint('ous', __name__, url_prefix='/ous')
 
 
 @ous_bp.route('/')
 @require_connection
 def list_ous():
-    """Liste des OUs."""
+    """Liste des OUs avec statistiques enrichies."""
     from ldap3 import SUBTREE
     conn, error = get_ad_connection()
     if not conn:
@@ -28,14 +31,25 @@ def list_ous():
     tree = None
 
     try:
+        # Récupérer toutes les OUs
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'description', 'distinguishedName'])
 
         for e in conn.entries:
+            ou_dn = decode_ldap_value(e.distinguishedName)
+            
+            # Compter les objets dans chaque OU
+            ou_stats = _count_ou_objects(conn, ou_dn)
+            
             ou_list.append({
                 'name': decode_ldap_value(e.name),
                 'description': decode_ldap_value(e.description),
-                'dn': decode_ldap_value(e.distinguishedName),
+                'dn': ou_dn,
+                'users_count': ou_stats['users'],
+                'groups_count': ou_stats['groups'],
+                'computers_count': ou_stats['computers'],
+                'sub_ous_count': ou_stats['sub_ous'],
+                'total_objects': ou_stats['total']
             })
 
         # Construire l'arborescence
@@ -47,6 +61,44 @@ def list_ous():
         flash(f'Erreur: {str(ex)}', 'error')
         conn.unbind()
         return render_template('ous.html', ous=[], tree=None, connected=is_connected())
+
+
+def _count_ou_objects(conn, ou_dn):
+    """
+    Compter les objets dans une OU.
+    Utilise LEVEL pour éviter les problèmes de permissions sur les sous-arborescences.
+
+    Returns:
+        dict: {'users': int, 'groups': int, 'computers': int, 'sub_ous': int, 'total': int}
+    """
+    stats = {'users': 0, 'groups': 0, 'computers': 0, 'sub_ous': 0, 'total': 0}
+
+    try:
+        # Compter utilisateurs (niveau direct seulement - plus fiable)
+        search_filter = '(&(objectClass=user)(objectCategory=person))'
+        conn.search(ou_dn, search_filter, search_scope=LEVEL, attributes=['sAMAccountName'])
+        stats['users'] = len(conn.entries)
+
+        # Compter groupes
+        conn.search(ou_dn, '(objectClass=group)', search_scope=LEVEL, attributes=['cn'])
+        stats['groups'] = len(conn.entries)
+
+        # Compter ordinateurs
+        conn.search(ou_dn, '(objectClass=computer)', search_scope=LEVEL, attributes=['cn'])
+        stats['computers'] = len(conn.entries)
+
+        # Compter sous-OUs (niveau direct seulement)
+        conn.search(ou_dn, '(objectClass=organizationalUnit)', search_scope=LEVEL, attributes=['name'])
+        stats['sub_ous'] = len(conn.entries)
+
+        # Total
+        stats['total'] = stats['users'] + stats['groups'] + stats['computers']
+
+    except Exception as e:
+        # En production, on logge mais on retourne ce qu'on a
+        logger.debug(f"Erreur comptage OU: {e}")
+
+    return stats
 
 
 def build_ou_tree(base_dn, ous):

@@ -27,7 +27,10 @@
       "Bash(select-object *)",
       "Bash(echo.)",
       "Bash(powershell *)",
-      "Bash(grep_search *)"
+      "Bash(grep_search *)",
+      "WebFetch(github.com)",
+      "WebFetch(qwenlm.github.io)",
+      "Bash(.\\nssm\\adwebinterface.exe *)"
     ]
   },
   "$version": 3

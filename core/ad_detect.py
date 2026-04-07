@@ -114,12 +114,12 @@ def domain_to_base_dn(domain: str) -> str:
 def detect_ad_config() -> dict:
     """
     Detecter automatiquement la configuration AD.
-    
+
     Returns:
         Dictionnaire avec:
         - server: Adresse du serveur AD
         - port: Port (389 ou 636)
-        - use_ssl: False par défaut
+        - use_ssl: True si LDAPS detecte (port 636)
         - base_dn: Base DN détecté
         - domain: Domaine détecté
         - auto_detected: True
@@ -133,27 +133,39 @@ def detect_ad_config() -> dict:
         'auto_detected': False,
         'servers_found': []
     }
-    
+
     # 1. Détecter le domaine local
     domain = get_local_domain()
     if not domain:
         logger.info("Aucun domaine local detecte")
         return result
-    
+
     result['domain'] = domain
     result['base_dn'] = domain_to_base_dn(domain)
     result['auto_detected'] = True
-    
+
     # 2. Détecter les serveurs LDAP
     servers = detect_ldap_servers(domain)
     result['servers_found'] = servers
-    
+
     if servers:
         result['server'] = servers[0]
         logger.info(f"Serveur AD detecte: {result['server']} (domaine: {domain})")
+        
+        # 3. Prioriser LDAPS (port 636) si disponible
+        for server in servers:
+            if test_ldap_connection(server, 636):
+                result['port'] = 636
+                result['use_ssl'] = True
+                logger.info(f"LDAPS prioritaire detecte sur {server}:636")
+                break
+            elif test_ldap_connection(server, 389):
+                result['port'] = 389
+                result['use_ssl'] = False
+                logger.info(f"LDAP detecte sur {server}:389")
     else:
         logger.info(f"Domaine detecte: {domain}, aucun serveur LDAP trouve")
-    
+
     return result
 
 
