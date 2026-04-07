@@ -1,0 +1,20 @@
+Creating LDAPS certificate for: SELEST.local, srvdc2022.SELEST.local, 192.168.10.252
+Certificate created!
+Thumbprint: 9FA83CDB8016EBFD48CD8F48AF6155F2700532F5
+Subject: CN=SELEST.local
+Restarting AD service...
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+AVERTISSEMENTÿ: Attente du d‚marrage du service ®ÿServeur DNS (DNS)ÿ¯.
+Done! LDAPS should now work on port 636

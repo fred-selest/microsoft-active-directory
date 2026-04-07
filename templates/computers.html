@@ -3,56 +3,57 @@
 {% block title %}Ordinateurs - AD Web Interface{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h2>Ordinateurs</h2>
+<div class="page-header fade-in">
+    <h2>💻 Ordinateurs</h2>
 </div>
 
-<div class="search-box">
-    <form method="get">
-        <div class="form-group">
+<!-- Search -->
+<div class="card fade-in" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" class="search-form">
+        <div class="search-input-group">
+            <span class="search-icon">🔍</span>
             <input type="text" name="search" placeholder="Rechercher un ordinateur..."
-                   value="{{ search }}" class="form-control">
+                   value="{{ search }}" class="form-control search-input">
+            <button type="submit" class="btn btn-primary">Rechercher</button>
+            {% if search %}
+            <a href="{{ url_for('computers.list_computers') }}" class="btn btn-secondary">✖ Effacer</a>
+            {% endif %}
         </div>
-        <button type="submit" class="btn btn-secondary">Rechercher</button>
     </form>
 </div>
 
-<div class="table-container">
-    <table class="data-table sortable">
+<!-- Computers Table -->
+<div class="table-container fade-in">
+    <table class="data-table">
         <thead>
             <tr>
-                <th><input type="checkbox" id="select-all-computers" onchange="toggleAllComputers(this)"></th>
                 <th>Nom</th>
-                <th>Systeme d'exploitation</th>
-                <th class="hide-mobile">Nom DNS</th>
-                <th class="hide-mobile">OU</th>
+                <th>Système d'exploitation</th>
+                <th>Nom DNS</th>
                 <th>Statut</th>
                 <th data-no-sort>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for computer in computers %}
-            <tr class="computer-row {% if computer.disabled %}disabled-row{% endif %}" 
+            <tr class="computer-row {% if computer.disabled %}disabled-row{% endif %}"
                 onclick="showComputerDetails('{{ computer.dn }}', '{{ computer.cn }}', '{{ computer.os or '-' }}', '{{ computer.dns_name or '-' }}', '{{ computer.ou_path or '-' }}')"
                 style="cursor: pointer;">
-                <td><input type="checkbox" class="computer-checkbox" data-dn="{{ computer.dn }}" data-name="{{ computer.cn }}" onclick="event.stopPropagation();"></td>
-                <td>
-                    <strong>{{ computer.cn }}</strong>
-                    <div class="mobile-only"><small class="text-muted">{{ computer.dns_name or '-' }}</small></div>
+                <td data-label="Nom">
+                    <div class="computer-name">
+                        <strong>💻 {{ computer.cn }}</strong>
+                    </div>
                 </td>
-                <td>{{ computer.os }} {% if computer.os_version %}({{ computer.os_version }}){% endif %}</td>
-                <td class="hide-mobile">{{ computer.dns_name or '-' }}</td>
-                <td class="hide-mobile">
-                    <small class="ou-path">{{ computer.ou_path or '-' }}</small>
-                </td>
-                <td>
+                <td data-label="OS">{{ computer.os or '-' }} {% if computer.os_version %}<small>({{ computer.os_version }})</small>{% endif %}</td>
+                <td data-label="DNS">{{ computer.dns_name or '-' }}</td>
+                <td data-label="Statut">
                     {% if computer.disabled %}
                     <span class="badge badge-danger">Désactivé</span>
                     {% else %}
                     <span class="badge badge-success">Actif</span>
                     {% endif %}
                 </td>
-                <td class="actions" onclick="event.stopPropagation();">
+                <td data-label="Actions" class="actions" onclick="event.stopPropagation();">
                     <form method="post" action="{{ url_for('computers.toggle_computer', dn=computer.dn) }}" style="display: inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if computer.disabled %}
@@ -60,198 +61,171 @@
                         <button type="submit" class="btn btn-sm btn-success" title="Activer">✅</button>
                         {% else %}
                         <input type="hidden" name="action" value="disable">
-                        <button type="submit" class="btn btn-sm btn-secondary" title="Désactiver">⏸️</button>
+                        <button type="submit" class="btn btn-sm btn-warning" title="Désactiver">⏸️</button>
                         {% endif %}
                     </form>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ computer.dn }}', '{{ computer.cn }}')" title="Déplacer">
-                        📍
-                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ computer.dn }}', '{{ computer.cn }}')" title="Déplacer">📍</button>
                     <form method="post" action="{{ url_for('computers.delete_computer', dn=computer.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer cet ordinateur ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
-                            🗑️
-                        </button>
+                        <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">🗑️</button>
                     </form>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="text-center">Aucun ordinateur trouvé.</td>
+                <td colspan="5" class="text-center" style="padding: 3rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">💻</div>
+                    <p style="color: var(--text-secondary);">Aucun ordinateur trouvé.</p>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="results-count">{{ computers|length }} ordinateur(s) trouve(s)</p>
+<div class="results-info fade-in">
+    <span>{{ computers|length }} ordinateur(s) trouvé(s)</span>
+</div>
 
-<!-- Modal pour voir les détails -->
-<div id="computerModal" class="modal" style="display: none;">
+<!-- Modal Details -->
+<div id="computerModal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
-        <h3>📋 Détails de l'ordinateur</h3>
+        <div class="modal-header">
+            <h3>💻 Détails de l'ordinateur</h3>
+            <span class="modal-close" onclick="closeComputerModal()">✕</span>
+        </div>
         <div class="detail-grid">
-            <div class="detail-row">
-                <strong>Nom :</strong>
-                <span id="computerDetailName"></span>
+            <div class="detail-item">
+                <div class="detail-label">Nom</div>
+                <div class="detail-value" id="computerDetailName"></div>
             </div>
-            <div class="detail-row">
-                <strong>Système d'exploitation :</strong>
-                <span id="computerDetailOS"></span>
+            <div class="detail-item">
+                <div class="detail-label">Système</div>
+                <div class="detail-value" id="computerDetailOS"></div>
             </div>
-            <div class="detail-row">
-                <strong>Nom DNS :</strong>
-                <span id="computerDetailDNS"></span>
+            <div class="detail-item">
+                <div class="detail-label">DNS</div>
+                <div class="detail-value" id="computerDetailDNS"></div>
             </div>
-            <div class="detail-row">
-                <strong>OU :</strong>
-                <span id="computerDetailOU"></span>
+            <div class="detail-item">
+                <div class="detail-label">OU</div>
+                <div class="detail-value" id="computerDetailOU"></div>
             </div>
-            <div class="detail-row">
-                <strong>Distinguished Name :</strong>
-                <span id="computerDetailDN" style="font-family: monospace; font-size: 0.85em; word-break: break-all;"></span>
+            <div class="detail-item">
+                <div class="detail-label">DN</div>
+                <div class="detail-value" id="computerDetailDN" style="font-family: monospace; font-size: 0.85em; word-break: break-all;"></div>
             </div>
         </div>
-        <div class="form-actions" style="margin-top: 1.5rem;">
+        <div class="form-actions">
             <button type="button" class="btn btn-primary" onclick="closeComputerModal()">Fermer</button>
         </div>
     </div>
 </div>
 
-<!-- Modal pour deplacer -->
-<div id="moveModal" class="modal" style="display: none;">
+<!-- Modal Move -->
+<div id="moveModal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
-        <h3>Deplacer l'ordinateur</h3>
-        <p id="moveComputerName"></p>
+        <div class="modal-header">
+            <h3>📍 Déplacer l'ordinateur</h3>
+            <span class="modal-close" onclick="closeMoveModal()">✕</span>
+        </div>
+        <p id="moveComputerName" style="margin-bottom: var(--spacing-md); color: var(--text-secondary);"></p>
         <form method="post" id="moveForm" action="">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
-                <label for="new_ou">Unite d'organisation de destination</label>
-                <select id="new_ou" name="new_ou" required>
+                <label for="new_ou">Unité d'organisation de destination</label>
+                <select id="new_ou" name="new_ou" required class="form-control">
                     {% for ou in ous %}
                     <option value="{{ ou.dn }}">{{ ou.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Deplacer</button>
+                <button type="submit" class="btn btn-primary">Déplacer</button>
                 <button type="button" class="btn btn-secondary" onclick="closeMoveModal()">Annuler</button>
             </div>
         </form>
     </div>
 </div>
 
-{% block extra_css %}
 <style>
+.search-input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.search-icon {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+}
+
+.search-input {
+    flex: 1;
+    min-width: 200px;
+}
+
 .disabled-row {
     opacity: 0.6;
+    background: var(--gray-50);
 }
 
-/* Responsive Mobile */
-@media (max-width: 768px) {
-    .hide-mobile {
-        display: none;
-    }
-    .mobile-only {
-        display: block;
-    }
-    .table-container {
-        overflow-x: auto;
-    }
-    .data-table {
-        min-width: 700px;
-    }
-    .actions {
-        white-space: nowrap;
-    }
-    .ou-path {
-        max-width: 150px;
-        display: inline-block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-}
-
-@media (min-width: 769px) {
-    .mobile-only {
-        display: none;
-    }
-}
-
-.ou-path {
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-}
-
-/* Action buttons with icons */
-.actions .btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
-}
-
-/* Modal styles */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+.computer-name {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    min-width: 400px;
-    max-width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.modal-content h3 {
-    margin-top: 0;
-    color: var(--primary-color, #0078d4);
+.results-info {
+    margin-top: var(--spacing-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
 }
 
 .detail-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-    margin-top: 1rem;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
 }
 
-.detail-row {
+.detail-item {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: var(--spacing-xs);
 }
 
-.detail-row strong {
-    color: var(--text-secondary, #666);
-    font-size: 0.875rem;
+.detail-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-/* Dark mode support */
-body.dark-mode .modal-content {
-    background: var(--dark-bg-secondary, #2d2d2d);
+.detail-value {
+    font-weight: 500;
+    color: var(--text-primary);
 }
 
-body.dark-mode .detail-row strong {
-    color: var(--text-muted, #aaa);
+/* Mobile Responsive */
+@media (max-width: 767px) {
+    .search-input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input-group .btn {
+        width: 100%;
+    }
+
+    .search-icon {
+        display: none;
+    }
 }
 </style>
-{% endblock %}
 
-{% block extra_js %}
 <script>
-/**
- * Afficher les détails d'un ordinateur dans un modal
- */
 function showComputerDetails(dn, cn, os, dns, ou) {
     document.getElementById('computerDetailName').textContent = cn;
     document.getElementById('computerDetailOS').textContent = os;
@@ -265,12 +239,6 @@ function closeComputerModal() {
     document.getElementById('computerModal').style.display = 'none';
 }
 
-document.getElementById('computerModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeComputerModal();
-    }
-});
-
 function showMoveModal(dn, name) {
     document.getElementById('moveComputerName').textContent = 'Ordinateur: ' + name;
     document.getElementById('moveForm').action = '/computers/' + encodeURIComponent(dn) + '/move';
@@ -281,35 +249,19 @@ function closeMoveModal() {
     document.getElementById('moveModal').style.display = 'none';
 }
 
+document.getElementById('computerModal').addEventListener('click', function(e) {
+    if (e.target === this) closeComputerModal();
+});
+
 document.getElementById('moveModal').addEventListener('click', function(e) {
-    if (e.target === this) {
+    if (e.target === this) closeMoveModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeComputerModal();
         closeMoveModal();
     }
 });
-
-/**
- * Sélectionner/désélectionner tous les ordinateurs
- */
-function toggleAllComputers(checkbox) {
-    const checkboxes = document.querySelectorAll('.computer-checkbox');
-    checkboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-    });
-}
-
-// Ajouter les écouteurs pour les checkboxes
-document.addEventListener('DOMContentLoaded', function() {
-    const checkboxes = document.querySelectorAll('.computer-checkbox');
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', function() {
-            // Future: barre d'actions pour sélection multiple
-        });
-    });
-});
 </script>
 {% endblock %}
-{% endblock %}
-
-
-
-

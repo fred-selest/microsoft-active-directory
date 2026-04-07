@@ -1,0 +1,16 @@
+﻿
+
+   PSParentPath : Microsoft.PowerShell.Security\Certificate::LocalMachine\My
+
+Thumbprint                                Subject                                               
+----------                                -------                                               
+F8F13271E560EC27229BCD753710B196D77F746E  CN=SELEST.local                                       
+C5BC7C655DAF68C772ED4F8B11317A00BA42D45F  CN=srvdc2022.SELEST.local                             
+BF71161453632988CDB2AD4AA4C6BB4163FC7526  CN=SELEST.local                                       
+A6A79CBFAC017445BBD35A4460299C288F2CD2AE  CN=SELEST.local                                       
+8963C97D108445FAFFF44EFCE50C85CE6155C2B4  CN=rds.selest.info                                    
+7E45FF2DF6EF58D4E0E67AEE3F62ED00A2883E7E  CN=rds.selest.info                                    
+6084D43EFD4B9C27F23FA489FD7D3031786C9B18  CN=SELEST-SRVDC2022-CA, DC=SELEST, DC=local           
+3F9906EE628F09A20642169B400CC956E8E86B3F  CN=srvdc2022.SELEST.local                             
+
+

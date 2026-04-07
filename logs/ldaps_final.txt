@@ -1,0 +1,1 @@
+ERROR: Exception lors de l'appel de ®ÿAuthenticateAsClientÿ¯ avec ®ÿ4ÿ¯ argument(s)ÿ: ®ÿLe certificat distant n'est pas valide selon la proc‚dure de validation.ÿ¯

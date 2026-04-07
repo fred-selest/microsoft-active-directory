@@ -1,0 +1,40 @@
+﻿2026-04-07 14:16:41,029 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:19:47,385 INFO root: === DÃ©marrage serveur AD Web Interface ===
+2026-04-07 14:19:49,590 INFO waitress: Serving on http://0.0.0.0:5000
+2026-04-07 14:20:41,511 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:20:44,567 INFO routes.main: DEBUG LOGIN FORM: use_ssl=True, port=636, server=192.168.10.252
+2026-04-07 14:20:44,579 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 14:20:44,833 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:20:44,846 INFO ad_core: Groupes AD dÃ©tectÃ©s pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau Ã  distance', 'Administrateurs de lâ€™entreprise', 'Administrateurs du schÃ©ma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-07 14:20:44,847 INFO ad_core: Groupes admin configurÃ©s: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schÃƒÂ©ma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-07 14:20:44,847 INFO ad_core: Correspondance admin trouvÃ©e: Administrateurs
+2026-04-07 14:20:44,847 INFO ad_core: RÃ´le dÃ©terminÃ© pour selest\admin: admin
+2026-04-07 14:20:44,849 INFO audit: SUCCESS | login | selest\admin | 192.168.10.39 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-07 14:20:45,061 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 14:20:45,220 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:20:47,488 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:20:48,010 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:20:51,254 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:20:53,816 INFO ldap_certificate: LDAPS: Connexion LDAP SSL rÃ©ussie sur 192.168.10.252:636
+2026-04-07 14:20:53,840 INFO ldap_certificate: LDAPS: Connexion LDAP SSL rÃ©ussie sur 192.168.10.252:636
+2026-04-07 14:20:55,324 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:20:59,054 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:20:59,054 WARNING routes.users.create: Connexion non sÃ©curisÃ©e (pas de LDAPS) - password modification may fail
+2026-04-07 14:20:59,404 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:21:23,313 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:21:23,314 WARNING routes.users.create: Connexion non sÃ©curisÃ©e (pas de LDAPS) - password modification may fail
+2026-04-07 14:21:23,331 INFO routes.users.create: CrÃ©ation utilisateur Test: success=True, result={'result': 0, 'description': 'success', 'dn': '', 'message': '', 'referrals': None, 'type': 'addResponse'}
+2026-04-07 14:21:23,335 INFO routes.users.create: DÃ©finition mot de passe: success=False, result={'result': 53, 'description': 'unwillingToPerform', 'dn': '', 'message': '0000001F: SvcErr: DSID-031A126C, problem 5003 (WILL_NOT_PERFORM), data 0\n\x00', 'referrals': None, 'type': 'modifyResponse'}
+2026-04-07 14:21:23,348 WARNING routes.users.create: Utilisateur CN=test ttest,DC=SELEST,DC=local supprimÃ© suite Ã  Ã©chec password
+2026-04-07 14:21:23,743 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:23:32,122 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:23:35,371 INFO routes.main: DEBUG LOGIN FORM: use_ssl=True, port=636, server=192.168.10.252
+2026-04-07 14:23:35,384 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 14:23:35,555 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:23:35,557 INFO ad_core: Groupes AD dÃ©tectÃ©s pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau Ã  distance', 'Administrateurs de lâ€™entreprise', 'Administrateurs du schÃ©ma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-07 14:23:35,557 INFO ad_core: Groupes admin configurÃ©s: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schÃƒÂ©ma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-07 14:23:35,557 INFO ad_core: Correspondance admin trouvÃ©e: Administrateurs
+2026-04-07 14:23:35,559 INFO ad_core: RÃ´le dÃ©terminÃ© pour selest\admin: admin
+2026-04-07 14:23:35,561 INFO audit: SUCCESS | login | selest\admin | 192.168.10.39 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-07 14:23:35,734 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 14:23:35,890 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252

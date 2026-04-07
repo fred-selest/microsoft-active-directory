@@ -3,251 +3,377 @@
 {% block title %}Connexion - AD Web Interface{% endblock %}
 
 {% block content %}
-<div class="form-container">
-    <h2>Connexion à Active Directory</h2>
-    
-    {% if auto_detected %}
-    <div class="alert alert-info">
-        <strong>Domaine detecté :</strong> {{ auto_domain }}<br>
-        <strong>Serveur :</strong> {{ auto_server }}
-    </div>
-    {% endif %}
-    
-    <form method="POST" action="{{ url_for('main.connect') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
-        <div class="form-group">
-            <label for="domain">Domaine</label>
-            <input type="text" id="domain" name="domain"
-                   value="{{ auto_domain }}"
-                   placeholder="SELEST"
-                   autocomplete="off">
-            <small class="form-text">Domaine Windows (NetBIOS), ex : SELEST</small>
-        </div>
-
-        <div class="form-group">
-            <label for="username">Identifiant</label>
-            <input type="text" id="username" name="username" required
-                   placeholder="admin"
-                   autocomplete="username">
-            <small class="form-text">
-                {% if auto_domain %}
-                Saisissez uniquement votre nom d'utilisateur — <strong>{{ auto_domain }}\</strong> sera ajouté automatiquement.
-                {% else %}
-                Votre identifiant Windows (admin, DOMAINE\admin ou admin@domaine.local)
-                {% endif %}
-            </small>
-        </div>
-
-        <div class="form-group">
-            <label for="password">Mot de passe</label>
-            <input type="password" id="password" name="password" required
-                   autocomplete="current-password">
+<div class="login-container">
+    <div class="login-card fade-in">
+        <div class="login-header">
+            <div class="login-icon">🔐</div>
+            <h1>Connexion</h1>
+            <p>Active Directory Web Interface</p>
         </div>
 
         {% if auto_detected %}
-        {# Serveur détecté : champs cachés #}
-        <input type="hidden" name="server" value="{{ server }}">
-        <input type="hidden" name="port" value="{{ port }}">
-        <input type="hidden" name="base_dn" value="{{ base_dn }}">
-        <input type="hidden" name="use_ssl" value="{{ 'on' if use_ssl else '' }}">
-        {% else %}
-        {# Serveur non détecté : champ visible obligatoire #}
-        <div class="form-group">
-            <label for="server">Serveur Active Directory *</label>
-            <input type="text" id="server" name="server" required
-                   value="{{ server }}"
-                   placeholder="192.168.10.252 ou ad.exemple.com"
-                   autocomplete="off">
-            <small class="form-text">Adresse IP ou nom DNS du contrôleur de domaine</small>
-        </div>
-        <div class="advanced-row">
-            <div class="form-group">
-                <label for="port">Port</label>
-                <input type="number" id="port" name="port"
-                       value="{{ port or 389 }}" placeholder="389">
+        <div class="login-info">
+            <div class="info-item">
+                <span class="info-label">🌐 Domaine détecté</span>
+                <span class="info-value">{{ auto_domain }}</span>
             </div>
-            <div class="form-group">
-                <label for="base_dn">Base DN</label>
-                <input type="text" id="base_dn" name="base_dn"
-                       value="{{ base_dn }}"
-                       placeholder="DC=SELEST,DC=local">
-                <small class="form-text">Laisser vide pour auto-détection</small>
+            <div class="info-item">
+                <span class="info-label">🖥️ Serveur</span>
+                <span class="info-value">{{ auto_server }}</span>
             </div>
-        </div>
-        <div class="form-group checkbox">
-            <input type="checkbox" id="use_ssl" name="use_ssl" {% if use_ssl %}checked{% endif %}>
-            <label for="use_ssl">SSL/TLS (LDAPS — port 636)</label>
         </div>
         {% endif %}
 
-        <button type="submit" class="btn btn-primary btn-block">
-            Se connecter
-        </button>
-    </form>
-
-    {% if auto_detected %}
-    <div class="alert alert-info mt-3">
-        <small>
-            <strong>Configuration manuelle :</strong>
-            <a href="#" onclick="document.getElementById('manual-config').style.display='block'; this.parentElement.style.display='none'; return false;">
-                Afficher les options avancées
-            </a>
-        </small>
-    </div>
-    <div id="manual-config" style="display:none;" class="mt-3">
-        <hr>
-        <h4>Remplacer la configuration détectée</h4>
-        <form method="POST" action="{{ url_for('main.connect') }}">
+        <form method="POST" action="{{ url_for('main.connect') }}" class="login-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <div class="form-group">
-                <label>Serveur AD</label>
-                <input type="text" name="server" value="{{ server }}"
-                       placeholder="192.168.10.252 ou ad.exemple.com">
+                <label for="domain">🌐 Domaine</label>
+                <input type="text" id="domain" name="domain"
+                       value="{{ auto_domain }}"
+                       placeholder="SELEST"
+                       autocomplete="off"
+                       class="form-control">
+                <small class="form-help">Nom NetBIOS du domaine (ex: SELEST)</small>
             </div>
+
             <div class="form-group">
-                <label>Port</label>
-                <input type="number" name="port" value="{{ port or 389 }}">
+                <label for="username">👤 Identifiant</label>
+                <input type="text" id="username" name="username" required
+                       placeholder="admin"
+                       autocomplete="username"
+                       class="form-control">
+                <small class="form-help">
+                    {% if auto_domain %}
+                    Saisissez uniquement votre nom d'utilisateur
+                    {% else %}
+                    Votre identifiant Windows
+                    {% endif %}
+                </small>
             </div>
-            <div class="form-group checkbox">
-                <input type="checkbox" name="use_ssl" {% if use_ssl %}checked{% endif %}>
-                <label>SSL/TLS (LDAPS)</label>
-            </div>
+
             <div class="form-group">
-                <label>Base DN</label>
-                <input type="text" name="base_dn" value="{{ base_dn }}"
-                       placeholder="DC=SELEST,DC=local">
+                <label for="password">🔑 Mot de passe</label>
+                <input type="password" id="password" name="password" required
+                       autocomplete="current-password"
+                       class="form-control">
             </div>
+
+            {% if auto_detected %}
+            <input type="hidden" name="server" value="{{ server }}">
+            <input type="hidden" name="port" id="port" value="{{ port }}">
+            <input type="hidden" name="base_dn" value="{{ base_dn }}">
+            
+            <!-- SSL option always visible for password operations -->
+            <div class="form-group form-checkbox ssl-checkbox">
+                <input type="checkbox" id="use_ssl" name="use_ssl" {% if use_ssl %}checked{% endif %}>
+                <label for="use_ssl">🔒 SSL/TLS (LDAPS — port 636) <strong class="ssl-required">Requis pour créer des utilisateurs avec mot de passe</strong></label>
+            </div>
+            {% else %}
             <div class="form-group">
-                <label>Domaine</label>
-                <input type="text" name="domain" value="{{ auto_domain }}">
+                <label for="server">🖥️ Serveur AD *</label>
+                <input type="text" id="server" name="server" required
+                       value="{{ server }}"
+                       placeholder="192.168.10.252 ou ad.exemple.com"
+                       autocomplete="off"
+                       class="form-control">
+                <small class="form-help">Adresse IP ou nom DNS du contrôleur</small>
             </div>
-            <div class="form-group">
-                <label>Identifiant</label>
-                <input type="text" name="username" required placeholder="admin">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="port">Port</label>
+                    <input type="number" id="port" name="port"
+                           value="{{ port or 389 }}" placeholder="389"
+                           class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="base_dn">Base DN</label>
+                    <input type="text" id="base_dn" name="base_dn"
+                           value="{{ base_dn }}"
+                           placeholder="DC=SELEST,DC=local"
+                           class="form-control">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Mot de passe</label>
-                <input type="password" name="password" required>
+            <div class="form-group form-checkbox">
+                <input type="checkbox" id="use_ssl" name="use_ssl" {% if use_ssl %}checked{% endif %}>
+                <label for="use_ssl">🔒 SSL/TLS (LDAPS — port 636)</label>
             </div>
-            <button type="submit" class="btn btn-primary">Se connecter</button>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary btn-lg btn-block">
+                🔐 Se connecter
+            </button>
         </form>
+
+        {% if auto_detected %}
+        <div class="login-advanced">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAdvanced()">
+                ⚙️ Configuration manuelle
+            </button>
+            <div id="advanced-config" class="advanced-form" style="display:none;">
+                <hr>
+                <h4>Remplacer la configuration détectée</h4>
+                <form method="POST" action="{{ url_for('main.connect') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Serveur AD</label>
+                            <input type="text" name="server" value="{{ server }}" class="form-control" placeholder="192.168.10.252">
+                        </div>
+                        <div class="form-group">
+                            <label>Port</label>
+                            <input type="number" name="port" value="{{ port or 389 }}" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Base DN</label>
+                        <input type="text" name="base_dn" value="{{ base_dn }}" class="form-control" placeholder="DC=SELEST,DC=local">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Domaine</label>
+                            <input type="text" name="domain" value="{{ auto_domain }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Identifiant</label>
+                            <input type="text" name="username" required placeholder="admin" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Mot de passe</label>
+                        <input type="password" name="password" required class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Se connecter</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 
-{% block extra_css %}
 <style>
-.form-container {
-    max-width: 500px;
-    margin: 3rem auto;
-    padding: 2rem;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-.form-container h2 {
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    color: #333;
-    text-align: center;
-}
-.form-group {
-    margin-bottom: 1.5rem;
-}
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #333;
-}
-.form-group input[type="text"],
-.form-group input[type="password"],
-.form-group input[type="number"],
-.form-group input[type="email"] {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 1rem;
-    box-sizing: border-box;
-}
-.form-group input:focus {
-    outline: none;
-    border-color: var(--primary-color, #0078d4);
-    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
-}
-.form-text {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: 0.875rem;
-    color: #666;
-}
-.checkbox {
+.login-container {
+    min-height: calc(100vh - var(--topbar-height) - 80px);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    padding: var(--spacing-lg);
 }
-.checkbox input[type="checkbox"] {
-    width: auto;
+
+.login-card {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-xl);
+    width: 100%;
+    max-width: 480px;
+    padding: var(--spacing-xl);
+    animation: fadeInUp 0.4s ease;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.login-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.login-header h1 {
     margin: 0;
+    color: var(--text-primary);
+    font-size: var(--font-size-xl);
+    font-weight: 700;
 }
-.checkbox label {
-    margin: 0;
-    font-weight: normal;
+
+.login-header p {
+    margin: var(--spacing-xs) 0 0 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
 }
-.advanced-row {
+
+.login-info {
+    background: linear-gradient(135deg, rgba(0,120,212,0.05) 0%, rgba(0,120,212,0.1) 100%);
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    border-left: 4px solid var(--primary);
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs) 0;
+}
+
+.info-item:first-child {
+    padding-top: 0;
+}
+
+.info-item:last-child {
+    padding-bottom: 0;
+}
+
+.info-label {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.info-value {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.form-row {
     display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
 }
-.alert {
-    padding: 1rem;
-    border-radius: 6px;
-    margin-bottom: 1.5rem;
+
+.form-help {
+    display: block;
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
 }
-.alert-info {
-    background: #e7f3ff;
-    border-left: 4px solid #0078d4;
-    color: #0078d4;
+
+.form-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
 }
-.mt-3 { margin-top: 1.5rem; }
-@media (max-width: 600px) {
-    .form-container {
-        margin: 1rem;
-        padding: 1.5rem;
+
+.form-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.form-checkbox label {
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ssl-checkbox {
+    background: linear-gradient(135deg, rgba(255,193,7,0.1) 0%, rgba(255,193,7,0.15) 100%);
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-md);
+    border: 1px solid rgba(255,193,7,0.3);
+}
+
+.ssl-required {
+    color: var(--warning);
+    font-size: var(--font-size-xs);
+    display: block;
+    margin-top: var(--spacing-xs);
+}
+
+.btn-block {
+    width: 100%;
+    margin-top: var(--spacing-md);
+}
+
+.login-advanced {
+    margin-top: var(--spacing-lg);
+    text-align: center;
+}
+
+.advanced-form {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    animation: fadeIn 0.3s ease;
+}
+
+.advanced-form h4 {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .login-container {
+        padding: var(--spacing-md);
+        align-items: flex-start;
+        padding-top: var(--spacing-xl);
     }
-    .advanced-row { grid-template-columns: 1fr; }
+
+    .login-card {
+        padding: var(--spacing-lg);
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .login-icon {
+        font-size: 2.5rem;
+    }
+
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
 }
+
 /* Dark mode */
-body.dark-mode .form-container {
-    background: var(--dark-bg-secondary, #1e1e1e);
+body.dark-mode .login-card {
+    background: var(--bg-secondary);
 }
-body.dark-mode .form-container h2 {
-    color: #fff;
+
+body.dark-mode .login-header h1 {
+    color: var(--text-primary);
 }
-body.dark-mode .form-group label {
-    color: #ccc;
+
+body.dark-mode .login-info {
+    background: linear-gradient(135deg, rgba(76,159,245,0.1) 0%, rgba(76,159,245,0.15) 100%);
+    border-left-color: var(--primary);
 }
-body.dark-mode .form-group input[type="text"],
-body.dark-mode .form-group input[type="password"],
-body.dark-mode .form-group input[type="number"] {
-    background: var(--dark-bg-primary, #2d2d2d);
-    border-color: #444;
-    color: #fff;
-}
-body.dark-mode .form-text {
-    color: #999;
-}
-body.dark-mode .alert-info {
-    background: rgba(0, 120, 212, 0.2);
-    border-left-color: #4da3ff;
-    color: #4da3ff;
+
+body.dark-mode .info-value {
+    color: var(--primary-light);
 }
 </style>
+
+<script>
+function toggleAdvanced() {
+    const config = document.getElementById('advanced-config');
+    if (config.style.display === 'none') {
+        config.style.display = 'block';
+    } else {
+        config.style.display = 'none';
+    }
+}
+
+// Auto-update port when SSL checkbox changes
+document.addEventListener('DOMContentLoaded', function() {
+    const sslCheckbox = document.getElementById('use_ssl');
+    const portInput = document.getElementById('port');
+    
+    if (sslCheckbox) {
+        sslCheckbox.addEventListener('change', function() {
+            if (portInput) {
+                portInput.value = this.checked ? '636' : '389';
+            }
+            // Visual feedback
+            if (this.checked) {
+                this.parentElement.style.background = 'linear-gradient(135deg, rgba(0,120,212,0.1) 0%, rgba(0,120,212,0.15) 100%)';
+                this.parentElement.style.borderColor = 'rgba(0,120,212,0.3)';
+            } else {
+                this.parentElement.style.background = 'linear-gradient(135deg, rgba(255,193,7,0.1) 0%, rgba(255,193,7,0.15) 100%)';
+                this.parentElement.style.borderColor = 'rgba(255,193,7,0.3)';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
-{% endblock %}
-
-
-
-

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Blueprint pour les routes d'administration et outils.
-Contient: update, diagnostic, alerts, errors, security-audit, permissions
+Contient: update, diagnostic, alerts, errors, security-audit, permissions, ldaps-setup
 """
-from flask import Blueprint, render_template, session, flash
+from flask import Blueprint, render_template, session, flash, request, jsonify, send_file
 from .core import require_connection, require_permission, get_ad_connection
 
 admin_tools_bp = Blueprint('admin_tools', __name__, url_prefix='/')
@@ -38,7 +38,6 @@ def alerts_page():
     """Page des alertes enrichie."""
     from ldap3 import SUBTREE
     from datetime import datetime, timedelta
-    from .core import decode_ldap_value
 
     conn, error = get_ad_connection()
     if not conn:
@@ -47,211 +46,179 @@ def alerts_page():
 
     base_dn = session.get('ad_base_dn', '')
 
-    # Statistiques d'alertes enrichies
+    # Statistiques d'alertes
     alert_data = {
-        'expiring_accounts': 0,
-        'password_expiring': 0,
-        'inactive_accounts': 0,
         'locked_accounts': 0,
-        'empty_groups': 0,
         'disabled_accounts': 0,
+        'inactive_accounts': 0,
         'inactive_computers': 0,
+        'password_expiring': 0,
         'admin_accounts': 0,
-        'service_accounts': 0,
+        'empty_groups': 0,
     }
 
     alerts = []
     now = datetime.now()
 
-    try:
-        # === COMPTES VERROUILLES ===
-        conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'lockoutTime'])
-        alert_data['locked_accounts'] = len(conn.entries)
+    # Groupes système à exclure (primaryGroupToken)
+    SYSTEM_GROUP_TOKENS = [
+        513, 514, 515, 516, 498, 521, 522, 525, 526, 527,
+        548, 549, 550, 551, 552, 553, 556, 557, 558, 559, 560, 562, 568, 569, 571, 573, 579, 580, 582,
+        1102, 1103, 1104, 1114, 1118, 1121, 1124, 1125, 1126, 1129, 1153, 1154,
+    ]
 
+    try:
+        # === 1. COMPTES VERROUILLES ===
+        conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName'])
+        alert_data['locked_accounts'] = len(conn.entries)
         if alert_data['locked_accounts'] > 0:
             alerts.append({
                 'title': f'{alert_data["locked_accounts"]} compte(s) verrouillé(s)',
-                'message': 'Des comptes sont actuellement verrouillés suite à tentatives de connexion échouées.',
+                'message': 'Des comptes sont verrouillés suite à tentatives échouées.',
                 'severity': 'warning',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'tools.locked_accounts'
+                'date': now.strftime('%d/%m/%Y %H:%M')
             })
 
-        # === COMPTES DESACTIVES ===
+        # === 2. COMPTES DESACTIVES ===
         conn.search(base_dn, '(&(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=2))', SUBTREE,
                    attributes=['cn', 'sAMAccountName'])
         alert_data['disabled_accounts'] = len(conn.entries)
-
         if alert_data['disabled_accounts'] > 5:
             alerts.append({
                 'title': f'{alert_data["disabled_accounts"]} compte(s) désactivé(s)',
-                'message': 'Des comptes utilisateurs sont désactivés. Vérifiez s\'ils doivent être supprimés.',
+                'message': 'Des comptes sont désactivés. Vérifiez s\'ils doivent être supprimés.',
                 'severity': 'info',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'users.list_users'
+                'date': now.strftime('%d/%m/%Y %H:%M')
             })
 
-        # === COMPTES INACTIFS (lastLogon > 90 jours) ===
-        inactive_users_list = []
+        # === 3. COMPTES INACTIFS (> 90 jours) ===
         conn.search(base_dn, '(objectClass=user)', SUBTREE,
                    attributes=['cn', 'sAMAccountName', 'lastLogon'])
         for entry in conn.entries:
             last_logon_attr = getattr(entry, 'lastLogon', None)
             if last_logon_attr and last_logon_attr.value:
                 try:
-                    last_logon_val = int(str(last_logon_attr.value))
-                    if last_logon_val == 0:
+                    val = int(str(last_logon_attr.value))
+                    if val == 0:
                         alert_data['inactive_accounts'] += 1
                     else:
-                        last_logon_date = datetime.fromtimestamp(last_logon_val / 10000000 - 11644473600)
-                        days_since_logon = (now - last_logon_date).days
-                        if days_since_logon > 90:
+                        logon_date = datetime.fromtimestamp(val / 10000000 - 11644473600)
+                        if (now - logon_date).days > 90:
                             alert_data['inactive_accounts'] += 1
-                            inactive_users_list.append(str(entry.cn))
-                except (ValueError, TypeError):
+                except:
                     pass
             else:
                 alert_data['inactive_accounts'] += 1
-
         if alert_data['inactive_accounts'] > 10:
             alerts.append({
                 'title': f'{alert_data["inactive_accounts"]} compte(s) inactif(s)',
-                'message': f'Ces comptes n\'ont pas été utilisés depuis plus de 90 jours.',
+                'message': 'Comptes non utilisés depuis plus de 90 jours.',
                 'severity': 'info',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'tools.inactive_accounts'
+                'date': now.strftime('%d/%m/%Y %H:%M')
             })
 
-        # === MOTS DE PASSE EXPIRANT (dans 14 jours) ===
-        conn.search(base_dn, '(objectClass=user)', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'pwdLastSet', 'userAccountControl'])
+        # === 4. ORDINATEURS INACTIFS (> 30 jours) ===
+        conn.search(base_dn, '(objectClass=computer)', SUBTREE,
+                   attributes=['cn', 'lastLogonTimestamp'])
         for entry in conn.entries:
-            pwd_last_set_attr = getattr(entry, 'pwdLastSet', None)
+            last_logon_attr = getattr(entry, 'lastLogonTimestamp', None)
+            if last_logon_attr and last_logon_attr.value:
+                try:
+                    val = int(str(last_logon_attr.value))
+                    if val > 0:
+                        logon_date = datetime.fromtimestamp(val / 10000000 - 11644473600)
+                        if (now - logon_date).days > 30:
+                            alert_data['inactive_computers'] += 1
+                except:
+                    pass
+        if alert_data['inactive_computers'] > 5:
+            alerts.append({
+                'title': f'{alert_data["inactive_computers"]} ordinateur(s) inactif(s)',
+                'message': 'Ordinateurs n\'ayant pas contacté le domaine depuis 30+ jours.',
+                'severity': 'info',
+                'date': now.strftime('%d/%m/%Y %H:%M')
+            })
+
+        # === 5. MOTS DE PASSE EXPIRANT (< 14 jours) ===
+        conn.search(base_dn, '(objectClass=user)', SUBTREE,
+                   attributes=['pwdLastSet', 'userAccountControl'])
+        for entry in conn.entries:
             uac_attr = getattr(entry, 'userAccountControl', None)
-            
-            # Skip if password doesn't expire (DONT_EXPIRE_PASSWORD flag = 65536)
             if uac_attr and uac_attr.value:
                 try:
                     uac = int(str(uac_attr.value))
-                    if uac & 65536:  # DONT_EXPIRE_PASSWORD
+                    if uac & 65536:  # Password never expires
                         continue
                 except:
                     pass
-            
-            if pwd_last_set_attr and pwd_last_set_attr.value:
+            pwd_attr = getattr(entry, 'pwdLastSet', None)
+            if pwd_attr and pwd_attr.value:
                 try:
-                    pwd_val = int(str(pwd_last_set_attr.value))
-                    if pwd_val > 0:
-                        pwd_date = datetime.fromtimestamp(pwd_val / 10000000 - 11644473600)
-                        # Default AD password age is 42 days
-                        days_since_change = (now - pwd_date).days
-                        if days_since_change > 28 and days_since_change < 42:  # Expires in 14 days
+                    val = int(str(pwd_attr.value))
+                    if val > 0:
+                        pwd_date = datetime.fromtimestamp(val / 10000000 - 11644473600)
+                        days = (now - pwd_date).days
+                        if 28 < days < 42:  # Expires in ~14 days
                             alert_data['password_expiring'] += 1
                 except:
                     pass
-
         if alert_data['password_expiring'] > 0:
             alerts.append({
-                'title': f'{alert_data["password_expiring"]} mot(s) de passe expirant',
-                'message': 'Des mots de passe expirent dans moins de 14 jours. Notifiez les utilisateurs.',
+                'title': f'{alert_data["password_expiring"]} mot de passe expirant',
+                'message': 'Mots de passe expirent dans moins de 14 jours.',
                 'severity': 'warning',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'tools.password_policy'
+                'date': now.strftime('%d/%m/%Y %H:%M')
             })
 
-        # === COMPTES ADMIN (memberof Domain Admins) ===
+        # === 6. COMPTES ADMIN ===
         conn.search(base_dn, '(&(objectClass=user)(memberof=CN=Domain Admins,CN=Users,' + base_dn + '))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'lastLogon'])
+                   attributes=['cn'])
         alert_data['admin_accounts'] = len(conn.entries)
-
         if alert_data['admin_accounts'] > 3:
             alerts.append({
-                'title': f'{alert_data["admin_accounts"]} compte(s) admin',
-                'message': f'Multiple comptes Domain Admins détectés. Limitez les accès administrateurs.',
+                'title': f'{alert_data["admin_accounts"]} compte(s) Domain Admins',
+                'message': 'Attention: plusieurs comptes avec droits admin.',
                 'severity': 'critical',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'groups.view_group'
+                'date': now.strftime('%d/%m/%Y %H:%M')
             })
 
-        # Vérifier les comptes inactifs (pas de connexion depuis 90 jours)
-        for entry in conn.entries:
-            last_logon = getattr(entry, 'lastLogon', None)
-            if last_logon and last_logon.value:
-                try:
-                    last_val = int(str(last_logon.value))
-                    if last_val > 0:
-                        last_date = datetime.fromtimestamp(last_val / 10000000 - 11644473600)
-                        if (now - last_date).days > 90:
-                            alert_data['inactive_accounts'] += 1
-                except:
-                    # Si impossible à parser, considérer comme inactif
-                    alert_data['inactive_accounts'] += 1
-            else:
-                # Pas de lastLogon = jamais connecté
-                alert_data['inactive_accounts'] += 1
-        
-        if alert_data['inactive_accounts'] > 10:
-            alerts.append({
-                'title': f'{alert_data["inactive_accounts"]} compte(s) inactif(s)',
-                'message': 'Des comptes n\'ont pas été utilisés récemment. Considérez une revue.',
-                'severity': 'info',
-                'date': now.strftime('%d/%m/%Y %H:%M')
-            })
-        
-        # Groupes vides (exclure les groupes système Windows)
-        # Ces groupes ont member.Count=0 mais sont des groupes "primaires" 
-        # ou groupes BUILTIN qui ont des membres via primaryGroupID
-        SYSTEM_GROUP_TOKENS = [
-            513, 514, 515, 516, 498, 521, 522, 525, 526, 527,  # Domain groups
-            548, 549, 550, 551, 552, 553, 556, 557, 558, 559,  # BUILTIN groups
-            560, 562, 569, 571, 573, 579, 580, 582, 568,  # More BUILTIN + RODC
-            1102, 1103, 1104, 1114, 1118, 1121, 1124, 1125, 1126, 1129,  # App groups + VPN
-            1153, 1154,  # DHCP groups
-        ]
-        
+        # === 7. GROUPES VIDES (hors système) ===
         conn.search(base_dn, '(objectClass=group)', SUBTREE,
-                   attributes=['cn', 'member', 'primaryGroupToken', 'groupType'])
+                   attributes=['cn', 'member', 'primaryGroupToken'])
         for entry in conn.entries:
-            # Vérifier si c'est un groupe système
-            is_system_group = False
-            if hasattr(entry, 'primaryGroupToken') and entry.primaryGroupToken.value:
+            # Exclure groupes système
+            is_system = False
+            token_attr = getattr(entry, 'primaryGroupToken', None)
+            if token_attr and token_attr.value:
                 try:
-                    token = int(str(entry.primaryGroupToken.value))
-                    if token in SYSTEM_GROUP_TOKENS:
-                        is_system_group = True
-                except (ValueError, TypeError):
+                    if int(str(token_attr.value)) in SYSTEM_GROUP_TOKENS:
+                        is_system = True
+                except:
                     pass
-            
-            # Vérifier si le groupe a des membres (attribut member)
+            # Vérifier membres
             has_members = False
-            if hasattr(entry, 'member'):
-                member_attr = entry.member
-                if member_attr and member_attr.value:
-                    if isinstance(member_attr.value, list):
-                        has_members = len(member_attr.value) > 0
-                    elif isinstance(member_attr.value, str):
-                        has_members = len(member_attr.value) > 0
-                    else:
-                        has_members = bool(member_attr.value)
-            
-            # Compter seulement les groupes non-système sans membres
-            if not is_system_group and not has_members:
+            member_attr = getattr(entry, 'member', None)
+            if member_attr and member_attr.value:
+                if isinstance(member_attr.value, list):
+                    has_members = len(member_attr.value) > 0
+                elif isinstance(member_attr.value, str):
+                    has_members = len(member_attr.value.strip()) > 0
+            if not is_system and not has_members:
                 alert_data['empty_groups'] += 1
-        
-        if alert_data['empty_groups'] > 5:
+        if alert_data['empty_groups'] > 0:
             alerts.append({
                 'title': f'{alert_data["empty_groups"]} groupe(s) vide(s)',
-                'message': 'Certains groupes n\'ont aucun membre. Vérifiez leur pertinence.',
+                'message': 'Groupes personnalisés sans membres.',
                 'severity': 'info',
                 'date': now.strftime('%d/%m/%Y %H:%M')
             })
-        
+
         conn.unbind()
-        
+
     except Exception as e:
         flash(f'Erreur lors de la récupération des alertes: {str(e)}', 'error')
-    
+
     return render_template('alerts.html', alert_data=alert_data, alerts=alerts, connected=True)
 
 
@@ -286,7 +253,6 @@ def security_audit():
 
     conn, error = get_ad_connection()
     if not conn:
-        from flask import flash
         flash(f'Erreur: {error}', 'error')
         return render_template('security_audit.html', issues=[], stats={'critical': 0, 'high': 0, 'warning': 0, 'fixable': 0}, connected=True)
 
@@ -304,7 +270,6 @@ def security_audit():
 
         return render_template('security_audit.html', issues=issues, stats=stats, connected=True)
     except Exception as e:
-        from flask import flash
         flash(f'Erreur: {str(e)}', 'error')
         return render_template('security_audit.html', issues=[], stats={'critical': 0, 'high': 0, 'warning': 0, 'fixable': 0}, connected=True)
 
@@ -320,8 +285,137 @@ def permissions_page():
     all_permissions = get_available_permissions()
     categories = get_permission_categories()
 
-    return render_template('admin.html',
+    return render_template('permissions.html',
                          groups=groups,
                          permissions=all_permissions,
                          categories=categories,
                          connected=True)
+
+
+@admin_tools_bp.route('/ldaps-setup')
+@require_connection
+@require_permission('admin')
+def ldaps_setup_page():
+    """Page de configuration LDAPS et certificat SSL."""
+    from ldap_certificate import get_certificate_status
+
+    cert_status = get_certificate_status()
+    
+    # Récupérer le domaine depuis la session
+    base_dn = session.get('ad_base_dn', '')
+    domain = base_dn.replace('DC=', '').replace(',', '.') if base_dn else 'local.domain'
+    server = session.get('ad_server', '')
+
+    return render_template('ldaps_setup.html',
+                         cert_status=cert_status,
+                         domain=domain,
+                         server=server,
+                         connected=True)
+
+
+@admin_tools_bp.route('/api/ldaps-status')
+@require_connection
+@require_permission('admin')
+def api_ldaps_status():
+    """API: Statut du certificat LDAPS."""
+    from ldap_certificate import get_certificate_status
+    
+    cert_status = get_certificate_status()
+    return jsonify(cert_status)
+
+
+@admin_tools_bp.route('/api/ldaps-create-certificate', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def api_ldaps_create_certificate():
+    """API: Créer un certificat LDAPS auto-signé."""
+    from ldap_certificate import create_ldaps_certificate
+    
+    years = request.form.get('years', 5, type=int)
+    
+    result = create_ldaps_certificate(years=years)
+    
+    return jsonify(result)
+
+
+@admin_tools_bp.route('/api/ldaps-download-script')
+@require_connection
+@require_permission('admin')
+def api_ldaps_download_script():
+    """API: Télécharger le script PowerShell d'installation."""
+    import os
+    import tempfile
+    
+    # Récupérer le domaine depuis la session
+    base_dn = session.get('ad_base_dn', '')
+    domain = base_dn.replace('DC=', '').replace(',', '.') if base_dn else 'local.domain'
+    server = session.get('ad_server', '')
+    
+    # Créer le script avec le domaine correct
+    script_content = f'''# ==============================================================================
+# Installation certificat LDAPS - AD Web Interface
+# Executez ce script en PowerShell ADMINISTRATEUR sur le serveur AD ({server})
+# ==============================================================================
+
+# Verification des droits admin
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {{
+    Write-Host "ERREUR: Executez ce script en tant qu'Administrateur!" -ForegroundColor Red
+    pause
+    exit 1
+}}
+
+# Domaine: {domain}
+$Domain = "{domain}"
+$DCName = "$env:COMPUTERNAME.$Domain"
+$IP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {{ $_.InterfaceAlias -notlike '*Loopback*' }} | Select-Object -First 1).IPAddress
+
+Write-Host "=== Installation Certificat LDAPS ===" -ForegroundColor Cyan
+Write-Host "Domaine: $Domain"
+Write-Host "Serveur: $DCName"
+Write-Host "IP: $IP"
+Write-Host ""
+
+$DnsNames = @($Domain, $DCName, $IP, $env:COMPUTERNAME, "localhost")
+
+Write-Host "Creation du certificat..." -ForegroundColor Yellow
+
+try {{
+    $cert = New-SelfSignedCertificate `
+        -DnsName $DnsNames `
+        -CertStoreLocation "Cert:\\LocalMachine\\My" `
+        -KeyExportPolicy Exportable `
+        -Provider "Microsoft RSA SChannel Cryptographic Provider" `
+        -NotAfter (Get-Date).AddYears(5) `
+        -KeyLength 2048 `
+        -HashAlgorithm SHA256
+    
+    Write-Host "SUCCESS: Certificat cree!" -ForegroundColor Green
+    Write-Host "Thumbprint: $($cert.Thumbprint)"
+    Write-Host "Expiration: $($cert.NotAfter)"
+    
+    Write-Host ""
+    Write-Host "Redemarrage du service AD..." -ForegroundColor Yellow
+    Restart-Service NTDS -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 5
+    
+    Write-Host ""
+    Write-Host "=== Installation terminee ===" -ForegroundColor Green
+    Write-Host "Reconnectez-vous a l'interface web avec SSL active."
+    
+}} catch {{
+    Write-Host "ERROR: $_" -ForegroundColor Red
+}}
+
+Read-Host "Appuyez sur Entree pour fermer"
+'''
+    
+    # Créer un fichier temporaire
+    script_path = os.path.join(tempfile.gettempdir(), 'install_ldaps_certificate.ps1')
+    with open(script_path, 'w', encoding='utf-8') as f:
+        f.write(script_content)
+    
+    return send_file(script_path,
+                    as_attachment=True,
+                    download_name='install_ldaps_certificate.ps1',
+                    mimetype='application/octet-stream')

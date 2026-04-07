@@ -3,38 +3,36 @@
 {% block title %}Groupes - AD Web Interface{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h2>Groupes Active Directory</h2>
-    <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">Nouveau groupe</a>
+<div class="page-header fade-in">
+    <h2>👥 Groupes Active Directory</h2>
+    <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">➕ Nouveau groupe</a>
 </div>
 
-<div class="search-box">
-    <form method="get" action="{{ url_for('groups.list_groups') }}">
-        <div class="form-group">
+<!-- Search & Filters -->
+<div class="card fade-in" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" action="{{ url_for('groups.list_groups') }}" class="search-form">
+        <div class="search-input-group">
+            <span class="search-icon">🔍</span>
             <input type="text" name="search" placeholder="Rechercher un groupe..."
-                   value="{{ search }}" class="form-control">
-        </div>
-        <div class="form-group">
-            <select name="filter" class="form-control" onchange="this.form.submit()">
+                   value="{{ search }}" class="form-control search-input">
+            <select name="filter" class="form-control" onchange="this.form.submit()" style="min-width: 180px;">
                 <option value="">Tous les groupes</option>
-                <option value="security" {% if filter == 'security' %}selected{% endif %}>Groupes de securite</option>
-                <option value="distribution" {% if filter == 'distribution' %}selected{% endif %}>Groupes de distribution</option>
-                <option value="empty" {% if filter == 'empty' %}selected{% endif %}>Groupes vides</option>
-                <option value="with_members" {% if filter == 'with_members' %}selected{% endif %}>Groupes avec membres</option>
-                <option value="global" {% if filter == 'global' %}selected{% endif %}>Etendue globale</option>
-                <option value="domain_local" {% if filter == 'domain_local' %}selected{% endif %}>Etendue domaine local</option>
-                <option value="universal" {% if filter == 'universal' %}selected{% endif %}>Etendue universelle</option>
+                <option value="security" {% if filter == 'security' %}selected{% endif %}>🔒 Sécurité</option>
+                <option value="distribution" {% if filter == 'distribution' %}selected{% endif %}>📧 Distribution</option>
+                <option value="empty" {% if filter == 'empty' %}selected{% endif %}>📭 Groupes vides</option>
+                <option value="with_members" {% if filter == 'with_members' %}selected{% endif %}>✓ Avec membres</option>
             </select>
+            <button type="submit" class="btn btn-primary">Rechercher</button>
+            {% if search or filter %}
+            <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">✖ Effacer</a>
+            {% endif %}
         </div>
-        <button type="submit" class="btn btn-secondary">Rechercher</button>
-        {% if search or filter %}
-        <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Effacer</a>
-        {% endif %}
     </form>
 </div>
 
-<div class="table-container">
-    <table class="data-table sortable">
+<!-- Groups Table -->
+<div class="table-container fade-in">
+    <table class="data-table">
         <thead>
             <tr>
                 <th>Nom du groupe</th>
@@ -46,54 +44,99 @@
         </thead>
         <tbody>
             {% for group in groups %}
-            <tr>
-                <td>{{ group.cn }}</td>
-                <td>
+            <tr onclick="window.location='{{ url_for('groups.view_group', dn=group.dn) }}'" style="cursor: pointer;">
+                <td data-label="Nom">
+                    <strong>{{ group.cn }}</strong>
+                </td>
+                <td data-label="Type">
                     {% if group.is_security %}
-                    <span class="badge badge-info">Securite</span>
+                    <span class="badge badge-primary">🔒 Sécurité</span>
                     {% else %}
-                    <span class="badge badge-secondary">Distribution</span>
+                    <span class="badge badge-secondary">📧 Distribution</span>
                     {% endif %}
-                    <br>
-                    <small>
+                    <small style="display: block; margin-top: 4px; color: var(--text-secondary);">
                     {% if group.scope == 'global' %}Global{% endif %}
                     {% if group.scope == 'domain_local' %}Domaine local{% endif %}
                     {% if group.scope == 'universal' %}Universel{% endif %}
                     </small>
                 </td>
-                <td>{{ group.description }}</td>
-                <td>
+                <td data-label="Description">{{ group.description or '-' }}</td>
+                <td data-label="Membres">
                     {% if group.is_special_group %}
-                    <span title="Groupe spécial AD - Membres via primaryGroupID">
+                    <span class="badge badge-info" title="Groupe spécial AD - Membres via primaryGroupID">
                         🏛️ {{ group.member_count }}
                     </span>
-                    <br><small class="text-muted">(Groupe spécial)</small>
+                    {% elif group.member_count > 0 %}
+                    <span class="badge badge-success">{{ group.member_count }}</span>
                     {% else %}
-                    {{ group.member_count }}
+                    <span class="badge badge-warning">0</span>
                     {% endif %}
                 </td>
-                <td class="actions">
-                    <a href="{{ url_for('groups.view_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Membres</a>
-                    <a href="{{ url_for('groups.edit_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                <td data-label="Actions" class="actions" onclick="event.stopPropagation();">
+                    <a href="{{ url_for('groups.view_group', dn=group.dn) }}" class="btn btn-sm btn-primary" title="Membres">👥</a>
+                    <a href="{{ url_for('groups.edit_group', dn=group.dn) }}" class="btn btn-sm btn-secondary" title="Modifier">✏️</a>
                     <form method="post" action="{{ url_for('groups.delete_group', dn=group.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Supprimer ce groupe ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                        <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">🗑️</button>
                     </form>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" class="text-center">Aucun groupe trouve.</td>
+                <td colspan="5" class="text-center" style="padding: 3rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                    <p style="color: var(--text-secondary);">Aucun groupe trouvé.</p>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="results-count">{{ groups|length }} groupe(s) trouve(s)</p>
+<div class="results-info fade-in">
+    <span>{{ groups|length }} groupe(s) trouvé(s)</span>
+</div>
+
+<style>
+.search-input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.search-icon {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+}
+
+.search-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.results-info {
+    margin-top: var(--spacing-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* Mobile Responsive */
+@media (max-width: 767px) {
+    .search-input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input-group .btn,
+    .search-input-group select {
+        width: 100%;
+    }
+
+    .search-icon {
+        display: none;
+    }
+}
+</style>
 {% endblock %}
-
-
-
-

@@ -1,0 +1,30 @@
+﻿  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 55, in connect
+    logger.info(f"DEBUG LOGIN FORM: use_ssl={use_ssl}, port={port}, server={server}")
+    ^^^^^^
+NameError: name 'logger' is not defined
+2026-04-07 14:16:31,560 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:16:33,328 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:16:35,580 ERROR ad_debug: Unhandled Exception: NameError: name 'logger' is not defined
+Traceback (most recent call last):
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 867, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\venv\Lib\site-packages\flask\app.py", line 852, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\AD-WebInterface\routes\main.py", line 55, in connect
+    logger.info(f"DEBUG LOGIN FORM: use_ssl={use_ssl}, port={port}, server={server}")
+    ^^^^^^
+NameError: name 'logger' is not defined
+2026-04-07 14:16:37,396 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:16:37,978 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:16:38,435 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:16:38,861 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:16:40,692 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:16:41,029 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)

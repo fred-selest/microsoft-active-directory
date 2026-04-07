@@ -1,0 +1,50 @@
+﻿2026-04-07 13:53:09,773 INFO ad_core: Correspondance admin trouvÃ©e: Administrateurs
+2026-04-07 13:53:09,773 INFO ad_core: RÃ´le dÃ©terminÃ© pour selest\admin: admin
+2026-04-07 13:53:09,773 INFO audit: SUCCESS | login | selest\admin | 192.168.10.39 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-07 13:53:09,970 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 13:53:10,135 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 13:53:12,445 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 13:53:12,865 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 13:53:16,190 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 13:53:16,191 WARNING routes.users.create: Connexion non sÃ©curisÃ©e (pas de LDAPS) - password modification may fail
+2026-04-07 13:53:16,540 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 13:58:20,521 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 13:58:21,601 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 13:58:23,578 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 13:58:23,725 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 13:58:23,730 INFO ad_core: Groupes AD dÃ©tectÃ©s pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau Ã  distance', 'Administrateurs de lâ€™entreprise', 'Administrateurs du schÃ©ma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-07 13:58:23,730 INFO ad_core: Groupes admin configurÃ©s: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schÃƒÂ©ma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-07 13:58:23,731 INFO ad_core: Correspondance admin trouvÃ©e: Administrateurs
+2026-04-07 13:58:23,731 INFO ad_core: RÃ´le dÃ©terminÃ© pour selest\admin: admin
+2026-04-07 13:58:23,731 INFO audit: SUCCESS | login | selest\admin | 192.168.10.39 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-07 13:58:23,931 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 13:58:24,076 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:35,321 INFO ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-07 14:00:38,303 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 14:00:38,668 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:38,679 INFO ad_core: Groupes AD dÃ©tectÃ©s pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau Ã  distance', 'Administrateurs de lâ€™entreprise', 'Administrateurs du schÃ©ma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-07 14:00:38,679 INFO ad_core: Groupes admin configurÃ©s: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schÃƒÂ©ma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-07 14:00:38,680 INFO ad_core: Correspondance admin trouvÃ©e: Administrateurs
+2026-04-07 14:00:38,680 INFO ad_core: RÃ´le dÃ©terminÃ© pour selest\admin: admin
+2026-04-07 14:00:38,680 INFO audit: SUCCESS | login | selest\admin | 192.168.10.39 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-07 14:00:38,854 WARNING ad_connection: Connexion SSL Ã©chouÃ©e: automatic bind not successful - invalidCredentials
+2026-04-07 14:00:39,012 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:40,291 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:40,614 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:41,760 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:41,760 WARNING routes.users.create: Connexion non sÃ©curisÃ©e (pas de LDAPS) - password modification may fail
+2026-04-07 14:00:42,092 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:46,566 INFO ldap_certificate: LDAPS: Connexion LDAP SSL rÃ©ussie sur 192.168.10.252:636
+2026-04-07 14:00:46,581 INFO ldap_certificate: LDAPS: Connexion LDAP SSL rÃ©ussie sur 192.168.10.252:636
+2026-04-07 14:00:47,987 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:50,507 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:00:50,507 WARNING routes.users.create: Connexion non sÃ©curisÃ©e (pas de LDAPS) - password modification may fail
+2026-04-07 14:00:50,839 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:01:23,487 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:01:23,488 WARNING routes.users.create: Connexion non sÃ©curisÃ©e (pas de LDAPS) - password modification may fail
+2026-04-07 14:01:23,507 INFO routes.users.create: CrÃ©ation utilisateur TestUser: success=True, result={'result': 0, 'description': 'success', 'dn': '', 'message': '', 'referrals': None, 'type': 'addResponse'}
+2026-04-07 14:01:23,513 INFO routes.users.create: DÃ©finition mot de passe: success=False, result={'result': 53, 'description': 'unwillingToPerform', 'dn': '', 'message': '0000001F: SvcErr: DSID-031A126C, problem 5003 (WILL_NOT_PERFORM), data 0\n\x00', 'referrals': None, 'type': 'modifyResponse'}
+2026-04-07 14:01:23,529 WARNING routes.users.create: Utilisateur CN=Test ttest,DC=SELEST,DC=local supprimÃ© suite Ã  Ã©chec password
+2026-04-07 14:01:23,857 INFO ad_connection: Connexion rÃ©ussie (mÃ©thode automatique): 192.168.10.252
+2026-04-07 14:08:40,679 INFO root: === DÃ©marrage serveur AD Web Interface ===
+2026-04-07 14:08:43,239 INFO waitress: Serving on http://0.0.0.0:5000

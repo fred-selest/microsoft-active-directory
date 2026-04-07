@@ -1,59 +1,279 @@
 {% extends 'base.html' %}
 
-{% block title %}Accueil - AD Web Interface{% endblock %}
+{% block title %}AD Web Interface - Gestion Active Directory{% endblock %}
 
 {% block content %}
-<div class="hero">
-    <h1>Microsoft Active Directory Web Interface</h1>
-    <p>Interface web cross-platform compatible avec Windows et Linux</p>
+<style>
+.hero {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, #0078d4 0%, #00bcf2 100%);
+    color: white;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.hero h1 {
+    font-size: 2.5rem;
+    margin: 0 0 1rem 0;
+    font-weight: 700;
+}
+
+.hero p {
+    font-size: 1.25rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+.hero-version {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.feature-card {
+    background: var(--card-bg, white);
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    text-align: center;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary, #333);
+}
+
+.feature-card p {
+    color: var(--text-secondary, #666);
+    margin: 0;
+    font-size: 0.9375rem;
+}
+
+.system-section {
+    background: var(--card-bg, white);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.system-section h2 {
+    margin: 0 0 1.5rem 0;
+    color: var(--text-primary, #333);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.system-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.system-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--gray-100, #f5f5f5);
+    border-radius: 8px;
+}
+
+.system-item-icon {
+    font-size: 2rem;
+}
+
+.system-item-content {
+    flex: 1;
+}
+
+.system-item-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #666);
+    margin-bottom: 0.25rem;
+}
+
+.system-item-value {
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+
+.cta-section {
+    text-align: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.cta-section h2 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary, #333);
+}
+
+.cta-section p {
+    color: var(--text-secondary, #666);
+    margin: 0 0 1.5rem 0;
+}
+
+.btn-connect {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, #0078d4 0%, #00bcf2 100%);
+    color: white;
+    padding: 1rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-connect:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0,120,212,0.4);
+}
+
+.quick-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.quick-links a {
+    color: var(--text-secondary, #666);
+    font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+    .hero h1 { font-size: 1.75rem; }
+    .hero p { font-size: 1rem; }
+    .features-grid { grid-template-columns: 1fr; }
+    .system-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="hero fade-in">
+    <h1>🖥️ AD Web Interface</h1>
+    <p>Gestion moderne de Microsoft Active Directory depuis votre navigateur</p>
+    <span class="hero-version">v1.34.0</span>
 </div>
 
-<div class="features">
-    <div class="feature-card">
+<div class="features-grid">
+    <div class="feature-card fade-in">
+        <div class="feature-icon">🌐</div>
+        <h3>100% Web</h3>
+        <p>Pas d'installation client. Accessible depuis n'importe quel navigateur.</p>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-icon">💻</div>
         <h3>Cross-Platform</h3>
-        <p>Fonctionne sur Windows et Linux sans modification</p>
+        <p>Windows, Linux, macOS - Compatible avec tous les systèmes.</p>
     </div>
-    <div class="feature-card">
-        <h3>Accès Réseau</h3>
-        <p>Accessible depuis n'importe quel appareil sur le réseau</p>
-    </div>
-    <div class="feature-card">
+    <div class="feature-card fade-in">
+        <div class="feature-icon">🔒</div>
         <h3>LDAP/LDAPS</h3>
-        <p>Support des connexions sécurisées SSL/TLS</p>
+        <p>Connexions sécurisées SSL/TLS pour une communication chiffrée.</p>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-icon">👥</div>
+        <h3>Utilisateurs</h3>
+        <p>Création, modification, reset password, activation/désactivation.</p>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-icon">📁</div>
+        <h3>Groupes & OUs</h3>
+        <p>Gestion complète des groupes et unités d'organisation.</p>
+    </div>
+    <div class="feature-card fade-in">
+        <div class="feature-icon">🔐</div>
+        <h3>LAPS & BitLocker</h3>
+        <p>Récupération des mots de passe administrateur local et clés BitLocker.</p>
     </div>
 </div>
 
-<div class="system-info">
-    <h2>Information Système</h2>
-    <table>
-        <tr>
-            <th>Système d'exploitation</th>
-            <td>{{ system_info.os }}</td>
-        </tr>
-        <tr>
-            <th>Version</th>
-            <td>{{ system_info.os_version }}</td>
-        </tr>
-        <tr>
-            <th>Nom d'hôte</th>
-            <td>{{ system_info.hostname }}</td>
-        </tr>
-        <tr>
-            <th>Python</th>
-            <td>{{ system_info.python_version }}</td>
-        </tr>
-        <tr>
-            <th>Architecture</th>
-            <td>{{ system_info.architecture }}</td>
-        </tr>
-    </table>
+<div class="system-section fade-in">
+    <h2>📋 Information Système</h2>
+    <div class="system-grid">
+        <div class="system-item">
+            <div class="system-item-icon">🖥️</div>
+            <div class="system-item-content">
+                <div class="system-item-label">Système</div>
+                <div class="system-item-value">{{ system_info.os }}</div>
+            </div>
+        </div>
+        <div class="system-item">
+            <div class="system-item-icon">📦</div>
+            <div class="system-item-content">
+                <div class="system-item-label">Version</div>
+                <div class="system-item-value">{{ system_info.os_version }}</div>
+            </div>
+        </div>
+        <div class="system-item">
+            <div class="system-item-icon">🏠</div>
+            <div class="system-item-content">
+                <div class="system-item-label">Hôte</div>
+                <div class="system-item-value">{{ system_info.hostname }}</div>
+            </div>
+        </div>
+        <div class="system-item">
+            <div class="system-item-icon">🐍</div>
+            <div class="system-item-content">
+                <div class="system-item-label">Python</div>
+                <div class="system-item-value">{{ system_info.python_version }}</div>
+            </div>
+        </div>
+        <div class="system-item">
+            <div class="system-item-icon">⚙️</div>
+            <div class="system-item-content">
+                <div class="system-item-label">Architecture</div>
+                <div class="system-item-value">{{ system_info.architecture }}</div>
+            </div>
+        </div>
+        <div class="system-item">
+            <div class="system-item-icon">🌐</div>
+            <div class="system-item-content">
+                <div class="system-item-label">Serveur</div>
+                <div class="system-item-value">Port 5000</div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="cta">
-    <a href="{{ url_for('main.connect') }}" class="btn btn-primary">Se connecter à Active Directory</a>
+<div class="cta-section fade-in">
+    <h2>🚀 Commencer</h2>
+    <p>Connectez-vous à votre Active Directory pour gérer vos utilisateurs, groupes et ordinateurs.</p>
+    <a href="{{ url_for('main.connect') }}" class="btn-connect">
+        🔐 Se connecter à Active Directory
+    </a>
+    <div class="quick-links">
+        <a href="https://github.com/fred-selest/microsoft-active-directory" target="_blank">📖 Documentation</a>
+        <a href="{{ url_for('admin_tools.update_page') }}">🔄 Mises à jour</a>
+    </div>
 </div>
 {% endblock %}
-
-
-
-

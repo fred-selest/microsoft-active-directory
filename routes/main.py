@@ -6,6 +6,7 @@ Contient: index, connect, disconnect, dashboard, ous, audit, toggle-dark-mode
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE
 from datetime import datetime, timedelta
+import logging
 
 from .core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, get_user_role_from_groups)
@@ -15,6 +16,7 @@ from audit import log_action, ACTIONS
 from ad_detect import get_local_domain, detect_ad_config
 
 main_bp = Blueprint('main', __name__)
+logger = logging.getLogger(__name__)
 
 
 @main_bp.route('/')
@@ -50,6 +52,14 @@ def connect():
         port = request.form.get('port', '')
         base_dn = request.form.get('base_dn', '')
         domain = request.form.get('domain', '').strip()
+        
+        # DEBUG: Log SSL parameters
+        logger.info(f"DEBUG LOGIN FORM: use_ssl={use_ssl}, port={port}, server={server}")
+        
+        # Si SSL coché mais port vide ou 389, forcer port 636
+        if use_ssl and (not port or port == '389'):
+            port = '636'
+            logger.info(f"DEBUG: SSL coché, port forcé à 636")
 
         # Préfixer le domaine si besoin
         if domain and '\\' not in username and '@' not in username:
@@ -177,7 +187,9 @@ def dashboard():
 
     conn, error = get_ad_connection()
     stats = {'total_users': 0, 'active_users': 0, 'disabled_users': 0,
-             'total_groups': 0, 'empty_groups': 0, 'total_ous': 0}
+             'total_groups': 0, 'empty_groups': 0, 'total_ous': 0,
+             'locked_accounts': 0, 'inactive_accounts': 0, 'inactive_computers': 0,
+             'admin_accounts': 0}
     critical_alerts = []
     widgets = {
         'alerts': [],
@@ -200,17 +212,72 @@ def dashboard():
                 else:
                     stats['active_users'] += 1
 
-            # Compter groupes et groupes vides
-            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member'])
+            # Compter groupes et groupes vides (exclure groupes système)
+            # Groupes système à exclure (primaryGroupToken)
+            SYSTEM_GROUP_TOKENS = [
+                513, 514, 515, 516, 498, 521, 522, 525, 526, 527,
+                548, 549, 550, 551, 552, 553, 556, 557, 558, 559, 560, 562, 568, 569, 571, 573, 579, 580, 582,
+                1102, 1103, 1104, 1114, 1118, 1121, 1124, 1125, 1126, 1129, 1153, 1154,
+            ]
+            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member', 'primaryGroupToken'])
             stats['total_groups'] = len(conn.entries)
             for e in conn.entries:
+                # Exclure groupes système
+                is_system = False
+                token_attr = getattr(e, 'primaryGroupToken', None)
+                if token_attr and token_attr.value:
+                    try:
+                        if int(str(token_attr.value)) in SYSTEM_GROUP_TOKENS:
+                            is_system = True
+                    except:
+                        pass
+                # Vérifier membres
                 members = e.member.values if hasattr(e, 'member') and e.member else []
-                if not members:
+                if not is_system and not members:
                     stats['empty_groups'] += 1
 
             # Compter OUs
             conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['name'])
             stats['total_ous'] = len(conn.entries)
+
+            # Comptes verrouillés
+            conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE, attributes=['cn'])
+            stats['locked_accounts'] = len(conn.entries)
+
+            # Comptes inactifs (> 90 jours)
+            conn.search(base_dn, '(objectClass=user)', SUBTREE, attributes=['lastLogon'])
+            now = datetime.now()
+            for e in conn.entries:
+                last_logon_attr = getattr(e, 'lastLogon', None)
+                if last_logon_attr and last_logon_attr.value:
+                    try:
+                        val = int(str(last_logon_attr.value))
+                        if val == 0:
+                            stats['inactive_accounts'] += 1
+                        else:
+                            logon_date = datetime.fromtimestamp(val / 10000000 - 11644473600)
+                            if (now - logon_date).days > 90:
+                                stats['inactive_accounts'] += 1
+                    except:
+                        pass
+
+            # Ordinateurs inactifs (> 30 jours)
+            conn.search(base_dn, '(objectClass=computer)', SUBTREE, attributes=['lastLogonTimestamp'])
+            for e in conn.entries:
+                last_logon_attr = getattr(e, 'lastLogonTimestamp', None)
+                if last_logon_attr and last_logon_attr.value:
+                    try:
+                        val = int(str(last_logon_attr.value))
+                        if val > 0:
+                            logon_date = datetime.fromtimestamp(val / 10000000 - 11644473600)
+                            if (now - logon_date).days > 30:
+                                stats['inactive_computers'] += 1
+                    except:
+                        pass
+
+            # Comptes Domain Admins
+            conn.search(base_dn, '(&(objectClass=user)(memberof=CN=Domain Admins,CN=Users,' + base_dn + '))', SUBTREE, attributes=['cn'])
+            stats['admin_accounts'] = len(conn.entries)
 
             # Récupérer widgets
             widgets = get_dashboard_widgets()

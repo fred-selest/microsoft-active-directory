@@ -1,83 +1,80 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
-Log Watcher - Surveillance automatique des logs avec alertes
+Agent de surveillance des logs AD Web Interface
+Surveille server.log et affiche les erreurs/warnings en temps reel
 """
+
 import os
 import time
-from pathlib import Path
+import re
 from datetime import datetime
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
-LOG_DIR = Path('logs')
-LOG_FILE = LOG_DIR / 'server.log'
-ERROR_PATTERNS = [
-    'ERROR',
-    'Exception',
-    'Traceback',
-    'NameError',
-    'LDAPException',
-    '500 Error',
-    'Unhandled'
+LOG_FILE = r'C:\AD-WebInterface\logs\server.log'
+PATTERNS = [
+    r'ERROR',
+    r'WARNING',
+    r'Exception',
+    r'failed',
+    r'echou',
+    r'refuse',
 ]
 
-class LogWatcher(FileSystemEventHandler):
-    def __init__(self):
-        self.last_position = 0
-        self.error_count = 0
-        self.last_alert = 0
-        self.alert_cooldown = 60  # Secondes entre les alertes
+def tail_file(filepath, callback, interval=2):
+    """Surveille un fichier comme `tail -f`."""
+    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        # Aller a la fin du fichier
+        f.seek(0, 2)
         
-    def on_modified(self, event):
-        if event.src_path == str(LOG_FILE):
-            self.check_for_errors()
-    
-    def check_for_errors(self):
-        try:
-            with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
-                f.seek(self.last_position)
-                new_lines = f.readlines()
-                self.last_position = f.tell()
-                
-                for line in new_lines:
-                    if any(pattern in line for pattern in ERROR_PATTERNS):
-                        self.error_count += 1
-                        self.handle_error(line)
-        except Exception as e:
-            print(f"[LOG WATCHER] Error reading log: {e}")
-    
-    def handle_error(self, line):
-        now = time.time()
-        if now - self.last_alert > self.alert_cooldown:
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"\n{'='*60}")
-            print(f"🚨 ALERTE ERREUR - {timestamp}")
-            print(f"{'='*60}")
-            print(f"Erreur détectée: {line.strip()[:200]}")
-            print(f"Total erreurs depuis démarrage: {self.error_count}")
-            print(f"{'='*60}\n")
-            self.last_alert = now
+        while True:
+            line = f.readline()
+            if line:
+                callback(line.strip())
+            else:
+                time.sleep(interval)
 
+def should_alert(line):
+    """Verifier si la ligne contient une alerte."""
+    line_lower = line.lower()
+    for pattern in PATTERNS:
+        if pattern.lower() in line_lower:
+            return True
+    return False
 
-def start_log_watcher():
-    """Démarrer la surveillance des logs."""
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+def format_alert(line):
+    """Formater une alerte pour l'affichage."""
+    timestamp = datetime.now().strftime('%H:%M:%S')
     
-    event_handler = LogWatcher()
-    observer = Observer()
-    observer.schedule(event_handler, str(LOG_DIR), recursive=False)
-    observer.start()
+    if 'ERROR' in line or 'Exception' in line:
+        return f"[{timestamp}] ❌ {line}"
+    elif 'WARNING' in line:
+        return f"[{timestamp}] ⚠️ {line}"
+    else:
+        return f"[{timestamp}] 🔔 {line}"
+
+def main():
+    print("=" * 60)
+    print("  🔍 Agent de surveillance des logs AD Web Interface")
+    print("=" * 60)
+    print(f"  Fichier: {LOG_FILE}")
+    print(f"  Patterns: {', '.join(PATTERNS)}")
+    print("=" * 60)
+    print("  Appuyez sur Ctrl+C pour arreter")
+    print("=" * 60)
+    print()
     
-    print(f"👁️  Log Watcher démarré - Surveillance de {LOG_FILE}")
-    print(f"📊 En attente d'erreurs...")
+    def process_line(line):
+        if should_alert(line):
+            print(format_alert(line))
     
     try:
-        while True:
-            time.sleep(1)
+        tail_file(LOG_FILE, process_line, interval=1)
     except KeyboardInterrupt:
-        observer.stop()
-        print(f"\n🛑 Log Watcher arrêté. Total erreurs: {event_handler.error_count}")
-    observer.join()
-
+        print("\n\n🛑 Surveillance arretee par l'utilisateur")
+    except FileNotFoundError:
+        print(f"❌ Fichier non trouve: {LOG_FILE}")
+    except Exception as e:
+        print(f"❌ Erreur: {e}")
 
 if __name__ == '__main__':
-    start_log_watcher()
+    main()

@@ -3,7 +3,7 @@ Fonctions core partagées entre tous les blueprints.
 Gestion des autorisations granulaires par groupe AD.
 """
 
-# IMPORTANT: OpenSSL MD4/NTLM init (DOIT ÊTRE LE PREMIER IMPORT)
+# IMPORTANT: OpenSSL MD4/NTLM init (DOIT ETRE LE PREMIER IMPORT)
 import _openssl_init
 
 import ssl
@@ -20,11 +20,12 @@ import logging
 logger = logging.getLogger('ad_core')
 config = get_config()
 
-# Configuration TLS sécurisée
+# Configuration TLS permissive (pour AD interne sans certificat valide)
 _tls_config = Tls(
-    validate=ssl.CERT_NONE,
-    version=ssl.PROTOCOL_TLS,
-    ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
+    validate=ssl.CERT_NONE,  # Ne pas verifier le certificat (AD interne)
+    version=ssl.PROTOCOL_TLS,  # Negocier la version automatiquement
+    ciphers='DEFAULT:!LOW:!EXP',  # Ciphers par defaut plus compatibles
+    ssl_options=ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3  # Desactiver SSLv2/v3
 )
 
 
@@ -52,23 +53,23 @@ def decode_ldap_value(value):
 
 
 def is_connected():
-    """Vérifier si l'utilisateur est connecté à AD."""
+    """Verifier si l'utilisateur est connecte a AD."""
     return all([session.get('ad_server'), session.get('ad_username'), session.get('ad_password')])
 
 
 def require_connection(f):
-    """Décorateur pour exiger une connexion AD."""
+    """Decorateur pour exiger une connexion AD."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if not is_connected():
-            flash('Veuillez vous connecter à Active Directory.', 'warning')
+            flash('Veuillez vous connecter a Active Directory.', 'warning')
             return redirect(url_for('main.connect'))
         return f(*args, **kwargs)
     return decorated
 
 
 def require_permission(permission):
-    """Décorateur pour vérifier les permissions granulaires par groupe AD."""
+    """Decorateur pour verifier les permissions granulaires par groupe AD."""
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
@@ -76,7 +77,7 @@ def require_permission(permission):
                 user_groups = session.get('user_groups', [])
 
                 if not user_groups or not has_granular_permission(user_groups, permission):
-                    flash('Permission refusée.', 'error')
+                    flash('Permission refusee.', 'error')
                     return redirect(url_for('main.index'))
 
             return f(*args, **kwargs)
@@ -122,32 +123,32 @@ def _get_ntlm_user(server, username):
 
 
 def _is_md4_error(error_msg):
-    """Vérifier si l'erreur est liée à MD4."""
+    """Verifier si l'erreur est liee a MD4."""
     return 'MD4' in str(error_msg) or 'unsupported hash' in str(error_msg)
 
 
 def _is_invalid_credentials_error(error_msg):
-    """Vérifier si l'erreur indique des identifiants incorrects (LDAP code 49)."""
+    """Verifier si l'erreur indique des identifiants incorrects (LDAP code 49)."""
     msg = str(error_msg).lower()
     return 'invalidcredentials' in msg or 'error 49' in msg or '80090308' in msg
 
 
 def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
-    """Créer un objet Server ldap3 avec le mode IP donné."""
+    """Creer un objet Server ldap3 avec le mode IP donne."""
     return Server(server, port=port, use_ssl=use_ssl,
                   tls=_tls_config if use_ssl else None,
                   get_info=ALL, mode=ip_mode,
                   connect_timeout=5,  # Timeout de connexion (secondes)
-                  allowed_referral_hosts=[('*')])  # Autoriser les referrals
+                  allowed_referral_hosts=[('*', False)])
 
 
 def _try_connection(server, username, password):
-    """Essayer différentes méthodes de connexion AD."""
+    """Essayer differentes methodes de connexion AD."""
     errors = []
     ntlm_user = _get_ntlm_user(server, username)
     upn_user = _get_upn_user(server, username)
-    
-    # Méthodes: (port, ssl, user, auth, label, starttls)
+
+    # Methodes: (port, ssl, user, auth, label, starttls)
     methods = [
         (389, False, ntlm_user, NTLM, "NTLM", False),
         (389, False, upn_user, SIMPLE, "STARTTLS", True),
@@ -158,22 +159,22 @@ def _try_connection(server, username, password):
         try:
             srv = _make_server(server, port, use_ssl)
             conn = Connection(srv, user=user, password=password, authentication=auth, auto_bind=False)
-            
+
             if starttls:
                 conn.open()
                 conn.start_tls(_tls_config)
-            
+
             if conn.bind():
                 session['ad_use_ssl'] = use_ssl
                 session['ad_port'] = port
                 return conn, None
-                
+
         except Exception as e:
             err_str = str(e)
             if _is_invalid_credentials_error(err_str):
                 return None, f"{label}: identifiants incorrects"
-            
-            # IPv6 non supporté → réessayer en IPv4
+
+            # IPv6 non supporte -> reessayer en IPv4
             if 'WinError 1' in err_str:
                 try:
                     srv = _make_server(server, port, use_ssl, IP_V4_PREFERRED)
@@ -187,7 +188,7 @@ def _try_connection(server, username, password):
                         return conn, None
                 except Exception as e2:
                     err_str = str(e2)
-            
+
             errors.append(f"{label}: {err_str[:80]}")
             if label == "NTLM" and _is_md4_error(err_str):
                 continue  # Essayer STARTTLS
@@ -196,11 +197,11 @@ def _try_connection(server, username, password):
 
 
 def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None):
-    """Créer une connexion à Active Directory avec gestion des erreurs améliorée."""
+    """Creer une connexion a Active Directory avec gestion des erreurs amelioree."""
     import logging
     logger = logging.getLogger('ad_connection')
-    
-    # Récupérer depuis la session
+
+    # Recuperer depuis la session
     server = server or session.get('ad_server')
     username = username or session.get('ad_username')
     if password is None:
@@ -209,45 +210,74 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             try:
                 password = decrypt_password(encrypted)
             except ValueError:
-                logger.warning("Session invalide - décryptage échoué")
+                logger.warning("Session invalide - decryptage echoue")
                 return None, "Session invalide"
     use_ssl = use_ssl or session.get('ad_use_ssl', False)
     port = port or session.get('ad_port') or (636 if use_ssl else 389)
 
     if not all([server, username, password]):
-        return None, "Non connecté"
+        return None, "Non connecte"
 
-    # Connexion directe si port/SSL spécifiés
+    # Connexion directe si port/SSL specifies
     if port != 389 or use_ssl:
+        # 1. Essayer LDAPS (port 636) avec Simple auth
         try:
             srv = _make_server(server, port, use_ssl)
             user = _get_upn_user(server, username) if use_ssl else _get_ntlm_user(server, username)
             conn = Connection(srv, user=user, password=password,
-                            authentication=SIMPLE if use_ssl else NTLM, 
+                            authentication=SIMPLE if use_ssl else NTLM,
                             auto_bind=True,
-                            receive_timeout=10)  # Timeout de réception
+                            receive_timeout=10)
             if conn.bound:
-                logger.info(f"Connexion réussie: {server}:{port} (SSL={use_ssl})")
+                logger.info(f"Connexion LDAPS reussie: {server}:{port}")
+                session['ad_use_ssl'] = True
                 return conn, None
         except Exception as e:
             error_msg = str(e)
-            if not _is_md4_error(error_msg):
-                logger.warning(f"Connexion directe échouée: {error_msg[:100]}")
-                return None, error_msg
+            logger.warning(f"Connexion LDAPS echouee: {error_msg[:100]}")
 
-    # Essayer toutes les méthodes
+        # 2. Si LDAPS echoue, essayer STARTTLS sur port 389 avec NTLM
+        logger.info("LDAPS echoue, essai STARTTLS sur port 389 avec NTLM...")
+        try:
+            srv = _make_server(server, 389, False)
+            user_ntlm = _get_ntlm_user(server, username)
+            conn = Connection(srv, user=user_ntlm, password=password, authentication=NTLM,
+                            auto_bind=False, receive_timeout=10)
+            conn.open()
+            logger.debug("Connection LDAP ouverte, tentative STARTTLS...")
+
+            # Essayer STARTTLS
+            starttls_result = conn.start_tls(_tls_config)
+            logger.debug(f"STARTTLS result: {starttls_result}")
+
+            # Binder apres STARTTLS avec NTLM
+            bind_result = conn.bind()
+            logger.debug(f"Bind result: {bind_result}, bound={conn.bound}")
+
+            if bind_result and conn.bound:
+                logger.info(f"SUCCESS: Connexion STARTTLS reussie: {server}:389 -> TLS active")
+                session['ad_use_ssl'] = True
+                session['ad_port'] = 389
+                return conn, None
+            else:
+                logger.warning(f"STARTTLS bind echoue: {conn.result}")
+                conn.unbind()
+        except Exception as e2:
+            logger.error(f"STARTTLS exception: {type(e2).__name__}: {str(e2)[:150]}")
+
+    # 3. Essayer toutes les methodes (fallback)
     conn, errors = _try_connection(server, username, password)
     if conn:
-        logger.info(f"Connexion réussie (méthode automatique): {server}")
+        logger.info(f"Connexion reussie (methode automatique): {server}")
         return conn, None
 
     hint = " [MD4: executez fix_md4.ps1 pour activer le support NTLM]" if _is_md4_error(errors) else ""
-    logger.error(f"Connexion échouée: {errors[:200]}")
+    logger.error(f"Connexion echouee: {errors[:200]}")
     return None, f"Connexion impossible.{hint} Verifiez: 1) serveur AD, 2) ports 389/636, 3) identifiants\n{errors}"
 
 
 def get_user_role_from_groups(conn, username, debug=False):
-    """Déterminer le rôle utilisateur selon ses groupes AD (legacy - pour compatibilité)."""
+    """Determiner le role utilisateur selon ses groupes AD (legacy - pour compatibilite)."""
     info = {'groups': [], 'error': None}
 
     try:
@@ -260,55 +290,55 @@ def get_user_role_from_groups(conn, username, debug=False):
                     search_scope=SUBTREE, attributes=['memberOf'])
 
         if not conn.entries:
-            info['error'] = f'Utilisateur {search_user} non trouvé'
-            logger.warning(f"Utilisateur {search_user} non trouvé dans AD")
+            info['error'] = f'Utilisateur {search_user} non trouve'
+            logger.warning(f"Utilisateur {search_user} non trouve dans AD")
             return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
         # Extraire les groupes
         if hasattr(conn.entries[0], 'memberOf') and conn.entries[0].memberOf:
             for dn in conn.entries[0].memberOf.values:
-                # Utiliser decode_ldap_value pour gérer correctement l'UTF-8
+                # Utiliser decode_ldap_value pour gerer correctement l'UTF-8
                 dn_str = decode_ldap_value(dn)
                 if dn_str.upper().startswith('CN='):
                     # Extraire le nom du groupe (CN=GroupName,DC=...)
                     group_name = dn_str.split(',')[0][3:]
                     info['groups'].append(group_name)
 
-        logger.info(f"Groupes AD détectés pour {username}: {info['groups']}")
-        logger.info(f"Groupes admin configurés: {config.ADMIN_GROUPS}")
+        logger.info(f"Groupes AD detectes pour {username}: {info['groups']}")
+        logger.info(f"Groupes admin configures: {config.ADMIN_GROUPS}")
 
-        # Déterminer le rôle selon les groupes AD (ordre: admin > operator > reader)
+        # Determiner le role selon les groupes AD (ordre: admin > operator > reader)
         user_role = config.DEFAULT_ROLE
-        
-        # Vérifier les groupes admin en premier
+
+        # Verifier les groupes admin en premier
         for admin_group in config.ADMIN_GROUPS:
             if admin_group in info['groups']:
-                logger.info(f"Correspondance admin trouvée: {admin_group}")
+                logger.info(f"Correspondance admin trouvee: {admin_group}")
                 user_role = 'admin'
                 break
-        
-        # Si pas admin, vérifier les groupes operator
+
+        # Si pas admin, verifier les groupes operator
         if user_role == config.DEFAULT_ROLE:
             for operator_group in config.OPERATOR_GROUPS:
                 if operator_group in info['groups']:
-                    logger.info(f"Correspondance operator trouvée: {operator_group}")
+                    logger.info(f"Correspondance operator trouvee: {operator_group}")
                     user_role = 'operator'
                     break
-        
-        # Si aucun groupe spécifique, vérifier les groupes reader
+
+        # Si aucun groupe specifique, verifier les groupes reader
         if user_role == config.DEFAULT_ROLE and config.READER_GROUPS:
             for reader_group in config.READER_GROUPS:
                 if reader_group in info['groups']:
-                    logger.info(f"Correspondance reader trouvée: {reader_group}")
+                    logger.info(f"Correspondance reader trouvee: {reader_group}")
                     user_role = 'reader'
                     break
 
-        logger.info(f"Rôle déterminé pour {username}: {user_role}")
+        logger.info(f"Role determine pour {username}: {user_role}")
         return (user_role, info) if debug else user_role
 
     except Exception as e:
         info['error'] = str(e)
-        logger.error(f"Erreur détermination rôle pour {username}: {e}", exc_info=True)
+        logger.error(f"Erreur determination role pour {username}: {e}", exc_info=True)
         return (config.DEFAULT_ROLE, info) if debug else config.DEFAULT_ROLE
 
 
@@ -321,12 +351,12 @@ def ldap_search_with_retry(conn, base_dn, search_filter, attributes=None,
         conn: Connexion LDAP
         base_dn: Base DN pour la recherche
         search_filter: Filtre de recherche
-        attributes: Liste des attributs à récupérer
+        attributes: Liste des attributs a recuperer
         max_retries: Nombre maximum de tentatives
         timeout: Timeout en secondes
 
     Returns:
-        list: Résultats de la recherche ou liste vide en cas d'erreur
+        list: Resultats de la recherche ou liste vide en cas d'erreur
     """
     import logging
     logger = logging.getLogger('ldap_search')

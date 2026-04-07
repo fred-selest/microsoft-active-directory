@@ -3,124 +3,505 @@
 {% block title %}Nouvel utilisateur - AD Web Interface{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h2>Nouvel utilisateur</h2>
-    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Retour a la liste</a>
+<div class="page-header fade-in">
+    <h2>👤 Nouvel utilisateur</h2>
+    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">← Retour</a>
 </div>
 
-<div class="form-container">
-    <form method="post" class="user-form">
+{% if not use_ssl %}
+<!-- Warning banner for SSL requirement -->
+<div class="ssl-warning-banner fade-in">
+    <div class="warning-icon">⚠️</div>
+    <div class="warning-content">
+        <strong>Connexion non sécurisée (LDAP)</strong>
+        <p>Le mot de passe ne pourra pas être défini. Activez LDAPS pour créer des utilisateurs avec mot de passe.</p>
+        <div class="warning-actions">
+            <a href="{{ url_for('admin_tools.ldaps_setup_page') }}" class="btn btn-warning btn-sm">
+                🔐 Configurer LDAPS
+            </a>
+            <a href="{{ url_for('main.disconnect') }}" class="btn btn-secondary btn-sm">
+                Reconnecter avec SSL
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="form-card fade-in">
+    <form method="post" class="user-form" id="createUserForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-section">
-            <h3>Informations de compte</h3>
+            <h3 class="form-section-title">📋 Informations de compte</h3>
 
             <div class="form-group">
                 <label for="username">Identifiant (login) *</label>
-                <input type="text" id="username" name="username" required placeholder="jdupont">
+                <input type="text" id="username" name="username" required placeholder="jdupont" class="form-control" autofocus>
+                <small class="form-help">Nom de connexion Windows (sAMAccountName)</small>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="first_name">Prenom</label>
-                    <input type="text" id="first_name" name="first_name" placeholder="Jean">
+                    <label for="first_name">Prénom</label>
+                    <input type="text" id="first_name" name="first_name" placeholder="Jean" class="form-control">
                 </div>
                 <div class="form-group">
                     <label for="last_name">Nom</label>
-                    <input type="text" id="last_name" name="last_name" placeholder="Dupont">
+                    <input type="text" id="last_name" name="last_name" placeholder="Dupont" class="form-control">
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" placeholder="jean.dupont@domaine.com">
+                <input type="email" id="email" name="email" placeholder="jean.dupont@domaine.com" class="form-control">
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3 class="form-section-title">🔑 Mot de passe</h3>
+
+            <div class="form-group">
+                <label for="password">Mot de passe initial</label>
+                <div class="password-input-group">
+                    <input type="password" id="password" name="password" placeholder="Mot de passe" class="form-control">
+                    <button type="button" class="btn btn-secondary" onclick="togglePassword()" title="Afficher/Masquer">
+                        <span id="passwordToggleIcon">👁️</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="generatePassword()" title="Générer un mot de passe">
+                        🎲 Générer
+                    </button>
+                </div>
+                <small class="form-help">Laissez vide pour ne pas définir de mot de passe initial</small>
+            </div>
+
+            <!-- Password Generator Options -->
+            <div class="password-generator-options" id="passwordGeneratorOptions" style="display: none;">
+                <div class="generator-header">
+                    <span>⚙️ Options du générateur</span>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleGeneratorOptions()">✕</button>
+                </div>
+                <div class="generator-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pwdLength">Longueur</label>
+                            <input type="number" id="pwdLength" value="16" min="8" max="32" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="pwdComplexity">Complexité</label>
+                            <select id="pwdComplexity" class="form-control">
+                                <option value="medium">Moyenne</option>
+                                <option value="high" selected>Haute</option>
+                                <option value="very_high">Très haute</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="pwdUppercase" checked> Majuscules (A-Z)
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="pwdLowercase" checked> Minuscules (a-z)
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="pwdDigits" checked> Chiffres (0-9)
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="pwdSpecial" checked> Caractères spéciaux (!@#$%...)
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="generatePassword()">
+                        🎲 Régénérer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Password Strength Indicator -->
+            <div class="password-strength" id="passwordStrength" style="display: none;">
+                <div class="strength-bar">
+                    <div class="strength-fill" id="strengthFill"></div>
+                </div>
+                <span class="strength-text" id="strengthText">Force du mot de passe</span>
             </div>
 
             <div class="form-group">
-                <label for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" placeholder="Mot de passe initial">
-                <small class="form-hint">Laissez vide pour ne pas definir de mot de passe initial</small>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="must_change_password" checked>
+                    L'utilisateur doit changer le mot de passe à la prochaine connexion
+                </label>
             </div>
+        </div>
 
-            {% if ous %}
+        <div class="form-section">
+            <h3 class="form-section-title">📁 Emplacement</h3>
+
             <div class="form-group">
-                <label for="target_ou">Unite organisationnelle (OU)</label>
-                <select id="target_ou" name="target_ou">
-                    <option value="">CN=Users (par defaut)</option>
+                <label for="target_ou">Unité organisationnelle (OU)</label>
+                <select id="target_ou" name="target_ou" class="form-control">
+                    <option value="{{ default_ou }}" selected>-- 🏠 Racine du domaine ({{ default_ou }}) --</option>
                     {% for ou in ous %}
-                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    <option value="{{ ou.dn }}">📁 {{ ou.name }}</option>
                     {% endfor %}
                 </select>
+                <small class="form-help">
+                    <a href="{{ url_for('ous.list_ous') }}" target="_blank">📁 Voir les OUs disponibles</a>
+                    | L'utilisateur sera créé dans l'OU sélectionnée
+                </small>
             </div>
-            {% endif %}
+        </div>
+
+        <div class="form-section">
+            <h3 class="form-section-title">💼 Informations professionnelles (optionnel)</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="department">Service</label>
+                    <input type="text" id="department" name="department" placeholder="Informatique" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="title">Fonction</label>
+                    <input type="text" id="title" name="title" placeholder="Administrateur Système" class="form-control">
+                </div>
+            </div>
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Creer l'utilisateur</button>
-            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Annuler</a>
+            <button type="submit" class="btn btn-primary btn-lg">✅ Créer l'utilisateur</button>
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary btn-lg">Annuler</a>
         </div>
     </form>
 </div>
 
-{% block extra_css %}
 <style>
-.form-container {
-    max-width: 600px;
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.form-section {
-    margin-bottom: 1.5rem;
-}
-
-.form-section h3 {
-    color: #0078d4;
-    border-bottom: 2px solid #0078d4;
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.25rem;
-    font-weight: 500;
-}
-
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+.form-section-title {
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
 }
 
 .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
 }
 
-.form-hint {
-    color: #666;
-    font-size: 0.875rem;
+.form-help {
+    display: block;
+    margin-top: var(--spacing-xs);
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
 }
 
-.form-actions {
+.form-help a {
+    color: var(--primary);
+}
+
+/* Password Input Group */
+.password-input-group {
     display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
+    gap: var(--spacing-xs);
+}
+
+.password-input-group .form-control {
+    flex: 1;
+}
+
+/* Password Generator Options */
+.password-generator-options {
+    background: var(--gray-100);
+    border-radius: var(--border-radius-sm);
+    margin-top: var(--spacing-md);
+    overflow: hidden;
+}
+
+.generator-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--gray-200);
+    font-weight: 500;
+}
+
+.generator-body {
+    padding: var(--spacing-md);
+}
+
+.checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-xs);
+    margin: var(--spacing-md) 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+/* SSL Warning Banner */
+.ssl-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    background: linear-gradient(135deg, rgba(255,193,7,0.15) 0%, rgba(255,152,0,0.1) 100%);
+    border: 2px solid var(--warning);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.warning-icon {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.warning-content strong {
+    color: var(--warning);
+    font-size: var(--font-size-lg);
+    display: block;
+    margin-bottom: var(--spacing-xs);
+}
+
+.warning-content p {
+    margin: var(--spacing-sm) 0;
+    color: var(--text-secondary);
+}
+
+.warning-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: var(--white);
+    border: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+    transform: translateY(-1px);
+    color: var(--white);
+}
+
+/* Password Strength */
+.password-strength {
+    margin-top: var(--spacing-sm);
+}
+
+.strength-bar {
+    height: 4px;
+    background: var(--gray-200);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    transition: all var(--transition-normal);
+    border-radius: 2px;
+}
+
+.strength-fill.weak { width: 25%; background: var(--danger); }
+.strength-fill.medium { width: 50%; background: var(--warning); }
+.strength-fill.strong { width: 75%; background: var(--info); }
+.strength-fill.very-strong { width: 100%; background: var(--success); }
+
+.strength-text {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--spacing-xs);
+    display: inline-block;
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .password-input-group {
+        flex-wrap: wrap;
+    }
+
+    .password-input-group .btn {
+        flex: 1;
+        min-width: 80px;
+    }
+
+    .checkbox-group {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
 }
 </style>
+
+<script>
+// Toggle password visibility
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggleIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.textContent = '🙈';
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.textContent = '👁️';
+    }
+}
+
+// Toggle generator options
+function toggleGeneratorOptions() {
+    const options = document.getElementById('passwordGeneratorOptions');
+    options.style.display = options.style.display === 'none' ? 'block' : 'none';
+}
+
+// Generate password locally
+function generatePassword() {
+    const length = parseInt(document.getElementById('pwdLength').value) || 16;
+    const complexity = document.getElementById('pwdComplexity').value;
+    const useUppercase = document.getElementById('pwdUppercase').checked;
+    const useLowercase = document.getElementById('pwdLowercase').checked;
+    const useDigits = document.getElementById('pwdDigits').checked;
+    const useSpecial = document.getElementById('pwdSpecial').checked;
+
+    // Character sets
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+    let chars = '';
+    let required = [];
+
+    if (useUppercase) { chars += uppercase; required.push(uppercase[Math.floor(Math.random() * uppercase.length)]); }
+    if (useLowercase) { chars += lowercase; required.push(lowercase[Math.floor(Math.random() * lowercase.length)]); }
+    if (useDigits) { chars += digits; required.push(digits[Math.floor(Math.random() * digits.length)]); }
+    if (useSpecial) { chars += special; required.push(special[Math.floor(Math.random() * special.length)]); }
+
+    if (chars === '') {
+        chars = lowercase + uppercase + digits;
+    }
+
+    // Generate password
+    let password = [...required];
+    const remaining = length - password.length;
+    
+    for (let i = 0; i < remaining; i++) {
+        password.push(chars[Math.floor(Math.random() * chars.length)]);
+    }
+
+    // Shuffle
+    password = password.sort(() => Math.random() - 0.5);
+
+    const finalPassword = password.join('');
+    document.getElementById('password').value = finalPassword;
+    
+    // Show password
+    document.getElementById('password').type = 'text';
+    document.getElementById('passwordToggleIcon').textContent = '🙈';
+
+    // Update strength
+    checkPasswordStrength(finalPassword);
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(finalPassword).then(() => {
+        // Visual feedback
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copié!';
+        setTimeout(() => btn.textContent = originalText, 1500);
+    });
+
+    return false;
+}
+
+// Check password strength
+function checkPasswordStrength(password) {
+    if (!password) {
+        document.getElementById('passwordStrength').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('passwordStrength').style.display = 'block';
+
+    let score = 0;
+    const strengthFill = document.getElementById('strengthFill');
+    const strengthText = document.getElementById('strengthText');
+
+    // Length
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (password.length >= 16) score++;
+
+    // Character types
+    if (/[A-Z]/.test(password)) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    // Update UI
+    strengthFill.className = 'strength-fill';
+    
+    if (score <= 2) {
+        strengthFill.classList.add('weak');
+        strengthText.textContent = '❌ Faible';
+        strengthText.style.color = 'var(--danger)';
+    } else if (score <= 4) {
+        strengthFill.classList.add('medium');
+        strengthText.textContent = '⚠️ Moyen';
+        strengthText.style.color = 'var(--warning)';
+    } else if (score <= 6) {
+        strengthFill.classList.add('strong');
+        strengthText.textContent = '✅ Fort';
+        strengthText.style.color = 'var(--info)';
+    } else {
+        strengthFill.classList.add('very-strong');
+        strengthText.textContent = '✅ Très fort';
+        strengthText.style.color = 'var(--success)';
+    }
+}
+
+// Monitor password input
+document.getElementById('password').addEventListener('input', function() {
+    checkPasswordStrength(this.value);
+});
+
+// Auto-generate on page load (optional)
+document.addEventListener('DOMContentLoaded', function() {
+    // Show generator options on first interaction
+    document.getElementById('password').addEventListener('focus', function() {
+        document.getElementById('passwordGeneratorOptions').style.display = 'block';
+    }, { once: true });
+});
+</script>
 {% endblock %}
-{% endblock %}
-
-
-
-

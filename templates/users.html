@@ -3,109 +3,108 @@
 {% block title %}Utilisateurs - AD Web Interface{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h2>Utilisateurs Active Directory</h2>
+<div class="page-header fade-in">
+    <h2>👥 Utilisateurs Active Directory</h2>
     <div class="header-actions">
         <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">➕ Nouvel utilisateur</a>
-        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">📋 Tous les utilisateurs</a>
+        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">📋 Tous</a>
     </div>
 </div>
 
-<div class="search-box">
-    <form method="get" action="{{ url_for('users.list_users') }}">
-        <div class="form-group">
-            <input type="text" name="search" placeholder="Rechercher un utilisateur..."
-                   value="{{ search }}" class="form-control">
+<!-- Search Box -->
+<div class="card fade-in" style="margin-bottom: var(--spacing-lg);">
+    <form method="get" action="{{ url_for('users.list_users') }}" class="search-form">
+        <div class="search-input-group">
+            <span class="search-icon">🔍</span>
+            <input type="text" name="search" placeholder="Rechercher un utilisateur par nom, identifiant, email..."
+                   value="{{ search }}" class="form-control search-input">
+            <button type="submit" class="btn btn-primary">Rechercher</button>
+            {% if search %}
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">✖ Effacer</a>
+            {% endif %}
         </div>
-        <button type="submit" class="btn btn-secondary">Rechercher</button>
-        {% if search %}
-        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Effacer</a>
-        {% endif %}
     </form>
 </div>
 
-<div class="table-container">
-    <table class="data-table sortable">
+<!-- Results -->
+<div class="table-container fade-in">
+    <table class="data-table">
         <thead>
             <tr>
                 <th><input type="checkbox" id="select-all-users" onchange="toggleAllUsers(this)"></th>
                 <th>Nom d'affichage</th>
                 <th>Identifiant</th>
                 <th>Email</th>
-                <th class="hide-mobile">Service</th>
-                <th class="hide-mobile">Fonction</th>
-                <th>OU</th>
+                <th>Service</th>
                 <th>Statut</th>
                 <th data-no-sort>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for user in users %}
-            <tr class="{% if user.disabled %}disabled-user{% endif %}">
-                <td><input type="checkbox" class="user-checkbox" data-dn="{{ user.dn }}" data-name="{{ user.displayName or user.cn }}"></td>
-                <td>
-                    <strong>{{ user.displayName or user.cn }}</strong>
-                    <div class="mobile-only"><small class="text-muted">{{ user.sAMAccountName }}</small></div>
+            <tr class="{% if user.disabled %}disabled-user{% endif %}" onclick="if(event.target.tagName !== 'INPUT' && event.target.tagName !== 'A' && event.target.tagName !== 'BUTTON') window.location='{{ url_for('users.edit_user', dn=user.dn) }}'">
+                <td data-label="Sélection">
+                    <input type="checkbox" class="user-checkbox" data-dn="{{ user.dn }}" data-name="{{ user.displayName or user.cn }}">
                 </td>
-                <td>{{ user.sAMAccountName }}</td>
-                <td>{{ user.mail or '-' }}</td>
-                <td class="hide-mobile">{{ user.department or '-' }}</td>
-                <td class="hide-mobile">{{ user.title or '-' }}</td>
-                <td>
-                    <small class="ou-path">{{ user.dn.split(',')[-2:] | join(',') }}</small>
+                <td data-label="Nom">
+                    <div class="user-name">
+                        <strong>{{ user.displayName or user.cn }}</strong>
+                        {% if user.title %}
+                        <small class="user-title">{{ user.title }}</small>
+                        {% endif %}
+                    </div>
                 </td>
-                <td>
+                <td data-label="Identifiant">{{ user.sAMAccountName }}</td>
+                <td data-label="Email">{{ user.mail or '-' }}</td>
+                <td data-label="Service">{{ user.department or '-' }}</td>
+                <td data-label="Statut">
                     {% if user.disabled %}
                     <span class="badge badge-danger">Désactivé</span>
                     {% else %}
                     <span class="badge badge-success">Actif</span>
                     {% endif %}
                 </td>
-                <td class="actions">
-                    <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-primary" title="Modifier">
-                        ✏️
-                    </a>
-                    <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-sm btn-secondary" title="MDP">
-                        🔑
-                    </a>
-                    <div class="btn-group-mobile">
-                        <form id="toggle-form-{{ loop.index }}" method="post" action="{{ url_for('users.toggle_user_status', dn=user.dn) }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
-                        </form>
-                        <button type="button" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}" 
-                                title="{{ 'Activer' if user.disabled else 'Désactiver' }}"
-                                onclick="document.getElementById('toggle-form-{{ loop.index }}').submit();">
-                            {{ '✅' if user.disabled else '⏸️' }}
-                        </button>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn|replace("'", "\\'") }}', '{{ (user.displayName or user.cn)|replace("'", "\\'") }}')" title="Déplacer">
-                            📍
-                        </button>
-                        <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
-                              style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
-                                🗑️
-                            </button>
-                        </form>
-                    </div>
+                <td data-label="Actions" class="actions">
+                    <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-primary" title="Modifier">✏️</a>
+                    <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-sm btn-secondary" title="Reset MDP">🔑</a>
+                    <form id="toggle-form-{{ loop.index }}" method="post" action="{{ url_for('users.toggle_user_status', dn=user.dn) }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
+                    </form>
+                    <button type="button" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}"
+                            title="{{ 'Activer' if user.disabled else 'Désactiver' }}"
+                            onclick="event.stopPropagation(); document.getElementById('toggle-form-{{ loop.index }}').submit();">
+                        {{ '✅' if user.disabled else '⏸️' }}
+                    </button>
+                    <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
+                          style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger" title="Supprimer" onclick="event.stopPropagation();">🗑️</button>
+                    </form>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="9" class="text-center">Aucun utilisateur trouvé.</td>
+                <td colspan="7" class="text-center" style="padding: 3rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">👤</div>
+                    <p style="color: var(--text-secondary);">Aucun utilisateur trouvé.</p>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="results-count">{{ total }} utilisateur(s) trouvé(s) (page {{ page }}/{{ total_pages }})</p>
+<!-- Results Count -->
+<div class="results-info fade-in">
+    <span>{{ total }} utilisateur(s) trouvé(s) {% if total_pages > 1 %}(page {{ page }}/{{ total_pages }}){% endif %}</span>
+</div>
 
+<!-- Pagination -->
 {% if total_pages > 1 %}
-<div class="pagination">
+<div class="pagination fade-in">
     {% if page > 1 %}
-    <a href="{{ url_for('users.list_users', search=search, page=page-1) }}" class="btn btn-sm btn-secondary">&laquo; Precedent</a>
+    <a href="{{ url_for('users.list_users', search=search, page=page-1) }}" class="btn btn-sm btn-secondary">← Précédent</a>
     {% endif %}
 
     {% for p in range(1, total_pages + 1) %}
@@ -119,146 +118,129 @@
     {% endfor %}
 
     {% if page < total_pages %}
-    <a href="{{ url_for('users.list_users', search=search, page=page+1) }}" class="btn btn-sm btn-secondary">Suivant &raquo;</a>
+    <a href="{{ url_for('users.list_users', search=search, page=page+1) }}" class="btn btn-sm btn-secondary">Suivant →</a>
     {% endif %}
 </div>
 {% endif %}
 
-<!-- Modal pour deplacer -->
-<div id="moveModal" class="modal" style="display: none;">
+<!-- Modal pour déplacer -->
+<div id="moveModal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
-        <h3>Deplacer l'utilisateur</h3>
-        <p id="moveUserName"></p>
+        <div class="modal-header">
+            <h3>📍 Déplacer l'utilisateur</h3>
+            <span class="modal-close" onclick="closeMoveModal()">✕</span>
+        </div>
+        <p id="moveUserName" style="margin-bottom: var(--spacing-md); color: var(--text-secondary);"></p>
         <form method="post" id="moveForm" action="">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
-                <label for="new_ou">Unite d'organisation de destination</label>
-                <select id="new_ou" name="new_ou" required>
+                <label for="new_ou">Unité d'organisation de destination</label>
+                <select id="new_ou" name="new_ou" required class="form-control">
                     {% for ou in ous %}
                     <option value="{{ ou.dn }}">{{ ou.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Deplacer</button>
+                <button type="submit" class="btn btn-primary">Déplacer</button>
                 <button type="button" class="btn btn-secondary" onclick="closeMoveModal()">Annuler</button>
             </div>
         </form>
     </div>
 </div>
 
-{% block extra_css %}
 <style>
-.header-actions {
-    display: flex;
-    gap: 0.5rem;
+.search-form {
+    width: 100%;
 }
-.pagination {
+
+.search-input-group {
     display: flex;
-    gap: 0.25rem;
     align-items: center;
-    margin-top: 1rem;
+    gap: var(--spacing-sm);
     flex-wrap: wrap;
 }
-.pagination-ellipsis {
-    padding: 0.375rem;
+
+.search-icon {
+    font-size: 1.25rem;
+    color: var(--text-muted);
 }
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+
+.search-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.user-name {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-.modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    min-width: 400px;
-    max-width: 90%;
-}
-.modal-content h3 {
-    margin-top: 0;
-    color: #0078d4;
+    flex-direction: column;
+    gap: 2px;
 }
 
-/* Responsive Mobile */
-@media (max-width: 768px) {
-    .hide-mobile {
-        display: none;
-    }
-    .mobile-only {
-        display: block;
-    }
-    .table-container {
-        overflow-x: auto;
-    }
-    .data-table {
-        min-width: 600px;
-    }
-    .actions {
-        white-space: nowrap;
-    }
-    .btn-group-mobile {
-        display: flex;
-        gap: 0.25rem;
-    }
-    .btn-group-mobile .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 1rem;
-    }
-    .ou-path {
-        max-width: 150px;
-        display: inline-block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-}
-
-@media (min-width: 769px) {
-    .mobile-only {
-        display: none;
-    }
-}
-
-.ou-path {
+.user-title {
     color: var(--text-secondary);
-    font-size: 0.75rem;
-    word-break: break-all;
+    font-size: var(--font-size-xs);
 }
 
-/* Action buttons with icons */
-.actions .btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+.results-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: var(--spacing-md) 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
 }
 
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    .data-table td:nth-child(2) strong {
-        font-size: 0.9375rem;
+.pagination {
+    display: flex;
+    gap: var(--spacing-xs);
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.pagination-ellipsis {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    color: var(--text-muted);
+}
+
+.disabled-user {
+    opacity: 0.7;
+    background: var(--gray-50);
+}
+
+/* Mobile Responsive */
+@media (max-width: 767px) {
+    .search-input-group {
+        flex-direction: column;
+        align-items: stretch;
     }
-    .mobile-only small {
-        color: var(--text-secondary);
-        font-size: 0.8125rem;
+
+    .search-input-group .btn {
+        width: 100%;
     }
-    .badge {
-        font-size: 0.6875rem;
-        padding: 0.25rem 0.5rem;
+
+    .search-icon {
+        display: none;
     }
-    .actions {
-        min-width: 180px;
+
+    .user-name {
+        font-size: var(--font-size-sm);
+    }
+
+    .results-info {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        text-align: center;
+    }
+
+    .pagination {
+        gap: var(--spacing-xs);
     }
 }
 </style>
-{% endblock %}
 
-{% block extra_js %}
 <script>
 (function() {
     const userSearchInput = document.querySelector('input[name="search"]');
@@ -289,42 +271,17 @@ document.getElementById('moveModal').addEventListener('click', function(e) {
     }
 });
 
-/**
- * Sélectionner/désélectionner tous les utilisateurs
- */
 function toggleAllUsers(checkbox) {
     const checkboxes = document.querySelectorAll('.user-checkbox');
     checkboxes.forEach(cb => {
         cb.checked = checkbox.checked;
     });
-    updateSelectedCount();
 }
 
-/**
- * Mettre à jour le compteur d'utilisateurs sélectionnés
- */
-function updateSelectedCount() {
-    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
-    const actionBar = document.getElementById('bulk-action-bar');
-    
-    if (actionBar) {
-        actionBar.style.display = checkboxes.length > 0 ? 'block' : 'none';
-        document.getElementById('selected-count').textContent = 
-            `${checkboxes.length} utilisateur(s) sélectionné(s)`;
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMoveModal();
     }
-}
-
-// Ajouter les écouteurs pour les checkboxes
-document.addEventListener('DOMContentLoaded', function() {
-    const checkboxes = document.querySelectorAll('.user-checkbox');
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', updateSelectedCount);
-    });
 });
 </script>
 {% endblock %}
-{% endblock %}
-
-
-
-
