@@ -1,4 +1,4 @@
-"""
+﻿"""
 Module de securite pour l'interface Web Active Directory.
 Contient les fonctions de protection contre les attaques courantes.
 """
@@ -102,7 +102,7 @@ def check_rate_limit(ip_address, max_attempts=5, window_seconds=300, action=None
     _cleanup_old_attempts()
     current_time = time.time()
 
-    # Clé unique : IP seule ou IP + action
+    # ClÃ© unique : IP seule ou IP + action
     key = (ip_address, action) if action else ip_address
     attempts_dict = _action_attempts if action else _login_attempts
 
@@ -140,7 +140,7 @@ def record_attempt(ip_address, success=False, action=None):
     """
     current_time = time.time()
 
-    # Clé unique : IP seule ou IP + action
+    # ClÃ© unique : IP seule ou IP + action
     key = (ip_address, action) if action else ip_address
     attempts_dict = _action_attempts if action else _login_attempts
 
@@ -198,10 +198,10 @@ def rate_limit(max_attempts=5, window_seconds=300, action=None):
             )
 
             if not allowed:
-                # Enregistrer la tentative échouée
+                # Enregistrer la tentative Ã©chouÃ©e
                 record_attempt(ip, success=False, action=action)
 
-                # Réponse adaptée selon le type de requête
+                # RÃ©ponse adaptÃ©e selon le type de requÃªte
                 if request.is_json or request.endpoint.startswith('api_'):
                     return jsonify({
                         'success': False,
@@ -210,7 +210,7 @@ def rate_limit(max_attempts=5, window_seconds=300, action=None):
                         'attempts_remaining': attempts_left
                     }), 429
 
-                # Page HTML pour les requêtes normales
+                # Page HTML pour les requÃªtes normales
                 from flask import render_template
                 return render_template('rate_limited.html',
                                        action=action or 'login',
@@ -224,7 +224,7 @@ def rate_limit(max_attempts=5, window_seconds=300, action=None):
 
 def rate_limit_api(max_attempts=100, window_seconds=60):
     """
-    Decorateur spécial pour les endpoints API.
+    Decorateur spÃ©cial pour les endpoints API.
     Plus permissif pour permettre l'automatisation.
     """
     def decorator(f):
@@ -321,7 +321,7 @@ def add_security_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
     # HTTP Strict Transport Security (HSTS) - Force HTTPS
-    # Active seulement si la connexion est sécurisée
+    # Active seulement si la connexion est sÃ©curisÃ©e
     if request.is_secure or os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true':
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
 
@@ -360,11 +360,11 @@ def add_security_headers(response):
 def get_secure_session_config():
     """
     Retourner la configuration securisee pour les sessions Flask.
-    Par défaut, SESSION_COOKIE_SECURE est activé (HTTPS requis).
-    Pour désactiver en développement: SESSION_COOKIE_SECURE=false dans .env
+    Par dÃ©faut, SESSION_COOKIE_SECURE est activÃ© (HTTPS requis).
+    Pour dÃ©sactiver en dÃ©veloppement: SESSION_COOKIE_SECURE=false dans .env
     """
     import os
-    # Activer par défaut, sauf si explicitement désactivé
+    # Activer par dÃ©faut, sauf si explicitement dÃ©sactivÃ©
     cookie_secure = os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
 
     return {
@@ -372,7 +372,7 @@ def get_secure_session_config():
         'SESSION_COOKIE_HTTPONLY': True,
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'SESSION_COOKIE_NAME': 'ad_session',
-        'PERMANENT_SESSION_LIFETIME': 1800  # 30 minutes
+        'PERMANENT_SESSION_LIFETIME': 7200  # 2 heures
     }
 
 
@@ -406,3 +406,4 @@ def csrf_protect():
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
