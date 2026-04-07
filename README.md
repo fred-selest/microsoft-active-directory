@@ -4,209 +4,164 @@
 
 [![Version](https://img.shields.io/github/v/release/fred-selest/microsoft-active-directory?label=Version&color=0078d4)](https://github.com/fred-selest/microsoft-active-directory/releases)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-3.0.0-lightgrey.svg)](https://flask.palletsprojects.com/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey.svg)](https://flask.palletsprojects.com/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20Server-0078d4.svg)](https://www.microsoft.com/windows-server)
 
-Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente.
+Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.34.1 - Décembre 2025
+**Dernière version :** v1.35.0 — Avril 2026
 
 ---
 
-## ✨ Fonctionnalités Principales
+## ✨ Fonctionnalités
 
 ### 👥 Gestion Active Directory
 
 | Fonctionnalité | Description |
 |---------------|-------------|
-| 👤 **Utilisateurs** | Créer, modifier, supprimer, réinitialiser MDP, activer/désactiver |
-| 👥 **Groupes** | Groupes de sécurité et distribution (détection groupes spéciaux) |
+| 👤 **Utilisateurs** | Créer, modifier, supprimer, réinitialiser MDP, activer/désactiver, déplacer |
+| 👥 **Groupes** | Groupes de sécurité et distribution, membres, groupes spéciaux |
 | 💻 **Ordinateurs** | Machines jointes au domaine avec détails complets |
-| 📁 **OUs** | Unités d'organisation avec arborescence |
-| 🔐 **LAPS** | Gestion des mots de passe locaux |
+| 📁 **OUs** | Unités d'organisation avec arborescence visuelle |
+| 🔐 **LAPS** | Lecture des mots de passe locaux administrés |
 | 🔒 **BitLocker** | Récupération des clés de chiffrement |
 
 ### 🛡️ Sécurité & Audit
 
 | Fonctionnalité | Description |
 |---------------|-------------|
-| 🔍 **Audit MDP** | Analyse complète des mots de passe + score 0-100 |
-| 🔐 **Audit Sécurité** | 8 problèmes détectés + 5 réparations automatiques |
-| 🔑 **Permissions** | 40 permissions granulaires par groupe AD |
-| 📋 **Logs d'audit** | Journal complet de toutes les actions |
-| 🚨 **Alertes auto** | Notifications automatiques par email |
-| 🎲 **Générateur MDP** | Mots de passe sécurisés avec complexité configurable |
+| 🔍 **Audit MDP** | Analyse complète des mots de passe + score 0–100 |
+| 🔐 **Audit Sécurité** | 8 problèmes détectés, 5 réparations automatiques |
+| 🔑 **Permissions** | 40 permissions granulaires configurables par groupe AD |
+| 📋 **Logs d'audit** | Journal complet de toutes les actions administratives |
+| 🚨 **Alertes auto** | Notifications par email (comptes expirés, inactifs, etc.) |
+| 🎲 **Générateur MDP** | Mots de passe sécurisés avec indicateur de complexité |
+
+### 🔒 Connexions sécurisées
+
+- **LDAP** (port 389) — connexion standard
+- **STARTTLS** (port 389 + TLS) — chiffrement opportuniste
+- **LDAPS** (port 636) — SSL/TLS natif
+
+> La définition du mot de passe lors de la création d'un utilisateur requiert LDAPS ou STARTTLS. Un indicateur visuel vous avertit en temps réel.
 
 ### 📊 Tableau de Bord
 
-- 📈 Score de sécurité en temps réel
-- 🚨 Alertes critiques
-- ⚡ Actions requises
-- 📊 Statistiques d'audit
-- ⚡ Accès rapide
+- Score de sécurité en temps réel
+- Alertes critiques
+- Actions requises
+- Statistiques d'audit
+- Accès rapide aux fonctions clés
 
 ---
 
-## 🚀 Installation Rapide
+## 🚀 Installation (Windows Server)
 
-### Windows Server (Recommandé)
+### Prérequis
 
-```batch
-# 1. Extraire dans C:\AD-Web\
-# 2. Right-click install_service.bat → Run as Administrator
-# 3. Accéder à http://SERVER_NAME:5000
+- Windows Server 2016 ou supérieur (ou Windows 10/11)
+- Python 3.10 ou supérieur
+- PowerShell 5.1 ou supérieur
+- Accès réseau au contrôleur de domaine
+
+### Installation en une commande
+
+Ouvrez **PowerShell en tant qu'administrateur** depuis `C:\AD-WebInterface\` :
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\install_standalone.ps1
 ```
 
-### Linux
+Le script effectue automatiquement :
+1. Création de l'environnement virtuel Python (`venv\`)
+2. Installation des dépendances (`pip install -r requirements.txt`)
+3. Génération d'une `SECRET_KEY` aléatoire dans `.env`
+4. Installation du service Windows via **WinSW** (`nssm\ADWebInterface.exe`)
+5. Démarrage automatique du service
 
-```bash
-# Clone
-git clone https://github.com/fred-selest/microsoft-active-directory.git
-cd microsoft-active-directory
+### Accès à l'interface
 
-# Installation
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# Configuration
-python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))" > .env
-echo "FLASK_ENV=production" >> .env
-
-# Lancement
-gunicorn -w 4 -b 0.0.0.0:5000 'app:app'
+```
+http://NOM_DU_SERVEUR:5000
 ```
 
-### Docker
+ou depuis le serveur lui-même :
 
-```bash
-docker run -d -p 5000:5000 \
-  -v ./data:/app/data \
-  -e SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))") \
-  fred-selest/ad-web-interface:latest
+```
+http://localhost:5000
+```
+
+### Gestion du service
+
+```powershell
+# Sans droits administrateur
+.\nssm\ADWebInterface.exe start
+.\nssm\ADWebInterface.exe stop
+.\nssm\ADWebInterface.exe restart
+.\nssm\ADWebInterface.exe status
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### Fichier .env
+### Fichier `.env`
+
+Créé automatiquement par le script d'installation. Paramètres principaux :
 
 ```ini
-# CRITIQUE: Générez une clé secrète
-SECRET_KEY=votre-clé-secrète-ici
+# Obligatoire — générée automatiquement à l'installation
+SECRET_KEY=<clé-aléatoire-64-caractères>
 
-# Serveur
-FLASK_ENV=production
+# Serveur web
 AD_WEB_HOST=0.0.0.0
 AD_WEB_PORT=5000
 
 # Session
-SESSION_COOKIE_SECURE=true
-SESSION_TIMEOUT=30
+SESSION_TIMEOUT=30          # minutes
 
-# Active Directory (optionnel - configurable via UI)
-AD_SERVER=dc01.company.local
+# Active Directory (optionnel — configurable via l'interface)
+AD_SERVER=dc01.corp.local
 AD_PORT=389
 AD_USE_SSL=false
 
-# RBAC
+# Permissions
 RBAC_ENABLED=true
-DEFAULT_ROLE=reader
 RBAC_ADMIN_GROUPS=Domain Admins,Administrateurs du domaine
 
-# Email (pour alertes)
-SMTP_SERVER=smtp.company.local
-SMTP_PORT=587
-SMTP_USERNAME=adweb@company.local
-SMTP_PASSWORD=votre-mot-de-passe
+# Notifications email (optionnel)
 EMAIL_ENABLED=false
+SMTP_SERVER=smtp.corp.local
+SMTP_PORT=587
+SMTP_USERNAME=adweb@corp.local
+SMTP_PASSWORD=mot-de-passe
 ```
 
 ---
 
 ## 🔑 Permissions Granulaires
 
-Chaque groupe AD peut avoir des permissions spécifiques :
+Les permissions sont configurables par groupe Active Directory depuis `/permissions`.
 
-| Catégorie | Permissions |
-|-----------|-------------|
+| Catégorie | Permissions disponibles |
+|-----------|------------------------|
 | **👤 Users** | `create`, `read`, `update`, `delete`, `import`, `export` |
 | **👥 Groups** | `create`, `read`, `update`, `delete` |
 | **💻 Computers** | `create`, `read`, `update`, `delete` |
 | **📁 OUs** | `create`, `read`, `update`, `delete` |
-| **🔧 Tools** | `locked_accounts`, `expiring_accounts`, `password_audit`, ... |
-| **⚙️ Admin** | `settings`, `backups`, `audit_logs`, `security_audit`, ... |
+| **🔧 Tools** | `locked_accounts`, `expiring_accounts`, `password_audit`, `laps`, `bitlocker`, … |
+| **⚙️ Admin** | `settings`, `backups`, `audit_logs`, `security_audit`, `permissions`, … |
 
-### Rôles Prédéfinis
+### Rôles prédéfinis
 
-| Groupe | Permissions | Description |
-|--------|-------------|-------------|
+| Groupe AD | Permissions | Profil |
+|-----------|-------------|--------|
 | **Domain Admins** | Toutes (40) | Accès complet |
-| **IT Support** | 11 permissions | Lecture + modification limitée |
+| **IT Support** | 11 permissions | Lecture + modifications limitées |
 | **Helpdesk** | 4 permissions | Réinitialisation MDP, déblocage |
 | **Domain Users** | 4 permissions | Lecture seule |
-
----
-
-## 🔐 Audit de Sécurité
-
-### Problèmes Détectés
-
-| # | Problème | Sévérité | Réparable |
-|---|----------|----------|-----------|
-| 1 | Comptes orphelins (sans manager) | 🟡 Warning | ✅ |
-| 2 | Trop de Domain Admins | 🔴 Critical | ❌ |
-| 3 | Admins sans MFA | 🔴 Critical | ❌ |
-| 4 | Groupes de sécurité vides | 🟡 Warning | ✅ |
-| 5 | Privilèges spéciaux (DCSync) | 🟠 High | ❌ |
-| 6 | Délégation non contrainte | 🔴 Critical | ✅ |
-| 7 | MDP n'expirant jamais | 🟠 High | ✅ |
-| 8 | Comptes inactifs >90j | 🟡 Warning | ✅ |
-
-### Réparations Automatiques
-
-- 🔧 **Assigner un manager** - Pour comptes orphelins
-- 🔧 **Supprimer groupes vides** - Groupes de sécurité inutilisés
-- 🔧 **Désactiver délégation** - Délégation non contrainte
-- 🔧 **Activer expiration MDP** - Comptes suspects
-- 🔧 **Désactiver comptes inactifs** - Sans login >90 jours
-
----
-
-## 📊 Captures d'Écran
-
-### Dashboard
-![Dashboard](https://via.placeholder.com/800x400/0078d4/ffffff?text=Dashboard+avec+Widgets)
-
-### Audit MDP
-![Audit MDP](https://via.placeholder.com/800x400/0078d4/ffffff?text=Audit+des+Mots+de+Passe)
-
-### Permissions
-![Permissions](https://via.placeholder.com/800x400/0078d4/ffffff?text=Permissions+Granulaires)
-
----
-
-## 📖 Documentation Complète
-
-La documentation complète est disponible dans [README_DOCUMENTATION.md](README_DOCUMENTATION.md)
-
-- 📦 Installation détaillée
-- ⚙️ Configuration avancée
-- 📖 Guide d'utilisation
-- 📡 API Reference
-- 🐛 Dépannage
-
----
-
-## 🔧 Technologies
-
-| Composant | Version | Purpose |
-|-----------|---------|---------|
-| **Flask** | 3.0.0 | Framework web |
-| **ldap3** | 2.9.1 | Connexion Active Directory |
-| **cryptography** | 41.0.7 | Chiffrement des sessions |
-| **waitress** | 2.1.2 | Serveur WSGI (Windows) |
-| **gunicorn** | 21.2.0 | Serveur WSGI (Linux) |
 
 ---
 
@@ -214,73 +169,103 @@ La documentation complète est disponible dans [README_DOCUMENTATION.md](README_
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Browser (Any Device)                     │
+│                  Navigateur (tout appareil)                  │
 └────────────────────────┬────────────────────────────────────┘
-                         │ HTTPS
+                         │ HTTP / HTTPS
 ┌────────────────────────▼────────────────────────────────────┐
-│                   Flask Web Application                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   RBAC +     │  │   Session    │  │    Audit     │      │
-│  │ Permissions  │  │   Encrypt    │  │    Logger    │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│          Service Windows — WinSW + Waitress WSGI             │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                 Flask Application                     │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐  │   │
+│  │  │  Users   │ │  Groups  │ │Computers │ │  OUs   │  │   │
+│  │  │ Blueprint│ │ Blueprint│ │ Blueprint│ │Blueprint│  │   │
+│  │  └──────────┘ └──────────┘ └──────────┘ └────────┘  │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐  │   │
+│  │  │  Tools   │ │  Admin   │ │   API    │ │  Debug │  │   │
+│  │  └──────────┘ └──────────┘ └──────────┘ └────────┘  │   │
+│  │                                                      │   │
+│  │  core/ : sécurité, audit, session, permissions       │   │
+│  └──────────────────────────────────────────────────────┘   │
 └────────────────────────┬────────────────────────────────────┘
-                         │ LDAP/LDAPS
+                         │ LDAP / LDAPS / STARTTLS
 ┌────────────────────────▼────────────────────────────────────┐
 │               Microsoft Active Directory                     │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │  Users   │  │  Groups  │  │ Computers│  │   OUs    │   │
+│  │  Users   │  │  Groups  │  │Computers │  │   OUs    │   │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Modules principaux (`core/`)
+
+| Module | Rôle |
+|--------|------|
+| `security.py` | CSRF, échappement LDAP, headers HTTP de sécurité |
+| `session_crypto.py` | Chiffrement Fernet des données de session sensibles |
+| `audit.py` | Journal des actions (création, modification, suppression) |
+| `granular_permissions.py` | Calcul des 40 permissions par groupe AD |
+| `context_processor.py` | Variables globales Jinja2 (version, dark mode…) |
+| `updater.py` | Lecture `VERSION` + vérification des nouvelles versions |
+| `settings_manager.py` | Lecture/écriture `data/settings.json` |
+| `security_audit.py` | Audit de sécurité AD (8 contrôles, 5 corrections auto) |
+
+---
+
+## 🔐 Audit de Sécurité
+
+### Problèmes détectés automatiquement
+
+| # | Problème | Sévérité | Correction auto |
+|---|----------|----------|-----------------|
+| 1 | Comptes orphelins (sans manager) | 🟡 Warning | ✅ |
+| 2 | Trop de Domain Admins | 🔴 Critical | ❌ |
+| 3 | Admins sans MFA activé | 🔴 Critical | ❌ |
+| 4 | Groupes de sécurité vides | 🟡 Warning | ✅ |
+| 5 | Privilèges spéciaux (DCSync) | 🟠 High | ❌ |
+| 6 | Délégation Kerberos non contrainte | 🔴 Critical | ✅ |
+| 7 | Comptes avec MDP sans expiration | 🟠 High | ✅ |
+| 8 | Comptes inactifs depuis +90 jours | 🟡 Warning | ✅ |
+
+---
+
+## 🔧 Technologies
+
+| Composant | Version | Rôle |
+|-----------|---------|------|
+| **Python** | 3.10+ | Langage |
+| **Flask** | 3.0 | Framework web |
+| **ldap3** | 2.9+ | Connexion Active Directory |
+| **cryptography** | 41+ | Chiffrement des sessions (Fernet) |
+| **Waitress** | 2.1+ | Serveur WSGI (Windows) |
+| **WinSW** | 2.12+ | Gestionnaire de service Windows |
 
 ---
 
 ## 📈 Changelog
 
-### v1.31.0 - Avril 2026
-- ✅ Permissions granulaires par groupe AD (40 permissions)
+### v1.35.0 — Avril 2026
+- ✅ Consolidation complète du CSS (design system unifié, variables CSS partout)
+- ✅ Correction détection STARTTLS pour `can_set_password` dans `/users/create`
+- ✅ Restauration du design de la landing page (hero, feature cards, system info)
+- ✅ Générateur de mot de passe dans `/users/create` (avec indicateur de force)
+- ✅ Correction `/permissions` (erreur 500 — mauvais template rendu)
+- ✅ Correction dropdown OU dans la création d'utilisateur
+- ✅ Script de signature Authenticode WinSW (self-signed, admin one-shot)
+
+### v1.34.7 — Avril 2026
+- ✅ Réorganisation en package `core/`
+- ✅ Corrections chemins `core/data/crypto_salt.bin`
+- ✅ Suppression des imports locaux incorrects
+
+### v1.34.0 — Avril 2026
+- ✅ Permissions granulaires (40 permissions par groupe AD)
 - ✅ Page d'administration des permissions
-- ✅ Rôles prédéfinis (Domain Admins, IT Support, Helpdesk)
-
-### v1.30.0 - Avril 2026
-- ✅ Audit de sécurité renforcé (8 problèmes)
-- ✅ 5 réparations automatiques
-- ✅ Boutons "Réparer" avec validation
-
-### v1.29.0 - Avril 2026
-- ✅ Dashboard avec 4 widgets
-- ✅ Arborescence des OUs
-- ✅ Widget alertes critiques
-
-### v1.28.0 - Avril 2026
-- ✅ Dashboard personnalisé
-- ✅ Widget score de sécurité
-- ✅ Widget actions requises
-
-### v1.27.0 - Avril 2026
-- ✅ Alertes automatiques par email
-- ✅ Détection problèmes critiques
-- ✅ Dark Mode optimisé
-
-### v1.26.0 - Avril 2026
-- ✅ Comptes admins MDP faible
-- ✅ Comptes de service à risque
-- ✅ Export PDF professionnel
-- ✅ Historique des audits
+- ✅ Audit de sécurité AD (8 contrôles)
+- ✅ Dashboard avec widgets configurables
+- ✅ Support STARTTLS + LDAPS avec détection automatique
 
 [Voir le changelog complet](CHANGELOG.md)
-
----
-
-## 🤝 Contributing
-
-Les contributions sont les bienvenues !
-
-1. Fork le projet
-2. Crée une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit (`git commit -m 'Add AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Ouvre une Pull Request
 
 ---
 
@@ -290,41 +275,19 @@ Distribué sous la licence MIT. Voir [LICENSE](LICENSE) pour plus d'informations
 
 ---
 
-## 👥 Auteurs
+## 👤 Auteur
 
-- **Frédéric SELEST** - *Développeur principal* - [fred-selest](https://github.com/fred-selest)
-
-Voir aussi la liste des [contributeurs](https://github.com/fred-selest/microsoft-active-directory/graphs/contributors).
-
----
-
-## 🙏 Remerciements
-
-- Microsoft pour Active Directory
-- La communauté Flask
-- ldap3 pour la bibliothèque LDAP
-- Tous les contributeurs open-source
+**Frédéric SELEST** — [fred-selest](https://github.com/fred-selest)
 
 ---
 
 ## 📞 Support
 
-- **Issues:** https://github.com/fred-selest/microsoft-active-directory/issues
-- **Discussions:** https://github.com/fred-selest/microsoft-active-directory/discussions
-- **Documentation:** [README_DOCUMENTATION.md](README_DOCUMENTATION.md)
-
----
-
-## 🌟 Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=fred-selest/microsoft-active-directory&type=Date)](https://star-history.com/#fred-selest/microsoft-active-directory&Date)
+- **Issues :** https://github.com/fred-selest/microsoft-active-directory/issues
+- **Discussions :** https://github.com/fred-selest/microsoft-active-directory/discussions
 
 ---
 
 <p align="center">
-  <strong>Si vous aimez ce projet, merci de mettre une étoile ⭐️ !</strong>
-</p>
-
-<p align="center">
-  <sub>Fait avec ❤️ par la communauté</sub>
+  <strong>Si ce projet vous est utile, une ⭐️ est toujours appréciée !</strong>
 </p>
