@@ -5,7 +5,7 @@ import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 
 from routes.core import is_connected, require_connection, require_permission
-from security import validate_csrf_token
+from core.security import validate_csrf_token
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -16,7 +16,7 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 def admin_page():
     """Page d'administration."""
     try:
-        from settings_manager import load_settings
+        from core.settings_manager import load_settings
         settings = load_settings()
     except Exception as e:
         flash(f'Erreur chargement: {str(e)}', 'error')
@@ -39,7 +39,7 @@ def save_general():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import load_settings, save_settings
+    from core.settings_manager import load_settings, save_settings
 
     settings = load_settings()
     settings['site']['title'] = request.form.get('site_title', 'AD Web Interface')
@@ -76,7 +76,7 @@ def save_features():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import load_settings, save_settings
+    from core.settings_manager import load_settings, save_settings
 
     settings = load_settings()
     settings['features']['dark_mode'] = request.form.get('dark_mode') == 'on'
@@ -101,7 +101,7 @@ def save_security():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import load_settings, save_settings
+    from core.settings_manager import load_settings, save_settings
 
     settings = load_settings()
     settings['security']['session_timeout'] = int(request.form.get('session_timeout', 30))
@@ -125,7 +125,7 @@ def save_smtp_settings():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import load_settings, save_settings
+    from core.settings_manager import load_settings, save_settings
 
     settings = load_settings()
     settings['smtp']['enabled'] = request.form.get('smtp_enabled') == 'on'
@@ -159,7 +159,7 @@ def test_smtp():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import load_settings
+    from core.settings_manager import load_settings
     settings = load_settings()
     smtp = settings.get('smtp', {})
 
@@ -230,7 +230,7 @@ def reset_settings():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import reset_settings as reset_to_defaults
+    from core.settings_manager import reset_settings as reset_to_defaults
 
     if reset_to_defaults():
         flash('Paramètres réinitialisés!', 'success')
@@ -249,7 +249,7 @@ def save_menu():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import load_settings, save_settings
+    from core.settings_manager import load_settings, save_settings
 
     settings = load_settings()
 
@@ -285,7 +285,7 @@ def export_settings():
     """Exporter les paramètres en JSON."""
     import json
     from flask import Response
-    from settings_manager import load_settings
+    from core.settings_manager import load_settings
 
     settings = load_settings()
 
@@ -305,7 +305,7 @@ def save_password_settings():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from settings_manager import load_settings, save_settings
+    from core.settings_manager import load_settings, save_settings
 
     settings = load_settings()
     
@@ -327,7 +327,7 @@ def save_password_settings():
 @require_permission('admin')
 def api_generate_password():
     """Générer un nouveau mot de passe par défaut."""
-    from settings_manager import generate_new_default_password
+    from core.settings_manager import generate_new_default_password
     from flask import jsonify
     
     complexity = request.form.get('complexity', 'high')

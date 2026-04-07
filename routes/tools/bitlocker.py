@@ -4,7 +4,7 @@ from ldap3 import SUBTREE
 
 from . import tools_bp
 from ..core import get_ad_connection, decode_ldap_value, is_connected, require_connection, require_permission
-from security import escape_ldap_filter
+from core.security import escape_ldap_filter
 
 
 @tools_bp.route('/bitlocker')

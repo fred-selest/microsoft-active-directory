@@ -31,3 +31,6 @@ cryptography==41.0.7
 
 # Support MD4/NTLM Python 3.12+ (monkey-patch OpenSSL)
 pycryptodome==3.20.0
+
+# Comparaison de versions sémantiques (utilisé par updater.py)
+packaging>=23.0

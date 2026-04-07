@@ -1,7 +1,7 @@
 """
 Debug context processor variables
 """
-from context_processor import inject_globals
+from core.context_processor import inject_globals
 
 result = inject_globals()
 

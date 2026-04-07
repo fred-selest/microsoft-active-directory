@@ -8,7 +8,7 @@ from ldap3.core.exceptions import LDAPException, LDAPAttributeError
 # Import tools_bp directly to avoid circular import
 from routes.tools import tools_bp
 from routes.core import get_ad_connection, decode_ldap_value, is_connected, require_connection, require_permission
-from security import escape_ldap_filter, validate_csrf_token
+from core.security import escape_ldap_filter, validate_csrf_token
 
 logger = logging.getLogger('laps')
 

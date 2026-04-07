@@ -8,8 +8,8 @@ from ldap3.core.exceptions import LDAPException
 
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, require_permission, config)
-from security import escape_ldap_filter, validate_csrf_token
-from audit import log_action, ACTIONS
+from core.security import escape_ldap_filter, validate_csrf_token
+from core.audit import log_action, ACTIONS
 
 logger = logging.getLogger('groups')
 groups_bp = Blueprint('groups', __name__, url_prefix='/groups')

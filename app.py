@@ -8,10 +8,10 @@ import _openssl_init
 
 from flask import Flask, session, redirect, url_for, render_template
 from config import get_config
-from security import add_security_headers
-from session_crypto import init_crypto
-from context_processor import inject_globals
-from debug_utils import init_debug, logger
+from core.security import add_security_headers
+from core.session_crypto import init_crypto
+from core.context_processor import inject_globals
+from core.debug_utils import init_debug, logger
 
 # Import des blueprints
 from routes.main import main_bp
@@ -39,8 +39,9 @@ if config.DEBUG:
     app.jinja_env.auto_reload = True
 
 # Session cookie
-from security import get_secure_session_config
+from core.security import get_secure_session_config
 secure_session = get_secure_session_config()
+app.config['SESSION_COOKIE_SECURE'] = secure_session['SESSION_COOKIE_SECURE']
 app.config['SESSION_COOKIE_HTTPONLY'] = secure_session['SESSION_COOKIE_HTTPONLY']
 app.config['SESSION_COOKIE_SAMESITE'] = secure_session['SESSION_COOKIE_SAMESITE']
 

@@ -7,8 +7,8 @@ from ldap3.core.exceptions import LDAPException
 
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, require_permission)
-from security import validate_csrf_token
-from audit import log_action
+from core.security import validate_csrf_token
+from core.audit import log_action
 
 ous_bp = Blueprint('ous', __name__, url_prefix='/ous')
 

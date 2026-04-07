@@ -9,7 +9,7 @@ from ldap3.core.exceptions import LDAPException
 from . import users_bp
 from ..core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, config)
-from security import escape_ldap_filter
+from core.security import escape_ldap_filter
 
 
 @users_bp.route('/')
