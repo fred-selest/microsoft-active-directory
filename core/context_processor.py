@@ -25,7 +25,7 @@ def inject_globals():
 
     if _update_cache['result'] is None or (time.time() - _update_cache['last_check']) > 300:
         try:
-            from updater import check_for_updates_fast
+            from core.updater import check_for_updates_fast
             _update_cache['result'] = check_for_updates_fast()
             _update_cache['last_check'] = time.time()
         except Exception:
@@ -35,8 +35,8 @@ def inject_globals():
     translator = Translator(lang)
 
     try:
-        from settings_manager import (load_settings, get_menu_items,
-                                      get_tool_items, get_admin_items, get_dropdown_items)
+        from core.settings_manager import (load_settings, get_menu_items,
+                                           get_tool_items, get_admin_items, get_dropdown_items)
         settings = load_settings()
         menu_items = get_menu_items()
         tool_items = get_tool_items()
@@ -58,7 +58,7 @@ def inject_globals():
         
         # Sinon vérifier les permissions granulaires
         if user_groups:
-            from granular_permissions import has_permission as has_granular_permission
+            from core.granular_permissions import has_permission as has_granular_permission
             return has_granular_permission(user_groups, permission)
         
         return False
@@ -68,7 +68,7 @@ def inject_globals():
     except Exception:
         alert_counts = {'total': 0}
 
-    from updater import get_current_version
+    from core.updater import get_current_version
     
     # Vérifier si connecté à AD
     from routes.core import is_connected

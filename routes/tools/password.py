@@ -166,7 +166,7 @@ def export_password_audit_json():
 def export_password_audit_pdf():
     """Exporter l'audit des mots de passe en PDF professionnel."""
     from password_audit import run_password_audit
-    from audit_history import save_audit
+    from core.audit_history import save_audit
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -400,7 +400,7 @@ def password_auditor_report():
     """Générer un rapport style Specops Password Auditor."""
     from password_audit import run_password_audit, generate_auditor_issues
     from datetime import datetime
-    from updater import get_current_version
+    from core.updater import get_current_version
 
     conn, error = get_ad_connection()
     if not conn:
@@ -450,7 +450,7 @@ def password_auditor_report():
 @require_permission('admin')
 def password_audit_history():
     """Page d'historique des audits."""
-    from audit_history import get_audit_history, get_history_stats
+    from core.audit_history import get_audit_history, get_history_stats
     
     audits = get_audit_history(limit=50)
     stats = get_history_stats()
@@ -466,7 +466,7 @@ def password_audit_history():
 @require_permission('admin')
 def api_password_audit_history():
     """API - Historique des audits."""
-    from audit_history import get_audit_history, get_audit_evolution, get_history_stats
+    from core.audit_history import get_audit_history, get_audit_evolution, get_history_stats
     
     limit = request.args.get('limit', 20, type=int)
     days = request.args.get('days', 90, type=int)
@@ -483,7 +483,7 @@ def api_password_audit_history():
 @require_permission('admin')
 def api_password_audit_compare():
     """API - Comparer deux audits."""
-    from audit_history import compare_audits
+    from core.audit_history import compare_audits
     
     audit_id_1 = request.args.get('audit_1', '')
     audit_id_2 = request.args.get('audit_2', '')
@@ -499,7 +499,7 @@ def api_password_audit_compare():
 @require_permission('admin')
 def delete_audit_history(audit_id):
     """Supprimer un audit de l'historique."""
-    from audit_history import delete_audit
+    from core.audit_history import delete_audit
     
     if delete_audit(audit_id):
         flash('Audit supprimé avec succès', 'success')
@@ -516,8 +516,8 @@ def delete_audit_history(audit_id):
 @require_permission('admin')
 def send_audit_email_route():
     """Envoyer le dernier audit par email."""
-    from email_notifications import send_audit_email
-    from audit_history import get_audit_history
+    from core.email_notifications import send_audit_email
+    from core.audit_history import get_audit_history
     import os
     from pathlib import Path
     
@@ -566,7 +566,7 @@ def send_audit_email_route():
 @require_permission('admin')
 def test_email_config_route():
     """Tester la configuration email."""
-    from email_notifications import test_email_config
+    from core.email_notifications import test_email_config
     
     result = test_email_config()
     
@@ -581,8 +581,8 @@ def test_email_config_route():
 @require_permission('admin')
 def api_password_audit_alerts_summary():
     """API - Résumé des alertes critiques."""
-    from auto_alerts import get_alert_summary
-    from audit_history import get_audit_history
+    from core.auto_alerts import get_alert_summary
+    from core.audit_history import get_audit_history
     
     # Récupérer le dernier audit
     audits = get_audit_history(limit=1)

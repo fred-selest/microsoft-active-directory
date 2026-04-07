@@ -358,7 +358,7 @@ def api_generate_password():
 @require_permission('admin')
 def api_check_password_strength():
     """Vérifier la force d'un mot de passe."""
-    from password_generator import check_password_complexity
+    from core.password_generator import check_password_complexity
     from flask import jsonify
     
     password = request.form.get('password', '')

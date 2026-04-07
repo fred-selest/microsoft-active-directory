@@ -205,7 +205,7 @@ def toggle_user_status(dn):
             error_desc = conn.result.get('description', 'Erreur inconnue')
             error_msg = conn.result.get('message', '')
             
-            from ldap_errors import format_ldap_error
+            from core.ldap_errors import format_ldap_error
             user_message = format_ldap_error(error_code, error_desc, error_msg, 'toggle')
             
             # Ajouter une suggestion spécifique pour l'activation
@@ -220,7 +220,7 @@ def toggle_user_status(dn):
             
     except Exception as e:
         logger.error(f"toggle_user_status: exception = {str(e)}", exc_info=True)
-        from ldap_errors import handle_ldap_exception
+        from core.ldap_errors import handle_ldap_exception
         user_message = handle_ldap_exception(e, 'toggle')
         flash(user_message, 'error')
     finally:

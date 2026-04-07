@@ -127,7 +127,7 @@ def get_default_password():
     Returns:
         Tuple (password, must_change)
     """
-    from password_generator import generate_ad_password
+    from core.password_generator import generate_ad_password
     
     settings = load_settings()
     password_config = settings.get('password', {})
@@ -179,7 +179,7 @@ def generate_new_default_password(
     Returns:
         Nouveau mot de passe généré
     """
-    from password_generator import generate_password
+    from core.password_generator import generate_password
     
     password = generate_password(
         length=length,

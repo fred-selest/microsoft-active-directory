@@ -74,7 +74,7 @@ def get_dashboard_widgets():
     
     # 3. Actions récentes
     try:
-        from audit import get_audit_logs
+        from core.audit import get_audit_logs
         widgets['recent_actions'] = get_audit_logs(limit=5)
     except Exception:
         pass
