@@ -24,8 +24,7 @@ config = get_config()
 _tls_config = Tls(
     validate=ssl.CERT_NONE,
     version=ssl.PROTOCOL_TLS_CLIENT,
-    ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA',
-    ssl_version=ssl.PROTOCOL_TLS_CLIENT
+    ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
 )
 
 

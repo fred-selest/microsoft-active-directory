@@ -1828,3 +1828,86 @@ System.ComponentModel.Win32Exception (6): Descripteur non valide
 2026-04-08 12:11:04,828 DEBUG - Stopping process 18528...
 2026-04-08 12:11:05,721 DEBUG - Process 18528 canceled with code 0.
 2026-04-08 12:11:05,740 INFO  - Finished ADWebInterface
+2026-04-08 12:26:17,266 DEBUG - Starting WinSW in console mode
+2026-04-08 12:26:17,471 INFO  - Installing service 'AD Web Interface (ADWebInterface)'...
+2026-04-08 12:26:17,618 INFO  - Service 'AD Web Interface (ADWebInterface)' was installed successfully.
+2026-04-08 12:26:19,245 DEBUG - Starting WinSW in service mode
+2026-04-08 12:26:19,924 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:26:20,049 INFO  - Started process 19548
+2026-04-08 12:26:20,089 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:26:29,480 DEBUG - Starting WinSW in service mode
+2026-04-08 12:26:30,042 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:26:30,146 INFO  - Started process 24696
+2026-04-08 12:26:30,192 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:26:38,374 DEBUG - Starting WinSW in service mode
+2026-04-08 12:26:38,922 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:26:39,024 INFO  - Started process 14532
+2026-04-08 12:26:39,071 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:26:47,065 DEBUG - Starting WinSW in service mode
+2026-04-08 12:26:47,955 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:26:48,066 INFO  - Started process 15972
+2026-04-08 12:26:48,124 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:26:56,033 DEBUG - Starting WinSW in service mode
+2026-04-08 12:26:56,688 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:26:56,789 INFO  - Started process 29372
+2026-04-08 12:26:56,829 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:27:05,333 DEBUG - Starting WinSW in service mode
+2026-04-08 12:27:05,925 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:27:06,009 INFO  - Started process 23012
+2026-04-08 12:27:06,053 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:27:14,746 DEBUG - Starting WinSW in service mode
+2026-04-08 12:27:15,386 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:27:15,493 INFO  - Started process 30876
+2026-04-08 12:27:15,539 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:27:23,835 DEBUG - Starting WinSW in service mode
+2026-04-08 12:27:24,528 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:27:24,620 INFO  - Started process 12208
+2026-04-08 12:27:24,687 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:27:32,847 DEBUG - Starting WinSW in service mode
+2026-04-08 12:27:33,486 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:27:33,612 INFO  - Started process 36508
+2026-04-08 12:27:33,648 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:27:41,813 DEBUG - Starting WinSW in service mode
+2026-04-08 12:27:42,412 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:27:42,509 INFO  - Started process 20172
+2026-04-08 12:27:42,579 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:27:50,746 DEBUG - Starting WinSW in service mode
+2026-04-08 12:27:51,399 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:27:51,502 INFO  - Started process 35716
+2026-04-08 12:27:51,538 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:27:59,734 DEBUG - Starting WinSW in service mode
+2026-04-08 12:28:00,326 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:28:00,436 INFO  - Started process 16312
+2026-04-08 12:28:00,480 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:28:08,851 DEBUG - Starting WinSW in service mode
+2026-04-08 12:28:09,699 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:28:09,819 INFO  - Started process 31368
+2026-04-08 12:28:09,859 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:28:18,133 DEBUG - Starting WinSW in service mode
+2026-04-08 12:28:18,705 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:28:18,799 INFO  - Started process 28612
+2026-04-08 12:28:18,845 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:28:26,944 DEBUG - Starting WinSW in service mode
+2026-04-08 12:28:27,723 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:28:27,846 INFO  - Started process 35196
+2026-04-08 12:28:27,885 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:28:36,257 DEBUG - Starting WinSW in service mode
+2026-04-08 12:28:36,858 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:28:36,946 INFO  - Started process 4208
+2026-04-08 12:28:37,006 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:28:45,820 DEBUG - Starting WinSW in service mode
+2026-04-08 12:28:46,577 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:28:46,662 INFO  - Started process 28580
+2026-04-08 12:28:46,704 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:28:55,325 DEBUG - Starting WinSW in service mode
+2026-04-08 12:28:55,950 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:28:56,075 INFO  - Started process 31512
+2026-04-08 12:28:56,124 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:29:04,519 DEBUG - Starting WinSW in service mode
+2026-04-08 12:29:05,159 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:29:05,260 INFO  - Started process 16496
+2026-04-08 12:29:05,305 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
+2026-04-08 12:29:13,487 DEBUG - Starting WinSW in service mode
+2026-04-08 12:29:14,143 INFO  - Starting C:\AD-WebInterface\venv\Scripts\python.exe  C:\AD-WebInterface\run.py
+2026-04-08 12:29:14,248 INFO  - Started process 26584
+2026-04-08 12:29:14,291 DEBUG - Forwarding logs of the process System.Diagnostics.Process (python) to WinSW.ResetLogAppender
