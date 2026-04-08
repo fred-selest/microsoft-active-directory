@@ -208,7 +208,7 @@ if not exist "%TEMP%\nssm.zip" (
 REM Extraction de l'archive NSSM si telechargee
 if exist "%TEMP%\nssm.zip" (
     echo Extraction de NSSM...
-    powershell -NoProfile -Command "Expand-Archive -Path '$env:TEMP\nssm.zip' -DestinationPath '$env:TEMP\nssm-extract' -Force -ErrorAction SilentlyContinue"
+    powershell -NoProfile -Command "$src='$env:TEMP\nssm.zip'; $dst='$env:TEMP\nssm-extract'; if(Test-Path $src){Expand-Archive -Path $src -DestinationPath $dst -Force}; exit 0"
     del "%TEMP%\nssm.zip" >nul 2>&1
     REM Recherche recursive de nssm.exe (win64 prioritaire) dans l'arborescence extraite
     set NSSM_FOUND=
@@ -272,11 +272,7 @@ if not errorlevel 1 (
     echo Arret et suppression du service existant...
     net stop "%SERVICE_NAME%" >nul 2>&1
     timeout /t 2 /nobreak >nul
-    if "!SERVICE_MGR!"=="winsw" (
-        sc delete "%SERVICE_NAME%" >nul 2>&1
-    ) else (
-        "%NSSM_EXE%" remove "%SERVICE_NAME%" confirm >nul 2>&1
-    )
+    sc delete "%SERVICE_NAME%" >nul 2>&1
     timeout /t 1 /nobreak >nul
     echo.
 )
@@ -317,7 +313,8 @@ if defined OPENSSL_CONF_PATH (
 )
 set SVC_LOG_OUT=%APP_DIR%logs\service.log
 set SVC_LOG_ERR=%APP_DIR%logs\service_error.log
-goto :service_install_done
+
+REM === Suite de l'installation ===
 
 REM === Chemin B : Installation avec WinSW ===
 :install_with_winsw
@@ -351,7 +348,7 @@ if errorlevel 1 (
 set SVC_LOG_OUT=%APP_DIR%logs\%SERVICE_NAME%.out.log
 set SVC_LOG_ERR=%APP_DIR%logs\%SERVICE_NAME%.err.log
 
-:service_install_done
+REM === Suite de l'installation ===
 
 REM =====================================================================
 REM ETAPE 8b : Ouverture du port dans le pare-feu Windows
