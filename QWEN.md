@@ -365,3 +365,7 @@ Flask ne recharge **pas** les templates en production (`TEMPLATES_AUTO_RELOAD = 
 - **Redirection après POST :** toujours via `redirect(url_for(...))` (pattern PRG)
 - **Libération connexion LDAP :** toujours `conn.unbind()` dans un bloc `finally`
 - **Templates :** étendent `base.html`, définissent `{% block title %}`, `{% block content %}`, optionnellement `{% block extra_css %}` et `{% block extra_js %}` (toujours à la **racine** du fichier, jamais imbriqués)
+
+## Qwen Added Memories
+- Procédure de release Git pour AD Web Interface : 1) Mettre à jour fichier VERSION, 2) Commit avec message "chore: Bump version to X.Y.Z", 3) Créer tag annoté "git tag -a vX.Y.Z -m "Version X.Y.Z - Mois YYYY"", 4) Pousser main "git push origin main", 5) Pousser tag explicitement "git push origin vX.Y.Z" (JAMAIS --tags), 6) Vérifier sur GitHub "git ls-remote --tags origin". Ne jamais utiliser "git push --tags" car cela peut échouer avec des tags existants. Toujours pousser les tags individuellement.
+- Procédure de signature des scripts PowerShell pour AD Web Interface : 1) Utiliser scripts\sign_all.bat (en admin) OU scripts\sign_scripts.ps1, 2) Le script crée automatiquement un certificat auto-signé dans Cert:\LocalMachine\My, 3) Importe le certificat dans Trusted Root, 4) Signe tous les .ps1 avec Set-AuthenticodeSignature, 5) Vérifier avec Get-AuthenticodeSignature. Fichiers : sign_scripts.ps1 (script principal), sign_all.bat (wrapper batch), SIGNATURE_GUIDE.md (documentation). Version 1.36.2+.
