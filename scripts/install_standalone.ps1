@@ -88,7 +88,31 @@ function Install-Python {
 
     Write-Warning "Python non trouve ou version insuffisante. Installation..."
 
-    # Telecharger Python
+    # Methode 1: winget (Windows 10/11)
+    Write-Info "Methode 1: winget..."
+    try {
+        $winget = Get-Command winget -ErrorAction SilentlyContinue
+        if ($winget) {
+            Write-Info "Installation de Python 3.12 via winget..."
+            winget install --id Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
+            
+            # Rafraichir le PATH
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+            
+            # Verifier que Python est maintenant disponible
+            $python = Get-Command python -ErrorAction SilentlyContinue
+            if ($python) {
+                $version = & python --version 2>&1
+                Write-Success "Python installe avec succes: $version"
+                return $true
+            }
+        }
+    } catch {
+        Write-Warning "winget non disponible ou echec"
+    }
+
+    # Methode 2: Telechargement direct
+    Write-Info "Methode 2: Telechargement direct..."
     $pythonUrl = "https://www.python.org/ftp/python/3.12.0/python-3.12.0-amd64.exe"
     $pythonInstaller = "$env:TEMP\python-installer.exe"
 
@@ -99,11 +123,10 @@ function Install-Python {
         Write-Info "Installation de Python 3.12.0 en cours..."
         Start-Process -FilePath $pythonInstaller -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait
         Remove-Item $pythonInstaller -Force -ErrorAction SilentlyContinue
-        Write-Success "Python installe avec succes"
-
+        
         # Rafraichir le PATH
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-
+        
         # Verifier que Python est maintenant disponible
         $python = Get-Command python -ErrorAction SilentlyContinue
         if ($python) {
@@ -117,7 +140,8 @@ function Install-Python {
         }
     } catch {
         Write-ErrorMsg "Erreur lors de l'installation de Python: $_"
-        Write-Warning "Vous pouvez installer Python manuellement depuis https://www.python.org/downloads/"
+        Write-Warning "Installez Python manuellement depuis https://www.python.org/downloads/"
+        Write-Warning "OU utilisez: winget install Python.Python.3.12"
         return $false
     }
 }
@@ -472,8 +496,8 @@ pause
 # SIG # Begin signature block
 # MIIcIAYJKoZIhvcNAQcCoIIcETCCHA0CAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA3XKZBVJoj9wzy
-# RNjR/XKXNEkeqXSDmqwM72LI+2nqgaCCFl4wggMgMIICCKADAgECAhB15f8UAKT2
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBnbzJiV/F2kBMz
+# Un5f2uEXi0FFQ7le9vPO59+xkdZVn6CCFl4wggMgMIICCKADAgECAhB15f8UAKT2
 # qEy95UH9z4ncMA0GCSqGSIb3DQEBCwUAMCgxJjAkBgNVBAMMHUFEIFdlYiBJbnRl
 # cmZhY2UgQ29kZSBTaWduaW5nMB4XDTI2MDQwNzE3MTIxMloXDTMxMDQwNzE3MjIx
 # MVowKDEmMCQGA1UEAwwdQUQgV2ViIEludGVyZmFjZSBDb2RlIFNpZ25pbmcwggEi
@@ -596,29 +620,29 @@ pause
 # AgEBMDwwKDEmMCQGA1UEAwwdQUQgV2ViIEludGVyZmFjZSBDb2RlIFNpZ25pbmcC
 # EHXl/xQApPaoTL3lQf3PidwwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIB
 # DDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEE
-# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgMBphVSYq9bbT
-# A9rnOgKAveMmR795o4+dbJ45bejINY8wDQYJKoZIhvcNAQEBBQAEggEAl+vmjA5L
-# 2cqfHCP9h6dSf05JnHJ/65UoWewXFzarJmuCsd9KadTkHx6tboSpTJ6o3B4KSZZS
-# oIi+n05kaZi7H0LX/z+m1KOtDqJZ7wVo5aCXXAd3Pg2W9EUOiZdX+xyxmR6FRF3D
-# renENsaOzB/S0nTzSk0SAOHzRyVbqmF8I/ZF1kc63i8aWbdwSxmQfNeQbJRqM9xZ
-# iq21iS4yXXiUojNLW/RHX7OYazetTvJzHcVhet+4vPSXup4xYLqc8s0Q+I4Le2vG
-# Qbmcf8iREDd63Cssykg1VpEWaj7rlZUIgKyCc4CwAgaOR6nXr0ICoRCLyG1J+Ulf
-# UPnRy1r9zADXAaGCAyYwggMiBgkqhkiG9w0BCQYxggMTMIIDDwIBATB9MGkxCzAJ
+# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQghtv7dFDWavm2
+# p9Kcr08I3LZ9spPLfVGj3mQ1ZWtG4a8wDQYJKoZIhvcNAQEBBQAEggEAMpWtPFlr
+# 9fnmDqkObryasJrPZdWcQs5Hy2n1Ns3M17zZcRYjJIk+5GVeh75s+1Q33+VBxHts
+# tGM62D5l7XS+yDybZdD34i4S6WunFMk/8wB1KK0FALpywpFWduCQqRBjRiYEyMCA
+# dba9/mfnckdeg7uGQzoeIv4/tz51XL/UN2tC/I3JaJ1IwwaZwwhjTLjMS4zoEv+e
+# wjayIQKezlRPq319O3nZkxF5deryiMA3mfw2D+f0hGP+hVy0ylx1MYcm+u9bESTN
+# Vq2CJY2x7kyP01bea+yTCVYs2AWIIgx/YGGkNzy2WCz6vYLKf/Pj/OVz3yCMc8ej
+# xFutndNv7odulaGCAyYwggMiBgkqhkiG9w0BCQYxggMTMIIDDwIBATB9MGkxCzAJ
 # BgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5jLjFBMD8GA1UEAxM4RGln
 # aUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNBNDA5NiBTSEEyNTYgMjAy
 # NSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZIAWUDBAIBBQCgaTAYBgkqhkiG
-# 9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yNjA0MDgwNjM4Mjda
-# MC8GCSqGSIb3DQEJBDEiBCBmQ7jjdrzbAmfwrLa78kz6078tOIEVwwu1j8/lHcGV
-# ETANBgkqhkiG9w0BAQEFAASCAgC8wlw8GQRqhw60UR0I0w64Va45GdxIB0J8ruVj
-# AytSPGWCOLVA/3OR5AefDzQO3M/eGI8tBHPZEvMVS4jlBnIFShnT7qly3c9VFb9t
-# MHPAtfIWkr9YmD5fA42AG7c0NZsJZ/G7M3lNClgGMPpH5QwgbZJH0J0vpnYSuhAV
-# lUQAJQqldu6qtD/Bi6MYGSvvbmWSgSTpl2XNUjdjWf5jgZ21z9bBzM+lyH19Bpsl
-# 10E5qdUGNLnMd6Fghut3AXv2FET544EK2Kfok9xu1LfEy7RnKo3WNuPHiAmU2o3j
-# AjonrtGOA3p9dtmN+96sYVxfELPK5G2etOom+drTUyNCgiVKOUWtAJjMvRzDUkc0
-# dKstjWJNWzgn9zAn+cqGmOeguQwrsHxptfyyq51pV/toKgpxNMJenFazazZPC1k8
-# NDyB3S4S+6PPJwHtTCRXMCRN71OIV3O+e+/TsMCOWxaTMVXNwyF9z42coMiGUeX2
-# Vhl2VmLT1rBkwZnMWdsk69PFQm9g1FeLC1Zig5lYwxEerThEJVmjkIPh7H5STvDn
-# TSDBse4EmO8HDl7EOIk/IghZJU8/u8Fvpy9xOFvHqkDRbQoUstifIgQWWt9PfPD6
-# LW7vej13Ntf8N0ShB8mp+6icn7NjhLGCqOZQoYspPe7M+C0gsISFL7eLmYNEwScf
-# BkXezQ==
+# 9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yNjA0MDgwNzQ1NTFa
+# MC8GCSqGSIb3DQEJBDEiBCBEy9DLrJ24OFc39If5xsBsKTrwMpU6AqxcICZv8sDe
+# /zANBgkqhkiG9w0BAQEFAASCAgBBT3bJD8TN4KMlBQDAKxF0IpuYCgZtCpub2NsL
+# xB/Lhh9O549sLbrCiOIa1kcdhOV8y0J2IvirXWllokRauS9EX/VMZy+uEoK9zXv3
+# yPvkJpkh3dQY8ukvVBGOT1Hld/maOcMDcgDuPlHD4oPb/aVKApjYuOpzhRJt0ezy
+# u/O43KhlMQmHV3kU/pnqCqj+auVUIUlNhrYFJx5fMHkEqzT2/Y0WbM0xg6Fuo6PH
+# sxpAikaIqcBg0+uQIDOTlUSh47UiFCOqR1XS24pL7C1TdemEWBfkbjDdB0ZlbQXg
+# qSGSRwsYPiFkP4q13jl7wlEQ1zwSQFMFSlVq+pKrjj0MV6N1h0whHWEIxJjokshp
+# rcM9b3g/CnSmndoF/pALaKpXmDU44+vNcsS15tC3jhuL7a8OZ3XNbC6wVKKL3VQX
+# CtDThFHrOMGIC3Jd8X6D0xscbetvSILAJHOOga3nCe08UUZzEN00YKAZXEXJGx92
+# JwbKAO5koYWmr+qSa0VfOLYsc1iDFVdOG9yw9/bVblTCU/7qgIbfda8+MSX7Qhdr
+# /45VBZMogblXhWcHBU4MqeoviV7e87y4XNhxqcpsBp2qBppe4xpbFIkmhFI7Diaz
+# ZvvoZDaNZ8INdSTgAVFzVre4OMjtf1CbxyufM7M1cCIpOAZiGUC3R8yOcqeNLbwA
+# WQNk2Q==
 # SIG # End signature block
