@@ -334,6 +334,8 @@ REM Generation du fichier de configuration XML
     echo   ^<logpath^>%APP_DIR%logs^</logpath^>
     echo   ^<log mode="roll-by-size"^>^<sizeThreshold^>10240^</sizeThreshold^>^<keepFiles^>8^</keepFiles^>^</log^>
     echo   ^<onfailure action="restart" delay="5000 ms"/^>
+    echo   ^<env name="PYTHONIOENCODING" value="utf-8"/^>
+    echo   ^<env name="PYTHONUTF8" value="1"/^>
 ) > "%APP_DIR%nssm\%SERVICE_NAME%.xml"
 if defined OPENSSL_CONF_PATH (
     powershell -NoProfile -Command "$f='%APP_DIR%nssm\%SERVICE_NAME%.xml'; (Get-Content $f -Raw) -replace '</service>', ('  <env name=""OPENSSL_CONF"" value=""!OPENSSL_CONF_PATH!""/>'+[char]13+[char]10+'</service>') | Set-Content $f"

@@ -23,8 +23,9 @@ config = get_config()
 # Configuration TLS sécurisée
 _tls_config = Tls(
     validate=ssl.CERT_NONE,
-    version=ssl.PROTOCOL_TLS,
-    ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
+    version=ssl.PROTOCOL_TLS_CLIENT,
+    ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA',
+    ssl_version=ssl.PROTOCOL_TLS_CLIENT
 )
 
 
@@ -149,8 +150,9 @@ def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
     return Server(server, port=port, use_ssl=use_ssl,
                   tls=_tls_config if use_ssl else None,
                   get_info=ALL, mode=ip_mode,
-                  connect_timeout=5,  # Timeout de connexion (secondes)
-                  allowed_referral_hosts=[('*')])  # Autoriser les referrals
+                  connect_timeout=10,  # Timeout de connexion (secondes)
+                  allowed_referral_hosts=[('*')],  # Autoriser les referrals
+                  receive_timeout=10)  # Timeout de réception
 
 
 def _try_connection(server, username, password):
