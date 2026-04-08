@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Installation autonome AD Web Interface
 # Script de deploiement complet pour Windows Server
 # ==============================================================================
@@ -73,7 +73,7 @@ function Install-Python {
     if ($python) {
         $version = & python --version 2>&1
         Write-Success "Python detecte: $version"
-        
+
         # Verifier la version (3.10+ requis)
         $versionStr = $version.ToString()
         if ($versionStr -match "Python 3\.(\d+)") {
@@ -95,10 +95,10 @@ function Install-Python {
         if ($winget) {
             Write-Info "Installation de Python 3.12 via winget..."
             winget install --id Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements 2>&1 | Out-Null
-            
+
             # Rafraichir le PATH
             $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-            
+
             # Verifier que Python est maintenant disponible
             $python = Get-Command python -ErrorAction SilentlyContinue
             if ($python) {
@@ -123,10 +123,10 @@ function Install-Python {
         Write-Info "Installation de Python 3.12.0 en cours..."
         Start-Process -FilePath $pythonInstaller -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait
         Remove-Item $pythonInstaller -Force -ErrorAction SilentlyContinue
-        
+
         # Rafraichir le PATH
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-        
+
         # Verifier que Python est maintenant disponible
         $python = Get-Command python -ErrorAction SilentlyContinue
         if ($python) {
@@ -148,21 +148,21 @@ function Install-Python {
 
 function New-VirtualEnvironment {
     param([string]$Path)
-    
+
     Write-Info "Creation de l'environnement virtuel Python..."
-    
+
     $venvPath = Join-Path $Path "venv"
-    
+
     if (Test-Path $venvPath) {
         Write-Info "Environnement virtuel existant detecte"
         return $true
     }
-    
+
     try {
         Push-Location $Path
         & python -m venv venv
         Pop-Location
-        
+
         Write-Success "Environnement virtuel cree"
         return $true
     } catch {
@@ -173,21 +173,21 @@ function New-VirtualEnvironment {
 
 function Install-Dependencies {
     param([string]$Path)
-    
+
     Write-Info "Installation des dependances Python..."
-    
+
     $requirementsPath = Join-Path $Path "requirements.txt"
-    
+
     if (-not (Test-Path $requirementsPath)) {
         Write-ErrorMsg "Fichier requirements.txt non trouve"
         return $false
     }
-    
+
     try {
         $pipPath = Join-Path $Path "venv\Scripts\pip.exe"
         & $pipPath install --upgrade pip 2>&1 | Out-Null
         & $pipPath install -r $requirementsPath 2>&1 | Out-Null
-        
+
         Write-Success "Dependances installees"
         return $true
     } catch {
@@ -198,20 +198,20 @@ function Install-Dependencies {
 
 function New-Configuration {
     param([string]$Path)
-    
+
     Write-Info "Creation de la configuration..."
-    
+
     $envPath = Join-Path $Path ".env"
-    
+
     if (Test-Path $envPath) {
         Write-Info "Fichier .env existant detecte"
         return $true
     }
-    
+
     try {
         # Generer une cle secrete
         $secretKey = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 64 | ForEach-Object { [char]$_ })
-        
+
         $envContent = @"
 # Configuration AD Web Interface
 # Genere automatiquement le $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
@@ -219,11 +219,11 @@ function New-Configuration {
 SECRET_KEY=$secretKey
 FLASK_ENV=production
 FLASK_DEBUG=false
-SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SECURE=false
 "@
-        
+
         $envContent | Out-File -FilePath $envPath -Encoding UTF8
-        
+
         Write-Success "Fichier .env cree avec cle secrete"
         return $true
     } catch {
@@ -237,9 +237,9 @@ function New-WindowsService {
         [string]$Path,
         [string]$Port
     )
-    
+
     Write-Info "Creation du service Windows..."
-    
+
     # Verifier si le service existe deja
     $existingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
     if ($existingService) {
@@ -248,12 +248,12 @@ function New-WindowsService {
         sc.exe delete $ServiceName | Out-Null
         Start-Sleep -Seconds 2
     }
-    
+
     try {
         $pythonPath = Join-Path $Path "venv\Scripts\python.exe"
         $runPath = Join-Path $Path "run.py"
         $nssmPath = Join-Path $Path "nssm\nssm.exe"
-        
+
         if (Test-Path $nssmPath) {
             # Utiliser NSSM
             & $nssmPath install $ServiceName $pythonPath $runPath
@@ -268,7 +268,7 @@ function New-WindowsService {
             Write-Warning "NSSM non trouve, creation manuelle requise"
             Write-Info "Utilisez: sc.exe create $ServiceName binPath= `"$pythonPath $runPath`" start= auto"
         }
-        
+
         return $true
     } catch {
         Write-ErrorMsg "Erreur lors de la creation du service: $_"
@@ -278,14 +278,14 @@ function New-WindowsService {
 
 function New-FirewallRule {
     param([string]$Port)
-    
+
     Write-Info "Configuration du pare-feu Windows..."
-    
+
     $ruleName = "AD Web Interface - Port $Port"
-    
+
     # Supprimer la regle existante si presente
     Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
-    
+
     # Creer la nouvelle regle
     try {
         New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -LocalPort $Port -Protocol TCP -Action Allow | Out-Null
@@ -299,11 +299,11 @@ function New-FirewallRule {
 
 function Start-ADWebInterface {
     Write-Info "Demarrage du service..."
-    
+
     try {
         Start-Service -Name $ServiceName
         Start-Sleep -Seconds 3
-        
+
         $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
         if ($service -and $service.Status -eq "Running") {
             Write-Success "Service demarre avec succes"
@@ -392,9 +392,9 @@ if (-not (Install-Python)) {
 $currentDir = $PSScriptRoot
 if ($currentDir -and $currentDir -ne $InstallPath) {
     Write-Info "Copie des fichiers vers $InstallPath..."
-    
+
     $parentDir = Split-Path $currentDir -Parent
-    
+
     $filesToCopy = @(
         "app.py", "run.py", "config.py", "requirements.txt",
         "routes", "templates", "static", "password_audit",
@@ -403,7 +403,7 @@ if ($currentDir -and $currentDir -ne $InstallPath) {
         "granular_permissions.py", "ad_detect.py", "context_processor.py",
         "auto_reload.py", "nssm"
     )
-    
+
     foreach ($file in $filesToCopy) {
         $source = Join-Path $parentDir $file
         if (Test-Path $source) {
@@ -493,156 +493,3 @@ Write-Host ""
 Write-Success "Installation reussie!"
 
 pause
-# SIG # Begin signature block
-# MIIcIAYJKoZIhvcNAQcCoIIcETCCHA0CAQExDzANBglghkgBZQMEAgEFADB5Bgor
-# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBnbzJiV/F2kBMz
-# Un5f2uEXi0FFQ7le9vPO59+xkdZVn6CCFl4wggMgMIICCKADAgECAhB15f8UAKT2
-# qEy95UH9z4ncMA0GCSqGSIb3DQEBCwUAMCgxJjAkBgNVBAMMHUFEIFdlYiBJbnRl
-# cmZhY2UgQ29kZSBTaWduaW5nMB4XDTI2MDQwNzE3MTIxMloXDTMxMDQwNzE3MjIx
-# MVowKDEmMCQGA1UEAwwdQUQgV2ViIEludGVyZmFjZSBDb2RlIFNpZ25pbmcwggEi
-# MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC269UaRy1MGOjCD2hW2D59Noc3
-# VfDKrsuvUMg2OKWsBmUyuBerJKvYLSou9EbyOi4PXg5CbcYF4xWzdwTAmNVYjxTJ
-# Rddkq4f8tTM9faXdqdOYPaBl3VWcivnTdBGAVL28FEpCkUzK6zpvfDxRKRC66fXT
-# q/XpFh9HFx+h/jvYPXQ4R0dE05JbTBuyrAkewb0kvVkWdJ1Cbzi4QoGLmeZMUTMq
-# FVD6/XtF/ZFH1luXUno+8nBUkYDOacw61wb1gIGHEBfRVJnvHQb6UINRNUP/EiMK
-# G0rnlf7Oy3CserhIFvnxmos1tBP7S/WMGyRHC8y0KHVfIa2qm1aGXvD4gP8RAgMB
-# AAGjRjBEMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAzAdBgNV
-# HQ4EFgQUEiecK9t6ETEB2YcQWxM/ynrOgFIwDQYJKoZIhvcNAQELBQADggEBAJKE
-# S3JgZimRwjZHmNeV/Kat6kaIVzlt2r/JnVrYXDEtBV9Z/MngBJRLX2Ei4mDU+UWK
-# syMWATOw+tAs4aftq6IXpGPLfY9j6Up6Ghb3ESOVfyiHv0PvnXiyEjON4Aja3S/Q
-# 4DtJI/eKkFvlJQ4xykkuIlwYvcag44sTma2PGAkJ8AZfGgzN3H5eh1Dp+OBLiYjs
-# f9oE8ADv35mUeMzZSpy6HIdi+gQ7Ptv4vIssoNxuaCvxahH23i2lTFPUOgGzdvWm
-# vu7oyE0FGMY5VHOKnxEqh9B1DxFL575+K4FiznKWPt+qTq6rldYjgK0zclR6mC0c
-# KBKqMvqZQpo98V4Ti/8wggWNMIIEdaADAgECAhAOmxiO+dAt5+/bUOIIQBhaMA0G
-# CSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJ
-# bmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNVBAMTG0RpZ2lDZXJ0
-# IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBaFw0zMTExMDkyMzU5
-# NTlaMGIxCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNV
-# BAsTEHd3dy5kaWdpY2VydC5jb20xITAfBgNVBAMTGERpZ2lDZXJ0IFRydXN0ZWQg
-# Um9vdCBHNDCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAL/mkHNo3rvk
-# XUo8MCIwaTPswqclLskhPfKK2FnC4SmnPVirdprNrnsbhA3EMB/zG6Q4FutWxpdt
-# HauyefLKEdLkX9YFPFIPUh/GnhWlfr6fqVcWWVVyr2iTcMKyunWZanMylNEQRBAu
-# 34LzB4TmdDttceItDBvuINXJIB1jKS3O7F5OyJP4IWGbNOsFxl7sWxq868nPzaw0
-# QF+xembud8hIqGZXV59UWI4MK7dPpzDZVu7Ke13jrclPXuU15zHL2pNe3I6PgNq2
-# kZhAkHnDeMe2scS1ahg4AxCN2NQ3pC4FfYj1gj4QkXCrVYJBMtfbBHMqbpEBfCFM
-# 1LyuGwN1XXhm2ToxRJozQL8I11pJpMLmqaBn3aQnvKFPObURWBf3JFxGj2T3wWmI
-# dph2PVldQnaHiZdpekjw4KISG2aadMreSx7nDmOu5tTvkpI6nj3cAORFJYm2mkQZ
-# K37AlLTSYW3rM9nF30sEAMx9HJXDj/chsrIRt7t/8tWMcCxBYKqxYxhElRp2Yn72
-# gLD76GSmM9GJB+G9t+ZDpBi4pncB4Q+UDCEdslQpJYls5Q5SUUd0viastkF13nqs
-# X40/ybzTQRESW+UQUOsxxcpyFiIJ33xMdT9j7CFfxCBRa2+xq4aLT8LWRV+dIPyh
-# HsXAj6KxfgommfXkaS+YHS312amyHeUbAgMBAAGjggE6MIIBNjAPBgNVHRMBAf8E
-# BTADAQH/MB0GA1UdDgQWBBTs1+OC0nFdZEzfLmc/57qYrhwPTzAfBgNVHSMEGDAW
-# gBRF66Kv9JLLgjEtUYunpyGd823IDzAOBgNVHQ8BAf8EBAMCAYYweQYIKwYBBQUH
-# AQEEbTBrMCQGCCsGAQUFBzABhhhodHRwOi8vb2NzcC5kaWdpY2VydC5jb20wQwYI
-# KwYBBQUHMAKGN2h0dHA6Ly9jYWNlcnRzLmRpZ2ljZXJ0LmNvbS9EaWdpQ2VydEFz
-# c3VyZWRJRFJvb3RDQS5jcnQwRQYDVR0fBD4wPDA6oDigNoY0aHR0cDovL2NybDMu
-# ZGlnaWNlcnQuY29tL0RpZ2lDZXJ0QXNzdXJlZElEUm9vdENBLmNybDARBgNVHSAE
-# CjAIMAYGBFUdIAAwDQYJKoZIhvcNAQEMBQADggEBAHCgv0NcVec4X6CjdBs9thbX
-# 979XB72arKGHLOyFXqkauyL4hxppVCLtpIh3bb0aFPQTSnovLbc47/T/gLn4offy
-# ct4kvFIDyE7QKt76LVbP+fT3rDB6mouyXtTP0UNEm0Mh65ZyoUi0mcudT6cGAxN3
-# J0TU53/oWajwvy8LpunyNDzs9wPHh6jSTEAZNUZqaVSwuKFWjuyk1T3osdz9HNj0
-# d1pcVIxv76FQPfx2CWiEn2/K2yCNNWAcAgPLILCsWKAOQGPFmCLBsln1VWvPJ6ts
-# ds5vIy30fnFqI2si/xK4VC0nftg62fC2h5b9W9FcrBjDTZ9ztwGpn1eqXijiuZQw
-# gga0MIIEnKADAgECAhANx6xXBf8hmS5AQyIMOkmGMA0GCSqGSIb3DQEBCwUAMGIx
-# CzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3
-# dy5kaWdpY2VydC5jb20xITAfBgNVBAMTGERpZ2lDZXJ0IFRydXN0ZWQgUm9vdCBH
-# NDAeFw0yNTA1MDcwMDAwMDBaFw0zODAxMTQyMzU5NTlaMGkxCzAJBgNVBAYTAlVT
-# MRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5jLjFBMD8GA1UEAxM4RGlnaUNlcnQgVHJ1
-# c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNBNDA5NiBTSEEyNTYgMjAyNSBDQTEwggIi
-# MA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQC0eDHTCphBcr48RsAcrHXbo0Zo
-# dLRRF51NrY0NlLWZloMsVO1DahGPNRcybEKq+RuwOnPhof6pvF4uGjwjqNjfEvUi
-# 6wuim5bap+0lgloM2zX4kftn5B1IpYzTqpyFQ/4Bt0mAxAHeHYNnQxqXmRinvuNg
-# xVBdJkf77S2uPoCj7GH8BLuxBG5AvftBdsOECS1UkxBvMgEdgkFiDNYiOTx4OtiF
-# cMSkqTtF2hfQz3zQSku2Ws3IfDReb6e3mmdglTcaarps0wjUjsZvkgFkriK9tUKJ
-# m/s80FiocSk1VYLZlDwFt+cVFBURJg6zMUjZa/zbCclF83bRVFLeGkuAhHiGPMvS
-# GmhgaTzVyhYn4p0+8y9oHRaQT/aofEnS5xLrfxnGpTXiUOeSLsJygoLPp66bkDX1
-# ZlAeSpQl92QOMeRxykvq6gbylsXQskBBBnGy3tW/AMOMCZIVNSaz7BX8VtYGqLt9
-# MmeOreGPRdtBx3yGOP+rx3rKWDEJlIqLXvJWnY0v5ydPpOjL6s36czwzsucuoKs7
-# Yk/ehb//Wx+5kMqIMRvUBDx6z1ev+7psNOdgJMoiwOrUG2ZdSoQbU2rMkpLiQ6bG
-# RinZbI4OLu9BMIFm1UUl9VnePs6BaaeEWvjJSjNm2qA+sdFUeEY0qVjPKOWug/G6
-# X5uAiynM7Bu2ayBjUwIDAQABo4IBXTCCAVkwEgYDVR0TAQH/BAgwBgEB/wIBADAd
-# BgNVHQ4EFgQU729TSunkBnx6yuKQVvYv1Ensy04wHwYDVR0jBBgwFoAU7NfjgtJx
-# XWRM3y5nP+e6mK4cD08wDgYDVR0PAQH/BAQDAgGGMBMGA1UdJQQMMAoGCCsGAQUF
-# BwMIMHcGCCsGAQUFBwEBBGswaTAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuZGln
-# aWNlcnQuY29tMEEGCCsGAQUFBzAChjVodHRwOi8vY2FjZXJ0cy5kaWdpY2VydC5j
-# b20vRGlnaUNlcnRUcnVzdGVkUm9vdEc0LmNydDBDBgNVHR8EPDA6MDigNqA0hjJo
-# dHRwOi8vY3JsMy5kaWdpY2VydC5jb20vRGlnaUNlcnRUcnVzdGVkUm9vdEc0LmNy
-# bDAgBgNVHSAEGTAXMAgGBmeBDAEEAjALBglghkgBhv1sBwEwDQYJKoZIhvcNAQEL
-# BQADggIBABfO+xaAHP4HPRF2cTC9vgvItTSmf83Qh8WIGjB/T8ObXAZz8OjuhUxj
-# aaFdleMM0lBryPTQM2qEJPe36zwbSI/mS83afsl3YTj+IQhQE7jU/kXjjytJgnn0
-# hvrV6hqWGd3rLAUt6vJy9lMDPjTLxLgXf9r5nWMQwr8Myb9rEVKChHyfpzee5kH0
-# F8HABBgr0UdqirZ7bowe9Vj2AIMD8liyrukZ2iA/wdG2th9y1IsA0QF8dTXqvcnT
-# mpfeQh35k5zOCPmSNq1UH410ANVko43+Cdmu4y81hjajV/gxdEkMx1NKU4uHQcKf
-# ZxAvBAKqMVuqte69M9J6A47OvgRaPs+2ykgcGV00TYr2Lr3ty9qIijanrUR3anzE
-# wlvzZiiyfTPjLbnFRsjsYg39OlV8cipDoq7+qNNjqFzeGxcytL5TTLL4ZaoBdqbh
-# OhZ3ZRDUphPvSRmMThi0vw9vODRzW6AxnJll38F0cuJG7uEBYTptMSbhdhGQDpOX
-# gpIUsWTjd6xpR6oaQf/DJbg3s6KCLPAlZ66RzIg9sC+NJpud/v4+7RWsWCiKi9EO
-# LLHfMR2ZyJ/+xhCx9yHbxtl5TPau1j/1MIDpMPx0LckTetiSuEtQvLsNz3Qbp7wG
-# WqbIiOWCnb5WqxL3/BAPvIXKUjPSxyZsq8WhbaM2tszWkPZPubdcMIIG7TCCBNWg
-# AwIBAgIQCoDvGEuN8QWC0cR2p5V0aDANBgkqhkiG9w0BAQsFADBpMQswCQYDVQQG
-# EwJVUzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0
-# IFRydXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0Ex
-# MB4XDTI1MDYwNDAwMDAwMFoXDTM2MDkwMzIzNTk1OVowYzELMAkGA1UEBhMCVVMx
-# FzAVBgNVBAoTDkRpZ2lDZXJ0LCBJbmMuMTswOQYDVQQDEzJEaWdpQ2VydCBTSEEy
-# NTYgUlNBNDA5NiBUaW1lc3RhbXAgUmVzcG9uZGVyIDIwMjUgMTCCAiIwDQYJKoZI
-# hvcNAQEBBQADggIPADCCAgoCggIBANBGrC0Sxp7Q6q5gVrMrV7pvUf+GcAoB38o3
-# zBlCMGMyqJnfFNZx+wvA69HFTBdwbHwBSOeLpvPnZ8ZN+vo8dE2/pPvOx/Vj8Tch
-# TySA2R4QKpVD7dvNZh6wW2R6kSu9RJt/4QhguSssp3qome7MrxVyfQO9sMx6ZAWj
-# FDYOzDi8SOhPUWlLnh00Cll8pjrUcCV3K3E0zz09ldQ//nBZZREr4h/GI6Dxb2Uo
-# yrN0ijtUDVHRXdmncOOMA3CoB/iUSROUINDT98oksouTMYFOnHoRh6+86Ltc5zjP
-# KHW5KqCvpSduSwhwUmotuQhcg9tw2YD3w6ySSSu+3qU8DD+nigNJFmt6LAHvH3KS
-# uNLoZLc1Hf2JNMVL4Q1OpbybpMe46YceNA0LfNsnqcnpJeItK/DhKbPxTTuGoX7w
-# JNdoRORVbPR1VVnDuSeHVZlc4seAO+6d2sC26/PQPdP51ho1zBp+xUIZkpSFA8vW
-# doUoHLWnqWU3dCCyFG1roSrgHjSHlq8xymLnjCbSLZ49kPmk8iyyizNDIXj//cOg
-# rY7rlRyTlaCCfw7aSUROwnu7zER6EaJ+AliL7ojTdS5PWPsWeupWs7NpChUk555K
-# 096V1hE0yZIXe+giAwW00aHzrDchIc2bQhpp0IoKRR7YufAkprxMiXAJQ1XCmnCf
-# gPf8+3mnAgMBAAGjggGVMIIBkTAMBgNVHRMBAf8EAjAAMB0GA1UdDgQWBBTkO/zy
-# Me39/dfzkXFjGVBDz2GM6DAfBgNVHSMEGDAWgBTvb1NK6eQGfHrK4pBW9i/USezL
-# TjAOBgNVHQ8BAf8EBAMCB4AwFgYDVR0lAQH/BAwwCgYIKwYBBQUHAwgwgZUGCCsG
-# AQUFBwEBBIGIMIGFMCQGCCsGAQUFBzABhhhodHRwOi8vb2NzcC5kaWdpY2VydC5j
-# b20wXQYIKwYBBQUHMAKGUWh0dHA6Ly9jYWNlcnRzLmRpZ2ljZXJ0LmNvbS9EaWdp
-# Q2VydFRydXN0ZWRHNFRpbWVTdGFtcGluZ1JTQTQwOTZTSEEyNTYyMDI1Q0ExLmNy
-# dDBfBgNVHR8EWDBWMFSgUqBQhk5odHRwOi8vY3JsMy5kaWdpY2VydC5jb20vRGln
-# aUNlcnRUcnVzdGVkRzRUaW1lU3RhbXBpbmdSU0E0MDk2U0hBMjU2MjAyNUNBMS5j
-# cmwwIAYDVR0gBBkwFzAIBgZngQwBBAIwCwYJYIZIAYb9bAcBMA0GCSqGSIb3DQEB
-# CwUAA4ICAQBlKq3xHCcEua5gQezRCESeY0ByIfjk9iJP2zWLpQq1b4URGnwWBdEZ
-# D9gBq9fNaNmFj6Eh8/YmRDfxT7C0k8FUFqNh+tshgb4O6Lgjg8K8elC4+oWCqnU/
-# ML9lFfim8/9yJmZSe2F8AQ/UdKFOtj7YMTmqPO9mzskgiC3QYIUP2S3HQvHG1FDu
-# +WUqW4daIqToXFE/JQ/EABgfZXLWU0ziTN6R3ygQBHMUBaB5bdrPbF6MRYs03h4o
-# bEMnxYOX8VBRKe1uNnzQVTeLni2nHkX/QqvXnNb+YkDFkxUGtMTaiLR9wjxUxu2h
-# ECZpqyU1d0IbX6Wq8/gVutDojBIFeRlqAcuEVT0cKsb+zJNEsuEB7O7/cuvTQasn
-# M9AWcIQfVjnzrvwiCZ85EE8LUkqRhoS3Y50OHgaY7T/lwd6UArb+BOVAkg2oOvol
-# /DJgddJ35XTxfUlQ+8Hggt8l2Yv7roancJIFcbojBcxlRcGG0LIhp6GvReQGgMgY
-# xQbV1S3CrWqZzBt1R9xJgKf47CdxVRd/ndUlQ05oxYy2zRWVFjF7mcr4C34Mj3oc
-# CVccAvlKV9jEnstrniLvUxxVZE/rptb7IRE2lskKPIJgbaP5t2nGj/ULLi49xTcB
-# ZU8atufk+EMF/cWuiC7POGT75qaL6vdCvHlshtjdNXOCIUjsarfNZzGCBRgwggUU
-# AgEBMDwwKDEmMCQGA1UEAwwdQUQgV2ViIEludGVyZmFjZSBDb2RlIFNpZ25pbmcC
-# EHXl/xQApPaoTL3lQf3PidwwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIB
-# DDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEE
-# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQghtv7dFDWavm2
-# p9Kcr08I3LZ9spPLfVGj3mQ1ZWtG4a8wDQYJKoZIhvcNAQEBBQAEggEAMpWtPFlr
-# 9fnmDqkObryasJrPZdWcQs5Hy2n1Ns3M17zZcRYjJIk+5GVeh75s+1Q33+VBxHts
-# tGM62D5l7XS+yDybZdD34i4S6WunFMk/8wB1KK0FALpywpFWduCQqRBjRiYEyMCA
-# dba9/mfnckdeg7uGQzoeIv4/tz51XL/UN2tC/I3JaJ1IwwaZwwhjTLjMS4zoEv+e
-# wjayIQKezlRPq319O3nZkxF5deryiMA3mfw2D+f0hGP+hVy0ylx1MYcm+u9bESTN
-# Vq2CJY2x7kyP01bea+yTCVYs2AWIIgx/YGGkNzy2WCz6vYLKf/Pj/OVz3yCMc8ej
-# xFutndNv7odulaGCAyYwggMiBgkqhkiG9w0BCQYxggMTMIIDDwIBATB9MGkxCzAJ
-# BgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5jLjFBMD8GA1UEAxM4RGln
-# aUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNBNDA5NiBTSEEyNTYgMjAy
-# NSBDQTECEAqA7xhLjfEFgtHEdqeVdGgwDQYJYIZIAWUDBAIBBQCgaTAYBgkqhkiG
-# 9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yNjA0MDgwNzQ1NTFa
-# MC8GCSqGSIb3DQEJBDEiBCBEy9DLrJ24OFc39If5xsBsKTrwMpU6AqxcICZv8sDe
-# /zANBgkqhkiG9w0BAQEFAASCAgBBT3bJD8TN4KMlBQDAKxF0IpuYCgZtCpub2NsL
-# xB/Lhh9O549sLbrCiOIa1kcdhOV8y0J2IvirXWllokRauS9EX/VMZy+uEoK9zXv3
-# yPvkJpkh3dQY8ukvVBGOT1Hld/maOcMDcgDuPlHD4oPb/aVKApjYuOpzhRJt0ezy
-# u/O43KhlMQmHV3kU/pnqCqj+auVUIUlNhrYFJx5fMHkEqzT2/Y0WbM0xg6Fuo6PH
-# sxpAikaIqcBg0+uQIDOTlUSh47UiFCOqR1XS24pL7C1TdemEWBfkbjDdB0ZlbQXg
-# qSGSRwsYPiFkP4q13jl7wlEQ1zwSQFMFSlVq+pKrjj0MV6N1h0whHWEIxJjokshp
-# rcM9b3g/CnSmndoF/pALaKpXmDU44+vNcsS15tC3jhuL7a8OZ3XNbC6wVKKL3VQX
-# CtDThFHrOMGIC3Jd8X6D0xscbetvSILAJHOOga3nCe08UUZzEN00YKAZXEXJGx92
-# JwbKAO5koYWmr+qSa0VfOLYsc1iDFVdOG9yw9/bVblTCU/7qgIbfda8+MSX7Qhdr
-# /45VBZMogblXhWcHBU4MqeoviV7e87y4XNhxqcpsBp2qBppe4xpbFIkmhFI7Diaz
-# ZvvoZDaNZ8INdSTgAVFzVre4OMjtf1CbxyufM7M1cCIpOAZiGUC3R8yOcqeNLbwA
-# WQNk2Q==
-# SIG # End signature block
