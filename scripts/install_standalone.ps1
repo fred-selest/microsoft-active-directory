@@ -64,34 +64,60 @@ function Test-Administrator {
 
 function Install-Python {
     Write-Info "Verification de Python..."
-    
+
+    # Rafraichir le PATH d'abord
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+    # Verifier si Python est installe
     $python = Get-Command python -ErrorAction SilentlyContinue
     if ($python) {
         $version = & python --version 2>&1
         Write-Success "Python detecte: $version"
-        return $true
+        
+        # Verifier la version (3.10+ requis)
+        $versionStr = $version.ToString()
+        if ($versionStr -match "Python 3\.(\d+)") {
+            $minor = [int]$Matches[1]
+            if ($minor -ge 10) {
+                return $true
+            } else {
+                Write-Warning "Python 3.10+ requis (version actuelle: $version)"
+            }
+        }
     }
-    
-    Write-Warning "Python non trouve. Installation..."
-    
+
+    Write-Warning "Python non trouve ou version insuffisante. Installation..."
+
     # Telecharger Python
     $pythonUrl = "https://www.python.org/ftp/python/3.12.0/python-3.12.0-amd64.exe"
     $pythonInstaller = "$env:TEMP\python-installer.exe"
-    
+
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Write-Info "Telechargement de Python 3.12.0..."
         Invoke-WebRequest -Uri $pythonUrl -OutFile $pythonInstaller -UseBasicParsing
-        Write-Info "Installation de Python 3.12..."
+        Write-Info "Installation de Python 3.12.0 en cours..."
         Start-Process -FilePath $pythonInstaller -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait
         Remove-Item $pythonInstaller -Force -ErrorAction SilentlyContinue
         Write-Success "Python installe avec succes"
-        
+
         # Rafraichir le PATH
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-        
-        return $true
+
+        # Verifier que Python est maintenant disponible
+        $python = Get-Command python -ErrorAction SilentlyContinue
+        if ($python) {
+            $version = & python --version 2>&1
+            Write-Success "Python verifie: $version"
+            return $true
+        } else {
+            Write-ErrorMsg "Python n'est pas dans le PATH apres installation"
+            Write-Warning "Essayez de redemarrer la session PowerShell"
+            return $false
+        }
     } catch {
         Write-ErrorMsg "Erreur lors de l'installation de Python: $_"
+        Write-Warning "Vous pouvez installer Python manuellement depuis https://www.python.org/downloads/"
         return $false
     }
 }
