@@ -10,11 +10,11 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.36.10 — Avril 2026
+**Dernière version :** v1.37.1 — Avril 2026
 
 ---
 
-## 🆕 Nouveautés v1.36.10
+## 🆕 Nouveautés v1.37.1
 
 ### 🐛 Corrections critiques de l'installateur
 - **Login corrigé** : `SESSION_COOKIE_SECURE=false` dans le `.env` généré — le cookie de session était rejeté par le navigateur en HTTP, rendant le token CSRF invalide

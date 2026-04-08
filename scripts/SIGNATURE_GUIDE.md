@@ -238,5 +238,5 @@ Après la signature :
 ---
 
 **Dernière mise à jour :** Avril 2026  
-**Version :** 1.36.10
+**Version :** 1.37.1
 
