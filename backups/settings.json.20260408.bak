@@ -1,0 +1,241 @@
+{
+  "site": {
+    "title": "AD Web Interface",
+    "logo": "",
+    "logo_height": "40px",
+    "logo_position": "left",
+    "footer": "Active Directory Web Interface - Compatible Windows & Linux",
+    "theme_color": "#0078d4",
+    "custom_css": ""
+  },
+  "password": {
+    "default_password": "5!tcovd7&3);^-WA",
+    "password_complexity": "high",
+    "must_change_at_next_login": true,
+    "exclude_ambiguous_chars": false,
+    "password_length": 16,
+    "password_history": [
+      {
+        "password": "5!tcovd7&3);^-WA",
+        "generated_at": "2026-04-06T20:02:36.764730",
+        "complexity": "high"
+      }
+    ]
+  },
+  "menu": {
+    "items": [
+      {
+        "id": "dashboard",
+        "label": "Tableau de bord",
+        "endpoint": "main.dashboard",
+        "icon": "📊",
+        "enabled": true,
+        "order": 1
+      },
+      {
+        "id": "users",
+        "label": "Utilisateurs",
+        "endpoint": "users.list_users",
+        "icon": "👥",
+        "enabled": true,
+        "order": 2
+      },
+      {
+        "id": "groups",
+        "label": "Groupes",
+        "endpoint": "groups.list_groups",
+        "icon": "👨‍👩‍👧‍👦",
+        "enabled": true,
+        "order": 3
+      },
+      {
+        "id": "computers",
+        "label": "Ordinateurs",
+        "endpoint": "computers.list_computers",
+        "icon": "💻",
+        "enabled": true,
+        "order": 4
+      },
+      {
+        "id": "ous",
+        "label": "Unités d'org.",
+        "endpoint": "ous.list_ous",
+        "icon": "📁",
+        "enabled": true,
+        "order": 5
+      },
+      {
+        "id": "search",
+        "label": "Recherche",
+        "endpoint": "global_search",
+        "icon": "🔎",
+        "enabled": false,
+        "order": 6
+      }
+    ],
+    "tool_items": [
+      {
+        "id": "laps",
+        "label": "LAPS",
+        "endpoint": "tools.laps_passwords",
+        "icon": "🔑",
+        "feature": "FEATURE_LAPS_ENABLED",
+        "enabled": true,
+        "order": 1
+      },
+      {
+        "id": "bitlocker",
+        "label": "BitLocker",
+        "endpoint": "tools.bitlocker_keys",
+        "icon": "🔐",
+        "feature": "FEATURE_BITLOCKER_ENABLED",
+        "enabled": true,
+        "order": 2
+      },
+      {
+        "id": "recycle",
+        "label": "Corbeille",
+        "endpoint": "tools.recycle_bin",
+        "icon": "🗑️",
+        "feature": "FEATURE_RECYCLE_BIN_ENABLED",
+        "enabled": true,
+        "order": 3
+      },
+      {
+        "id": "locked",
+        "label": "Comptes verrouillés",
+        "endpoint": "tools.locked_accounts",
+        "icon": "🔒",
+        "feature": "FEATURE_LOCKED_ACCOUNTS_ENABLED",
+        "enabled": true,
+        "order": 4
+      },
+      {
+        "id": "expiring",
+        "label": "Expirations",
+        "endpoint": "tools.expiring_accounts",
+        "icon": "⏰",
+        "feature": "FEATURE_EXPIRING_ACCOUNTS_ENABLED",
+        "enabled": true,
+        "order": 5
+      },
+      {
+        "id": "pwd_policy",
+        "label": "Politique MDP",
+        "endpoint": "tools.password_policy",
+        "icon": "🛡️",
+        "feature": "FEATURE_PASSWORD_POLICY_ENABLED",
+        "enabled": true,
+        "order": 6
+      },
+      {
+        "id": "pwd_audit",
+        "label": "Audit MDP",
+        "endpoint": "tools.password_audit",
+        "icon": "🔍",
+        "feature": "FEATURE_PASSWORD_AUDIT_ENABLED",
+        "enabled": true,
+        "order": 7
+      }
+    ],
+    "admin_items": [
+      {
+        "id": "alerts",
+        "label": "Alertes",
+        "endpoint": "admin_tools.alerts_page",
+        "icon": "🔔",
+        "feature": null,
+        "enabled": true,
+        "order": 1
+      },
+      {
+        "id": "audit",
+        "label": "Audit",
+        "endpoint": "main.audit_logs",
+        "icon": "📋",
+        "feature": "FEATURE_AUDIT_LOGS_ENABLED",
+        "enabled": true,
+        "order": 2
+      },
+      {
+        "id": "security",
+        "label": "Sécurité",
+        "endpoint": "admin_tools.security_audit",
+        "icon": "🔐",
+        "feature": null,
+        "enabled": true,
+        "order": 3
+      },
+      {
+        "id": "permissions",
+        "label": "Permissions",
+        "endpoint": "admin_tools.permissions_page",
+        "icon": "🔑",
+        "feature": null,
+        "enabled": true,
+        "order": 4
+      },
+      {
+        "id": "diagnostic",
+        "label": "Diagnostic",
+        "endpoint": "admin_tools.diagnostic_page",
+        "icon": "🔧",
+        "feature": "FEATURE_DIAGNOSTIC_ENABLED",
+        "enabled": true,
+        "order": 5
+      },
+      {
+        "id": "backups",
+        "label": "Sauvegardes",
+        "endpoint": "tools.backups",
+        "icon": "💾",
+        "feature": "FEATURE_BACKUPS_ENABLED",
+        "enabled": true,
+        "order": 6
+      },
+      {
+        "id": "admin",
+        "label": "Admin",
+        "endpoint": "admin.admin_page",
+        "icon": "⚙️",
+        "feature": "FEATURE_SETTINGS_ENABLED",
+        "enabled": true,
+        "order": 7
+      }
+    ]
+  },
+  "features": {
+    "dark_mode": true,
+    "language_switch": false,
+    "update_check": true,
+    "pwa_enabled": true,
+    "custom_logo": false,
+    "show_footer": true
+  },
+  "security": {
+    "session_timeout": 30,
+    "max_login_attempts": 5,
+    "require_https": false
+  },
+  "smtp": {
+    "enabled": false,
+    "server": "",
+    "port": 587,
+    "use_tls": true,
+    "username": "",
+    "password": "",
+    "from_email": "",
+    "from_name": "AD Web Interface",
+    "use_auth": true
+  },
+  "branding": {
+    "primary_color": "#0078d4",
+    "secondary_color": "#107c10",
+    "danger_color": "#d13438",
+    "warning_color": "#ffb900",
+    "info_color": "#00b7c3",
+    "font_family": "Segoe UI, sans-serif",
+    "border_radius": "8px",
+    "show_branding": true
+  }
+}
