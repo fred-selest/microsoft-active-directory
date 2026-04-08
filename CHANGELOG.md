@@ -5,6 +5,31 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.36.1] - 2026-04-08
+
+### Corrigé
+
+- **🔐 Login inaccessible après installation** (`install_service.bat`, `install_standalone.ps1`)
+  - `SESSION_COOKIE_SECURE` était `true` par défaut alors que le service tourne en HTTP (port 5000)
+  - Le navigateur rejetait le cookie de session sur HTTP → token CSRF invalide à chaque soumission du formulaire de connexion
+  - Correction : `SESSION_COOKIE_SECURE=false` ajouté explicitement dans le `.env` généré par les deux installateurs
+
+- **💥 Installation avortée avec NSSM** (`install_service.bat`)
+  - Après l'installation réussie du service via NSSM, le script tombait en chute libre dans le bloc WinSW (`:install_with_winsw`) faute d'un `goto`
+  - WinSW étant absent dans ce chemin, le script échouait avec `[ERREUR] Echec de l'installation du service avec WinSW` et quittait sans démarrer le service
+  - Correction : ajout de `goto :after_service_install` après le bloc NSSM et du label correspondant après le bloc WinSW
+
+- **📜 Signature Authenticode invalide** (`scripts/install_standalone.ps1`)
+  - Le bloc `SIG # Begin signature block` embarqué dans le script était devenu invalide (hash mismatch) suite aux modifications du fichier
+  - Windows refusait d'exécuter le script avec les politiques `AllSigned` ou `RemoteSigned`
+  - Correction : suppression du bloc de signature invalide ; re-signer avec `scripts/sign_scripts.ps1` si requis par la politique d'exécution
+
+### Testé
+
+- Installation complète validée sur Windows Server 2022 (`srvdc2022`)
+- Service `ADWebInterface` démarre en `Automatic` sans erreur
+- Token CSRF correctement reçu et validé → connexion AD opérationnelle end-to-end
+
 ## [1.36.0] - 2026-04-08
 
 ### Ajouté
