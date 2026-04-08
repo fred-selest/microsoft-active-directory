@@ -10,11 +10,20 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.36.0 — Avril 2026
+**Dernière version :** v1.37.1 — Avril 2026
 
 ---
 
-## 🆕 Nouveautés v1.36.0
+## 🆕 Nouveautés v1.37.1
+
+### 🐛 Corrections critiques de l'installateur
+- **Login corrigé** : `SESSION_COOKIE_SECURE=false` dans le `.env` généré — le cookie de session était rejeté par le navigateur en HTTP, rendant le token CSRF invalide
+- **Installation NSSM corrigée** : chute de flux vers le bloc WinSW supprimée — le service s'installe et démarre correctement
+- **Script PowerShell corrigé** : bloc de signature Authenticode invalide supprimé de `install_standalone.ps1`
+
+---
+
+## Nouveautés v1.36.0
 
 ### 📊 Analyse Automatique des Logs
 - Analyse au démarrage de l'application

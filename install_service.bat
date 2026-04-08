@@ -131,6 +131,7 @@ if not exist "%APP_DIR%.env" (
         echo SECRET_KEY=!AD_SECRET!
         echo FLASK_ENV=production
         echo AD_SILENT=true
+        echo SESSION_COOKIE_SECURE=false
     ) > "%APP_DIR%.env"
     echo [OK] Fichier .env cree avec une SECRET_KEY securisee.
     echo.
@@ -313,8 +314,7 @@ if defined OPENSSL_CONF_PATH (
 )
 set SVC_LOG_OUT=%APP_DIR%logs\service.log
 set SVC_LOG_ERR=%APP_DIR%logs\service_error.log
-
-REM === Suite de l'installation ===
+goto :after_service_install
 
 REM === Chemin B : Installation avec WinSW ===
 :install_with_winsw
@@ -348,6 +348,7 @@ if errorlevel 1 (
 set SVC_LOG_OUT=%APP_DIR%logs\%SERVICE_NAME%.out.log
 set SVC_LOG_ERR=%APP_DIR%logs\%SERVICE_NAME%.err.log
 
+:after_service_install
 REM === Suite de l'installation ===
 
 REM =====================================================================
