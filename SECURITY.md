@@ -1,53 +1,140 @@
-# Rapport de Sécurité - AD Web Interface
+# 🔐 Sécurité - AD Web Interface
 
-**Date**: 2025-11-20
-**Version**: 1.10.0+
+**Dernière mise à jour**: Avril 2026  
+**Version**: 1.36.0
 
 ## Résumé Exécutif
 
-Ce document détaille les améliorations de sécurité majeures apportées à l'application AD Web Interface. Un audit de sécurité complet a identifié **28 vulnérabilités** qui ont été corrigées ou atténuées.
+Ce document détaille les mesures de sécurité implémentées dans l'application AD Web Interface.
 
 ---
 
-## 🔒 Corrections Critiques Implémentées
+## 🔒 Protections Implémentées
 
 ### 1. Chiffrement des Mots de Passe en Session ✅
 
-**Problème**: Les mots de passe Active Directory étaient stockés en clair dans les cookies de session.
+**Problème**: Les mots de passe Active Directory étaient stockés en clair dans les sessions.
 
 **Solution**:
-- Nouveau module `session_crypto.py` utilisant Fernet (AES-128)
+- Module `core/session_crypto.py` utilisant Fernet (AES-128)
 - Chiffrement automatique lors du stockage en session
-- Déchiffrement automatique lors de la récupération
 - Clé dérivée du SECRET_KEY via PBKDF2 (100 000 itérations)
 
-**Fichiers modifiés**:
-- `session_crypto.py` (nouveau)
-- `app.py:265` - Chiffrement lors de la connexion
-- `app.py:167` - Déchiffrement lors de l'utilisation
-
-**Impact**: Protège contre le vol de credentials via XSS ou interception de session.
+**Fichiers**:
+- `core/session_crypto.py`
+- `routes/core.py` - Chiffrement/déchiffrement
 
 ---
 
 ### 2. Protection contre Injection LDAP ✅
 
-**Problème**: Les requêtes LDAP dans les scripts PowerShell ne sanitisaient pas les entrées utilisateur.
-
 **Solution**:
-- Fonction `Escape-LDAPFilter` ajoutée aux scripts PowerShell
-- Échappement des caractères spéciaux: `( ) \ * / NUL`
-- Application sur toutes les recherches utilisateurs et groupes
-
-**Fichiers modifiés**:
-- `AD-WebManager.ps1:30` - Fonction d'échappement
-- `AD-WebManager.ps1:1512,1733` - Application aux recherches
-- `AD-WebManager-FullWeb.ps1:55` - Fonction d'échappement
-- `AD-WebManager-FullWeb.ps1:1608,1774` - Application aux recherches
-
-**Impact**: Empêche l'injection LDAP permettant un accès non autorisé aux données AD.
+- Fonction `escape_ldap_filter()` dans `core/security.py`
+- Échappement des caractères spéciaux : `( ) \ * / NUL`
+- Application sur toutes les recherches LDAP
 
 ---
+
+### 3. Protection CSRF ✅
+
+**Solution**:
+- Token CSRF généré pour chaque session
+- Validation sur toutes les requêtes POST
+- Fonction `validate_csrf_token()` dans `core/security.py`
+
+---
+
+### 4. Rate Limiting ✅
+
+**Solution**:
+- 5 tentatives de login / 5 minutes
+- 10 tentatives d'actions sensibles / 5 minutes
+- Blocage temporaire avec notification
+
+---
+
+### 5. Headers de Sécurité HTTP ✅
+
+**Headers implémentés**:
+- `Content-Security-Policy`
+- `X-Frame-Options: SAMEORIGIN`
+- `X-Content-Type-Options: nosniff`
+- `X-XSS-Protection: 1; mode=block`
+- `Strict-Transport-Security`
+- `Referrer-Policy`
+- `Permissions-Policy`
+
+---
+
+### 6. Permissions Granulaires ✅
+
+**Solution**:
+- 40 permissions configurables par groupe AD
+- Rôles : admin, operator, readonly, custom
+- Décorateurs `@require_permission()` sur les routes
+
+---
+
+### 7. Journalisation des Actions ✅
+
+**Solution**:
+- Audit complet dans `data/audit_log.csv`
+- Historique conservé dans `data/audit_history/`
+- Export PDF/CSV disponible
+
+---
+
+### 8. Analyse Automatique des Logs (v1.36) ✅
+
+**Solution**:
+- Module `core/log_analyzer.py`
+- Détection automatique des erreurs critiques
+- Alertes sur : LDAP, auth, permissions, SSL, dépendances
+- Corrections automatiques disponibles
+
+---
+
+## 🛡️ Bonnes Pratiques
+
+### Pour les Administrateurs
+
+1. **Changer la SECRET_KEY** par défaut
+2. **Activer LDAPS** pour les connexions
+3. **Configurer le rate limiting** selon vos besoins
+4. **Sauvegarder régulièrement** `data/settings.json` et `data/crypto_salt.bin`
+5. **Surveiller les logs** via `/admin/log-analysis`
+
+### Pour les Développeurs
+
+1. **Toujours utiliser** `@require_connection` et `@require_permission`
+2. **Valider les tokens CSRF** sur les POST
+3. **Échapper les filtres LDAP** avec `escape_ldap_filter()`
+4. **Logger les actions** avec `core.audit.log_action()`
+5. **Ne jamais stocker** de mots de passe en clair
+
+---
+
+## 📋 Checklist de Sécurité
+
+- [x] Chiffrement des sessions
+- [x] Protection CSRF
+- [x] Rate limiting
+- [x] Headers HTTP sécurisés
+- [x] Permissions granulaires
+- [x] Audit des actions
+- [x] Analyse automatique des logs
+- [x] Protection injection LDAP
+- [x] Gestion sécurisée des erreurs
+
+---
+
+## 🚨 Signaler une Vulnérabilité
+
+Pour signaler une vulnérabilité de sécurité, merci de contacter :
+- Email : [à définir]
+- GitHub Issues : https://github.com/fred-selest/microsoft-active-directory/issues
+
+**Ne créez pas d'issue publique pour les vulnérabilités critiques.**
 
 ### 3. Politique de SECRET_KEY Forte ✅
 

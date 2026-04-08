@@ -5,7 +5,82 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
-## [1.34.0] - 2026-04-05
+## [1.36.0] - 2026-04-08
+
+### Ajouté
+
+- **📊 Analyse Automatique des Logs** (`/admin/log-analysis`)
+  - Analyse au démarrage de l'application
+  - Détection automatique des erreurs critiques
+  - Corrections automatiques disponibles
+  - Historique des analyses avec export
+  - Nouveaux modules : `core/log_analyzer.py`, `core/scripts_manager.py`
+
+- **🛠️ Gestion des Scripts PowerShell** (`/admin/scripts`)
+  - Exécution depuis l'interface web
+  - Téléchargement des scripts
+  - Historique des exécutions
+  - 9 scripts disponibles :
+    - `fix_md4_final.ps1` - Correctif MD4/NTLM
+    - `fix_ntlm.ps1` - Configuration NTLM
+    - `fix_ldap_signing.ps1` - LDAP Signing
+    - `fix_channel_binding.ps1` - Channel Binding Tokens
+    - `fix_smbv1.ps1` - Désactiver SMBv1
+    - `install_ad.ps1` - Installation sur DC
+    - `configure_service.ps1` - Configuration service
+    - `laps_management.ps1` - Gestion LAPS
+    - `configure_ldaps.ps1` - Configuration LDAPS
+
+- **📁 Page /ous/ Enrichie**
+  - Statistiques globales (OUs, users, groups, computers)
+  - Barre de recherche textuelle
+  - Filtres par type d'objet (avec users, groups, computers, vides)
+  - Badges cliquables vers users/groups/computers
+  - Export CSV des données
+  - Confirmation renforcée pour suppression
+
+- **🔧 Page /diagnostic/ Améliorée**
+  - 19 tests au lieu de 8
+  - Informations système détaillées (plateforme, Python, RAM, disque)
+  - Export du rapport en TXT
+  - Section avertissements dédiée
+  - Nouveaux checks : DNS, Internet, logs, configuration
+
+- **Documentation**
+  - 9 fichiers README créés (core, routes, templates, static, scripts, data, nssm, tests, password_audit)
+  - QWEN.md mis à jour
+  - SCRIPTS_MANAGER.md créé
+
+### Corrigé
+
+- **Page /tools/expiring/**
+  - Format de date français (DD/MM/YYYY)
+  - Exclusion des comptes système (krbtgt, Invité, DefaultAccount)
+  - Exclusion des comptes ordinateurs (se terminant par $)
+  - Affichage "Aucune" pour les comptes sans expiration
+  - Tri des résultats par date
+
+- **Gestion des erreurs LDAP**
+  - Meilleure gestion des erreurs de connexion
+  - Logs détaillés pour débogage
+
+- **Audit des mots de passe**
+  - Exclusion des comptes système dans les rapports
+  - Correction des dates 1601 (valeurs AD vides)
+
+### Tests
+
+- **27 tests unitaires** pour `scripts_manager`
+- **Couverture des API** scripts
+- **Tous les tests passent** ✅
+
+### Statistiques
+
+- **47 fichiers** modifiés/créés
+- **+9224 lignes** ajoutées
+- **-176 lignes** supprimées
+
+## [1.35.0] - 2026-04-07
 
 ### Ajouté
 

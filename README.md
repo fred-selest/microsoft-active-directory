@@ -10,7 +10,37 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.35.0 — Avril 2026
+**Dernière version :** v1.36.0 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.36.0
+
+### 📊 Analyse Automatique des Logs
+- Analyse au démarrage de l'application
+- Détection automatique des erreurs critiques
+- Corrections automatiques disponibles
+- Historique des analyses
+- Export des rapports
+
+### 🛠️ Gestion des Scripts PowerShell
+- Exécution depuis l'interface web
+- Téléchargement des scripts
+- Historique des exécutions
+- 9 scripts disponibles (fix_md4, fix_ntlm, fix_ldap_signing, etc.)
+
+### 📁 Page /ous/ Enrichie
+- Statistiques globales (OUs, users, groups, computers)
+- Barre de recherche textuelle
+- Filtres par type d'objet
+- Badges cliquables vers users/groups/computers
+- Export CSV
+
+### 🔧 Page /diagnostic/ Améliorée
+- 19 tests au lieu de 8
+- Informations système détaillées
+- Export du rapport en TXT
+- Section avertissements dédiée
 
 ---
 
