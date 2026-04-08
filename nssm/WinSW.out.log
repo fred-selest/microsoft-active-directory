@@ -40,3 +40,585 @@ Plateforme: Windows (2022Server)
 2026-04-08 01:51:36,856 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
 2026-04-08 01:52:39,724 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
 2026-04-08 01:52:40,358 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:55:50,850 INFO core.ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-08 01:55:50,851 INFO core.ad_detect: LDAPS prioritaire detecte sur 192.168.10.252:636
+2026-04-08 01:55:54,688 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:55:54,694 INFO ad_core: Groupes AD détectés pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau à distance', 'Administrateurs de l’entreprise', 'Administrateurs du schéma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-08 01:55:54,695 INFO ad_core: Groupes admin configurés: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schÃ©ma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-08 01:55:54,695 INFO ad_core: Correspondance admin trouvée: Administrateurs
+2026-04-08 01:55:54,695 INFO ad_core: Rôle déterminé pour selest\admin: admin
+2026-04-08 01:55:54,696 INFO audit: SUCCESS | login | selest\admin | 192.168.10.220 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-08 01:55:55,155 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:02,031 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:02,603 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:03,363 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:03,807 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:04,453 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+*** Group WseRemoteWebAccessUsers: member_count=1, is_special=False
+*** Group WseAllowShareAccess: member_count=1, is_special=False
+*** Group WseAllowComputerAccess: member_count=1, is_special=False
+*** Group WseAllowMediaAccess: member_count=1, is_special=False
+*** Group WseAllowAddInAccess: member_count=1, is_special=False
+*** Group WseAllowDashboardAccess: member_count=1, is_special=False
+*** Group WseAllowHomePageLinks: member_count=1, is_special=False
+*** Group WseAlertAdministrators: member_count=1, is_special=False
+*** Group WseRemoteAccessUsers: member_count=1, is_special=False
+*** Group WseInvisibleToDashboard: member_count=1, is_special=False
+*** Group WseManagedGroups: member_count=0, is_special=False
+*** Group Administrateurs: member_count=5, is_special=False
+*** Group Utilisateurs: member_count=3, is_special=False
+*** Group Invités: member_count=2, is_special=False
+*** Group Opérateurs de configuration réseau: member_count=0, is_special=False
+*** Group Utilisateurs du journal de performances: member_count=0, is_special=False
+*** Group Utilisateurs du modèle COM distribué: member_count=0, is_special=False
+*** Group Opérateurs de chiffrement: member_count=0, is_special=False
+*** Group Lecteurs des journaux d’événements: member_count=0, is_special=False
+*** Group Administrateurs Hyper-V: member_count=1, is_special=False
+*** Group Opérateurs d'assistance de contrôle d'accès: member_count=0, is_special=False
+*** Group Utilisateurs de gestion à distance: member_count=0, is_special=False
+*** Group System Managed Accounts Group: member_count=1, is_special=False
+*** Group Storage Replica Administrators: member_count=0, is_special=False
+*** DETECTED special group: Ordinateurs du domaine (cn=ordinateurs du domaine, dn=cn=ordinateurs du domaine,cn=users,dc=selest,dc=local)
+*** Counting computers in DC=SELEST,DC=local...
+*** Found 15 computers
+*** Group Ordinateurs du domaine: member_count=15, is_special=True
+*** DETECTED special group: Utilisateurs du domaine (cn=utilisateurs du domaine, dn=cn=utilisateurs du domaine,cn=users,dc=selest,dc=local)
+*** Group Utilisateurs du domaine: member_count=10, is_special=True
+*** DETECTED special group: Invités du domaine (cn=invités du domaine, dn=cn=invités du domaine,cn=users,dc=selest,dc=local)
+*** Group Invités du domaine: member_count=0, is_special=True
+*** Group Générateurs d’approbations de forêt entrante: member_count=0, is_special=False
+*** Group Admins du domaine: member_count=2, is_special=False
+*** DETECTED special group: Administrateurs du schéma (cn=administrateurs du schéma, dn=cn=administrateurs du schéma,cn=users,dc=selest,dc=local)
+*** Group Administrateurs du schéma: member_count=2, is_special=True
+*** Group Administrateurs de l’entreprise: member_count=2, is_special=False
+*** Group Propriétaires créateurs de la stratégie de groupe: member_count=1, is_special=False
+*** Group Accès compatible pré-Windows 2000: member_count=2, is_special=False
+*** Group Groupe d’accès d’autorisation Windows: member_count=1, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est autorisé: member_count=0, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est refusé: member_count=8, is_special=False
+*** DETECTED special group: Contrôleurs de domaine d’entreprise en lecture seule (cn=contrôleurs de domaine d’entreprise en lecture seule, dn=cn=contrôleurs de domaine d’entreprise en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine d’entreprise en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine clonables (cn=contrôleurs de domaine clonables, dn=cn=contrôleurs de domaine clonables,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine clonables: member_count=1, is_special=True
+*** Group Protected Users: member_count=0, is_special=False
+*** Group Administrateurs clés: member_count=0, is_special=False
+*** Group Administrateurs clés Enterprise: member_count=0, is_special=False
+*** Group IIS_IUSRS: member_count=0, is_special=False
+*** Group Accès DCOM service de certificats: member_count=1, is_special=False
+*** Group Éditeurs de certificats: member_count=1, is_special=False
+*** Group Serveurs RDS Endpoint: member_count=1, is_special=False
+*** Group Serveurs Gestion RDS: member_count=1, is_special=False
+*** Group Serveurs Accès Distant RDS: member_count=1, is_special=False
+*** Group Utilisateurs du Bureau à distance: member_count=1, is_special=False
+*** Group Serveurs de licences des services Terminal Server: member_count=1, is_special=False
+*** Group Serveurs RAS et IAS: member_count=0, is_special=False
+*** Group Utilisateurs de l’Analyseur de performances: member_count=0, is_special=False
+*** Group Opérateurs de sauvegarde: member_count=0, is_special=False
+*** Group Opérateurs d’impression: member_count=0, is_special=False
+*** Group Opérateurs de serveur: member_count=0, is_special=False
+*** Group Opérateurs de compte: member_count=0, is_special=False
+*** Group Duplicateurs: member_count=0, is_special=False
+*** DETECTED special group: Contrôleurs de domaine en lecture seule (cn=contrôleurs de domaine en lecture seule, dn=cn=contrôleurs de domaine en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine (cn=contrôleurs de domaine, dn=cn=contrôleurs de domaine,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine: member_count=1, is_special=True
+*** Group DnsAdmins: member_count=0, is_special=False
+*** Group DnsUpdateProxy: member_count=0, is_special=False
+*** Group SQLServer2005SQLBrowserUser$SRV16: member_count=0, is_special=False
+*** Group Access-Denied Assistance Users: member_count=0, is_special=False
+*** Group ADSyncOperators: member_count=0, is_special=False
+*** Group ADSyncBrowse: member_count=0, is_special=False
+*** Group ADSyncPasswordSet: member_count=0, is_special=False
+*** Group ADSyncAdmins: member_count=1, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group Utilisateurs_O365: member_count=0, is_special=False
+*** Group Utilisateurs DHCP: member_count=0, is_special=False
+*** Group Administrateurs DHCP: member_count=0, is_special=False
+*** Group GDL-Admins-PC: member_count=0, is_special=False
+2026-04-08 01:56:05,052 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:05,393 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:05,979 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:06,184 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:06,636 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:07,088 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:07,539 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:08,609 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:11,185 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:12,997 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:13,855 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:14,586 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:15,137 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:15,137 INFO laps: LAPS: Schema attributes count: 1526
+2026-04-08 01:56:15,137 INFO laps: LAPS: has_legacy_laps (ms-Mcs-AdmPwd) = False
+2026-04-08 01:56:15,139 INFO laps: LAPS: Found Windows LAPS attribute: msLAPS-Password
+2026-04-08 01:56:15,139 INFO laps: LAPS: has_new_laps = True
+2026-04-08 01:56:15,156 INFO laps: LAPS: Found 0 computers with LAPS passwords
+2026-04-08 01:56:15,581 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:16,171 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:16,651 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:17,032 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:17,752 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:36,860 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:37,281 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:37,763 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:38,164 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:38,663 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:39,163 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:39,473 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:40,107 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:40,408 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:40,873 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:41,061 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:41,723 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:42,976 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:44,144 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:45,001 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:46,181 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:46,487 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:46,893 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:47,825 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:56:51,041 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:00,718 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:01,279 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:01,920 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:02,603 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:02,984 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:03,392 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:04,073 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:04,073 INFO laps: LAPS: Schema attributes count: 1526
+2026-04-08 01:57:04,073 INFO laps: LAPS: has_legacy_laps (ms-Mcs-AdmPwd) = False
+2026-04-08 01:57:04,074 INFO laps: LAPS: Found Windows LAPS attribute: msLAPS-Password
+2026-04-08 01:57:04,074 INFO laps: LAPS: has_new_laps = True
+2026-04-08 01:57:04,086 INFO laps: LAPS: Found 0 computers with LAPS passwords
+2026-04-08 01:57:04,525 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:08,866 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:09,249 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:13,326 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:13,959 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:14,146 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:14,572 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:15,003 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:15,427 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:15,583 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:16,141 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:17,668 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:17,705 WARNING security_audit: Groupe vide trouvé: User VPN (SAM: User VPN)
+2026-04-08 01:57:17,706 WARNING security_audit: Groupe vide trouvé: Utilisateurs_O365 (SAM: Utilisateurs_O365)
+2026-04-08 01:57:17,706 INFO security_audit: Groupes de sécurité vérifiés: 24
+2026-04-08 01:57:17,707 INFO security_audit: Groupes vides trouvés: 2
+2026-04-08 01:57:17,707 INFO security_audit:   - User VPN | User VPN | CN=User VPN,CN=Users,DC=SELEST,DC=local
+2026-04-08 01:57:17,707 INFO security_audit:   - Utilisateurs_O365 | Utilisateurs_O365 | CN=Utilisateurs_O365,DC=SELEST,DC=local
+2026-04-08 01:57:18,288 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:19,495 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:20,691 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:21,108 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:43,180 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:43,680 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:44,544 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:44,994 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:45,721 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+*** Group WseRemoteWebAccessUsers: member_count=1, is_special=False
+*** Group WseAllowShareAccess: member_count=1, is_special=False
+*** Group WseAllowComputerAccess: member_count=1, is_special=False
+*** Group WseAllowMediaAccess: member_count=1, is_special=False
+*** Group WseAllowAddInAccess: member_count=1, is_special=False
+*** Group WseAllowDashboardAccess: member_count=1, is_special=False
+*** Group WseAllowHomePageLinks: member_count=1, is_special=False
+*** Group WseAlertAdministrators: member_count=1, is_special=False
+*** Group WseRemoteAccessUsers: member_count=1, is_special=False
+*** Group WseInvisibleToDashboard: member_count=1, is_special=False
+*** Group WseManagedGroups: member_count=0, is_special=False
+*** Group Administrateurs: member_count=5, is_special=False
+*** Group Utilisateurs: member_count=3, is_special=False
+*** Group Invités: member_count=2, is_special=False
+*** Group Opérateurs de configuration réseau: member_count=0, is_special=False
+*** Group Utilisateurs du journal de performances: member_count=0, is_special=False
+*** Group Utilisateurs du modèle COM distribué: member_count=0, is_special=False
+*** Group Opérateurs de chiffrement: member_count=0, is_special=False
+*** Group Lecteurs des journaux d’événements: member_count=0, is_special=False
+*** Group Administrateurs Hyper-V: member_count=1, is_special=False
+*** Group Opérateurs d'assistance de contrôle d'accès: member_count=0, is_special=False
+*** Group Utilisateurs de gestion à distance: member_count=0, is_special=False
+*** Group System Managed Accounts Group: member_count=1, is_special=False
+*** Group Storage Replica Administrators: member_count=0, is_special=False
+*** DETECTED special group: Ordinateurs du domaine (cn=ordinateurs du domaine, dn=cn=ordinateurs du domaine,cn=users,dc=selest,dc=local)
+*** Counting computers in DC=SELEST,DC=local...
+*** Found 15 computers
+*** Group Ordinateurs du domaine: member_count=15, is_special=True
+*** DETECTED special group: Utilisateurs du domaine (cn=utilisateurs du domaine, dn=cn=utilisateurs du domaine,cn=users,dc=selest,dc=local)
+*** Group Utilisateurs du domaine: member_count=10, is_special=True
+*** DETECTED special group: Invités du domaine (cn=invités du domaine, dn=cn=invités du domaine,cn=users,dc=selest,dc=local)
+*** Group Invités du domaine: member_count=0, is_special=True
+*** Group Générateurs d’approbations de forêt entrante: member_count=0, is_special=False
+*** Group Admins du domaine: member_count=2, is_special=False
+*** DETECTED special group: Administrateurs du schéma (cn=administrateurs du schéma, dn=cn=administrateurs du schéma,cn=users,dc=selest,dc=local)
+*** Group Administrateurs du schéma: member_count=2, is_special=True
+*** Group Administrateurs de l’entreprise: member_count=2, is_special=False
+*** Group Propriétaires créateurs de la stratégie de groupe: member_count=1, is_special=False
+*** Group Accès compatible pré-Windows 2000: member_count=2, is_special=False
+*** Group Groupe d’accès d’autorisation Windows: member_count=1, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est autorisé: member_count=0, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est refusé: member_count=8, is_special=False
+*** DETECTED special group: Contrôleurs de domaine d’entreprise en lecture seule (cn=contrôleurs de domaine d’entreprise en lecture seule, dn=cn=contrôleurs de domaine d’entreprise en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine d’entreprise en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine clonables (cn=contrôleurs de domaine clonables, dn=cn=contrôleurs de domaine clonables,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine clonables: member_count=1, is_special=True
+*** Group Protected Users: member_count=0, is_special=False
+*** Group Administrateurs clés: member_count=0, is_special=False
+*** Group Administrateurs clés Enterprise: member_count=0, is_special=False
+*** Group IIS_IUSRS: member_count=0, is_special=False
+*** Group Accès DCOM service de certificats: member_count=1, is_special=False
+*** Group Éditeurs de certificats: member_count=1, is_special=False
+*** Group Serveurs RDS Endpoint: member_count=1, is_special=False
+*** Group Serveurs Gestion RDS: member_count=1, is_special=False
+*** Group Serveurs Accès Distant RDS: member_count=1, is_special=False
+*** Group Utilisateurs du Bureau à distance: member_count=1, is_special=False
+*** Group Serveurs de licences des services Terminal Server: member_count=1, is_special=False
+*** Group Serveurs RAS et IAS: member_count=0, is_special=False
+*** Group Utilisateurs de l’Analyseur de performances: member_count=0, is_special=False
+*** Group Opérateurs de sauvegarde: member_count=0, is_special=False
+*** Group Opérateurs d’impression: member_count=0, is_special=False
+*** Group Opérateurs de serveur: member_count=0, is_special=False
+*** Group Opérateurs de compte: member_count=0, is_special=False
+*** Group Duplicateurs: member_count=0, is_special=False
+*** DETECTED special group: Contrôleurs de domaine en lecture seule (cn=contrôleurs de domaine en lecture seule, dn=cn=contrôleurs de domaine en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine (cn=contrôleurs de domaine, dn=cn=contrôleurs de domaine,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine: member_count=1, is_special=True
+*** Group DnsAdmins: member_count=0, is_special=False
+*** Group DnsUpdateProxy: member_count=0, is_special=False
+*** Group SQLServer2005SQLBrowserUser$SRV16: member_count=0, is_special=False
+*** Group Access-Denied Assistance Users: member_count=0, is_special=False
+*** Group ADSyncOperators: member_count=0, is_special=False
+*** Group ADSyncBrowse: member_count=0, is_special=False
+*** Group ADSyncPasswordSet: member_count=0, is_special=False
+*** Group ADSyncAdmins: member_count=1, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group Utilisateurs_O365: member_count=0, is_special=False
+*** Group Utilisateurs DHCP: member_count=0, is_special=False
+*** Group Administrateurs DHCP: member_count=0, is_special=False
+*** Group GDL-Admins-PC: member_count=0, is_special=False
+2026-04-08 01:57:46,166 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:46,579 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:46,975 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:49,559 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:50,295 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:50,693 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:51,300 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:51,974 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:52,340 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:52,897 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:58,664 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:59,099 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:59,579 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:57:59,935 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:00,137 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:00,643 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:01,833 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+*** Group WseRemoteWebAccessUsers: member_count=1, is_special=False
+*** Group WseAllowShareAccess: member_count=1, is_special=False
+*** Group WseAllowComputerAccess: member_count=1, is_special=False
+*** Group WseAllowMediaAccess: member_count=1, is_special=False
+*** Group WseAllowAddInAccess: member_count=1, is_special=False
+*** Group WseAllowDashboardAccess: member_count=1, is_special=False
+*** Group WseAllowHomePageLinks: member_count=1, is_special=False
+*** Group WseAlertAdministrators: member_count=1, is_special=False
+*** Group WseRemoteAccessUsers: member_count=1, is_special=False
+*** Group WseInvisibleToDashboard: member_count=1, is_special=False
+*** Group WseManagedGroups: member_count=0, is_special=False
+*** Group Administrateurs: member_count=5, is_special=False
+*** Group Utilisateurs: member_count=3, is_special=False
+*** Group Invités: member_count=2, is_special=False
+*** Group Opérateurs de configuration réseau: member_count=0, is_special=False
+*** Group Utilisateurs du journal de performances: member_count=0, is_special=False
+*** Group Utilisateurs du modèle COM distribué: member_count=0, is_special=False
+*** Group Opérateurs de chiffrement: member_count=0, is_special=False
+*** Group Lecteurs des journaux d’événements: member_count=0, is_special=False
+*** Group Administrateurs Hyper-V: member_count=1, is_special=False
+*** Group Opérateurs d'assistance de contrôle d'accès: member_count=0, is_special=False
+*** Group Utilisateurs de gestion à distance: member_count=0, is_special=False
+*** Group System Managed Accounts Group: member_count=1, is_special=False
+*** Group Storage Replica Administrators: member_count=0, is_special=False
+*** DETECTED special group: Ordinateurs du domaine (cn=ordinateurs du domaine, dn=cn=ordinateurs du domaine,cn=users,dc=selest,dc=local)
+*** Counting computers in DC=SELEST,DC=local...
+*** Found 15 computers
+*** Group Ordinateurs du domaine: member_count=15, is_special=True
+*** DETECTED special group: Utilisateurs du domaine (cn=utilisateurs du domaine, dn=cn=utilisateurs du domaine,cn=users,dc=selest,dc=local)
+*** Group Utilisateurs du domaine: member_count=10, is_special=True
+*** DETECTED special group: Invités du domaine (cn=invités du domaine, dn=cn=invités du domaine,cn=users,dc=selest,dc=local)
+*** Group Invités du domaine: member_count=0, is_special=True
+*** Group Générateurs d’approbations de forêt entrante: member_count=0, is_special=False
+*** Group Admins du domaine: member_count=2, is_special=False
+*** DETECTED special group: Administrateurs du schéma (cn=administrateurs du schéma, dn=cn=administrateurs du schéma,cn=users,dc=selest,dc=local)
+*** Group Administrateurs du schéma: member_count=2, is_special=True
+*** Group Administrateurs de l’entreprise: member_count=2, is_special=False
+*** Group Propriétaires créateurs de la stratégie de groupe: member_count=1, is_special=False
+*** Group Accès compatible pré-Windows 2000: member_count=2, is_special=False
+*** Group Groupe d’accès d’autorisation Windows: member_count=1, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est autorisé: member_count=0, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est refusé: member_count=8, is_special=False
+*** DETECTED special group: Contrôleurs de domaine d’entreprise en lecture seule (cn=contrôleurs de domaine d’entreprise en lecture seule, dn=cn=contrôleurs de domaine d’entreprise en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine d’entreprise en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine clonables (cn=contrôleurs de domaine clonables, dn=cn=contrôleurs de domaine clonables,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine clonables: member_count=1, is_special=True
+*** Group Protected Users: member_count=0, is_special=False
+*** Group Administrateurs clés: member_count=0, is_special=False
+*** Group Administrateurs clés Enterprise: member_count=0, is_special=False
+*** Group IIS_IUSRS: member_count=0, is_special=False
+*** Group Accès DCOM service de certificats: member_count=1, is_special=False
+*** Group Éditeurs de certificats: member_count=1, is_special=False
+*** Group Serveurs RDS Endpoint: member_count=1, is_special=False
+*** Group Serveurs Gestion RDS: member_count=1, is_special=False
+*** Group Serveurs Accès Distant RDS: member_count=1, is_special=False
+*** Group Utilisateurs du Bureau à distance: member_count=1, is_special=False
+*** Group Serveurs de licences des services Terminal Server: member_count=1, is_special=False
+*** Group Serveurs RAS et IAS: member_count=0, is_special=False
+*** Group Utilisateurs de l’Analyseur de performances: member_count=0, is_special=False
+*** Group Opérateurs de sauvegarde: member_count=0, is_special=False
+*** Group Opérateurs d’impression: member_count=0, is_special=False
+*** Group Opérateurs de serveur: member_count=0, is_special=False
+*** Group Opérateurs de compte: member_count=0, is_special=False
+*** Group Duplicateurs: member_count=0, is_special=False
+*** DETECTED special group: Contrôleurs de domaine en lecture seule (cn=contrôleurs de domaine en lecture seule, dn=cn=contrôleurs de domaine en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine (cn=contrôleurs de domaine, dn=cn=contrôleurs de domaine,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine: member_count=1, is_special=True
+*** Group DnsAdmins: member_count=0, is_special=False
+*** Group DnsUpdateProxy: member_count=0, is_special=False
+*** Group SQLServer2005SQLBrowserUser$SRV16: member_count=0, is_special=False
+*** Group Access-Denied Assistance Users: member_count=0, is_special=False
+*** Group ADSyncOperators: member_count=0, is_special=False
+*** Group ADSyncBrowse: member_count=0, is_special=False
+*** Group ADSyncPasswordSet: member_count=0, is_special=False
+*** Group ADSyncAdmins: member_count=1, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group Utilisateurs_O365: member_count=0, is_special=False
+*** Group Utilisateurs DHCP: member_count=0, is_special=False
+*** Group Administrateurs DHCP: member_count=0, is_special=False
+*** Group GDL-Admins-PC: member_count=0, is_special=False
+2026-04-08 01:58:02,302 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:02,872 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:03,277 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:03,856 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:04,304 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:05,495 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+*** Group WseRemoteWebAccessUsers: member_count=1, is_special=False
+*** Group WseAllowShareAccess: member_count=1, is_special=False
+*** Group WseAllowComputerAccess: member_count=1, is_special=False
+*** Group WseAllowMediaAccess: member_count=1, is_special=False
+*** Group WseAllowAddInAccess: member_count=1, is_special=False
+*** Group WseAllowDashboardAccess: member_count=1, is_special=False
+*** Group WseAllowHomePageLinks: member_count=1, is_special=False
+*** Group WseAlertAdministrators: member_count=1, is_special=False
+*** Group WseRemoteAccessUsers: member_count=1, is_special=False
+*** Group WseInvisibleToDashboard: member_count=1, is_special=False
+*** Group WseManagedGroups: member_count=0, is_special=False
+*** Group Administrateurs: member_count=5, is_special=False
+*** Group Utilisateurs: member_count=3, is_special=False
+*** Group Invités: member_count=2, is_special=False
+*** Group Opérateurs de configuration réseau: member_count=0, is_special=False
+*** Group Utilisateurs du journal de performances: member_count=0, is_special=False
+*** Group Utilisateurs du modèle COM distribué: member_count=0, is_special=False
+*** Group Opérateurs de chiffrement: member_count=0, is_special=False
+*** Group Lecteurs des journaux d’événements: member_count=0, is_special=False
+*** Group Administrateurs Hyper-V: member_count=1, is_special=False
+*** Group Opérateurs d'assistance de contrôle d'accès: member_count=0, is_special=False
+*** Group Utilisateurs de gestion à distance: member_count=0, is_special=False
+*** Group System Managed Accounts Group: member_count=1, is_special=False
+*** Group Storage Replica Administrators: member_count=0, is_special=False
+*** DETECTED special group: Ordinateurs du domaine (cn=ordinateurs du domaine, dn=cn=ordinateurs du domaine,cn=users,dc=selest,dc=local)
+*** Counting computers in DC=SELEST,DC=local...
+*** Found 15 computers
+*** Group Ordinateurs du domaine: member_count=15, is_special=True
+*** DETECTED special group: Utilisateurs du domaine (cn=utilisateurs du domaine, dn=cn=utilisateurs du domaine,cn=users,dc=selest,dc=local)
+*** Group Utilisateurs du domaine: member_count=10, is_special=True
+*** DETECTED special group: Invités du domaine (cn=invités du domaine, dn=cn=invités du domaine,cn=users,dc=selest,dc=local)
+*** Group Invités du domaine: member_count=0, is_special=True
+*** Group Générateurs d’approbations de forêt entrante: member_count=0, is_special=False
+*** Group Admins du domaine: member_count=2, is_special=False
+*** DETECTED special group: Administrateurs du schéma (cn=administrateurs du schéma, dn=cn=administrateurs du schéma,cn=users,dc=selest,dc=local)
+*** Group Administrateurs du schéma: member_count=2, is_special=True
+*** Group Administrateurs de l’entreprise: member_count=2, is_special=False
+*** Group Propriétaires créateurs de la stratégie de groupe: member_count=1, is_special=False
+*** Group Accès compatible pré-Windows 2000: member_count=2, is_special=False
+*** Group Groupe d’accès d’autorisation Windows: member_count=1, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est autorisé: member_count=0, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est refusé: member_count=8, is_special=False
+*** DETECTED special group: Contrôleurs de domaine d’entreprise en lecture seule (cn=contrôleurs de domaine d’entreprise en lecture seule, dn=cn=contrôleurs de domaine d’entreprise en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine d’entreprise en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine clonables (cn=contrôleurs de domaine clonables, dn=cn=contrôleurs de domaine clonables,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine clonables: member_count=1, is_special=True
+*** Group Protected Users: member_count=0, is_special=False
+*** Group Administrateurs clés: member_count=0, is_special=False
+*** Group Administrateurs clés Enterprise: member_count=0, is_special=False
+*** Group IIS_IUSRS: member_count=0, is_special=False
+*** Group Accès DCOM service de certificats: member_count=1, is_special=False
+*** Group Éditeurs de certificats: member_count=1, is_special=False
+*** Group Serveurs RDS Endpoint: member_count=1, is_special=False
+*** Group Serveurs Gestion RDS: member_count=1, is_special=False
+*** Group Serveurs Accès Distant RDS: member_count=1, is_special=False
+*** Group Utilisateurs du Bureau à distance: member_count=1, is_special=False
+*** Group Serveurs de licences des services Terminal Server: member_count=1, is_special=False
+*** Group Serveurs RAS et IAS: member_count=0, is_special=False
+*** Group Utilisateurs de l’Analyseur de performances: member_count=0, is_special=False
+*** Group Opérateurs de sauvegarde: member_count=0, is_special=False
+*** Group Opérateurs d’impression: member_count=0, is_special=False
+*** Group Opérateurs de serveur: member_count=0, is_special=False
+*** Group Opérateurs de compte: member_count=0, is_special=False
+*** Group Duplicateurs: member_count=0, is_special=False
+*** DETECTED special group: Contrôleurs de domaine en lecture seule (cn=contrôleurs de domaine en lecture seule, dn=cn=contrôleurs de domaine en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine (cn=contrôleurs de domaine, dn=cn=contrôleurs de domaine,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine: member_count=1, is_special=True
+*** Group DnsAdmins: member_count=0, is_special=False
+*** Group DnsUpdateProxy: member_count=0, is_special=False
+*** Group SQLServer2005SQLBrowserUser$SRV16: member_count=0, is_special=False
+*** Group Access-Denied Assistance Users: member_count=0, is_special=False
+*** Group ADSyncOperators: member_count=0, is_special=False
+*** Group ADSyncBrowse: member_count=0, is_special=False
+*** Group ADSyncPasswordSet: member_count=0, is_special=False
+*** Group ADSyncAdmins: member_count=1, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group Utilisateurs_O365: member_count=0, is_special=False
+*** Group Utilisateurs DHCP: member_count=0, is_special=False
+*** Group Administrateurs DHCP: member_count=0, is_special=False
+*** Group GDL-Admins-PC: member_count=0, is_special=False
+2026-04-08 01:58:06,135 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:06,281 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 01:58:06,746 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:17,457 INFO core.ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-08 08:09:17,458 INFO core.ad_detect: LDAPS prioritaire detecte sur 192.168.10.252:636
+2026-04-08 08:09:22,010 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:22,013 INFO ad_core: Groupes AD détectés pour selest\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau à distance', 'Administrateurs de l’entreprise', 'Administrateurs du schéma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-08 08:09:22,013 INFO ad_core: Groupes admin configurés: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schÃ©ma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-08 08:09:22,013 INFO ad_core: Correspondance admin trouvée: Administrateurs
+2026-04-08 08:09:22,013 INFO ad_core: Rôle déterminé pour selest\admin: admin
+2026-04-08 08:09:22,015 INFO audit: SUCCESS | login | selest\admin | 192.168.10.220 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-08 08:09:22,453 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:24,678 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:25,060 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:26,108 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+*** Group WseRemoteWebAccessUsers: member_count=1, is_special=False
+*** Group WseAllowShareAccess: member_count=1, is_special=False
+*** Group WseAllowComputerAccess: member_count=1, is_special=False
+*** Group WseAllowMediaAccess: member_count=1, is_special=False
+*** Group WseAllowAddInAccess: member_count=1, is_special=False
+*** Group WseAllowDashboardAccess: member_count=1, is_special=False
+*** Group WseAllowHomePageLinks: member_count=1, is_special=False
+*** Group WseAlertAdministrators: member_count=1, is_special=False
+*** Group WseRemoteAccessUsers: member_count=1, is_special=False
+*** Group WseInvisibleToDashboard: member_count=1, is_special=False
+*** Group WseManagedGroups: member_count=0, is_special=False
+*** Group Administrateurs: member_count=5, is_special=False
+*** Group Utilisateurs: member_count=3, is_special=False
+*** Group Invités: member_count=2, is_special=False
+*** Group Opérateurs de configuration réseau: member_count=0, is_special=False
+*** Group Utilisateurs du journal de performances: member_count=0, is_special=False
+*** Group Utilisateurs du modèle COM distribué: member_count=0, is_special=False
+*** Group Opérateurs de chiffrement: member_count=0, is_special=False
+*** Group Lecteurs des journaux d’événements: member_count=0, is_special=False
+*** Group Administrateurs Hyper-V: member_count=1, is_special=False
+*** Group Opérateurs d'assistance de contrôle d'accès: member_count=0, is_special=False
+*** Group Utilisateurs de gestion à distance: member_count=0, is_special=False
+*** Group System Managed Accounts Group: member_count=1, is_special=False
+*** Group Storage Replica Administrators: member_count=0, is_special=False
+*** DETECTED special group: Ordinateurs du domaine (cn=ordinateurs du domaine, dn=cn=ordinateurs du domaine,cn=users,dc=selest,dc=local)
+*** Counting computers in DC=SELEST,DC=local...
+*** Found 15 computers
+*** Group Ordinateurs du domaine: member_count=15, is_special=True
+*** DETECTED special group: Utilisateurs du domaine (cn=utilisateurs du domaine, dn=cn=utilisateurs du domaine,cn=users,dc=selest,dc=local)
+*** Group Utilisateurs du domaine: member_count=10, is_special=True
+*** DETECTED special group: Invités du domaine (cn=invités du domaine, dn=cn=invités du domaine,cn=users,dc=selest,dc=local)
+*** Group Invités du domaine: member_count=0, is_special=True
+*** Group Générateurs d’approbations de forêt entrante: member_count=0, is_special=False
+*** Group Admins du domaine: member_count=2, is_special=False
+*** DETECTED special group: Administrateurs du schéma (cn=administrateurs du schéma, dn=cn=administrateurs du schéma,cn=users,dc=selest,dc=local)
+*** Group Administrateurs du schéma: member_count=2, is_special=True
+*** Group Administrateurs de l’entreprise: member_count=2, is_special=False
+*** Group Propriétaires créateurs de la stratégie de groupe: member_count=1, is_special=False
+*** Group Accès compatible pré-Windows 2000: member_count=2, is_special=False
+*** Group Groupe d’accès d’autorisation Windows: member_count=1, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est autorisé: member_count=0, is_special=False
+*** Group Groupe de réplication dont le mot de passe RODC est refusé: member_count=8, is_special=False
+*** DETECTED special group: Contrôleurs de domaine d’entreprise en lecture seule (cn=contrôleurs de domaine d’entreprise en lecture seule, dn=cn=contrôleurs de domaine d’entreprise en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine d’entreprise en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine clonables (cn=contrôleurs de domaine clonables, dn=cn=contrôleurs de domaine clonables,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine clonables: member_count=1, is_special=True
+*** Group Protected Users: member_count=0, is_special=False
+*** Group Administrateurs clés: member_count=0, is_special=False
+*** Group Administrateurs clés Enterprise: member_count=0, is_special=False
+*** Group IIS_IUSRS: member_count=0, is_special=False
+*** Group Accès DCOM service de certificats: member_count=1, is_special=False
+*** Group Éditeurs de certificats: member_count=1, is_special=False
+*** Group Serveurs RDS Endpoint: member_count=1, is_special=False
+*** Group Serveurs Gestion RDS: member_count=1, is_special=False
+*** Group Serveurs Accès Distant RDS: member_count=1, is_special=False
+*** Group Utilisateurs du Bureau à distance: member_count=1, is_special=False
+*** Group Serveurs de licences des services Terminal Server: member_count=1, is_special=False
+*** Group Serveurs RAS et IAS: member_count=0, is_special=False
+*** Group Utilisateurs de l’Analyseur de performances: member_count=0, is_special=False
+*** Group Opérateurs de sauvegarde: member_count=0, is_special=False
+*** Group Opérateurs d’impression: member_count=0, is_special=False
+*** Group Opérateurs de serveur: member_count=0, is_special=False
+*** Group Opérateurs de compte: member_count=0, is_special=False
+*** Group Duplicateurs: member_count=0, is_special=False
+*** DETECTED special group: Contrôleurs de domaine en lecture seule (cn=contrôleurs de domaine en lecture seule, dn=cn=contrôleurs de domaine en lecture seule,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine en lecture seule: member_count=1, is_special=True
+*** DETECTED special group: Contrôleurs de domaine (cn=contrôleurs de domaine, dn=cn=contrôleurs de domaine,cn=users,dc=selest,dc=local)
+*** Group Contrôleurs de domaine: member_count=1, is_special=True
+*** Group DnsAdmins: member_count=0, is_special=False
+*** Group DnsUpdateProxy: member_count=0, is_special=False
+*** Group SQLServer2005SQLBrowserUser$SRV16: member_count=0, is_special=False
+*** Group Access-Denied Assistance Users: member_count=0, is_special=False
+*** Group ADSyncOperators: member_count=0, is_special=False
+*** Group ADSyncBrowse: member_count=0, is_special=False
+*** Group ADSyncPasswordSet: member_count=0, is_special=False
+*** Group ADSyncAdmins: member_count=1, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group User VPN: member_count=0, is_special=False
+*** Group Utilisateurs_O365: member_count=0, is_special=False
+*** Group Utilisateurs DHCP: member_count=0, is_special=False
+*** Group Administrateurs DHCP: member_count=0, is_special=False
+*** Group GDL-Admins-PC: member_count=0, is_special=False
+2026-04-08 08:09:26,791 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:27,270 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:27,628 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:32,177 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:32,562 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:33,677 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:34,341 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:34,719 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:37,898 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:37,899 INFO laps: LAPS: Schema attributes count: 1526
+2026-04-08 08:09:37,899 INFO laps: LAPS: has_legacy_laps (ms-Mcs-AdmPwd) = False
+2026-04-08 08:09:37,899 INFO laps: LAPS: Found Windows LAPS attribute: msLAPS-Password
+2026-04-08 08:09:37,899 INFO laps: LAPS: has_new_laps = True
+2026-04-08 08:09:37,909 INFO laps: LAPS: Found 0 computers with LAPS passwords
+2026-04-08 08:09:38,613 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:38,871 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:39,311 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:39,768 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:40,168 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:41,069 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:09:42,254 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:20:55,148 INFO core.ad_detect: Serveur AD detecte: 192.168.10.252 (domaine: SELEST.local)
+2026-04-08 08:20:55,150 INFO core.ad_detect: LDAPS prioritaire detecte sur 192.168.10.252:636
+2026-04-08 08:20:57,901 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:20:57,906 INFO ad_core: Groupes AD détectés pour SELEST\admin: ['ADSyncAdmins', 'Utilisateurs du Bureau à distance', 'Administrateurs de l’entreprise', 'Administrateurs du schéma', 'Admins du domaine', 'Administrateurs Hyper-V', 'Administrateurs']
+2026-04-08 08:20:57,906 INFO ad_core: Groupes admin configurés: ['Domain Admins', 'Administrateurs du domaine', 'Administrateurs', "Administrateurs de l'entreprise", 'Admins du domaine', 'Administrateurs du schÃ©ma', 'Admins du domaine', 'Admins du domainerise']
+2026-04-08 08:20:57,906 INFO ad_core: Correspondance admin trouvée: Administrateurs
+2026-04-08 08:20:57,906 INFO ad_core: Rôle déterminé pour SELEST\admin: admin
+2026-04-08 08:20:57,907 INFO audit: SUCCESS | login | SELEST\admin | 127.0.0.1 | {"server": "192.168.10.252", "role": "admin"}
+2026-04-08 08:20:58,944 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:00,184 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:01,050 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:01,688 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:02,570 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:02,773 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:03,994 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:05,103 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
+2026-04-08 08:21:06,161 INFO ad_connection: Connexion réussie: 192.168.10.252:636 (SSL=True, auth=NTLM)
