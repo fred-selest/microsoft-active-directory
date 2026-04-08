@@ -150,8 +150,7 @@ def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
                   tls=_tls_config if use_ssl else None,
                   get_info=ALL, mode=ip_mode,
                   connect_timeout=10,  # Timeout de connexion (secondes)
-                  allowed_referral_hosts=[('*')],  # Autoriser les referrals
-                  receive_timeout=10)  # Timeout de réception
+                  allowed_referral_hosts=[('*')])  # Autoriser les referrals
 
 
 def _try_connection(server, username, password):
