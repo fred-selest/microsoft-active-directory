@@ -247,8 +247,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 auth = SIMPLE
             conn = Connection(srv, user=user, password=password,
                             authentication=auth,
-                            auto_bind=True,
-                            receive_timeout=10)  # Timeout de réception
+                            auto_bind=True)
             if conn.bound:
                 logger.info(f"Connexion réussie: {server}:{port} (SSL={use_ssl}, auth={auth})")
                 return conn, None
