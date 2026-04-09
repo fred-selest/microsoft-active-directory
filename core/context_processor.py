@@ -21,8 +21,6 @@ _update_cache = {'last_check': 0, 'result': None}
 
 def inject_globals():
     """Injecter les variables globales dans les templates."""
-    global _update_cache
-
     if _update_cache['result'] is None or (time.time() - _update_cache['last_check']) > 300:
         try:
             from core.updater import check_for_updates_fast

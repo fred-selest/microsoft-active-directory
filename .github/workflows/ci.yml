@@ -57,7 +57,7 @@ jobs:
         run: |
           python -c "from app import app; print('Flask app OK')"
           python -c "from config import get_config; print('Config OK')"
-          python -c "from security import escape_ldap_filter; print('Security OK')"
+          python -c "from core.security import escape_ldap_filter; print('Security OK')"
 
   # ===========================================================================
   # Security Scan

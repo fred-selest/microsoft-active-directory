@@ -132,6 +132,7 @@ if not exist "%APP_DIR%.env" (
         echo FLASK_ENV=production
         echo AD_SILENT=true
         echo SESSION_COOKIE_SECURE=false
+        echo SESSION_TIMEOUT=30
     ) > "%APP_DIR%.env"
     echo [OK] Fichier .env cree avec une SECRET_KEY securisee.
     echo.
