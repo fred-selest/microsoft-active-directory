@@ -132,9 +132,14 @@
         </div>
     </div>
 
-    <!-- Section 4: Configuration SMTP -->
+    <!-- Section 4: Configuration SMTP (repliable) -->
     <div class="admin-section card fade-in">
-        <h3>📧 Configuration SMTP</h3>
+        <details class="collapsible-section" id="smtp-section">
+            <summary class="collapsible-header">
+                <h3>📧 Configuration SMTP</h3>
+                <span class="collapsible-arrow">▶</span>
+            </summary>
+            <div class="collapsible-content">
         <form method="POST" action="{{ url_for('admin.save_smtp_settings') }}" class="smtp-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -210,10 +215,65 @@
                 </div>
             </div>
         </form>
+            </div>
+        </details>
     </div>
 
-    <!-- Section 5: Fonctionnalités Désactivées -->
-    {% set disabled_features = [] %}
+    <!-- Section 5: Fonctionnalités UI -->
+    <div class="admin-section card fade-in">
+        <h3>🎨 Fonctionnalités Interface</h3>
+        <form method="POST" action="{{ url_for('admin.save_features') }}" class="features-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="feature-toggles">
+                <div class="feature-toggle">
+                    <input type="checkbox" id="feat_dark_mode" name="dark_mode" {% if settings.features.dark_mode %}checked{% endif %}>
+                    <label for="feat_dark_mode">
+                        <strong>Mode sombre</strong>
+                        <small>Activer le basculement thème clair/sombre</small>
+                    </label>
+                </div>
+
+                <div class="feature-toggle">
+                    <input type="checkbox" id="feat_update" name="update_check" {% if settings.features.update_check %}checked{% endif %}>
+                    <label for="feat_update">
+                        <strong>Vérification des mises à jour</strong>
+                        <small>Vérifier les nouvelles versions au démarrage</small>
+                    </label>
+                </div>
+
+                <div class="feature-toggle">
+                    <input type="checkbox" id="feat_pwa" name="pwa_enabled" {% if settings.features.pwa_enabled %}checked{% endif %}>
+                    <label for="feat_pwa">
+                        <strong>Application PWA</strong>
+                        <small>Installer comme application progressive</small>
+                    </label>
+                </div>
+
+                <div class="feature-toggle">
+                    <input type="checkbox" id="feat_footer" name="show_footer" {% if settings.features.show_footer %}checked{% endif %}>
+                    <label for="feat_footer">
+                        <strong>Pied de page</strong>
+                        <small>Afficher le footer de l'application</small>
+                    </label>
+                </div>
+
+                <div class="feature-toggle">
+                    <input type="checkbox" id="feat_columns" name="users_column_chooser" {% if settings.features.users_column_chooser %}checked{% endif %}>
+                    <label for="feat_columns">
+                        <strong>Sélecteur de colonnes</strong>
+                        <small>Permettre de choisir les colonnes affichées sur la page Utilisateurs</small>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Section 6: Fonctionnalités Désactivées -->
     {% if not config.FEATURE_RECYCLE_BIN_ENABLED %}
         {% set _ = disabled_features.append({'id': 'recycle_bin', 'name': 'Corbeille AD'}) %}
     {% endif %}
@@ -257,7 +317,73 @@
     font-size: 1.25rem;
 }
 
-/* Formulaire SMTP */
+/* ── Collapsible sections ───────────────────────────────────── */
+.collapsible-section summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+.collapsible-section summary::-webkit-details-marker { display: none; }
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+}
+.collapsible-header h3 {
+    margin: 0;
+}
+.collapsible-arrow {
+    font-size: 0.8rem;
+    transition: transform 0.2s ease;
+    color: var(--text-secondary, #666);
+}
+.collapsible-section[open] .collapsible-arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    padding-top: 1rem;
+}
+
+/* ── Feature toggles ────────────────────────────────────────── */
+.feature-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.feature-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-primary, #f8f9fa);
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e0e0e0);
+}
+.feature-toggle input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.feature-toggle label {
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    flex: 1;
+}
+.feature-toggle label strong {
+    color: var(--text-primary, #1b1b1b);
+    font-size: 0.95rem;
+}
+.feature-toggle label small {
+    color: var(--text-secondary, #666);
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+/* ── Formulaire SMTP ─────────────────────────────────────────── */
 .smtp-form, .smtp-test-form {
     margin-top: 1rem;
 }

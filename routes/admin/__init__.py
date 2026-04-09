@@ -83,6 +83,8 @@ def save_features():
     settings['features']['language_switch'] = request.form.get('language_switch') == 'on'
     settings['features']['update_check'] = request.form.get('update_check') == 'on'
     settings['features']['pwa_enabled'] = request.form.get('pwa_enabled') == 'on'
+    settings['features']['show_footer'] = request.form.get('show_footer') == 'on'
+    settings['features']['users_column_chooser'] = request.form.get('users_column_chooser') == 'on'
 
     if save_settings(settings):
         flash('Fonctionnalités enregistrées!', 'success')
