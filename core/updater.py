@@ -59,25 +59,37 @@ def get_current_version():
 
 
 def get_remote_version():
-    """Obtenir la version distante depuis GitHub (avec cache)."""
+    """
+    Obtenir la version distante depuis GitHub.
+    Retourne tuple: (version_str|None, error_str|None)
+    Ne met PAS en cache les echecs pour permettre de retester.
+    """
     cache_key = 'remote_version'
     now = time.time()
-    
-    # Vérifier le cache
+
+    # Verifier le cache (seulement pour les succes)
     if cache_key in _version_cache:
         cached_time, cached_value = _version_cache[cache_key]
         if now - cached_time < _cache_ttl:
-            return cached_value
-    
-    try:
-        url = f"{GITHUB_RAW_BASE}/{VERSION_FILE}"
-        with urllib.request.urlopen(url, timeout=10) as r:
-            version = r.read().decode('utf-8').strip()
-            _version_cache[cache_key] = (now, version)
-            return version
-    except Exception as e:
-        print(f"  Erreur récupération version: {e}")
-        return None
+            return cached_value, None
+
+    # Retry avec backoff exponentiel
+    last_error = None
+    for attempt in range(3):
+        try:
+            url = f"{GITHUB_RAW_BASE}/{VERSION_FILE}"
+            with urllib.request.urlopen(url, timeout=15) as r:
+                version = r.read().decode('utf-8').strip()
+                _version_cache[cache_key] = (now, version)
+                return version, None
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"Erreur recupération version (tentative {attempt+1}/3): {e}")
+            if attempt < 2:
+                time.sleep(2 ** attempt)  # 1s, 2s
+
+    logger.error(f"Echec definitiv récupération version: {last_error}")
+    return None, last_error
 
 
 def get_remote_file_hash(filepath):
@@ -119,51 +131,70 @@ def download_file(filepath, app_dir, content=None):
 
 def get_file_list():
     """
-    Obtenir la liste des fichiers depuis GitHub API (avec cache).
-    Retourne une liste de tuples: (path, sha, size)
+    Obtenir la liste des fichiers depuis GitHub API.
+    Retourne tuple: (files_list|None, error_str|None)
+    Ne met PAS en cache les echecs pour permettre de retester.
     """
     cache_key = 'file_list'
     now = time.time()
-    
-    # Vérifier le cache
+
+    # Verifier le cache (seulement pour les succes)
     if cache_key in _file_list_cache:
         cached_time, cached_value = _file_list_cache[cache_key]
         if now - cached_time < _cache_ttl:
-            return cached_value
-    
-    try:
-        # Obtenir le SHA du dernier commit
-        url = f"{GITHUB_API_BASE}/branches/{GITHUB_BRANCH}"
-        req = urllib.request.Request(url, headers={
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'AD-WebInterface-Updater'
-        })
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-            commit_sha = data['commit']['sha']
+            return cached_value, None
 
-        # Obtenir l'arbre des fichiers avec SHA et taille
-        tree_url = f"{GITHUB_API_BASE}/git/trees/{commit_sha}?recursive=1"
-        req = urllib.request.Request(tree_url, headers={
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'AD-WebInterface-Updater'
-        })
-        with urllib.request.urlopen(req, timeout=30) as r:
-            tree = json.loads(r.read())
-            files = [
-                {
-                    'path': item['path'],
-                    'sha': item.get('sha'),
-                    'size': item.get('size', 0)
-                }
-                for item in tree.get('tree', []) 
-                if item['type'] == 'blob'
-            ]
-            _file_list_cache[cache_key] = (now, files)
-            return files
-    except Exception as e:
-        print(f"Erreur API GitHub: {e}")
-        return None
+    # Retry avec backoff exponentiel
+    last_error = None
+    for attempt in range(3):
+        try:
+            # Obtenir le SHA du dernier commit
+            url = f"{GITHUB_API_BASE}/branches/{GITHUB_BRANCH}"
+            req = urllib.request.Request(url, headers={
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'AD-WebInterface-Updater'
+            })
+            with urllib.request.urlopen(req, timeout=15) as r:
+                data = json.loads(r.read())
+                commit_sha = data['commit']['sha']
+
+            # Obtenir l'arbre des fichiers avec SHA et taille
+            tree_url = f"{GITHUB_API_BASE}/git/trees/{commit_sha}?recursive=1"
+            req = urllib.request.Request(tree_url, headers={
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'AD-WebInterface-Updater'
+            })
+            with urllib.request.urlopen(req, timeout=30) as r:
+                tree = json.loads(r.read())
+                files = [
+                    {
+                        'path': item['path'],
+                        'sha': item.get('sha'),
+                        'size': item.get('size', 0)
+                    }
+                    for item in tree.get('tree', [])
+                    if item['type'] == 'blob'
+                ]
+                _file_list_cache[cache_key] = (now, files)
+                return files, None
+
+        except urllib.error.HTTPError as e:
+            last_error = f"Erreur HTTP {e.code} depuis GitHub API: {e.reason}"
+            if e.code == 403:
+                last_error += " — Limite de requêtes GitHub atteinte, attendez 5 min ou ajoutez un token GITHUB_TOKEN dans .env"
+            logger.warning(f"Erreur API GitHub (tentative {attempt+1}/3): {last_error}")
+        except urllib.error.URLError as e:
+            last_error = f"Erreur reseau GitHub: {e.reason}"
+            logger.warning(f"Erreur reseau (tentative {attempt+1}/3): {last_error}")
+        except Exception as e:
+            last_error = f"Erreur API GitHub: {e}"
+            logger.exception(f"Erreur inattendue (tentative {attempt+1}/3)")
+
+        if attempt < 2:
+            time.sleep(2 ** attempt)  # 1s, 2s
+
+    logger.error(f"Echec definitiv récupération liste fichiers: {last_error}")
+    return None, last_error
 
 
 def should_skip(filepath):
@@ -309,9 +340,9 @@ def perform_update_parallel(max_workers=4):
     app_dir = PROJECT_ROOT
 
     print("Récupération de la liste des fichiers...")
-    files_info = get_file_list()
+    files_info, list_error = get_file_list()
     if not files_info:
-        print("Impossible de récupérer la liste. Vérifiez votre connexion.")
+        print(f"Impossible de récupérer la liste: {list_error or 'Vérifiez votre connexion.'}")
         return False
 
     # Filtrer les fichiers à mettre à jour
@@ -431,32 +462,27 @@ def check_for_updates_fast():
       latest_version (str|None), error (str|None)
     """
     current = get_current_version()
-    try:
-        latest = get_remote_version()
-        if latest is None:
-            return {
-                'update_available': False,
-                'current_version': current,
-                'latest_version': None,
-                'error': 'Impossible de contacter le serveur de mise à jour'
-            }
-        try:
-            update_available = Version(latest) > Version(current)
-        except Exception:
-            update_available = latest != current
-        return {
-            'update_available': update_available,
-            'current_version': current,
-            'latest_version': latest,
-            'error': None
-        }
-    except Exception as e:
+    latest, version_error = get_remote_version()
+
+    if latest is None:
         return {
             'update_available': False,
             'current_version': current,
             'latest_version': None,
-            'error': str(e)
+            'error': version_error or 'Impossible de contacter le serveur de mise à jour'
         }
+
+    try:
+        update_available = Version(latest) > Version(current)
+    except Exception:
+        update_available = latest != current
+
+    return {
+        'update_available': update_available,
+        'current_version': current,
+        'latest_version': latest,
+        'error': None
+    }
 
 
 def perform_fast_update(silent=False, max_workers=4, on_progress=None):
@@ -491,7 +517,7 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
     if not silent:
         print("Récupération de la liste des fichiers...")
 
-    files_info = get_file_list()
+    files_info, list_error = get_file_list()
     if not files_info:
         return {
             'success': False,
@@ -500,7 +526,7 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
             'backup_path': None,
             'healthcheck': False,
             'rollback_performed': False,
-            'errors': ['Impossible de récupérer la liste des fichiers depuis GitHub']
+            'errors': [list_error or 'Impossible de récupérer la liste des fichiers depuis GitHub']
         }
 
     # Filtrer les fichiers préservés
@@ -590,30 +616,30 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
 def get_update_statistics():
     """
     Obtenir des statistiques sur ce qui sera mis à jour.
-    Utile pour afficher un résumé avant la mise à jour.
+    Retourne tuple: (stats_dict|None, error_str|None)
     """
-    files_info = get_file_list()
+    files_info, list_error = get_file_list()
     if not files_info:
-        return None
-    
+        return None, list_error or 'Impossible de récupérer la liste des fichiers'
+
     files_to_update = [f for f in files_info if not should_skip(f['path'])]
-    
+
     # Calculer la taille totale
     total_size = sum(f.get('size', 0) for f in files_to_update)
-    
+
     # Compter les fichiers par type
     file_types = {}
     for f in files_to_update:
         ext = Path(f['path']).suffix.lower()
         file_types[ext] = file_types.get(ext, 0) + 1
-    
+
     return {
         'total_files': len(files_to_update),
         'total_size_bytes': total_size,
         'total_size_kb': total_size / 1024,
         'total_size_mb': total_size / (1024 * 1024),
         'file_types': file_types
-    }
+    }, None
 
 
 if __name__ == "__main__":
@@ -624,11 +650,11 @@ if __name__ == "__main__":
     current = get_current_version()
     print(f"\nVersion actuelle: {current}")
 
-    remote = get_remote_version()
+    remote, remote_error = get_remote_version()
     if remote:
         print(f"Version disponible: {remote}")
     else:
-        print("Impossible de vérifier la version distante")
+        print(f"Impossible de vérifier la version distante: {remote_error}")
         sys.exit(1)
 
     if current == remote:
@@ -636,12 +662,14 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # Afficher les statistiques
-    stats = get_update_statistics()
+    stats, stats_error = get_update_statistics()
     if stats:
         print(f"\nStatistiques de mise à jour:")
         print(f"  Fichiers à mettre à jour: {stats['total_files']}")
         print(f"  Taille totale: {stats['total_size_mb']:.2f} Mo")
         print(f"  Types de fichiers: {', '.join(f'{k}: {v}' for k, v in stats['file_types'].items())}")
+    else:
+        print(f"\nAttention: impossible de récupérer les statistiques: {stats_error}")
 
     print()
     response = input("Mettre à jour? [O/n]: ").strip().lower()
