@@ -10,6 +10,8 @@ admin_tools_bp = Blueprint('admin_tools', __name__, url_prefix='/')
 
 
 @admin_tools_bp.route('/update')
+@require_connection
+@require_permission('admin')
 def update_page():
     """Page de mise à jour."""
     try:
@@ -22,7 +24,7 @@ def update_page():
             'latest_version': None,
             'error': str(e)
         }
-    return render_template('update.html', update_info=update_info, connected=False)
+    return render_template('update.html', update_info=update_info, connected=True)
 
 
 @admin_tools_bp.route('/diagnostic')

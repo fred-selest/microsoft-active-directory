@@ -8,7 +8,7 @@ import _openssl_init
 
 import ssl
 from functools import wraps
-from flask import session, redirect, url_for, flash, g, current_app
+from flask import session, redirect, url_for, flash, g, current_app, request, jsonify
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4_PREFERRED
 from ldap3.core.exceptions import LDAPException
 from config import get_config
@@ -61,6 +61,11 @@ def require_connection(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not is_connected():
+            # Requête AJAX/API → retourner JSON 401 plutôt qu'un redirect HTML
+            if (request.is_json or
+                    request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                    request.path.startswith('/api/')):
+                return jsonify({'error': 'Non connecté', 'redirect': url_for('main.connect')}), 401
             flash('Veuillez vous connecter à Active Directory.', 'warning')
             return redirect(url_for('main.connect'))
         return f(*args, **kwargs)
@@ -256,7 +261,10 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             error_msg = str(e)
             if not _is_md4_error(error_msg):
                 logger.warning(f"Connexion directe échouée: {error_msg[:100]}")
+            # Identifiants incorrects → retour immédiat (pas de fallback)
+            if _is_invalid_credentials_error(error_msg):
                 return None, error_msg
+            # Toute autre erreur (SSL, réseau, timeout) → fallback vers _try_connection()
 
     # Essayer toutes les méthodes
     conn, errors = _try_connection(server, username, password)
