@@ -37,7 +37,7 @@ print("="*80 + "\n")
 # Vérifier d'abord si connecté
 print("🔐 VÉRIFICATION CONNEXION...")
 try:
-    test_page = context.new_page()
+    test_page = context.new_page()  # noqa: F821
     test_page.goto('http://localhost:5000/dashboard', wait_until='networkidle', timeout=10000)
     time.sleep(2)
     
