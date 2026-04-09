@@ -4,6 +4,15 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 
+## [1.37.6] - 2026-04-09
+
+### Corrigé
+
+- **Mise à jour depuis l'interface** : `ImportError` silencieux — `api.py` importait `perform_update_fast` mais la fonction s'appelait `perform_fast_update`. Renommage + alias de compatibilité.
+- **Vitesse de mise à jour** : l'updater téléchargeait chaque fichier individuellement (200+ requêtes HTTP). Remplacé par le téléchargement du ZIP complet du dépôt (1 seule requête) puis extraction locale — mise à jour en quelques secondes au lieu de plusieurs minutes.
+
+---
+
 ## [1.37.5] - 2026-04-09
 
 ### Ajouté
