@@ -202,13 +202,16 @@ def check_for_updates_fast():
         }
 
 
-def perform_fast_update(silent=False):
+def perform_update_fast(silent=False):
     """
-    Télécharger et appliquer la mise à jour.
+    Télécharger et appliquer la mise à jour via ZIP (une seule requête HTTP).
 
     Retourne un dict avec les clés :
       success (bool), files_updated (int), errors (list[str])
     """
+    import zipfile
+    import io
+
     # Vérifier que la version distante est bien plus récente avant d'écraser
     check = check_for_updates_fast()
     if not check.get('update_available'):
@@ -219,36 +222,62 @@ def perform_fast_update(silent=False):
         }
 
     app_dir = PROJECT_ROOT
+    zip_url = f"https://github.com/{GITHUB_REPO}/archive/refs/heads/{GITHUB_BRANCH}.zip"
+    zip_prefix = f"microsoft-active-directory-{GITHUB_BRANCH}/"
 
     if not silent:
-        print("Récupération de la liste des fichiers...")
+        print(f"Téléchargement de l'archive ({zip_url})...")
 
-    files = get_file_list()
-    if not files:
+    try:
+        req = urllib.request.Request(zip_url, headers={'User-Agent': 'AD-WebInterface-Updater/1.0'})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            zip_data = r.read()
+    except Exception as e:
         return {
             'success': False,
             'files_updated': 0,
-            'errors': ['Impossible de récupérer la liste des fichiers depuis GitHub']
+            'errors': [f"Échec du téléchargement: {e}"]
         }
 
-    files_to_update = [f for f in files if not should_skip(f)]
     errors = []
     updated = 0
 
-    for filepath in files_to_update:
-        try:
-            if download_file(filepath, app_dir):
-                updated += 1
-            else:
-                errors.append(filepath)
-        except Exception as e:
-            errors.append(f"{filepath}: {e}")
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
+            for member in zf.namelist():
+                if not member.startswith(zip_prefix):
+                    continue
+                rel_path = member[len(zip_prefix):]
+                if not rel_path or rel_path.endswith('/'):
+                    continue
+                if should_skip(rel_path):
+                    continue
+                try:
+                    target = app_dir / rel_path
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(zf.read(member))
+                    updated += 1
+                except Exception as e:
+                    errors.append(f"{rel_path}: {e}")
+    except Exception as e:
+        return {
+            'success': False,
+            'files_updated': updated,
+            'errors': [f"Erreur extraction ZIP: {e}"]
+        }
+
+    if not silent:
+        print(f"Terminé: {updated} fichiers mis à jour, {len(errors)} erreur(s)")
 
     return {
         'success': len(errors) == 0,
         'files_updated': updated,
         'errors': errors
     }
+
+
+# Alias pour compatibilité
+perform_fast_update = perform_update_fast
 
 
 if __name__ == "__main__":
@@ -277,12 +306,13 @@ if __name__ == "__main__":
         sys.exit(0)
 
     print()
-    if perform_update():
+    result = perform_update_fast(silent=False)
+    if result.get('success'):
         update_dependencies()
         print("\n" + "="*50)
-        print("Mise a jour terminee!")
+        print(f"Mise a jour terminee! ({result['files_updated']} fichiers)")
         print("Redemarrez le serveur pour appliquer.")
         print("="*50)
     else:
-        print("\nMise a jour incomplete")
+        print(f"\nMise a jour incomplete: {result.get('errors', [])}")
         sys.exit(1)
