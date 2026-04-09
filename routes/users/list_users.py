@@ -22,11 +22,11 @@ def list_users():
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
-    ou_filter = request.args.get('ou', '')  # Filtrer par OU spécifique
+    ou_filter = request.args.get('ou', '')
+    status_filter = request.args.get('status', 'all')  # all / active / disabled
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
 
-    # Construire le filtre de recherche
     if search_query:
         safe_query = escape_ldap_filter(search_query)
         search_filter = (
@@ -35,35 +35,50 @@ def list_users():
         )
     else:
         search_filter = '(&(objectClass=user)(objectCategory=person))'
-    
-    # Si un OU spécifique est demandé, restreindre la recherche à cette OU
-    search_base = base_dn
-    if ou_filter:
-        search_base = ou_filter
+
+    search_base = ou_filter if ou_filter else base_dn
 
     try:
-        conn.search(search_base, search_filter, SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName',
-                              'displayName', 'userAccountControl', 'department', 'title'])
-
+        # Recherche paginée pour récupérer tous les utilisateurs (pas de limite 1000)
+        attrs = ['cn', 'sAMAccountName', 'mail', 'distinguishedName',
+                 'displayName', 'userAccountControl', 'department', 'title']
         user_list = []
-        for entry in conn.entries:
-            uac = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 512
-            is_disabled = bool(int(uac) & 2) if uac else False
+        for entry in conn.extend.standard.paged_search(
+                search_base, search_filter, SUBTREE,
+                attributes=attrs, paged_size=500):
+            if entry.get('type') != 'searchResEntry':
+                continue
+            a = entry.get('attributes', {})
+            uac_val = a.get('userAccountControl') or 512
+            if isinstance(uac_val, list):
+                uac_val = uac_val[0] if uac_val else 512
+            is_disabled = bool(int(uac_val) & 2)
+
+            def _s(val):
+                if isinstance(val, list):
+                    return val[0] if val else ''
+                return val or ''
+
             user_list.append({
-                'cn': str(entry.cn.value) if entry.cn else '',
-                'sAMAccountName': str(entry.sAMAccountName.value) if entry.sAMAccountName else '',
-                'mail': str(entry.mail.value) if entry.mail else '',
-                'dn': str(entry.distinguishedName),
-                'displayName': str(entry.displayName.value) if entry.displayName else '',
-                'department': str(entry.department.value) if entry.department else '',
-                'title': str(entry.title.value) if entry.title else '',
+                'cn': _s(a.get('cn')),
+                'sAMAccountName': _s(a.get('sAMAccountName')),
+                'mail': _s(a.get('mail')),
+                'dn': entry.get('dn', ''),
+                'displayName': _s(a.get('displayName')),
+                'department': _s(a.get('department')),
+                'title': _s(a.get('title')),
                 'disabled': is_disabled
             })
 
-        # Récupérer les OUs pour affichage
+        # Filtre statut en mémoire
+        if status_filter == 'active':
+            user_list = [u for u in user_list if not u['disabled']]
+        elif status_filter == 'disabled':
+            user_list = [u for u in user_list if u['disabled']]
+
+        # OUs pour le dropdown
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
-                   attributes=['name', 'distinguishedName'])
+                    attributes=['name', 'distinguishedName'])
         ou_list = [
             {'name': str(e.name.value) if e.name else '', 'dn': str(e.distinguishedName)}
             for e in conn.entries
@@ -78,11 +93,16 @@ def list_users():
         paginated = user_list[start:start + per_page]
 
         return render_template('users.html', users=paginated, search=search_query,
-                             page=page, total_pages=total_pages, total=total,
-                             ous=ou_list, ou_filter=ou_filter, connected=is_connected())
-                             
-    except LDAPException as e:
-        conn.unbind()
+                               page=page, total_pages=total_pages, total=total,
+                               ous=ou_list, ou_filter=ou_filter,
+                               status_filter=status_filter, connected=is_connected())
+
+    except Exception as e:
+        try:
+            conn.unbind()
+        except Exception:
+            pass
         flash(f'Erreur LDAP: {str(e)}', 'error')
         return render_template('users.html', users=[], search=search_query,
-                             page=1, total_pages=1, total=0, ous=[], connected=is_connected())
+                               page=1, total_pages=1, total=0, ous=[],
+                               ou_filter='', status_filter='all', connected=is_connected())

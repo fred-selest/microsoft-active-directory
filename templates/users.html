@@ -13,14 +13,25 @@
 
 <div class="search-box">
     <form method="get" action="{{ url_for('users.list_users') }}">
-        <div class="form-group">
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
             <input type="text" name="search" placeholder="Rechercher un utilisateur..."
-                   value="{{ search }}" class="form-control">
+                   value="{{ search }}" class="form-control" style="flex:1; min-width:180px;">
+            <select name="ou" class="form-control" style="width:auto; min-width:140px;">
+                <option value="">Toutes les OUs</option>
+                {% for ou in ous %}
+                <option value="{{ ou.dn }}" {% if ou_filter == ou.dn %}selected{% endif %}>{{ ou.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="form-control" style="width:auto;">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Tous</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Actifs</option>
+                <option value="disabled" {% if status_filter == 'disabled' %}selected{% endif %}>Désactivés</option>
+            </select>
+            <button type="submit" class="btn btn-secondary">Rechercher</button>
+            {% if search or ou_filter or status_filter != 'all' %}
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Effacer</a>
+            {% endif %}
         </div>
-        <button type="submit" class="btn btn-secondary">Rechercher</button>
-        {% if search %}
-        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Effacer</a>
-        {% endif %}
     </form>
 </div>
 
