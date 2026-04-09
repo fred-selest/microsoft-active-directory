@@ -10,8 +10,16 @@ admin_tools_bp = Blueprint('admin_tools', __name__, url_prefix='/')
 
 
 @admin_tools_bp.route('/update')
+@require_connection
+@require_permission('admin')
 def update_page():
     """Page de mise à jour."""
+    import os
+    import platform
+    import sys
+    import subprocess
+    from datetime import datetime
+
     try:
         from core.updater import check_for_updates_fast
         update_info = check_for_updates_fast()
@@ -22,7 +30,90 @@ def update_page():
             'latest_version': None,
             'error': str(e)
         }
-    return render_template('update.html', update_info=update_info, connected=False)
+
+    # Informations système
+    sys_info = {
+        'python_version': platform.python_version(),
+        'os_version': platform.system() + ' ' + platform.release(),
+        'hostname': platform.node(),
+        'service_running': _is_service_running(),
+        'server_pid': os.getpid(),
+    }
+
+    # Fetch changelog depuis GitHub (dernières releases)
+    releases = _fetch_github_releases()
+
+    return render_template(
+        'update.html',
+        update_info=update_info,
+        sys_info=sys_info,
+        releases=releases,
+        connected=True
+    )
+
+
+def _is_service_running():
+    """Vérifier si le service Windows tourne."""
+    try:
+        result = subprocess.run(
+            ['sc', 'query', 'ADWebInterface'],
+            capture_output=True, text=True, timeout=5
+        )
+        return 'RUNNING' in result.stdout
+    except Exception:
+        return False
+
+
+def _fetch_github_releases(limit=10):
+    """Récupérer les dernières releases GitHub."""
+    import urllib.request
+    import json as json_mod
+
+    releases = []
+    try:
+        url = "https://api.github.com/repos/fred-selest/microsoft-active-directory/tags"
+        with urllib.request.urlopen(url, timeout=8) as r:
+            tags = json_mod.loads(r.read().decode('utf-8'))[:limit]
+
+        for tag in tags:
+            tag_name = tag.get('name', '')
+            # Extraire la version (v1.37.8 -> 1.37.8)
+            version = tag_name.lstrip('v') if tag_name.startswith('v') else tag_name
+            # Essayer de récupérer le commit date
+            commit_url = tag.get('commit', {}).get('url', '')
+            date_str = None
+            if commit_url:
+                try:
+                    with urllib.request.urlopen(commit_url, timeout=5) as r:
+                        commit_data = json_mod.loads(r.read().decode('utf-8'))
+                        date_str = commit_data.get('commit', {}).get('committer', {}).get('date', '')
+                        if date_str:
+                            dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ')
+                            date_str = dt.strftime('%d/%m/%Y')
+                except Exception:
+                    pass
+
+            # Essayer de récupérer les notes de release
+            notes = None
+            try:
+                release_url = f"https://api.github.com/repos/fred-selest/microsoft-active-directory/releases/tags/{tag_name}"
+                with urllib.request.urlopen(release_url, timeout=5) as r:
+                    release_data = json_mod.loads(r.read().decode('utf-8'))
+                    notes = release_data.get('body', '')
+            except Exception:
+                pass
+
+            releases.append({
+                'tag': tag_name,
+                'version': version,
+                'date': date_str or '—',
+                'notes': notes,
+            })
+    except Exception as e:
+        # Pas de releases fetchables → vide
+        pass
+
+    return releases
 
 
 @admin_tools_bp.route('/diagnostic')

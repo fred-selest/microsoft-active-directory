@@ -1,518 +1,549 @@
 {% extends 'base.html' %}
 
-{% block title %}Mise a jour - AD Web Interface{% endblock %}
+{% block title %}Mise à jour - AD Web Interface{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2>Mise a jour du systeme</h2>
+    <h2>🔄 Mise à jour</h2>
 </div>
 
-<div class="update-container">
-    <div class="version-info">
-        <h3>Informations de version</h3>
-        <table class="info-table">
-            <tr>
-                <th>Version actuelle</th>
-                <td>{{ update_info.current_version }}</td>
-            </tr>
-            <tr>
-                <th>Derniere version</th>
-                <td>
-                    {% if update_info.latest_version %}
-                        {{ update_info.latest_version }}
-                    {% else %}
-                        <span class="text-muted">Non disponible</span>
-                    {% endif %}
-                </td>
-            </tr>
-            <tr>
-                <th>Statut</th>
-                <td>
-                    {% if update_info.error %}
-                        <span class="badge badge-danger">Erreur</span>
-                        <span class="error-message">{{ update_info.error }}</span>
-                    {% elif update_info.update_available %}
-                        <span class="badge badge-info">Mise a jour disponible</span>
-                    {% else %}
-                        <span class="badge badge-success">A jour</span>
-                    {% endif %}
-                </td>
-            </tr>
-        </table>
+<div class="update-grid">
+    <!-- ════════════════════ VERSION COMPARISON ════════════════════ -->
+    <div class="card version-card">
+        <div class="card-header">
+            <h3>📦 Versions</h3>
+        </div>
+        <div class="card-body">
+            <div class="version-compare">
+                <div class="version-card-item current">
+                    <span class="version-label">Installée</span>
+                    <span class="version-number">{{ update_info.current_version }}</span>
+                </div>
+                <div class="version-arrow">→</div>
+                <div class="version-card-item latest {% if update_info.update_available %}available{% endif %}">
+                    <span class="version-label">Distante</span>
+                    <span class="version-number">{{ update_info.latest_version or '—' }}</span>
+                </div>
+            </div>
+
+            <div class="version-status">
+                {% if update_info.error %}
+                    <span class="badge badge-danger">⚠️ Erreur de vérification</span>
+                    <p class="error-detail">{{ update_info.error }}</p>
+                {% elif update_info.update_available %}
+                    <span class="badge badge-warning">⬆️ Mise à jour disponible</span>
+                {% else %}
+                    <span class="badge badge-success">✅ À jour</span>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
-    {% if update_info.update_available %}
-    <div class="update-actions">
-        <h3>Installer la mise a jour</h3>
-        <p>Une nouvelle version est disponible. Cliquez sur le bouton ci-dessous pour mettre a jour.</p>
-        <p class="warning-text">
-            <strong>Attention:</strong> Le serveur devra etre redemarrer apres la mise a jour.
-        </p>
-        <button id="btn-update" class="btn btn-primary" onclick="performUpdate()">
-            Mettre a jour vers {{ update_info.latest_version }}
-        </button>
+    <!-- ════════════════════ SYSTEM INFO ════════════════════ -->
+    <div class="card">
+        <div class="card-header">
+            <h3>🖥️ Système</h3>
+        </div>
+        <div class="card-body">
+            <table class="meta-table">
+                <tr>
+                    <th>Hôte</th>
+                    <td>{{ sys_info.hostname }}</td>
+                </tr>
+                <tr>
+                    <th>Système</th>
+                    <td>{{ sys_info.os_version }}</td>
+                </tr>
+                <tr>
+                    <th>Python</th>
+                    <td>{{ sys_info.python_version }}</td>
+                </tr>
+                <tr>
+                    <th>Service</th>
+                    <td>
+                        {% if sys_info.service_running %}
+                            <span class="badge badge-success">● En service</span>
+                        {% else %}
+                            <span class="badge badge-danger">● Arrêté</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════ UPDATE ACTION ════════════════════ -->
+{% if update_info.update_available %}
+<div class="card update-action-card">
+    <div class="card-header">
+        <h3>⬆️ Installer la mise à jour</h3>
+    </div>
+    <div class="card-body">
+        <p>Une nouvelle version <strong>{{ update_info.latest_version }}</strong> est disponible.
+           Le service redémarrera automatiquement après l'installation.</p>
+
+        <div class="update-btn-row">
+            <button id="btn-update" class="btn btn-primary btn-lg" onclick="performUpdate()">
+                🔧 Mettre à jour vers {{ update_info.latest_version }}
+            </button>
+        </div>
+
         <div id="update-progress" class="update-progress" style="display: none;">
             <div class="progress-bar-container">
                 <div class="progress-bar" id="progress-bar"></div>
             </div>
-            <p class="progress-text" id="progress-text">Initialisation...</p>
+            <p class="progress-text" id="progress-text">Initialisation…</p>
+            <pre id="update-log" class="update-log"></pre>
         </div>
-        <div id="update-status" class="update-status"></div>
+        <div id="update-status"></div>
     </div>
-    {% endif %}
+</div>
+{% endif %}
 
-    <div class="update-manual">
-        <h3>Mise a jour manuelle</h3>
-        <p>Vous pouvez aussi mettre a jour manuellement en executant:</p>
-        <pre><code>python updater.py</code></pre>
-        <p>Ou verifier les mises a jour depuis la ligne de commande:</p>
-        <pre><code>python updater.py --check</code></pre>
+<!-- ════════════════════ COMMANDS ════════════════════ -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Commandes utiles</h3>
     </div>
-
-    <div class="update-info">
-        <h3>Notes</h3>
-        <ul>
-            <li>Les fichiers de configuration (.env) sont preserves</li>
-            <li>Les dossiers logs/, data/ et venv/ ne sont pas modifies</li>
-            <li>Les dependances Python sont mises a jour automatiquement</li>
-            <li>Un redemarrage du serveur est necessaire apres la mise a jour</li>
-        </ul>
-    </div>
-
-    <div class="changelog">
-        <h3>Historique des versions</h3>
-
-        <div class="version-entry">
-            <h4>Version 1.15.0 - Attribution roles basee sur groupes AD</h4>
-            <ul>
-                <li><strong>RBAC:</strong> Les roles (admin, operator, reader) sont attribues automatiquement selon les groupes AD</li>
-                <li><strong>Configuration:</strong> RBAC_ADMIN_GROUPS, RBAC_OPERATOR_GROUPS, RBAC_READER_GROUPS</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.14.0 - Option changement mot de passe</h4>
-            <ul>
-                <li><strong>Utilisateurs:</strong> Checkbox pour forcer le changement de mot de passe a la prochaine connexion</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.13.0 - Support Docker et CI/CD</h4>
-            <ul>
-                <li><strong>Docker:</strong> Dockerfile, docker-compose.yml, documentation complete</li>
-                <li><strong>CI/CD:</strong> GitHub Actions (tests, build Docker, releases automatiques)</li>
-                <li><strong>Securite:</strong> Option FORCE_HTTPS, support reverse proxy</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.11.0 - Securite majeure</h4>
-            <ul>
-                <li><strong>Chiffrement:</strong> Mots de passe AD chiffres en session (AES-128)</li>
-                <li><strong>Protection:</strong> Injection LDAP, XSS, Path Traversal</li>
-                <li><strong>RBAC:</strong> Controle d'acces active par defaut</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.10.0 - Ameliorations mise a jour</h4>
-            <ul>
-                <li><strong>Interface:</strong> Barre de progression animee pendant la mise a jour</li>
-                <li><strong>Performance:</strong> Mise a jour silencieuse cote serveur (pas de logs console)</li>
-                <li><strong>PWA:</strong> Application Progressive Web App activee par defaut</li>
-                <li><strong>Simplification:</strong> Suppression du selecteur de langue</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.9.0 - Interface d'administration</h4>
-            <ul>
-                <li><strong>Administration:</strong> Nouvelle page d'administration complete avec 4 onglets</li>
-                <li><strong>Personnalisation:</strong> Configuration dynamique du titre, logo, pied de page et couleur</li>
-                <li><strong>Menus:</strong> Gestion des elements de menu (activer/desactiver, renommer, reordonner)</li>
-                <li><strong>Fonctionnalites:</strong> Activation/desactivation du mode sombre, selecteur de langue, PWA</li>
-                <li><strong>Securite:</strong> Parametres de session, tentatives de connexion, HTTPS</li>
-                <li><strong>Export:</strong> Export et reinitialisation des parametres</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.8.1 - Ameliorations interface</h4>
-            <ul>
-                <li><strong>Interface:</strong> Fusion Arborescence et OUs en page "Structure" avec onglets</li>
-                <li><strong>Personnalisation:</strong> Support pour logo personnalise en haut a gauche</li>
-                <li><strong>Navigation:</strong> Menu Plus reorganise avec acces direct LAPS, BitLocker, Corbeille</li>
-                <li><strong>Documentation:</strong> Historique des versions sur la page Mise a jour</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.8.0 - Securite et gestion avancee</h4>
-            <ul>
-                <li><strong>Securite:</strong> Reinitialisation de mot de passe, deverrouillage en masse, historique des connexions</li>
-                <li><strong>Integration:</strong> Corbeille AD, LAPS (mots de passe admin locaux), BitLocker (cles de recuperation)</li>
-                <li><strong>Gestion:</strong> Groupes imbriques, comparaison d'utilisateurs, recherche avancee multi-filtres</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.7.0 - Ameliorations majeures</h4>
-            <ul>
-                <li><strong>Interface:</strong> Tri des colonnes, graphiques Chart.js, support PWA</li>
-                <li><strong>Fonctionnalites:</strong> Deplacement utilisateurs, export Excel, duplication de groupes</li>
-                <li><strong>Modules:</strong> Cache LDAP, audit, alertes, backup, chiffrement de session</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.6.1 - Corrections</h4>
-            <ul>
-                <li>Correction encodage UTF-8 pour caracteres accentues</li>
-                <li>Amelioration menu mobile</li>
-                <li>Ajout filtre dans la liste des groupes</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.6.0 - Fonctionnalites avancees</h4>
-            <ul>
-                <li>API REST complete</li>
-                <li>Systeme d'alertes et favoris</li>
-                <li>Support multi-langues (FR/EN)</li>
-                <li>Modeles d'utilisateurs</li>
-            </ul>
-        </div>
-
-        <div class="version-entry">
-            <h4>Version 1.5.0 - Securite renforcee</h4>
-            <ul>
-                <li>Protection CSRF</li>
-                <li>Validation force mot de passe</li>
-                <li>Rate limiting</li>
-                <li>Headers de securite</li>
-            </ul>
+    <div class="card-body">
+        <div class="cmd-grid">
+            <div class="cmd-item">
+                <code>.\nssm\ADWebInterface.exe restart</code>
+                <span>Redémarrer le service</span>
+            </div>
+            <div class="cmd-item">
+                <code>.\nssm\ADWebInterface.exe status</code>
+                <span>Vérifier l'état du service</span>
+            </div>
+            <div class="cmd-item">
+                <code>.\nssm\ADWebInterface.exe stop</code>
+                <span>Arrêter le service</span>
+            </div>
         </div>
     </div>
 </div>
 
-{% block extra_js %}
-<script>
-// Fonction d'échappement HTML pour prévenir XSS
-function escapeHtml(text) {
-    if (text === null || text === undefined) return '';
-    const div = document.createElement('div');
-    div.textContent = String(text);
-    return div.innerHTML;
-}
-
-// Afficher un message de manière sécurisée
-function showStatusMessage(container, message, className) {
-    const p = document.createElement('p');
-    p.className = className;
-    p.textContent = message;
-    container.appendChild(p);
-}
-
-function performUpdate() {
-    const btn = document.getElementById('btn-update');
-    const status = document.getElementById('update-status');
-    const progressContainer = document.getElementById('update-progress');
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
-
-    btn.disabled = true;
-    btn.style.display = 'none';
-    progressContainer.style.display = 'block';
-    status.innerHTML = '';
-
-    // Etapes de progression simulees
-    const steps = [
-        { progress: 10, text: 'Verification de la connexion...' },
-        { progress: 25, text: 'Telechargement de la mise a jour...' },
-        { progress: 50, text: 'Extraction des fichiers...' },
-        { progress: 70, text: 'Installation des dependances...' },
-        { progress: 85, text: 'Finalisation...' },
-        { progress: 95, text: 'Nettoyage...' }
-    ];
-
-    let stepIndex = 0;
-    const progressInterval = setInterval(() => {
-        if (stepIndex < steps.length) {
-            progressBar.style.width = steps[stepIndex].progress + '%';
-            progressText.textContent = steps[stepIndex].text;
-            stepIndex++;
-        }
-    }, 800);
-
-    fetch('/api/perform-update', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => {
-        // Vérifier le Content-Type avant de parser
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            // Le serveur a retourné du HTML (erreur 500, page de login, etc.)
-            return response.text().then(html => {
-                throw new Error('Le serveur a retourné une page HTML au lieu de JSON. Vérifiez que vous êtes connecté et administrateur.');
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        clearInterval(progressInterval);
-
-        if (data.success) {
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Mise a jour terminee!';
-
-            setTimeout(() => {
-                progressContainer.style.display = 'none';
-                status.innerHTML = '';
-                showStatusMessage(status, data.message || 'Mise à jour réussie', 'update-success');
-
-                // Si le serveur redémarre, afficher un compte à rebours
-                if (data.restarting) {
-                    let countdown = 10;
-                    const restartP = document.createElement('p');
-                    restartP.className = 'restart-countdown';
-                    restartP.innerHTML = 'Le serveur redémarre. Rechargement dans <span id="countdown">' + countdown + '</span> secondes...';
-                    status.appendChild(restartP);
-
-                    const countdownInterval = setInterval(() => {
-                        countdown--;
-                        document.getElementById('countdown').textContent = countdown;
-                        if (countdown <= 0) {
-                            clearInterval(countdownInterval);
-                            window.location.reload();
-                        }
-                    }, 1000);
-                }
-            }, 500);
-        } else {
-            progressContainer.style.display = 'none';
-            status.innerHTML = '';
-            let errorMsg = data.message || 'Erreur lors de la mise à jour';
-            
-            // Message d'erreur spécifique pour permission refusée
-            if (data.error) {
-                errorMsg = data.error;
-                if (data.permission) {
-                    errorMsg += ` (permission requise: ${data.permission})`;
-                }
-            }
-            
-            showStatusMessage(status, errorMsg, 'update-error');
-            btn.disabled = false;
-            btn.style.display = 'inline-block';
-            btn.textContent = 'Reessayer';
-        }
-    })
-    .catch(error => {
-        clearInterval(progressInterval);
-        progressContainer.style.display = 'none';
-        status.innerHTML = '';
-        showStatusMessage(status, 'Erreur: ' + (error.message || 'Erreur inconnue'), 'update-error');
-        btn.disabled = false;
-        btn.style.display = 'inline-block';
-        btn.textContent = 'Reessayer';
-    });
-}
-</script>
+<!-- ════════════════════ CHANGELOG / RELEASES ════════════════════ -->
+{% if releases %}
+<div class="card changelog-card">
+    <div class="card-header">
+        <h3>📝 Historique des versions</h3>
+        <a href="https://github.com/fred-selest/microsoft-active-directory/tags" target="_blank" class="btn btn-sm btn-secondary">
+            Voir sur GitHub ↗
+        </a>
+    </div>
+    <div class="card-body">
+        {% for rel in releases %}
+        <div class="release-entry {% if rel.version == update_info.current_version %}current-release{% endif %}">
+            <div class="release-header">
+                <div class="release-title">
+                    <span class="release-tag">{{ rel.tag }}</span>
+                    <span class="release-date">{{ rel.date }}</span>
+                    {% if rel.version == update_info.current_version %}
+                        <span class="badge badge-success">Installée</span>
+                    {% elif rel.version == update_info.latest_version and update_info.update_available %}
+                        <span class="badge badge-warning">Disponible</span>
+                    {% endif %}
+                </div>
+                {% if rel.notes %}
+                <button class="btn btn-sm btn-secondary release-notes-toggle"
+                        onclick="this.parentElement.nextElementSibling.classList.toggle('open')">
+                    Détails
+                </button>
+                {% endif %}
+            </div>
+            {% if rel.notes %}
+            <div class="release-notes">
+                <div class="release-notes-content">{{ rel.notes | safe }}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_css %}
 <style>
-.update-container {
-    max-width: 800px;
-}
-
-.version-info,
-.update-actions,
-.update-manual,
-.update-info {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+/* ── Layout ─────────────────────────────────────────────────────── */
+.update-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
     margin-bottom: 1.5rem;
 }
+@media (max-width: 768px) {
+    .update-grid { grid-template-columns: 1fr; }
+}
 
-.version-info h3,
-.update-actions h3,
-.update-manual h3,
-.update-info h3 {
-    color: #0078d4;
+/* ── Cards ──────────────────────────────────────────────────────── */
+.card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.card-header {
+    padding: 1rem 1.25rem;
+    background: rgba(0,120,212,0.05);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.card-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--primary);
+}
+.card-body {
+    padding: 1.25rem;
+}
+
+/* ── Version compare ────────────────────────────────────────────── */
+.version-compare {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.version-card-item {
+    flex: 1;
+    text-align: center;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    border: 2px solid var(--border-color);
+    background: var(--bg-primary);
+}
+.version-card-item.current {
+    border-color: var(--text-secondary);
+}
+.version-card-item.latest.available {
+    border-color: var(--primary);
+    background: rgba(0,120,212,0.06);
+}
+.version-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+.version-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: var(--text-primary);
+}
+.version-arrow {
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+/* ── Meta table ─────────────────────────────────────────────────── */
+.meta-table {
+    width: 100%;
+}
+.meta-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    width: 120px;
+}
+.meta-table td {
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary);
+}
+.meta-table tr { border-bottom: 1px solid var(--border-color); }
+.meta-table tr:last-child { border-bottom: none; }
+
+/* ── Update action ──────────────────────────────────────────────── */
+.update-action-card {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+}
+.update-btn-row {
     margin-bottom: 1rem;
 }
 
-.info-table {
-    width: 100%;
-}
-
-.info-table th,
-.info-table td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-}
-
-.info-table th {
-    width: 200px;
-    font-weight: 600;
-}
-
-.warning-text {
-    color: #856404;
-    background: #fff3cd;
-    padding: 0.75rem;
-    border-radius: 4px;
-    margin: 1rem 0;
-}
-
-.update-status {
-    margin-top: 1rem;
-}
-
-.update-progress {
-    margin: 1.5rem 0;
-}
-
+/* ── Progress ───────────────────────────────────────────────────── */
+.update-progress { margin-top: 1rem; }
 .progress-bar-container {
     width: 100%;
-    height: 24px;
-    background: #e9ecef;
-    border-radius: 12px;
+    height: 20px;
+    background: var(--bg-primary);
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
-
 .progress-bar {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #0078d4, #00a4ef);
-    border-radius: 12px;
-    transition: width 0.5s ease;
+    background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+    border-radius: 10px;
+    transition: width 0.4s ease;
     position: relative;
 }
-
 .progress-bar::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.3),
-        transparent
-    );
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
     animation: shimmer 2s infinite;
 }
-
 @keyframes shimmer {
-    0% { transform: translateX(-100%); }
+    0%   { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
 }
-
 .progress-text {
     text-align: center;
-    margin-top: 0.75rem;
-    color: #0078d4;
+    margin-top: 0.5rem;
     font-weight: 500;
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+.update-log {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: #1a1a2e;
+    color: #5cb85c;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
-.updating {
-    color: #0078d4;
+/* ── Commands grid ──────────────────────────────────────────────── */
+.cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+}
+.cmd-item {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+.cmd-item code {
+    font-size: 0.85rem;
+    color: var(--primary);
+    margin-bottom: 0.25rem;
+}
+.cmd-item span {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
 }
 
+/* ── Releases / Changelog ───────────────────────────────────────── */
+.changelog-card { margin-bottom: 2rem; }
+.release-entry {
+    border-left: 3px solid var(--border-color);
+    padding-left: 1rem;
+    margin-bottom: 1.25rem;
+}
+.release-entry.current-release {
+    border-left-color: var(--primary);
+}
+.release-entry:last-child { margin-bottom: 0; }
+.release-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.release-tag {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.release-date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-left: 0.5rem;
+}
+.release-notes {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.release-notes.open {
+    max-height: 2000px;
+}
+.release-notes-content {
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+.release-notes-content h2,
+.release-notes-content h3 {
+    font-size: 0.95rem;
+    color: var(--primary);
+    margin: 0.5rem 0 0.25rem;
+}
+.release-notes-content ul {
+    margin: 0.25rem 0 0.25rem 1.25rem;
+    padding: 0;
+}
+.release-notes-content code {
+    background: var(--bg-primary);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.82rem;
+}
+
+/* ── Status messages ────────────────────────────────────────────── */
 .update-success {
     color: #155724;
     background: #d4edda;
-    padding: 0.75rem;
-    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-top: 0.75rem;
 }
-
 .update-error {
     color: #721c24;
     background: #f8d7da;
-    padding: 0.75rem;
-    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-top: 0.75rem;
 }
-
-.error-message {
+.error-detail {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
     color: #721c24;
-    font-size: 0.875rem;
 }
 
-.text-muted {
-    color: #6c757d;
+/* ── Dark mode ──────────────────────────────────────────────────── */
+body.dark-mode .card-header {
+    background: rgba(0,120,212,0.12);
 }
-
-pre {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 4px;
-    overflow-x: auto;
+body.dark-mode .update-log {
+    background: #0f0f1a;
+    color: #5cb85c;
 }
-
-code {
-    font-family: 'Consolas', 'Monaco', monospace;
+body.dark-mode .cmd-item {
+    background: var(--dark-bg-primary, #1a1a2e);
+    border-color: var(--dark-border);
 }
-
-.update-info ul {
-    margin-left: 1.5rem;
+body.dark-mode .progress-bar-container {
+    background: var(--dark-bg-primary, #1a1a2e);
 }
-
-.update-info li {
-    margin-bottom: 0.5rem;
+body.dark-mode .release-notes-content {
+    color: var(--dark-text-primary);
 }
-
-.changelog {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 1.5rem;
-}
-
-.changelog h3 {
-    color: #0078d4;
-    margin-bottom: 1rem;
-}
-
-.version-entry {
-    border-left: 3px solid #0078d4;
-    padding-left: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.version-entry:last-child {
-    margin-bottom: 0;
-}
-
-.version-entry h4 {
-    margin: 0 0 0.5rem;
-    color: #333;
-}
-
-.version-entry ul {
-    margin: 0 0 0 1rem;
-    padding: 0;
-}
-
-.version-entry li {
-    margin-bottom: 0.25rem;
+body.dark-mode .release-notes-content code {
+    background: var(--dark-bg-primary, #1a1a2e);
 }
 </style>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+function escapeHtml(t) {
+    if (!t) return '';
+    var d = document.createElement('div');
+    d.textContent = String(t);
+    return d.innerHTML;
+}
+
+function performUpdate() {
+    var btn  = document.getElementById('btn-update');
+    var prog = document.getElementById('update-progress');
+    var bar  = document.getElementById('progress-bar');
+    var txt  = document.getElementById('progress-text');
+    var log  = document.getElementById('update-log');
+    var stat = document.getElementById('update-status');
+
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    prog.style.display = 'block';
+    stat.innerHTML = '';
+    log.textContent = '';
+
+    var steps = [
+        { p: 15, t: 'Vérification de la connexion…' },
+        { p: 30, t: 'Téléchargement de l\'archive…' },
+        { p: 55, t: 'Extraction des fichiers…' },
+        { p: 75, t: 'Installation des dépendances…' },
+        { p: 90, t: 'Finalisation…' }
+    ];
+    var si = 0;
+    var iv = setInterval(function() {
+        if (si < steps.length) {
+            bar.style.width = steps[si].p + '%';
+            txt.textContent  = steps[si].t;
+            si++;
+        }
+    }, 1200);
+
+    fetch('/api/perform-update', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    .then(function(res) {
+        var ct = res.headers.get('content-type');
+        if (!ct || !ct.includes('application/json')) {
+            return res.text().then(function(html) {
+                throw new Error('Réponse inattendue du serveur (HTML au lieu de JSON). Vérifiez votre session.');
+            });
+        }
+        return res.json();
+    })
+    .then(function(data) {
+        clearInterval(iv);
+        bar.style.width = '100%';
+
+        if (data.success) {
+            txt.textContent = 'Mise à jour terminée !';
+            log.textContent = data.log || 'Installation réussie.';
+
+            var msg = document.createElement('p');
+            msg.className = 'update-success';
+            msg.textContent = data.message || 'Mise à jour appliquée. Le service redémarre…';
+            stat.appendChild(msg);
+
+            if (data.restarting) {
+                var cd = 12;
+                var p = document.createElement('p');
+                p.className = 'update-success';
+                p.innerHTML = 'Redémarrage dans <strong id="cd">' + cd + '</strong>s…';
+                stat.appendChild(p);
+                var ci = setInterval(function() {
+                    cd--;
+                    var el = document.getElementById('cd');
+                    if (el) el.textContent = cd;
+                    if (cd <= 0) { clearInterval(ci); window.location.reload(); }
+                }, 1000);
+            }
+        } else {
+            txt.textContent = 'Échec';
+            var e = document.createElement('p');
+            e.className = 'update-error';
+            e.textContent = data.error || data.message || 'Erreur inconnue.';
+            stat.appendChild(e);
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    })
+    .catch(function(err) {
+        clearInterval(iv);
+        txt.textContent = 'Erreur';
+        var e = document.createElement('p');
+        e.className = 'update-error';
+        e.textContent = 'Erreur : ' + (err.message || 'inconnue');
+        stat.appendChild(e);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    });
+}
+</script>
 {% endblock %}
-
-
-
-
