@@ -8,7 +8,7 @@ import _openssl_init
 
 import ssl
 from functools import wraps
-from flask import session, redirect, url_for, flash, g, current_app
+from flask import session, redirect, url_for, flash, g, current_app, request, jsonify
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4_PREFERRED
 from ldap3.core.exceptions import LDAPException
 from config import get_config
@@ -61,6 +61,11 @@ def require_connection(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not is_connected():
+            # Requête AJAX/API → retourner JSON 401 plutôt qu'un redirect HTML
+            if (request.is_json or
+                    request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                    request.path.startswith('/api/')):
+                return jsonify({'error': 'Non connecté', 'redirect': url_for('main.connect')}), 401
             flash('Veuillez vous connecter à Active Directory.', 'warning')
             return redirect(url_for('main.connect'))
         return f(*args, **kwargs)
@@ -76,6 +81,11 @@ def require_permission(permission):
                 user_groups = session.get('user_groups', [])
 
                 if not user_groups or not has_granular_permission(user_groups, permission):
+                    # Requête AJAX/API → retourner JSON 403 plutôt qu'un redirect HTML
+                    if (request.is_json or
+                            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                            request.path.startswith('/api/')):
+                        return jsonify({'error': 'Permission refusée', 'permission': permission}), 403
                     flash('Permission refusée.', 'error')
                     return redirect(url_for('main.index'))
 
@@ -172,16 +182,26 @@ def _try_connection(server, username, password):
         try:
             srv = _make_server(server, port, use_ssl)
             conn = Connection(srv, user=user, password=password, authentication=auth, auto_bind=False)
-            
+
             if starttls:
                 conn.open()
                 conn.start_tls(_tls_config)
-            
+
             if conn.bind():
                 session['ad_use_ssl'] = use_ssl
                 session['ad_starttls'] = starttls
                 session['ad_port'] = port
                 return conn, None
+            else:
+                # bind() a retourné False sans exception — récupérer la raison LDAP
+                result_desc = 'bind failed'
+                if conn.result:
+                    result_desc = (conn.result.get('description')
+                                   or conn.result.get('message')
+                                   or f"code {conn.result.get('result', '?')}")
+                errors.append(f"{label}: {result_desc[:80]}")
+                if _is_invalid_credentials_error(result_desc):
+                    return None, "Identifiants incorrects (vérifiez login/mot de passe)"
 
         except Exception as e:
             err_str = str(e)
@@ -201,9 +221,16 @@ def _try_connection(server, username, password):
                         session['ad_starttls'] = starttls
                         session['ad_port'] = port
                         return conn, None
+                    else:
+                        result_desc = 'bind failed'
+                        if conn.result:
+                            result_desc = (conn.result.get('description')
+                                           or conn.result.get('message')
+                                           or f"code {conn.result.get('result', '?')}")
+                        err_str = result_desc
                 except Exception as e2:
                     err_str = str(e2)
-            
+
             errors.append(f"{label}: {err_str[:80]}")
             if label == "NTLM" and _is_md4_error(err_str):
                 continue  # Essayer STARTTLS
@@ -256,7 +283,10 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             error_msg = str(e)
             if not _is_md4_error(error_msg):
                 logger.warning(f"Connexion directe échouée: {error_msg[:100]}")
+            # Identifiants incorrects → retour immédiat (pas de fallback)
+            if _is_invalid_credentials_error(error_msg):
                 return None, error_msg
+            # Toute autre erreur (SSL, réseau, timeout) → fallback vers _try_connection()
 
     # Essayer toutes les méthodes
     conn, errors = _try_connection(server, username, password)
