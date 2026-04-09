@@ -11,6 +11,20 @@ from core.features import require_feature
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
+# État de progression partagé pour la mise à jour
+_update_progress = {
+    'status': 'idle',   # idle | running | success | error | rollback
+    'percent': 0,
+    'current_file': '',
+    'total': 0,
+    'done': 0,
+    'files_skipped': 0,
+    'healthcheck': None,
+    'rollback_performed': False,
+    'errors': [],
+    'message': ''
+}
+
 
 @api_bp.route('/health')
 def api_health():
@@ -277,54 +291,106 @@ def api_check_update():
     return jsonify(update_info)
 
 
+@api_bp.route('/update/progress')
+def api_update_progress():
+    """Progression en temps réel de la mise à jour en cours."""
+    return jsonify(_update_progress)
+
+
+@api_bp.route('/watchdog/status')
+@require_connection
+@require_permission('admin')
+def api_watchdog_status():
+    """État courant du watchdog de surveillance."""
+    from core.watchdog import get_watchdog_status
+    return jsonify(get_watchdog_status())
+
+
 @api_bp.route('/perform-update', methods=['POST'])
 @require_connection
 @require_permission('admin')
 def api_perform_update():
-    """API pour effectuer une mise à jour."""
+    """API pour effectuer une mise à jour avec progression réelle et rollback automatique."""
     import threading
     import time
     from core.updater import perform_fast_update
 
-    def delayed_restart():
-        time.sleep(3)
-        import subprocess
-        import os
-        # Redémarrage via WinSW (compatible service Windows)
-        nssm_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'nssm')
-        nssm_exe = os.path.join(nssm_dir, 'ADWebInterface.exe')
-        if os.path.exists(nssm_exe):
-            try:
-                subprocess.run([nssm_exe, 'restart'], capture_output=True, timeout=30)
-            except Exception:
-                # Fallback: exit forcer WinSW à redémarrer
-                os._exit(0)
-        else:
-            os._exit(0)
+    # Éviter les mises à jour concurrentes
+    if _update_progress['status'] == 'running':
+        return jsonify({'success': False, 'error': 'Mise à jour déjà en cours'}), 409
 
-    try:
-        result = perform_fast_update()
-        if result.get('success'):
-            threading.Thread(target=delayed_restart).start()
-            return jsonify({
-                'success': True,
-                'message': f"Mise a jour terminee ({result.get('files_updated', 0)} fichiers). Redemarrage..."
+    def progress_callback(done, total, filepath):
+        _update_progress['done'] = done
+        _update_progress['total'] = total
+        _update_progress['current_file'] = filepath
+        _update_progress['percent'] = int(done / total * 100) if total else 0
+
+    def run_update():
+        _update_progress.update({
+            'status': 'running', 'percent': 0, 'done': 0, 'total': 0,
+            'current_file': '', 'files_skipped': 0, 'healthcheck': None,
+            'rollback_performed': False, 'errors': [], 'message': 'Téléchargement en cours...'
+        })
+        try:
+            result = perform_fast_update(on_progress=progress_callback)
+            if result.get('rollback_performed'):
+                _update_progress.update({
+                    'status': 'rollback',
+                    'percent': 100,
+                    'healthcheck': False,
+                    'rollback_performed': True,
+                    'errors': result.get('errors', []),
+                    'message': 'Healthcheck échoué — rollback effectué automatiquement'
+                })
+                return
+            if result.get('success'):
+                _update_progress.update({
+                    'status': 'success',
+                    'percent': 100,
+                    'files_skipped': result.get('files_skipped', 0),
+                    'healthcheck': result.get('healthcheck', True),
+                    'rollback_performed': False,
+                    'errors': [],
+                    'message': f"Mise à jour terminée ({result.get('files_updated', 0)} fichiers). Redémarrage..."
+                })
+                # Redémarrage différé via WinSW
+                time.sleep(2)
+                _do_restart()
+            else:
+                errors = result.get('errors', [])
+                _update_progress.update({
+                    'status': 'error',
+                    'percent': 100,
+                    'errors': errors,
+                    'message': 'Erreur lors de la mise à jour'
+                })
+        except Exception as e:
+            import logging
+            logging.getLogger('api_update').error(f"Erreur mise a jour: {e}", exc_info=True)
+            _update_progress.update({
+                'status': 'error',
+                'percent': 100,
+                'errors': [str(e)[:300]],
+                'message': f'Erreur inattendue: {str(e)[:200]}'
             })
 
-        errors = result.get('errors', [])
-        if errors:
-            detail = '; '.join(str(e) for e in errors[:3])
-            return jsonify({
-                'success': False,
-                'error': f"Erreurs lors de la mise a jour: {detail}"
-            }), 500
+    threading.Thread(target=run_update, daemon=True).start()
+    return jsonify({'success': True, 'message': 'Mise à jour démarrée'})
 
-        return jsonify({'success': False, 'error': 'Aucune mise a jour disponible'}), 500
 
-    except Exception as e:
-        import logging
-        logging.getLogger('api_update').error(f"Erreur mise a jour: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': f'Erreur: {str(e)[:300]}'}), 500
+def _do_restart():
+    """Redémarre le service via WinSW ou os._exit en fallback."""
+    import subprocess
+    import os
+    nssm_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'nssm')
+    nssm_exe = os.path.join(nssm_dir, 'ADWebInterface.exe')
+    if os.path.exists(nssm_exe):
+        try:
+            subprocess.run([nssm_exe, 'restart'], capture_output=True, timeout=30)
+            return
+        except Exception:
+            pass
+    os._exit(0)
 
 
 @api_bp.route('/errors')
@@ -375,39 +441,123 @@ def api_security_fix():
 @require_connection
 @require_permission('admin')
 def api_permissions():
-    """API pour sauvegarder les permissions d'un groupe."""
+    """API pour sauvegarder les permissions d'un sujet (groupe, utilisateur ou OU)."""
     from core.granular_permissions import set_group_permissions
     from core.audit import log_action, ACTIONS
 
     data = request.get_json() if request.is_json else request.form
-    group_name = data.get('group_name')
+    group_name = data.get('group_name', '').strip()
+    old_name = data.get('edit_name', '').strip() or None
     permissions = data.get('permissions', [])
+    description = data.get('description', '')
+    enabled = data.get('enabled', True)
+    subject_type = data.get('subject_type', 'group')
 
     if not group_name:
-        return jsonify({'success': False, 'error': 'Nom du groupe requis'}), 400
+        return jsonify({'success': False, 'error': 'Nom du sujet requis'}), 400
 
     try:
-        result = set_group_permissions(group_name, permissions)
+        ok = set_group_permissions(
+            group_name, permissions,
+            description=description,
+            enabled=bool(enabled),
+            subject_type=subject_type,
+            old_name=old_name
+        )
         log_action(ACTIONS['OTHER'], session.get('ad_username'),
-                  {'action': 'set_permissions', 'group': group_name}, True)
-        return jsonify(result)
+                  {'action': 'set_permissions', 'group': group_name,
+                   'subject_type': subject_type}, ok)
+        return jsonify({'success': ok})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@api_bp.route('/permissions/<group_name>', methods=['DELETE'])
+@api_bp.route('/ad-search')
+@require_connection
+@require_permission('admin')
+def api_ad_search():
+    """
+    Recherche LDAP pour l'autocomplete des groupes/utilisateurs/OUs.
+    Params: type=group|user|ou, q=<query>
+    """
+    from ldap3 import SUBTREE
+    from .core import decode_ldap_value
+    from core.security import escape_ldap_filter
+
+    subject_type = request.args.get('type', 'group')
+    query = request.args.get('q', '').strip()
+
+    if len(query) < 1:
+        return jsonify([])
+
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify([])
+
+    try:
+        base_dn = session.get('ad_base_dn', '')
+        if not base_dn and conn.server.info and conn.server.info.naming_contexts:
+            base_dn = str(conn.server.info.naming_contexts[0])
+
+        safe_q = escape_ldap_filter(query)
+        results = []
+
+        if subject_type == 'group':
+            search_filter = f'(&(objectClass=group)(cn=*{safe_q}*))'
+            conn.search(base_dn, search_filter, SUBTREE, attributes=['cn'], size_limit=20)
+            results = sorted({decode_ldap_value(e.cn.value) for e in conn.entries if e.cn})
+
+        elif subject_type == 'user':
+            search_filter = f'(&(objectClass=user)(objectCategory=person)(sAMAccountName=*{safe_q}*))'
+            conn.search(base_dn, search_filter, SUBTREE, attributes=['sAMAccountName', 'displayName'], size_limit=20)
+            results = []
+            for e in conn.entries:
+                sam = decode_ldap_value(e.sAMAccountName.value) if e.sAMAccountName else ''
+                display = decode_ldap_value(e.displayName.value) if e.displayName else ''
+                if sam:
+                    results.append({'value': sam, 'label': f'{sam} — {display}' if display else sam})
+            results.sort(key=lambda x: x['value'])
+            conn.unbind()
+            return jsonify(results)
+
+        elif subject_type == 'ou':
+            search_filter = f'(&(objectClass=organizationalUnit)(ou=*{safe_q}*))'
+            conn.search(base_dn, search_filter, SUBTREE, attributes=['distinguishedName', 'ou'], size_limit=20)
+            results = []
+            for e in conn.entries:
+                dn = decode_ldap_value(e.distinguishedName.value) if e.distinguishedName else ''
+                ou_name = decode_ldap_value(e.ou.value) if e.ou else ''
+                if dn:
+                    results.append({'value': dn, 'label': f'{ou_name} ({dn})' if ou_name else dn})
+            results.sort(key=lambda x: x['label'])
+            conn.unbind()
+            return jsonify(results)
+
+        conn.unbind()
+        # Pour group, retourner une liste de strings simples
+        return jsonify([{'value': r, 'label': r} for r in results])
+
+    except Exception as e:
+        try:
+            conn.unbind()
+        except Exception:
+            pass
+        return jsonify([])
+
+
+@api_bp.route('/permissions/<path:group_name>', methods=['DELETE'])
 @require_connection
 @require_permission('admin')
 def api_delete_permissions(group_name):
-    """API pour supprimer les permissions d'un groupe."""
+    """API pour supprimer les permissions d'un sujet."""
     from core.granular_permissions import delete_group_permissions
     from core.audit import log_action, ACTIONS
 
     try:
-        result = delete_group_permissions(group_name)
+        ok = delete_group_permissions(group_name)
         log_action(ACTIONS['OTHER'], session.get('ad_username'),
-                  {'action': 'delete_permissions', 'group': group_name}, True)
-        return jsonify(result)
+                  {'action': 'delete_permissions', 'group': group_name}, ok)
+        return jsonify({'success': ok})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

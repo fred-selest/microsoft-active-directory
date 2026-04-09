@@ -141,6 +141,20 @@ button {
     font-size: 1.125rem;
 }
 
+.top-bar-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.top-bar-title {
+    color: var(--white);
+    font-weight: 600;
+    font-size: 1.125rem;
+    white-space: nowrap;
+}
+
 .top-bar-logo {
     width: 32px;
     height: 32px;

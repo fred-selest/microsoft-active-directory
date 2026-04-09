@@ -88,6 +88,13 @@ def _run_startup_analysis():
 # Lancer l'analyse après initialisation
 _run_startup_analysis()
 
+# Démarrer le watchdog de surveillance continue
+try:
+    from core.watchdog import start_watchdog
+    start_watchdog(interval_seconds=300)
+except Exception as e:
+    logger.error(f"Erreur démarrage watchdog: {e}")
+
 
 @app.after_request
 def after_request(response):

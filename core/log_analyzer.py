@@ -373,17 +373,28 @@ class LogAnalyzer:
             }
     
     def _fix_dependencies(self) -> Dict[str, Any]:
-        """Vérifier et installer les dépendances manquantes."""
+        """Vérifier et installer les dépendances manquantes via le venv."""
         import subprocess
-        
+        import platform as _platform
+        from pathlib import Path as _Path
+
+        project_root = _Path(__file__).resolve().parent.parent
+        if _platform.system() == "Windows":
+            pip_path = project_root / "venv" / "Scripts" / "pip.exe"
+        else:
+            pip_path = project_root / "venv" / "bin" / "pip"
+
+        pip_cmd = str(pip_path) if pip_path.exists() else "pip"
+        requirements = project_root / "requirements.txt"
+
         try:
             result = subprocess.run(
-                ['pip', 'install', '-r', 'requirements.txt'],
+                [pip_cmd, 'install', '-r', str(requirements), '-q'],
                 capture_output=True,
                 text=True,
                 timeout=120
             )
-            
+
             return {
                 'success': result.returncode == 0,
                 'output': result.stdout[-500:] if result.stdout else '',
@@ -467,6 +478,34 @@ class LogAnalyzer:
 analyzer = LogAnalyzer()
 
 
+def rotate_logs(max_size_mb: int = 10):
+    """Rotation du fichier server.log s'il dépasse max_size_mb.
+    Utilise copie+troncature pour rester compatible avec les fichiers ouverts (Windows).
+    """
+    from pathlib import Path as _Path
+    log_file = _Path(__file__).resolve().parent.parent / 'logs' / 'server.log'
+    if not log_file.exists():
+        return
+    size_mb = log_file.stat().st_size / (1024 * 1024)
+    if size_mb < max_size_mb:
+        return
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        archived = log_file.parent / f'server_{timestamp}.log'
+        # Copier le contenu vers l'archive
+        archived.write_bytes(log_file.read_bytes())
+        # Tronquer le fichier original (compatible fichier ouvert sous Windows)
+        with open(log_file, 'w', encoding='utf-8') as f:
+            f.truncate(0)
+        logger.info(f"Rotation logs: {log_file.name} → {archived.name} ({size_mb:.1f} Mo)")
+        # Garder seulement les 5 derniers logs archivés
+        old_logs = sorted(log_file.parent.glob('server_*.log'))
+        for old in old_logs[:-5]:
+            old.unlink(missing_ok=True)
+    except Exception as e:
+        logger.warning(f"Rotation logs échouée: {e}")
+
+
 def analyze_logs_on_startup():
     """
     Fonction à appeler au démarrage de l'application.
@@ -477,6 +516,9 @@ def analyze_logs_on_startup():
     logger.info("=" * 60)
     
     try:
+        # Rotation préventive des logs avant analyse
+        rotate_logs(max_size_mb=10)
+
         # Analyser les logs des dernières 24h
         results = analyzer.analyze_all_logs(hours=24)
         

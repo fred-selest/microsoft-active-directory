@@ -101,7 +101,20 @@
                     {% endif %}
                 </td>
                 <td class="hide-mobile col-ou">
-                    <small class="ou-path">{{ user.dn.split(',')[-2:] | join(',') }}</small>
+                    {% set ns = namespace(ou_name='') %}
+                    {% for part in user.dn.split(',') %}
+                        {% if part.upper().startswith('OU=') and not ns.ou_name %}
+                            {% set ns.ou_name = part[3:] %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if not ns.ou_name %}
+                        {% for part in user.dn.split(',') %}
+                            {% if part.upper().startswith('CN=') and loop.index > 1 and not ns.ou_name %}
+                                {% set ns.ou_name = part[3:] %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    <small class="ou-path" title="{{ user.dn }}">{{ ns.ou_name or '-' }}</small>
                 </td>
                 <td>
                     {% if user.disabled %}
@@ -378,10 +391,19 @@
     }
 }
 
+.col-ou {
+    max-width: 140px;
+    width: 140px;
+}
+
 .ou-path {
     color: var(--text-secondary, #666);
     font-size: 0.75rem;
-    word-break: break-all;
+    display: block;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .actions .btn-sm {

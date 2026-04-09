@@ -3,10 +3,13 @@
 Utilitaires de mise à jour pour l'interface Web Active Directory.
 Télécharge les fichiers depuis GitHub sans nécessiter git.
 
-Version optimisée v2.0:
+Version optimisée v3.0:
 - Téléchargement parallèle pour plus de rapidité
 - Cache des informations de version
-- Vérification différentielle (seuls les fichiers modifiés)
+- Vérification différentielle réelle (SHA blob GitHub)
+- Backup automatique avant mise à jour
+- Healthcheck post-mise à jour avec rollback automatique
+- Manifeste de synchronisation pour détecter les dérives
 - Gestion robuste des erreurs et retries
 """
 
@@ -18,10 +21,14 @@ import urllib.error
 import json
 import hashlib
 import time
+import logging
+from datetime import datetime
 from pathlib import Path
 from pathlib import PurePosixPath
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from packaging.version import Version
+
+logger = logging.getLogger(__name__)
 
 VERSION_FILE = "VERSION"
 GITHUB_REPO = "fred-selest/microsoft-active-directory"
@@ -32,6 +39,10 @@ GITHUB_RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRAN
 
 # Racine du projet = parent de core/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Manifeste et backup
+MANIFEST_FILE = PROJECT_ROOT / "data" / "update_manifest.json"
+BACKUP_DIR = PROJECT_ROOT / "data" / "backups" / "pre_update"
 
 # Cache pour éviter les requêtes répétées
 _version_cache = {}
@@ -171,6 +182,123 @@ def get_local_file_hash(filepath):
         return hashlib.sha256(content).hexdigest()
     except Exception:
         return None
+
+
+# =============================================================================
+# MANIFESTE — détection des dérives entre serveurs
+# =============================================================================
+
+def load_manifest() -> dict:
+    """Charge le manifeste local {filepath: blob_sha}."""
+    if MANIFEST_FILE.exists():
+        try:
+            return json.loads(MANIFEST_FILE.read_text(encoding='utf-8'))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_manifest(files_info: list):
+    """Sauvegarde le manifeste après une mise à jour réussie."""
+    try:
+        MANIFEST_FILE.parent.mkdir(parents=True, exist_ok=True)
+        manifest = {f['path']: f['sha'] for f in files_info if f.get('sha')}
+        MANIFEST_FILE.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding='utf-8')
+    except Exception as e:
+        logger.error(f"Erreur sauvegarde manifeste: {e}")
+
+
+def get_changed_files(files_info: list) -> list:
+    """Retourne uniquement les fichiers dont le SHA blob a changé depuis le dernier update."""
+    manifest = load_manifest()
+    if not manifest:
+        # Premier update : tout télécharger
+        return files_info
+    return [f for f in files_info if manifest.get(f['path']) != f.get('sha')]
+
+
+# =============================================================================
+# BACKUP & ROLLBACK
+# =============================================================================
+
+def backup_current_files(files_to_update: list) -> Path:
+    """Sauvegarde les fichiers locaux avant écrasement. Retourne le dossier backup."""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = BACKUP_DIR / timestamp
+    backup_path.mkdir(parents=True, exist_ok=True)
+    backed_up = 0
+    for f in files_to_update:
+        local = PROJECT_ROOT / f['path']
+        if local.exists():
+            dest = backup_path / f['path']
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(local.read_bytes())
+            backed_up += 1
+    logger.info(f"Backup créé: {backup_path} ({backed_up} fichiers)")
+    # Garder seulement les 10 derniers backups
+    _cleanup_old_backups(keep=10)
+    return backup_path
+
+
+def _cleanup_old_backups(keep: int = 10):
+    """Supprime les anciens backups en gardant les N plus récents."""
+    try:
+        if not BACKUP_DIR.exists():
+            return
+        backups = sorted(BACKUP_DIR.iterdir(), key=lambda p: p.name)
+        for old in backups[:-keep]:
+            if old.is_dir():
+                import shutil
+                shutil.rmtree(old, ignore_errors=True)
+    except Exception as e:
+        logger.warning(f"Nettoyage backups: {e}")
+
+
+def restore_backup(backup_path: Path) -> bool:
+    """Restaure les fichiers depuis un backup. Retourne True si succès."""
+    try:
+        restored = 0
+        for src in backup_path.rglob('*'):
+            if src.is_file():
+                rel = src.relative_to(backup_path)
+                dest = PROJECT_ROOT / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(src.read_bytes())
+                restored += 1
+        logger.info(f"Rollback effectué depuis {backup_path} ({restored} fichiers)")
+        return True
+    except Exception as e:
+        logger.error(f"Erreur rollback: {e}")
+        return False
+
+
+# =============================================================================
+# HEALTHCHECK POST-UPDATE
+# =============================================================================
+
+def post_update_healthcheck() -> tuple:
+    """Vérifie que l'app s'importe correctement après mise à jour."""
+    python = PROJECT_ROOT / "venv" / "Scripts" / "python.exe"
+    if not python.exists():
+        python = PROJECT_ROOT / "venv" / "bin" / "python"
+    if not python.exists():
+        return False, "Python venv introuvable"
+    try:
+        result = subprocess.run(
+            [str(python), "-c", "import sys; sys.path.insert(0, '.'); from app import app; print('OK')"],
+            capture_output=True, text=True, timeout=30, cwd=str(PROJECT_ROOT)
+        )
+        if result.returncode == 0 and 'OK' in result.stdout:
+            return True, "Import OK"
+        stderr = result.stderr.strip()
+        # Extraire la dernière ligne significative de l'erreur
+        lines = [l for l in stderr.splitlines() if l.strip()]
+        error_msg = '\n'.join(lines[-5:]) if lines else "Erreur inconnue"
+        return False, error_msg
+    except subprocess.TimeoutExpired:
+        return False, "Timeout lors du healthcheck (>30s)"
+    except Exception as e:
+        return False, str(e)
 
 
 def perform_update_parallel(max_workers=4):
@@ -331,12 +459,19 @@ def check_for_updates_fast():
         }
 
 
-def perform_fast_update(silent=False, max_workers=4):
+def perform_fast_update(silent=False, max_workers=4, on_progress=None):
     """
-    Télécharger et appliquer la mise à jour (version rapide avec parallélisme).
+    Télécharger et appliquer la mise à jour avec diff, backup et rollback automatique.
+
+    Args:
+        silent: Supprimer les prints console
+        max_workers: Nombre de threads de téléchargement parallèle
+        on_progress: Callback(done, total, filepath) appelé après chaque fichier téléchargé
 
     Retourne un dict avec les clés :
-      success (bool), files_updated (int), errors (list[str])
+      success (bool), files_updated (int), files_skipped (int),
+      backup_path (str|None), healthcheck (bool),
+      rollback_performed (bool), errors (list[str])
     """
     # Vérifier que la version distante est bien plus récente avant d'écraser
     check = check_for_updates_fast()
@@ -344,6 +479,10 @@ def perform_fast_update(silent=False, max_workers=4):
         return {
             'success': False,
             'files_updated': 0,
+            'files_skipped': 0,
+            'backup_path': None,
+            'healthcheck': False,
+            'rollback_performed': False,
             'errors': ['Aucune mise à jour disponible ou version distante inférieure à la version locale.']
         }
 
@@ -357,22 +496,52 @@ def perform_fast_update(silent=False, max_workers=4):
         return {
             'success': False,
             'files_updated': 0,
+            'files_skipped': 0,
+            'backup_path': None,
+            'healthcheck': False,
+            'rollback_performed': False,
             'errors': ['Impossible de récupérer la liste des fichiers depuis GitHub']
         }
 
-    files_to_update = [f for f in files_info if not should_skip(f['path'])]
+    # Filtrer les fichiers préservés
+    all_files = [f for f in files_info if not should_skip(f['path'])]
+
+    # Détection différentielle : ne télécharger que les fichiers modifiés
+    files_to_update = get_changed_files(all_files)
+    files_skipped = len(all_files) - len(files_to_update)
+
+    if not files_to_update:
+        return {
+            'success': True,
+            'files_updated': 0,
+            'files_skipped': files_skipped,
+            'backup_path': None,
+            'healthcheck': True,
+            'rollback_performed': False,
+            'errors': []
+        }
+
+    if not silent:
+        print(f"Fichiers modifiés: {len(files_to_update)} (ignorés: {files_skipped})")
+
+    # Backup avant toute modification
+    backup_path = backup_current_files(files_to_update)
+
     errors = []
     updated = 0
+    total = len(files_to_update)
 
-    # Télécharger en parallèle pour plus de rapidité
+    # Télécharger en parallèle
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_file = {
             executor.submit(download_file, f['path'], app_dir): f['path']
             for f in files_to_update
         }
-        
+
+        done_count = 0
         for future in as_completed(future_to_file):
             filepath = future_to_file[future]
+            done_count += 1
             try:
                 if future.result():
                     updated += 1
@@ -380,10 +549,40 @@ def perform_fast_update(silent=False, max_workers=4):
                     errors.append(filepath)
             except Exception as e:
                 errors.append(f"{filepath}: {e}")
+            if on_progress:
+                try:
+                    on_progress(done_count, total, filepath)
+                except Exception:
+                    pass
+
+    # Healthcheck post-téléchargement
+    hc_ok, hc_msg = post_update_healthcheck()
+
+    if not hc_ok:
+        # Rollback automatique
+        logger.error(f"Healthcheck échoué: {hc_msg} — rollback en cours")
+        rollback_ok = restore_backup(backup_path)
+        return {
+            'success': False,
+            'files_updated': updated,
+            'files_skipped': files_skipped,
+            'backup_path': str(backup_path),
+            'healthcheck': False,
+            'rollback_performed': rollback_ok,
+            'errors': [f"Healthcheck échoué: {hc_msg}"] + errors
+        }
+
+    # Sauvegarder le manifeste uniquement si tout s'est bien passé
+    if not errors:
+        save_manifest(files_info)
 
     return {
         'success': len(errors) == 0,
         'files_updated': updated,
+        'files_skipped': files_skipped,
+        'backup_path': str(backup_path),
+        'healthcheck': hc_ok,
+        'rollback_performed': False,
         'errors': errors
     }
 

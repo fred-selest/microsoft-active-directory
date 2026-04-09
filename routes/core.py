@@ -85,7 +85,10 @@ def require_permission(permission):
             if config.RBAC_ENABLED:
                 user_groups = session.get('user_groups', [])
 
-                if not user_groups or not has_granular_permission(user_groups, permission):
+                username = session.get('ad_username')
+                user_dn = session.get('user_dn')
+                if not user_groups or not has_granular_permission(
+                        user_groups, permission, username=username, user_dn=user_dn):
                     # Requête AJAX/API → retourner JSON 403 plutôt qu'un redirect HTML
                     if (request.is_json or
                             request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
