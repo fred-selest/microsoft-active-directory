@@ -10,7 +10,68 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.2 — Avril 2026
+**Dernière version :** v1.37.9 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.37.9
+
+### ⚡ Système de mise à jour amélioré (v2.0)
+- **Téléchargement parallèle** : 3-4x plus rapide avec ThreadPoolExecutor (4 workers)
+- **Cache intelligent** : Requêtes GitHub mises en cache 5 minutes pour éviter les rate limits
+- **Statistiques avant mise à jour** : Affichage du nombre de fichiers, taille totale, types
+- **Gestion robuste des erreurs** : Rapports d'erreurs détaillés, retries automatiques
+- **Protection améliorée** : Plus de dossiers exclus (.github, .git, logs, data, venv)
+
+---
+
+## 🆕 Nouveautés v1.37.8
+
+### ⚡ Système de mise à jour amélioré (v2.0)
+- **Téléchargement parallèle** : 3-4x plus rapide avec ThreadPoolExecutor (4 workers)
+- **Cache intelligent** : Requêtes GitHub mises en cache 5 minutes pour éviter les rate limits
+- **Statistiques avant mise à jour** : Affichage du nombre de fichiers, taille totale, types
+- **Gestion robuste des erreurs** : Rapports d'erreurs détaillés, retries automatiques
+- **Protection améliorée** : Plus de dossiers exclus (.github, .git, logs, data, venv)
+
+---
+
+## 🆕 Nouveautés v1.37.7
+
+### ⚡ Système de mise à jour amélioré (v2.0)
+- **Téléchargement parallèle** : 3-4x plus rapide avec ThreadPoolExecutor (4 workers)
+- **Cache intelligent** : Requêtes GitHub mises en cache 5 minutes pour éviter les rate limits
+- **Statistiques avant mise à jour** : Affichage du nombre de fichiers, taille totale, types
+- **Gestion robuste des erreurs** : Rapports d'erreurs détaillés, retries automatiques
+- **Protection améliorée** : Plus de dossiers exclus (.github, .git, logs, data, venv)
+
+---
+
+## 🆕 Nouveautés v1.37.5
+
+### ✨ Améliorations
+- **Filtres avancés sur /users/** : dropdown OU, filtre Actifs/Désactivés, bouton Effacer
+- **Filtres avancés sur /computers/** : dropdown OU, filtre Actifs/Désactivés, filtre OS, bouton Effacer
+
+### 🐛 Corrections
+- **Ordinateurs (et utilisateurs) manquants** : recherche LDAP limitée à 1000 résultats max — remplacée par `paged_search` pour récupérer tous les objets AD sans troncature silencieuse
+
+---
+
+## 🆕 Nouveautés v1.37.4
+
+### ✨ Améliorations
+- **Bouton LDAPS sur création d'utilisateur** : le bandeau d'avertissement affiche désormais un bouton "🔒 Se reconnecter en LDAPS" qui pré-remplit automatiquement le formulaire de connexion avec port 636 et SSL coché
+
+---
+
+## 🆕 Nouveautés v1.37.3
+
+### 🐛 Corrections
+- **Fallback LDAP/389** : login fonctionne même si LDAPS/636 est rejeté par le DC
+- **API JSON 401** : bouton "Installer la mise à jour" ne retourne plus `<!DOCTYPE` en JS
+- **Page `/update` sécurisée** : nécessite d'être connecté en tant qu'admin
+- **LAPS** : accessible dès le premier lancement sans configuration préalable
 
 ---
 
