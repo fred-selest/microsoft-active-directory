@@ -8,7 +8,7 @@ import _openssl_init
 
 import ssl
 from functools import wraps
-from flask import session, redirect, url_for, flash, g, current_app
+from flask import session, redirect, url_for, flash, g, current_app, request, jsonify
 from ldap3 import Server, Connection, ALL, SUBTREE, Tls, NTLM, SIMPLE, IP_V4_PREFERRED
 from ldap3.core.exceptions import LDAPException
 from config import get_config
@@ -61,6 +61,11 @@ def require_connection(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not is_connected():
+            # Requête AJAX/API → retourner JSON 401 plutôt qu'un redirect HTML
+            if (request.is_json or
+                    request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                    request.path.startswith('/api/')):
+                return jsonify({'error': 'Non connecté', 'redirect': url_for('main.connect')}), 401
             flash('Veuillez vous connecter à Active Directory.', 'warning')
             return redirect(url_for('main.connect'))
         return f(*args, **kwargs)
