@@ -20,22 +20,16 @@ import logging
 logger = logging.getLogger('ad_core')
 config = get_config()
 
-
-def _make_tls_context():
-    """
-    Creer un contexte SSL compatible Server 2022 et 2025.
-    Utilise ssl.create_default_context() (Python 3.10+) qui est stable sur 3.12.
-    Desactive la validation du certificat (certificats auto-signes sur DC).
-    """
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    return ctx
-
+# Configuration TLS — PROTOCOL_TLS_CLIENT pour Python 3.12
+# (remplace PROTOCOL_TLS qui est déprécié/retiré en 3.12)
+_tls_version = getattr(ssl, 'PROTOCOL_TLS_CLIENT', None)
+if _tls_version is None:
+    _tls_version = getattr(ssl, 'PROTOCOL_TLS', ssl.PROTOCOL_SSLv23)
 
 _tls_config = Tls(
-    context=_make_tls_context(),
     validate=ssl.CERT_NONE,
+    version=_tls_version,
+    ciphers='HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP'
 )
 
 
