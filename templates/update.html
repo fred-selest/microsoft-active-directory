@@ -471,72 +471,107 @@ function performUpdate() {
     prog.style.display = 'block';
     stat.innerHTML = '';
     log.textContent = '';
+    bar.style.width = '2%';
+    txt.textContent = 'Démarrage de la mise à jour…';
 
-    var steps = [
-        { p: 15, t: 'Vérification de la connexion…' },
-        { p: 30, t: 'Téléchargement de l\'archive…' },
-        { p: 55, t: 'Extraction des fichiers…' },
-        { p: 75, t: 'Installation des dépendances…' },
-        { p: 90, t: 'Finalisation…' }
-    ];
-    var si = 0;
-    var iv = setInterval(function() {
-        if (si < steps.length) {
-            bar.style.width = steps[si].p + '%';
-            txt.textContent  = steps[si].t;
-            si++;
-        }
-    }, 1200);
+    var pollInterval = null;
 
-    fetch('/api/perform-update', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
-    .then(function(res) {
-        var ct = res.headers.get('content-type');
-        if (!ct || !ct.includes('application/json')) {
-            return res.text().then(function(html) {
-                throw new Error('Réponse inattendue du serveur (HTML au lieu de JSON). Vérifiez votre session.');
-            });
-        }
-        return res.json();
-    })
-    .then(function(data) {
-        clearInterval(iv);
-        bar.style.width = '100%';
+    function pollProgress() {
+        fetch('/api/update/progress')
+        .then(function(r) { return r.json(); })
+        .then(function(p) {
+            if (p.status === 'idle') return; // pas encore démarré
 
-        if (data.success) {
-            txt.textContent = 'Mise à jour terminée !';
-            log.textContent = data.log || 'Installation réussie.';
+            // Mise à jour barre
+            bar.style.width = (p.percent || 0) + '%';
 
-            var msg = document.createElement('p');
-            msg.className = 'update-success';
-            msg.textContent = data.message || 'Mise à jour appliquée. Le service redémarre…';
-            stat.appendChild(msg);
+            if (p.status === 'running') {
+                var done = p.done || 0, total = p.total || 0;
+                var fileShort = p.current_file ? p.current_file.split('/').pop() : '';
+                txt.textContent = total > 0
+                    ? 'Téléchargement ' + done + '/' + total + (fileShort ? ' — ' + fileShort : '')
+                    : 'Téléchargement en cours…';
+                return;
+            }
 
-            if (data.restarting) {
-                var cd = 12;
-                var p = document.createElement('p');
-                p.className = 'update-success';
-                p.innerHTML = 'Redémarrage dans <strong id="cd">' + cd + '</strong>s…';
-                stat.appendChild(p);
+            // Terminé — arrêter le polling
+            clearInterval(pollInterval);
+            pollInterval = null;
+            bar.style.width = '100%';
+
+            if (p.status === 'success') {
+                txt.textContent = 'Mise à jour terminée !';
+                var skipped = p.files_skipped ? ' (' + p.files_skipped + ' fichiers déjà à jour)' : '';
+                log.textContent = (p.message || 'Installation réussie.') + skipped;
+                var msg = document.createElement('p');
+                msg.className = 'update-success';
+                msg.textContent = 'Mise à jour appliquée. Redémarrage du service…';
+                stat.appendChild(msg);
+                // Compte à rebours
+                var cd = 15;
+                var cdP = document.createElement('p');
+                cdP.className = 'update-success';
+                cdP.innerHTML = 'Page rechargée dans <strong id="cd">' + cd + '</strong>s…';
+                stat.appendChild(cdP);
                 var ci = setInterval(function() {
                     cd--;
                     var el = document.getElementById('cd');
                     if (el) el.textContent = cd;
                     if (cd <= 0) { clearInterval(ci); window.location.reload(); }
                 }, 1000);
+
+            } else if (p.status === 'rollback') {
+                txt.textContent = 'Rollback automatique effectué';
+                bar.style.background = '#f59e0b';
+                var e = document.createElement('p');
+                e.className = 'update-error';
+                e.textContent = (p.errors && p.errors[0]) ? p.errors[0] : 'Healthcheck échoué — ancienne version restaurée.';
+                stat.appendChild(e);
+                btn.disabled = false;
+                btn.style.opacity = '1';
+
+            } else { // error
+                txt.textContent = 'Échec de la mise à jour';
+                var e = document.createElement('p');
+                e.className = 'update-error';
+                e.textContent = (p.errors && p.errors[0]) ? p.errors[0] : (p.message || 'Erreur inconnue.');
+                stat.appendChild(e);
+                btn.disabled = false;
+                btn.style.opacity = '1';
             }
+        })
+        .catch(function() { /* polling silencieux */ });
+    }
+
+    // Lancer la mise à jour
+    fetch('/api/perform-update', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    .then(function(res) {
+        var ct = res.headers.get('content-type');
+        if (!ct || !ct.includes('application/json')) {
+            return res.text().then(function() {
+                throw new Error('Réponse inattendue du serveur. Vérifiez votre session.');
+            });
+        }
+        return res.json();
+    })
+    .then(function(data) {
+        if (data.success) {
+            // Démarrer le polling de progression toutes les 1.5s
+            pollInterval = setInterval(pollProgress, 1500);
         } else {
-            txt.textContent = 'Échec';
+            bar.style.width = '100%';
+            txt.textContent = 'Impossible de démarrer';
             var e = document.createElement('p');
             e.className = 'update-error';
-            e.textContent = data.error || data.message || 'Erreur inconnue.';
+            e.textContent = data.error || 'Erreur inconnue.';
             stat.appendChild(e);
             btn.disabled = false;
             btn.style.opacity = '1';
         }
     })
     .catch(function(err) {
-        clearInterval(iv);
-        txt.textContent = 'Erreur';
+        if (pollInterval) { clearInterval(pollInterval); }
+        txt.textContent = 'Erreur réseau';
         var e = document.createElement('p');
         e.className = 'update-error';
         e.textContent = 'Erreur : ' + (err.message || 'inconnue');

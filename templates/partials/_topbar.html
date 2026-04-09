@@ -38,8 +38,10 @@
             {% else %}
             <img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="Logo" class="top-bar-logo">
             {% endif %}
-            <span class="top-bar-title">{{ site_settings.title or 'AD Web' }}</span>
         </a>
+    </div>
+    <div class="top-bar-center">
+        <span class="top-bar-title">{{ site_settings.title or 'AD Web Interface' }}</span>
     </div>
     <div class="top-bar-right">
         {% if connected %}

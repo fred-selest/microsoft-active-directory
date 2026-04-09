@@ -49,7 +49,8 @@
         <table class="data-table sortable">
             <thead>
                 <tr>
-                    <th>Groupe</th>
+                    <th>Sujet</th>
+                    <th>Type</th>
                     <th>Description</th>
                     <th>Permissions</th>
                     <th>Statut</th>
@@ -63,6 +64,16 @@
                         <strong>{{ group_name }}</strong>
                         {% if group_data.custom %}
                         <span class="badge badge-info" style="font-size: 0.625rem; margin-left: 0.25rem;">Perso</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set st = group_data.subject_type or 'group' %}
+                        {% if st == 'user' %}
+                        <span class="badge badge-warning" title="Utilisateur AD">👤 Utilisateur</span>
+                        {% elif st == 'ou' %}
+                        <span class="badge badge-secondary" title="Unité d'organisation">📁 OU</span>
+                        {% else %}
+                        <span class="badge badge-primary" title="Groupe AD">👥 Groupe</span>
                         {% endif %}
                     </td>
                     <td>{{ group_data.description or '-' }}</td>
@@ -109,12 +120,26 @@
             <input type="hidden" id="edit-group-name" value="">
             
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Nom du groupe AD :</label>
-                <input type="text" id="group-name" required
-                       placeholder="ex: IT Support, Helpdesk, CN=MyGroup,OU=..."
-                       style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);">
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                    Utilisez le nom exact du groupe AD (ex: "IT Support" ou "CN=MyGroup,OU=Users,DC=domain,DC=local")
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Type de sujet :</label>
+                <select id="subject_type" name="subject_type" onchange="updateSubjectLabel()"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);">
+                    <option value="group">👥 Groupe AD</option>
+                    <option value="user">👤 Utilisateur AD</option>
+                    <option value="ou">📁 Unité d'organisation</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1.5rem; position: relative;">
+                <label id="subject-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Nom du groupe AD :</label>
+                <input type="text" id="group-name" required autocomplete="off"
+                       placeholder="ex: IT Support"
+                       style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);"
+                       oninput="debouncedSearch(this.value)">
+                <div id="autocomplete-list" style="display:none; position:absolute; z-index:2000; left:0; right:0;
+                     background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px;
+                     max-height: 200px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.3);"></div>
+                <p id="subject-hint" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                    Nom exact du groupe AD (ex: "IT Support" ou "Domain Admins")
                 </p>
             </div>
             
@@ -187,37 +212,71 @@
 <script>
 const allPermissions = {{ permissions|tojson }};
 
+const SUBJECT_CONFIG = {
+    group: {
+        label: 'Nom du groupe AD :',
+        placeholder: 'ex: IT Support, Domain Admins',
+        hint: 'Nom exact du groupe AD tel qu\'il apparaît dans Active Directory'
+    },
+    user: {
+        label: 'Identifiant de l\'utilisateur (sAMAccountName) :',
+        placeholder: 'ex: jdupont, admin, testuser',
+        hint: 'Login de l\'utilisateur AD (pas le nom complet)'
+    },
+    ou: {
+        label: 'DN de l\'Unité d\'organisation :',
+        placeholder: 'ex: OU=Informatique,DC=domain,DC=local',
+        hint: 'Chemin complet de l\'OU — tous les utilisateurs de cette OU hériteront des permissions'
+    }
+};
+
+function updateSubjectLabel() {
+    const type = document.getElementById('subject_type').value;
+    const cfg = SUBJECT_CONFIG[type];
+    document.getElementById('subject-label').textContent = cfg.label;
+    document.getElementById('group-name').placeholder = cfg.placeholder;
+    document.getElementById('subject-hint').textContent = cfg.hint;
+    closeAutocomplete();
+}
+
 function showAddGroupModal() {
-    document.getElementById('modal-title').textContent = '➕ Ajouter un groupe';
+    document.getElementById('modal-title').textContent = '➕ Ajouter une règle de permissions';
     document.getElementById('group-form').reset();
     document.getElementById('edit-group-name').value = '';
     document.getElementById('group-name').disabled = false;
+    document.getElementById('subject_type').value = 'group';
+    updateSubjectLabel();
     document.getElementById('group-modal').style.display = 'flex';
 }
 
 function editGroup(groupName) {
     const groups = {{ groups|tojson }};
     const group = groups[groupName];
-    
+
     if (!group) return;
-    
-    document.getElementById('modal-title').textContent = '✏️ Modifier le groupe';
+
+    document.getElementById('modal-title').textContent = '✏️ Modifier la règle';
     document.getElementById('edit-group-name').value = groupName;
     document.getElementById('group-name').value = groupName;
     document.getElementById('group-name').disabled = true;
     document.getElementById('group-description').value = group.description || '';
     document.getElementById('group-enabled').checked = group.enabled !== false;
-    
+
+    // Sélectionner le type de sujet
+    document.getElementById('subject_type').value = group.subject_type || 'group';
+    updateSubjectLabel();
+
     // Cocher les permissions
     document.querySelectorAll('input[name="permissions"]').forEach(cb => {
         cb.checked = group.permissions.includes(cb.value);
     });
-    
+
     document.getElementById('group-modal').style.display = 'flex';
 }
 
 function closeGroupModal() {
     document.getElementById('group-modal').style.display = 'none';
+    closeAutocomplete();
 }
 
 function saveGroup(event) {
@@ -232,7 +291,9 @@ function saveGroup(event) {
     document.querySelectorAll('input[name="permissions"]:checked').forEach(cb => {
         permissions.push(cb.value);
     });
-    
+
+    const subjectType = document.getElementById('subject_type').value;
+
     fetch('/api/permissions', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -241,7 +302,8 @@ function saveGroup(event) {
             edit_name: editName || null,
             permissions: permissions,
             description: description,
-            enabled: enabled
+            enabled: enabled,
+            subject_type: subjectType
         })
     })
     .then(response => response.json())
@@ -309,6 +371,53 @@ function closePermissionsModal() {
 window.onclick = function(event) {
     if (event.target.id === 'group-modal') closeGroupModal();
     if (event.target.id === 'permissions-modal') closePermissionsModal();
+    if (!event.target.closest('#autocomplete-list') && event.target.id !== 'group-name') {
+        closeAutocomplete();
+    }
+}
+
+// --- Autocomplete ---
+let _acTimer = null;
+
+function debouncedSearch(val) {
+    clearTimeout(_acTimer);
+    if (!val || val.length < 1) { closeAutocomplete(); return; }
+    _acTimer = setTimeout(() => searchAD(val), 300);
+}
+
+function searchAD(query) {
+    const type = document.getElementById('subject_type').value;
+    const input = document.getElementById('group-name');
+    if (input.disabled) return; // en mode édition, champ désactivé
+    fetch('/api/ad-search?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(query))
+        .then(r => r.json())
+        .then(items => renderAutocomplete(items))
+        .catch(() => closeAutocomplete());
+}
+
+function renderAutocomplete(items) {
+    const list = document.getElementById('autocomplete-list');
+    if (!items || items.length === 0) { closeAutocomplete(); return; }
+    list.innerHTML = '';
+    items.forEach(item => {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; border-bottom: 1px solid var(--border-color);';
+        div.textContent = item.label || item.value || item;
+        div.onmousedown = function(e) {
+            e.preventDefault();
+            document.getElementById('group-name').value = item.value || item;
+            closeAutocomplete();
+        };
+        div.onmouseover = function() { this.style.background = 'var(--bg-tertiary)'; };
+        div.onmouseout = function() { this.style.background = ''; };
+        list.appendChild(div);
+    });
+    list.style.display = 'block';
+}
+
+function closeAutocomplete() {
+    const list = document.getElementById('autocomplete-list');
+    if (list) { list.style.display = 'none'; list.innerHTML = ''; }
 }
 </script>
 

@@ -191,43 +191,64 @@ def get_group_permissions(group_name, user_groups=None):
     return group_perms
 
 
-def has_permission(user_groups, required_permission):
+def has_permission(user_groups, required_permission, username=None, user_dn=None):
     """
     Vérifier si un utilisateur a une permission spécifique.
-    Gère à la fois les nouvelles permissions granulaires et les anciennes (legacy).
+    Gère les nouvelles permissions granulaires, les anciennes (legacy),
+    et les sujets de type utilisateur ou OU.
 
     Args:
         user_groups: Liste des groupes AD de l'utilisateur
         required_permission: Permission requise (ex: 'users:create' ou 'write')
+        username: sAMAccountName de l'utilisateur (pour sujets de type 'user')
+        user_dn: DN complet de l'utilisateur (pour sujets de type 'ou')
 
     Returns:
         bool: True si l'utilisateur a la permission
     """
-    if not user_groups:
+    if not user_groups and not username:
         return False
 
-    # Vérifier si c'est une ancienne permission (legacy)
+    # Convertir les permissions legacy
     if required_permission in LEGACY_PERMISSION_MAPPING:
-        # Convertir vers les nouvelles permissions
-        required_permissions = LEGACY_PERMISSION_MAPPING[required_permission]
+        required_permissions = set(LEGACY_PERMISSION_MAPPING[required_permission])
     else:
-        # C'est déjà une nouvelle permission
-        required_permissions = [required_permission]
+        required_permissions = {required_permission}
 
-    # Vérifier chaque groupe de l'utilisateur
-    for group in user_groups:
-        group_perms = get_group_permissions(group, user_groups)
-        
-        # Vérifier si au moins une des permissions requises est présente
-        for perm in required_permissions:
-            if perm in group_perms:
+    permissions_data = load_permissions()
+    custom_groups = permissions_data.get('groups', {})
+
+    # Vérifier les entrées personnalisées (group, user, ou)
+    for subject_name, entry in custom_groups.items():
+        if not entry.get('enabled', True):
+            continue
+
+        subject_type = entry.get('subject_type', 'group')
+        matched = False
+
+        if subject_type == 'group':
+            matched = subject_name in (user_groups or [])
+        elif subject_type == 'user':
+            matched = bool(username) and username.lower() == subject_name.lower()
+        elif subject_type == 'ou':
+            matched = bool(user_dn) and subject_name.lower() in user_dn.lower()
+
+        if matched:
+            entry_perms = set(entry.get('permissions', []))
+            if entry_perms & required_permissions:
                 return True
-    
-    # Si aucune permission explicite, vérifier le rôle (pour compatibilité)
+
+    # Vérifier les rôles prédéfinis (type 'group' uniquement)
+    for group in (user_groups or []):
+        if group in PREDEFINED_ROLES:
+            role_perms = set(PREDEFINED_ROLES[group]['permissions'])
+            if role_perms & required_permissions:
+                return True
+
+    # Fallback rôle admin legacy
     from flask import session
-    user_role = session.get('user_role', 'reader')
-    if user_role == 'admin':
-        return True  # Les admins ont toutes les permissions par défaut
+    if session.get('user_role') == 'admin':
+        return True
 
     return False
 
@@ -251,62 +272,76 @@ def has_any_permission(user_groups, permissions):
 
 def get_all_groups_with_permissions():
     """
-    Obtenir tous les groupes avec leurs permissions.
-    
+    Obtenir tous les groupes (et sujets) avec leurs permissions.
+
     Returns:
-        dict: {group_name: {permissions: [], description: str, enabled: bool}}
+        dict: {subject_name: {permissions, description, enabled, custom, subject_type}}
     """
     permissions = load_permissions()
     result = {}
-    
-    # Groupes personnalisés
-    for group_name, group_data in permissions.get('groups', {}).items():
-        result[group_name] = {
+
+    # Entrées personnalisées (group / user / ou)
+    for subject_name, group_data in permissions.get('groups', {}).items():
+        result[subject_name] = {
             'permissions': group_data.get('permissions', []),
             'description': group_data.get('description', ''),
             'enabled': group_data.get('enabled', True),
+            'subject_type': group_data.get('subject_type', 'group'),
             'custom': True
         }
-    
-    # Groupes prédéfinis (si pas déjà dans personnalisés)
+
+    # Rôles prédéfinis (si pas déjà dans personnalisés)
     for group_name, role_data in PREDEFINED_ROLES.items():
         if group_name not in result:
             result[group_name] = {
                 'permissions': role_data['permissions'],
                 'description': role_data['description'],
                 'enabled': True,
+                'subject_type': 'group',
                 'custom': False
             }
-    
+
     return result
 
 
-def set_group_permissions(group_name, permissions_list, description='', enabled=True):
+def set_group_permissions(group_name, permissions_list, description='', enabled=True,
+                          subject_type='group', old_name=None):
     """
-    Définir les permissions d'un groupe.
-    
+    Définir les permissions d'un sujet (groupe, utilisateur ou OU).
+
     Args:
-        group_name: Nom du groupe AD
+        group_name: Nom/identifiant du sujet
         permissions_list: Liste des permissions
         description: Description du rôle
-        enabled: Groupe activé
-    
+        enabled: Entrée activée
+        subject_type: 'group' | 'user' | 'ou'
+        old_name: Ancien nom si renommage
+
     Returns:
         bool: True si sauvegardé avec succès
     """
     try:
         perms = load_permissions()
-        
+
         if 'groups' not in perms:
             perms['groups'] = {}
-        
+
+        # Supprimer l'ancienne entrée si renommage
+        if old_name and old_name != group_name and old_name in perms['groups']:
+            del perms['groups'][old_name]
+
+        # Valider subject_type
+        if subject_type not in ('group', 'user', 'ou'):
+            subject_type = 'group'
+
         perms['groups'][group_name] = {
-            'permissions': permissions_list,
+            'permissions': [p for p in permissions_list if p in ALL_PERMISSIONS],
             'description': description,
-            'enabled': enabled,
+            'enabled': bool(enabled),
+            'subject_type': subject_type,
             'updated': datetime.now().isoformat()
         }
-        
+
         save_permissions(perms)
         return True
     except Exception:
