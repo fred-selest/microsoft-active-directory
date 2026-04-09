@@ -444,14 +444,20 @@ def api_permissions():
     """API pour sauvegarder les permissions d'un sujet (groupe, utilisateur ou OU)."""
     from core.granular_permissions import set_group_permissions
     from core.audit import log_action, ACTIONS
+    from core.security import validate_csrf_token
+
+    # Validation CSRF
+    csrf_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token') or (request.get_json(silent=True) or {}).get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        return jsonify({'success': False, 'error': 'Token CSRF invalide ou manquant'}), 403
 
     data = request.get_json() if request.is_json else request.form
-    group_name = data.get('group_name', '').strip()
-    old_name = data.get('edit_name', '').strip() or None
-    permissions = data.get('permissions', [])
-    description = data.get('description', '')
+    group_name = (data.get('group_name') or '').strip()
+    old_name = (data.get('edit_name') or '').strip() or None
+    permissions = data.get('permissions') or []
+    description = (data.get('description') or '').strip()
     enabled = data.get('enabled', True)
-    subject_type = data.get('subject_type', 'group')
+    subject_type = (data.get('subject_type') or 'group').strip()
 
     if not group_name:
         return jsonify({'success': False, 'error': 'Nom du sujet requis'}), 400
@@ -552,6 +558,12 @@ def api_delete_permissions(group_name):
     """API pour supprimer les permissions d'un sujet."""
     from core.granular_permissions import delete_group_permissions
     from core.audit import log_action, ACTIONS
+    from core.security import validate_csrf_token
+
+    # Validation CSRF
+    csrf_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        return jsonify({'success': False, 'error': 'Token CSRF invalide ou manquant'}), 403
 
     try:
         ok = delete_group_permissions(group_name)
