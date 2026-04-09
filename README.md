@@ -10,7 +10,17 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.9 — Avril 2026
+**Dernière version :** v1.37.10 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.37.10
+
+### 🐛 Correction erreur API update
+- **API `/api/perform-update`** : retourne maintenant du JSON au lieu de HTML en cas d'erreur de permission
+- **Détection Content-Type** : le client vérifie le type de réponse avant de parser le JSON
+- **Messages d'erreur améliorés** : affichage clair de la permission requise en cas de refus
+- **Fix erreur "Unexpected token '<'"** : résolution du problème de parsing JSON
 
 ---
 
