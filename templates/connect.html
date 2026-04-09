@@ -5,7 +5,27 @@
 {% block content %}
 <div class="form-container">
     <h2>Connexion à Active Directory</h2>
-    
+
+    {% if show_fix_ldaps %}
+    <div class="alert alert-warning" style="border-left: 4px solid #dc3545;">
+        <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">⚠️ Connexion bloquée par les restrictions de sécurité</h4>
+        <p style="margin:0 0 1rem 0; font-size:0.9rem;">
+            Le serveur <strong>{{ server }}</strong> exige une authentification renforcée (LDAP signing / channel binding).
+            Cela est courant sur <strong>Windows Server 2025</strong> qui active ces restrictions par défaut.
+        </p>
+        <form method="post" action="{{ url_for('main.fix_ldap_channel_binding') }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning btn-lg"
+                    onclick="return confirm('Appliquer la correction LDAP ?\n\nCette action va :\n- Autoriser les connexions NTLM sur port 389\n- Désactiver l\'exigence de channel binding\n- Redémarrer le service AD DS\n\nNécessite des droits d\'administrateur.');">
+                🔧 Corriger automatiquement
+            </button>
+        </form>
+        <p style="margin:0.75rem 0 0 0; font-size:0.8rem; color:#666;">
+            Ou exécutez manuellement : <code>scripts\fix_ldap_channel_binding.ps1</code> en administrateur
+        </p>
+    </div>
+    {% endif %}
+
     {% if auto_detected %}
     <div class="alert alert-info">
         <strong>Domaine detecté :</strong> {{ auto_domain }}<br>

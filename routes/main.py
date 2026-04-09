@@ -32,16 +32,21 @@ def index():
 @main_bp.route('/connect', methods=['GET', 'POST'])
 def connect():
     """Connexion au serveur AD."""
+@main_bp.route('/connect', methods=['GET', 'POST'])
+def connect():
+    """Connexion au serveur AD."""
     if request.method == 'POST':
         if not validate_csrf_token(request.form.get('csrf_token')):
             flash('Token invalide.', 'error')
-            return render_template('connect.html', connected=is_connected())
+            return render_template('connect.html', connected=is_connected(),
+                                   show_fix_ldaps=False)
 
         ip = request.remote_addr
         allowed, remaining, attempts_left = check_rate_limit(ip)
         if not allowed:
             flash(f'Trop de tentatives. Réessayez dans {remaining}s.', 'error')
-            return render_template('connect.html', connected=is_connected())
+            return render_template('connect.html', connected=is_connected(),
+                                   show_fix_ldaps=False)
 
         server = request.form.get('server', '').strip()
         username = request.form.get('username', '').strip()
@@ -68,6 +73,7 @@ def connect():
             ad_cfg2 = detect_ad_config()
             detected_domain2 = ad_cfg2['domain'].split('.')[0].upper() if ad_cfg2.get('domain') else domain
             return render_template('connect.html', connected=is_connected(),
+                                   show_fix_ldaps=False,
                                    auto_domain=detected_domain2, auto_detected=False,
                                    server='', port=389,
                                    base_dn=ad_cfg2.get('base_dn', ''), use_ssl=False)
@@ -114,19 +120,103 @@ def connect():
         else:
             record_attempt(ip, success=False, action='login')
             log_action(ACTIONS['LOGIN'], username, {'error': error}, False, ip)
+
+            # Analyser l'erreur pour proposer une correction automatique
+            error_lower = (error or '').lower()
+            show_fix_ldaps = any(kw in error_lower for kw in [
+                'strongerauthrequired',
+                'channel binding',
+                '10054',
+                'forcibly closed',
+                'connection reset',
+            ])
+
+            # Stocker les infos pour le formulaire de reconnexion après correction
+            session['_connect_server'] = server
+            session['_connect_username'] = username
+            session['_connect_password'] = encrypt_password(password)
+            session['_connect_domain'] = domain
+            session['_connect_base_dn'] = base_dn
+
             flash(f'Erreur: {error}', 'error')
+            return render_template('connect.html', connected=is_connected(),
+                                   show_fix_ldaps=show_fix_ldaps,
+                                   auto_domain=domain or detected_domain,
+                                   auto_detected=auto_detected,
+                                   server=server, port=port or 389,
+                                   base_dn=base_dn, use_ssl=use_ssl)
 
     # GET : pré-remplir les champs via auto-détection
     ad_cfg = detect_ad_config()
     detected_domain = ad_cfg['domain'].split('.')[0].upper() if ad_cfg.get('domain') else ''
     auto_detected = ad_cfg.get('auto_detected', False) and bool(ad_cfg.get('server', ''))
+
+    suggest_ssl = request.args.get('suggest_ssl', '0') == '1'
+    use_ssl = True if suggest_ssl else ad_cfg.get('use_ssl', False)
+    port = 636 if suggest_ssl else ad_cfg.get('port', 389)
+
     return render_template('connect.html', connected=is_connected(),
+                           show_fix_ldaps=False,
                            auto_domain=detected_domain,
                            auto_detected=auto_detected,
                            server=ad_cfg.get('server', ''),
-                           port=ad_cfg.get('port', 389),
+                           port=port,
                            base_dn=ad_cfg.get('base_dn', ''),
-                           use_ssl=ad_cfg.get('use_ssl', False))
+                           use_ssl=use_ssl)
+
+
+@main_bp.route('/connect/fix-ldap-channel-binding', methods=['POST'])
+def fix_ldap_channel_binding():
+    """Executer le script de correction LDAP channel binding."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('main.connect'))
+
+    import subprocess
+    import os
+    import logging
+
+    logger = logging.getLogger('fix_ldap_cb')
+    script_path = os.path.join(os.path.dirname(__file__), '..', 'scripts', 'fix_ldap_channel_binding.ps1')
+
+    if not os.path.exists(script_path):
+        flash('Script de correction introuvable.', 'error')
+        return redirect(url_for('main.connect'))
+
+    try:
+        logger.info(f"Execution du script de correction LDAP: {script_path}")
+        result = subprocess.run(
+            ['powershell', '-ExecutionPolicy', 'Bypass', '-File', script_path],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        stdout = result.stdout or ''
+        stderr = result.stderr or ''
+
+        logger.info(f"Fix LDAP: returncode={result.returncode}")
+        logger.info(f"Fix LDAP: stdout={stdout[:500]}")
+
+        if 'SUCCESS' in stdout:
+            flash('Correction LDAP appliquee avec succes! Reessayez de vous connecter.', 'success')
+        elif 'PARTIAL' in stdout:
+            flash('Correction partiellement appliquee. Redemarrez le service AD DS manuellement, puis reessayez.', 'warning')
+        else:
+            error_msg = stderr if stderr else stdout
+            if 'Access is denied' in error_msg or 'access denied' in error_msg.lower():
+                flash('Erreur de permissions. Executez ce script en tant qu\'Administrateur.', 'error')
+            else:
+                flash(f'Erreur lors de la correction: {error_msg[:300]}', 'error')
+
+    except subprocess.TimeoutExpired:
+        logger.error("Fix LDAP: Timeout")
+        flash('Timeout lors de l\'execution du script.', 'error')
+    except Exception as e:
+        logger.error(f"Fix LDAP: Exception={e}", exc_info=True)
+        flash(f'Erreur: {str(e)}', 'error')
+
+    return redirect(url_for('main.connect'))
 
 
 @main_bp.route('/disconnect')

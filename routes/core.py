@@ -20,11 +20,22 @@ import logging
 logger = logging.getLogger('ad_core')
 config = get_config()
 
-# Configuration TLS sécurisée
+
+def _make_tls_context():
+    """
+    Creer un contexte SSL compatible Server 2022 et 2025.
+    Utilise ssl.create_default_context() (Python 3.10+) qui est stable sur 3.12.
+    Desactive la validation du certificat (certificats auto-signes sur DC).
+    """
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
 _tls_config = Tls(
+    context=_make_tls_context(),
     validate=ssl.CERT_NONE,
-    version=ssl.PROTOCOL_TLS,
-    ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
 )
 
 
@@ -154,6 +165,18 @@ def _is_invalid_credentials_error(error_msg):
     return 'invalidcredentials' in msg or 'error 49' in msg or '80090308' in msg
 
 
+def _is_channel_binding_error(error_msg):
+    """Vérifier si l'erreur est liée au channel binding / LDAP signing."""
+    msg = str(error_msg)
+    return 'strongerAuthRequired' in msg or 'stronger authentication' in msg.lower() or 'data 8009' in msg
+
+
+def _is_connection_reset(error_msg):
+    """Vérifier si la connexion a été rejetée (firewall, cert invalide, port fermé)."""
+    msg = str(error_msg)
+    return '10054' in msg or 'connection reset' in msg.lower() or 'forcibly closed' in msg.lower()
+
+
 def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
     """Créer un objet Server ldap3 avec le mode IP donné."""
     return Server(server, port=port, use_ssl=use_ssl,
@@ -238,6 +261,63 @@ def _try_connection(server, username, password):
     return None, '; '.join(errors)
 
 
+def _analyze_connection_errors(errors):
+    """
+    Analyser les erreurs de connexion et retourner un message d'aide contextuel.
+
+    Args:
+        errors: Chaîne des erreurs concaténées (retour de _try_connection)
+
+    Returns:
+        Tuple (message_utilisateur, suggestion_action)
+    """
+    errors_lower = errors.lower()
+    has_channel_binding = 'strongerauthrequired' in errors_lower
+    has_connection_reset = '10054' in errors_lower
+    has_starttls_fail = 'starttls' in errors_lower and 'failed' in errors_lower
+    has_ldaps_fail = 'ldaps' in errors_lower and ('10054' in errors_lower or 'ssl' in errors_lower)
+    has_ntlm_fail = 'ntlm' in errors_lower and not has_channel_binding
+
+    # Cas 1 : Channel binding requis sur NTLM, LDAPS rejeté
+    if has_channel_binding and has_connection_reset:
+        return (
+            "Le contrôleur de domaine exige une authentification renforcée (LDAP signing / channel binding).",
+            "Solutions :\n"
+            "  1. Activez LDAPS sur ce serveur (bouton 'Activer LDAPS' sur /users/create)\n"
+            "  2. Ou exécutez : scripts\\fix_ldap_signing.ps1 sur le DC\n"
+            "  3. Vérifiez que le certificat est valide sur le port 636"
+        )
+
+    # Cas 2 : Tout échoue, LDAPS rejeté (probablement pas configuré)
+    if has_ldaps_fail and has_starttls_fail and has_ntlm_fail:
+        return (
+            "Aucune méthode de connexion n'a fonctionné. Le serveur AD bloque LDAP standard et LDAPS n'est pas configuré.",
+            "Solution : Activez LDAPS sur ce contrôleur de domaine.\n"
+            "  • Bouton 'Activer LDAPS automatiquement' sur /users/create\n"
+            "  • Ou exécutez : scripts\\configure_ldaps.ps1 en administrateur"
+        )
+
+    # Cas 3 : LDAPS uniquement rejeté (NTLM pourrait marcher)
+    if has_connection_reset and not has_channel_binding:
+        return (
+            "La connexion LDAPS (port 636) est rejetée par le serveur distant.",
+            "Vérifiez :\n"
+            "  1. Test-NetConnection -Port 636 (port ouvert ?)\n"
+            "  2. Le certificat SSL est valide sur le DC\n"
+            "  3. Le pare-feu autorise le port 636"
+        )
+
+    # Cas 4 : Channel binding seul
+    if has_channel_binding:
+        return (
+            "Le serveur exige LDAP channel binding. La connexion NTLM standard est bloquée.",
+            "Connectez-vous en LDAPS (port 636, SSL activé) ou exécutez fix_ldap_signing.ps1 sur le DC."
+        )
+
+    # Cas par défaut
+    return (None, None)
+
+
 def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None):
     """Créer une connexion à Active Directory avec gestion des erreurs améliorée."""
     import logging
@@ -296,6 +376,13 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
 
     hint = " [MD4: executez fix_md4.ps1 pour activer le support NTLM]" if _is_md4_error(errors) else ""
     logger.error(f"Connexion échouée: {errors[:200]}")
+
+    # Analyse contextuelle des erreurs
+    suggestion_msg, suggestion_action = _analyze_connection_errors(errors)
+
+    if suggestion_msg:
+        return None, f"{suggestion_msg}\n\n{suggestion_action}"
+
     return None, f"Connexion impossible.{hint} Verifiez: 1) serveur AD, 2) ports 389/636, 3) identifiants\n{errors}"
 
 
