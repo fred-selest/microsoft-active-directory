@@ -10,7 +10,34 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.10 — Avril 2026
+**Dernière version :** v1.38.0 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.38.0
+
+### 🔑 Permissions — Autocomplete AD en temps réel
+- **Recherche LDAP en direct** — en tapant dans le champ, l'appli interroge LDAP et propose les groupes, utilisateurs et OUs correspondants
+- **Support élargi** — autocomplete pour les groupes, les utilisateurs et les OUs
+- **Correction du bug de sauvegarde silencieuse** — l'API retourne maintenant `{"success": true}` au lieu de `true` brut
+- **Sujet user et OU** — ajout du support des utilisateurs et OUs en plus des groupes
+
+### ⚡ Mise à jour différentielle & Robustesse
+- **Mise à jour différentielle (SHA GitHub)** — télécharge seulement les fichiers modifiés, pas tout le repo
+- **Backup automatique avant écrasement** — sauvegarde de sécurité + rollback automatique si le healthcheck échoue
+- **Watchdog en arrière-plan** — surveillance continue : disque, LDAP, dépendances, rotation des logs
+- **Barre de progression réelle** — feedback visuel précis sur la page de mise à jour
+- **Messages d'erreur détaillés** — affichage clair en cas d'échec de la mise à jour web
+- **Mise à jour via WinSW restart** — remplace `os.execl` pour un restart fiable du service Windows
+
+### 🛠️ Corrections & Améliorations
+- **Titre centré dans la topbar** — amélioration visuelle
+- **Colonne OU tronquée avec ellipsis** — affichage propre des longs DN
+- **Script `sync_check.ps1`** — détecte la dérive entre les deux serveurs (versions, fichiers)
+- **Correction `UnboundLocalError auto_detected`** — crash dans `routes/main.py` lors d'échec de connexion (`auto_detected` non initialisé dans le bloc POST)
+- **Correction `disabled_features` manquante** — erreur dans `admin.html`
+- **`install_standalone.ps1` compatible WinSW/NSSM** — corrections de compatibilité service Windows
+- **`sync_check.ps1` compatible Windows** — correction encodage (CRLF, ASCII pur sans BOM) pour éviter les erreurs de parsing PowerShell
 
 ---
 
