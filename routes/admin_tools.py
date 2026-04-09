@@ -72,7 +72,8 @@ def _fetch_github_releases(limit=10):
     releases = []
     try:
         url = "https://api.github.com/repos/fred-selest/microsoft-active-directory/tags"
-        with urllib.request.urlopen(url, timeout=8) as r:
+        req = urllib.request.Request(url, headers={'User-Agent': 'AD-WebInterface/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as r:
             tags = json_mod.loads(r.read().decode('utf-8'))[:limit]
 
         for tag in tags:
