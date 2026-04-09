@@ -240,38 +240,85 @@ function New-WindowsService {
 
     Write-Info "Creation du service Windows..."
 
-    # Verifier si le service existe deja
+    # Detecter l'executable (WinSW ou NSSM)
+    $winswExe = Join-Path $Path "nssm\ADWebInterface.exe"
+    $nssmExe = Join-Path $Path "nssm\nssm.exe"
+    $serviceExe = $null
+    $isWinSW = $false
+
+    if (Test-Path $winswExe) {
+        $serviceExe = $winswExe
+        $isWinSW = $true
+        Write-Info "Executable detecte: WinSW (ADWebInterface.exe)"
+    }
+    elseif (Test-Path $nssmExe) {
+        $serviceExe = $nssmExe
+        Write-Info "Executable detecte: NSSM (nssm.exe)"
+    }
+    else {
+        Write-Warning "Aucun gestionnaire de service trouve dans nssm/"
+        Write-Info "Utilisez: sc.exe create $ServiceName binPath= `"`"$Path\venv\Scripts\python.exe`" `"$Path\run.py`"`" start= auto"
+        return $false
+    }
+
+    # Supprimer le service existant
     $existingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
     if ($existingService) {
         Write-Info "Service existant detecte - Suppression..."
-        Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
-        sc.exe delete $ServiceName | Out-Null
+        if ($isWinSW) {
+            & $serviceExe stop 2>$null
+            Start-Sleep -Seconds 2
+            & $serviceExe uninstall 2>$null
+        }
+        else {
+            Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
+            & $serviceExe remove $ServiceName confirm 2>$null
+        }
         Start-Sleep -Seconds 2
     }
 
     try {
         $pythonPath = Join-Path $Path "venv\Scripts\python.exe"
         $runPath = Join-Path $Path "run.py"
-        $nssmPath = Join-Path $Path "nssm\nssm.exe"
+        $openSslCnf = Join-Path $Path "openssl_legacy.cnf"
 
-        if (Test-Path $nssmPath) {
-            # Utiliser NSSM
-            & $nssmPath install $ServiceName $pythonPath $runPath
-            & $nssmPath set $ServiceName AppDirectory $Path
-            & $nssmPath set $ServiceName DisplayName $AppName
-            & $nssmPath set $ServiceName Description "Interface web d'administration Active Directory"
-            & $nssmPath set $ServiceName Start SERVICE_AUTO_START
-            & $nssmPath set $ServiceName AppStdout (Join-Path $Path "logs\server.log")
-            & $nssmPath set $ServiceName AppStderr (Join-Path $Path "logs\error.log")
-            $openSslCnf = Join-Path $Path "openssl_legacy.cnf"
+        if ($isWinSW) {
+            # WinSW: XML-based config
+            $xmlPath = Join-Path $Path "nssm\ADWebInterface.xml"
+            $xmlContent = @"
+<service>
+    <id>$ServiceName</id>
+    <name>$AppName</name>
+    <description>Interface web d'administration Active Directory</description>
+    <executable>$pythonPath</executable>
+    <argument>$runPath</argument>
+    <logmode>reset</logmode>
+    <onfailure action="restart" delay="5000"/>
+    <workingdirectory>$Path</workingdirectory>
+    <env name="OPENSSL_CONF" value="$openSslCnf"/>
+</service>
+"@
+            Set-Content -Path $xmlPath -Value $xmlContent -Encoding UTF8
+            Write-Success "Configuration WinSW creee: $xmlPath"
+
+            & $serviceExe install
+            Start-Sleep -Seconds 2
+            Write-Success "Service Windows cree avec WinSW"
+        }
+        else {
+            # NSSM classique
+            & $serviceExe install $ServiceName $pythonPath $runPath
+            & $serviceExe set $ServiceName AppDirectory $Path
+            & $serviceExe set $ServiceName DisplayName $AppName
+            & $serviceExe set $ServiceName Description "Interface web d'administration Active Directory"
+            & $serviceExe set $ServiceName Start SERVICE_AUTO_START
+            & $serviceExe set $ServiceName AppStdout (Join-Path $Path "logs\server.log")
+            & $serviceExe set $ServiceName AppStderr (Join-Path $Path "logs\error.log")
             if (Test-Path $openSslCnf) {
-                & $nssmPath set $ServiceName AppEnvironmentExtra "OPENSSL_CONF=$openSslCnf"
+                & $serviceExe set $ServiceName AppEnvironmentExtra "OPENSSL_CONF=$openSslCnf"
                 Write-Info "OPENSSL_CONF configure (support MD4/NTLM)"
             }
             Write-Success "Service Windows cree avec NSSM"
-        } else {
-            Write-Warning "NSSM non trouve, creation manuelle requise"
-            Write-Info "Utilisez: sc.exe create $ServiceName binPath= `"$pythonPath $runPath`" start= auto"
         }
 
         return $true
