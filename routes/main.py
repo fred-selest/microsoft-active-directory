@@ -32,9 +32,6 @@ def index():
 @main_bp.route('/connect', methods=['GET', 'POST'])
 def connect():
     """Connexion au serveur AD."""
-@main_bp.route('/connect', methods=['GET', 'POST'])
-def connect():
-    """Connexion au serveur AD."""
     if request.method == 'POST':
         if not validate_csrf_token(request.form.get('csrf_token')):
             flash('Token invalide.', 'error')
