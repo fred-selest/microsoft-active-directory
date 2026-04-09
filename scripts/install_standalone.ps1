@@ -20,7 +20,7 @@ param(
 # ==============================================================================
 
 $ErrorActionPreference = "Stop"
-$AppName = "AD Web Interface"
+$AppName = "Interface Web Active Directory"
 $ServiceName = "ADWebInterface"
 
 # ==============================================================================
@@ -263,6 +263,11 @@ function New-WindowsService {
             & $nssmPath set $ServiceName Start SERVICE_AUTO_START
             & $nssmPath set $ServiceName AppStdout (Join-Path $Path "logs\server.log")
             & $nssmPath set $ServiceName AppStderr (Join-Path $Path "logs\error.log")
+            $openSslCnf = Join-Path $Path "openssl_legacy.cnf"
+            if (Test-Path $openSslCnf) {
+                & $nssmPath set $ServiceName AppEnvironmentExtra "OPENSSL_CONF=$openSslCnf"
+                Write-Info "OPENSSL_CONF configure (support MD4/NTLM)"
+            }
             Write-Success "Service Windows cree avec NSSM"
         } else {
             Write-Warning "NSSM non trouve, creation manuelle requise"

@@ -1,7 +1,7 @@
 # 🔐 Sécurité - AD Web Interface
 
 **Dernière mise à jour**: Avril 2026  
-**Version**: 1.37.1
+**Version**: 1.37.2
 
 ## Résumé Exécutif
 

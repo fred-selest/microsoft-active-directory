@@ -31,7 +31,7 @@ config = get_config()
 # Configuration Flask
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['DEBUG'] = config.DEBUG
-app.config['PERMANENT_SESSION_LIFETIME'] = config.SESSION_TIMEOUT
+app.config['PERMANENT_SESSION_LIFETIME'] = config.PERMANENT_SESSION_LIFETIME
 
 # Debug mode
 if config.DEBUG:
@@ -44,6 +44,7 @@ secure_session = get_secure_session_config()
 app.config['SESSION_COOKIE_SECURE'] = secure_session['SESSION_COOKIE_SECURE']
 app.config['SESSION_COOKIE_HTTPONLY'] = secure_session['SESSION_COOKIE_HTTPONLY']
 app.config['SESSION_COOKIE_SAMESITE'] = secure_session['SESSION_COOKIE_SAMESITE']
+app.config['SESSION_COOKIE_NAME'] = secure_session['SESSION_COOKIE_NAME']
 
 # Initialisation
 config.init_directories()
