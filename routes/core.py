@@ -177,16 +177,26 @@ def _try_connection(server, username, password):
         try:
             srv = _make_server(server, port, use_ssl)
             conn = Connection(srv, user=user, password=password, authentication=auth, auto_bind=False)
-            
+
             if starttls:
                 conn.open()
                 conn.start_tls(_tls_config)
-            
+
             if conn.bind():
                 session['ad_use_ssl'] = use_ssl
                 session['ad_starttls'] = starttls
                 session['ad_port'] = port
                 return conn, None
+            else:
+                # bind() a retourné False sans exception — récupérer la raison LDAP
+                result_desc = 'bind failed'
+                if conn.result:
+                    result_desc = (conn.result.get('description')
+                                   or conn.result.get('message')
+                                   or f"code {conn.result.get('result', '?')}")
+                errors.append(f"{label}: {result_desc[:80]}")
+                if _is_invalid_credentials_error(result_desc):
+                    return None, "Identifiants incorrects (vérifiez login/mot de passe)"
 
         except Exception as e:
             err_str = str(e)
@@ -206,9 +216,16 @@ def _try_connection(server, username, password):
                         session['ad_starttls'] = starttls
                         session['ad_port'] = port
                         return conn, None
+                    else:
+                        result_desc = 'bind failed'
+                        if conn.result:
+                            result_desc = (conn.result.get('description')
+                                           or conn.result.get('message')
+                                           or f"code {conn.result.get('result', '?')}")
+                        err_str = result_desc
                 except Exception as e2:
                     err_str = str(e2)
-            
+
             errors.append(f"{label}: {err_str[:80]}")
             if label == "NTLM" and _is_md4_error(err_str):
                 continue  # Essayer STARTTLS

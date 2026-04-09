@@ -152,9 +152,9 @@ def detect_ad_config() -> dict:
         result['server'] = servers[0]
         logger.info(f"Serveur AD detecte: {result['server']} (domaine: {domain})")
         
-        # 3. Prioriser LDAPS (port 636) si disponible
+        # 3. Prioriser LDAPS (port 636) si le handshake TLS réussit
         for server in servers:
-            if test_ldap_connection(server, 636):
+            if test_ldaps_tls(server):
                 result['port'] = 636
                 result['use_ssl'] = True
                 logger.info(f"LDAPS prioritaire detecte sur {server}:636")
@@ -172,12 +172,12 @@ def detect_ad_config() -> dict:
 def test_ldap_connection(server: str, port: int = 389, timeout: int = 2) -> bool:
     """
     Tester rapidement si un port LDAP est ouvert.
-    
+
     Args:
         server: Adresse du serveur
         port: Port à tester
         timeout: Délai d'attente en secondes
-        
+
     Returns:
         True si le port est ouvert
     """
@@ -188,6 +188,32 @@ def test_ldap_connection(server: str, port: int = 389, timeout: int = 2) -> bool
         sock.close()
         return result == 0
     except:
+        return False
+
+
+def test_ldaps_tls(server: str, timeout: int = 3) -> bool:
+    """
+    Vérifier que LDAPS fonctionne réellement (handshake TLS complet).
+    Un port 636 ouvert en TCP ne suffit pas — le DC doit avoir un certificat
+    et accepter la négociation TLS, sinon la connexion est reset (WinError 10054).
+
+    Args:
+        server: Adresse du serveur
+        timeout: Délai d'attente en secondes
+
+    Returns:
+        True si le handshake TLS réussit
+    """
+    import ssl
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        sock = socket.create_connection((server, 636), timeout=timeout)
+        with ctx.wrap_socket(sock, server_hostname=server):
+            pass
+        return True
+    except Exception:
         return False
 
 
