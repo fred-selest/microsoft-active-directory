@@ -50,11 +50,28 @@ nssm/**/*.log
 start
 $null
 
-# Markdown (sauf README)
+# Documentation (uniquement README et fichiers essentiels)
 *.md
 !README.md
+!QWEN.md
 !*/README.md
-SCRIPTS_MANAGER.md
+!scripts/SIGNATURE_GUIDE.md
+
+# Ancienne documentation (obsolète)
+DEBUG_GUIDE.md
+DEPLOYMENT_CHECKLIST.md
+GUIDE_INSTALLATION_WINDOWS.md
+GUIDE_PERSONNALISATION.md
+GUIDE_TEST_RESPONSIVE.md
+INSTALL_AD_SERVER.md
+MODULARITE.md
+PROPOSITIONS_AMELIORATIONS.md
+README_DOCUMENTATION.md
+SECURITY.md
+CHANGELOG.md
+
+# Backup directories
+backup_pre_update/
 
 # Certificates
 scripts/codesign.*
