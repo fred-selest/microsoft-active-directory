@@ -287,10 +287,20 @@ def api_perform_update():
     from core.updater import perform_fast_update
 
     def delayed_restart():
-        time.sleep(2)
-        import sys
+        time.sleep(3)
+        import subprocess
         import os
-        os.execl(sys.executable, sys.executable, 'run.py')
+        # Redémarrage via WinSW (compatible service Windows)
+        nssm_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'nssm')
+        nssm_exe = os.path.join(nssm_dir, 'ADWebInterface.exe')
+        if os.path.exists(nssm_exe):
+            try:
+                subprocess.run([nssm_exe, 'restart'], capture_output=True, timeout=30)
+            except Exception:
+                # Fallback: exit forcer WinSW à redémarrer
+                os._exit(0)
+        else:
+            os._exit(0)
 
     try:
         result = perform_fast_update()
