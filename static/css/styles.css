@@ -479,9 +479,15 @@ body.dark-mode .badge-secondary { background: var(--gray-200); color: var(--text
 }
 
 .quick-actions {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: var(--spacing-sm);
+}
+
+.quick-actions .btn {
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .charts-grid {

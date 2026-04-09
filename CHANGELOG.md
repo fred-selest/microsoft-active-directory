@@ -4,6 +4,14 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 
+## [1.37.7] - 2026-04-09
+
+### Corrigé
+
+- **Dashboard — Accès rapide** : boutons qui débordent du conteneur. Remplacement du `flex` par un `grid` (`auto-fill, minmax(170px, 1fr)`) pour une répartition uniforme quelle que soit la largeur. Sur mobile : 2 colonnes.
+
+---
+
 ## [1.37.6] - 2026-04-09
 
 ### Corrigé

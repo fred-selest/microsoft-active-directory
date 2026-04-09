@@ -720,22 +720,24 @@ html {
 }
 
 .quick-actions {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 10px;
 }
 
 .quick-actions .btn {
-    flex: 0 0 auto;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
 }
 
 @media (max-width: 768px) {
     .dashboard-section {
         margin-bottom: 20px;
     }
-    
+
     .quick-actions {
-        flex-direction: column;
+        grid-template-columns: 1fr 1fr;
     }
     
     .quick-actions .btn {
