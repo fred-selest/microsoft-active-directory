@@ -40,6 +40,33 @@ GITHUB_RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRAN
 # Racine du projet = parent de core/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# Token GitHub optionnel (contourne la rate limit de 60 req/h → 5000 req/h)
+# Lire depuis .env ou variable d'environnement
+def _get_github_token():
+    """Lire le token GitHub depuis GITHUB_TOKEN (.env ou variable d'environnement)."""
+    import os
+    token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GITHUB_API_TOKEN')
+    if not token:
+        env_file = PROJECT_ROOT / '.env'
+        if env_file.exists():
+            for line in env_file.read_text(encoding='utf-8').splitlines():
+                line = line.strip()
+                if line.startswith('GITHUB_TOKEN=') and not line.startswith('#'):
+                    token = line.split('=', 1)[1].strip().strip('"').strip("'")
+                    break
+    return token
+
+def _github_api_headers():
+    """Headers pour les requêtes GitHub API, avec token si disponible."""
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'AD-WebInterface-Updater'
+    }
+    token = _get_github_token()
+    if token:
+        headers['Authorization'] = f'token {token}'
+    return headers
+
 # Manifeste et backup
 MANIFEST_FILE = PROJECT_ROOT / "data" / "update_manifest.json"
 BACKUP_DIR = PROJECT_ROOT / "data" / "backups" / "pre_update"
@@ -150,20 +177,14 @@ def get_file_list():
         try:
             # Obtenir le SHA du dernier commit
             url = f"{GITHUB_API_BASE}/branches/{GITHUB_BRANCH}"
-            req = urllib.request.Request(url, headers={
-                'Accept': 'application/vnd.github.v3+json',
-                'User-Agent': 'AD-WebInterface-Updater'
-            })
+            req = urllib.request.Request(url, headers=_github_api_headers())
             with urllib.request.urlopen(req, timeout=15) as r:
                 data = json.loads(r.read())
                 commit_sha = data['commit']['sha']
 
             # Obtenir l'arbre des fichiers avec SHA et taille
             tree_url = f"{GITHUB_API_BASE}/git/trees/{commit_sha}?recursive=1"
-            req = urllib.request.Request(tree_url, headers={
-                'Accept': 'application/vnd.github.v3+json',
-                'User-Agent': 'AD-WebInterface-Updater'
-            })
+            req = urllib.request.Request(tree_url, headers=_github_api_headers())
             with urllib.request.urlopen(req, timeout=30) as r:
                 tree = json.loads(r.read())
                 files = [
