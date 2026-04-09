@@ -10,7 +10,18 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.1 — Avril 2026
+**Dernière version :** v1.37.2 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.37.2
+
+### 🐛 Corrections de cohérence
+- **Session timeout** : corrigé de 30 secondes à 30 minutes (`app.py` utilisait la valeur en minutes au lieu de secondes)
+- **Sécurité installateur DC** : `DEFAULT_ROLE=reader` dans `install_ad.ps1` (était `admin` — risque élévation de privilèges)
+- **OPENSSL_CONF** : configuré automatiquement dans `install_standalone.ps1` (support NTLM/MD4 Python 3.12+)
+- **Routes API protégées** : `@require_connection` ajouté sur 6 routes non protégées dont `/api/perform-update`
+- **`SESSION_COOKIE_NAME`** : désormais appliqué correctement dans Flask (`ad_session` au lieu du nom par défaut)
 
 ---
 

@@ -5,6 +5,43 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.37.2] - 2026-04-09
+
+### Corrigé
+
+- **⏱️ Timeout de session : 30 secondes au lieu de 30 minutes** (`app.py`)
+  - `PERMANENT_SESSION_LIFETIME` était assigné avec la valeur en minutes (`30`) alors que Flask attend des secondes
+  - Les sessions expiraient après 30 secondes, forçant les utilisateurs à se reconnecter en permanence
+  - Correction : utilisation de `config.PERMANENT_SESSION_LIFETIME` (déjà calculé en secondes dans `config.py`)
+
+- **🔒 Sécurité : DEFAULT_ROLE=admin dans l'installateur DC** (`scripts/install_ad.ps1`)
+  - L'installateur pour contrôleur de domaine générait un `.env` avec `DEFAULT_ROLE=admin`
+  - Tout utilisateur AD authentifié obtenait les droits administrateur complets par défaut
+  - Correction : `DEFAULT_ROLE=reader` (principe du moindre privilège, cohérent avec `config.py`)
+
+- **🔧 OPENSSL_CONF manquant dans install_standalone.ps1**
+  - Le service installé via `install_standalone.ps1` n'héritait pas de `OPENSSL_CONF`
+  - NTLM/MD4 non fonctionnel sur Python 3.12+ avec cet installateur
+  - Correction : ajout de `AppEnvironmentExtra OPENSSL_CONF` via NSSM si `openssl_legacy.cnf` est présent
+
+- **🔐 Routes API non protégées** (`routes/api.py`)
+  - `/api/alerts`, `/api/perform-update`, `/api/errors` et 3 autres routes accessibles sans authentification
+  - `/api/perform-update` permettait de redémarrer l'application sans session valide
+  - Correction : `@require_connection` (et `@require_permission('admin')` pour les routes critiques) ajoutés
+
+- **📝 Incohérences de configuration** (`.env.example`, `install_service.bat`, `app.py`)
+  - `.env.example` proposait `FLASK_DEBUG=true` / `FLASK_ENV=development` en contradiction avec la production
+  - `install_service.bat` ne générait pas `SESSION_TIMEOUT=30` dans le `.env`
+  - `SESSION_COOKIE_NAME` retourné par `get_secure_session_config()` n'était jamais appliqué à Flask
+
+### Corrigé (mineur)
+
+- `AppName` dans `install_standalone.ps1` harmonisé : `Interface Web Active Directory` (cohérent avec les autres installateurs)
+- `VERSION` mis à jour vers `1.37.2`
+- Variable morte `_api_keys_store` supprimée de `routes/tools/misc.py`
+
+---
+
 ## [1.37.1] - 2026-04-08
 
 ### Corrigé

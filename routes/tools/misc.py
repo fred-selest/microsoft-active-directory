@@ -55,10 +55,6 @@ def toggle_favorite():
     return render_template('favorites_page.html', connected=True)
 
 
-# Stockage des clés API (en mémoire - à remplacer par une base de données)
-_api_keys_store = {}
-
-
 @tools_bp.route('/api-docs')
 @require_connection
 @require_permission('admin')

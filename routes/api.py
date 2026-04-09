@@ -224,6 +224,7 @@ def api_password_audit_quick_fix():
 
 
 @api_bp.route('/alerts')
+@require_connection
 def api_get_alerts():
     """API pour récupérer les alertes."""
     from core.alerts import get_all_alerts
@@ -233,6 +234,7 @@ def api_get_alerts():
 
 
 @api_bp.route('/alerts/<alert_id>/acknowledge', methods=['POST'])
+@require_connection
 def api_acknowledge_alert(alert_id):
     """API pour acquitter une alerte."""
     from core.alerts import acknowledge_alert
@@ -243,6 +245,7 @@ def api_acknowledge_alert(alert_id):
 
 
 @api_bp.route('/alerts/<alert_id>/delete', methods=['POST'])
+@require_connection
 def api_delete_alert(alert_id):
     """API pour supprimer une alerte."""
     from core.alerts import delete_alert
@@ -253,6 +256,7 @@ def api_delete_alert(alert_id):
 
 
 @api_bp.route('/alerts/check', methods=['POST'])
+@require_connection
 def api_check_alerts():
     """API pour vérifier les alertes."""
     from core.alerts import run_full_alert_check
@@ -274,6 +278,8 @@ def api_check_update():
 
 
 @api_bp.route('/perform-update', methods=['POST'])
+@require_connection
+@require_permission('admin')
 def api_perform_update():
     """API pour effectuer une mise à jour."""
     import threading
@@ -297,6 +303,8 @@ def api_perform_update():
 
 
 @api_bp.route('/errors')
+@require_connection
+@require_permission('admin')
 def api_error_logs():
     """API pour récupérer les logs d'erreurs."""
     import os
