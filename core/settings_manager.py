@@ -65,7 +65,8 @@ DEFAULT_SETTINGS = {
         'update_check': True,
         'pwa_enabled': True,
         'custom_logo': False,
-        'show_footer': True
+        'show_footer': True,
+        'users_column_chooser': True,
     },
     'security': {
         'session_timeout': 30,  # minutes

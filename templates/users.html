@@ -7,21 +7,56 @@
     <h2>Utilisateurs Active Directory</h2>
     <div class="header-actions">
         <a href="{{ url_for('users.create_user') }}" class="btn btn-primary">➕ Nouvel utilisateur</a>
-        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">📋 Tous les utilisateurs</a>
     </div>
 </div>
 
-<div class="search-box">
-    <form method="get" action="{{ url_for('users.list_users') }}">
-        <div class="form-group">
-            <input type="text" name="search" placeholder="Rechercher un utilisateur..."
+<!-- Barre de filtres -->
+<div class="filters-bar">
+    <form method="get" action="{{ url_for('users.list_users') }}" class="filters-form">
+        <div class="filter-group">
+            <label for="search">🔍 Recherche</label>
+            <input type="text" id="search" name="search" placeholder="Nom, identifiant, email…"
                    value="{{ search }}" class="form-control">
         </div>
-        <button type="submit" class="btn btn-secondary">Rechercher</button>
-        {% if search %}
-        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Effacer</a>
-        {% endif %}
+        <div class="filter-group">
+            <label for="ou_filter">📁 Unité d'organisation</label>
+            <select id="ou_filter" name="ou" class="form-control">
+                <option value="">— Toutes les OUs —</option>
+                {% for ou in ous %}
+                <option value="{{ ou.dn }}" {% if ou_filter == ou.dn %}selected{% endif %}>{{ ou.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="status">📊 Statut</label>
+            <select id="status" name="status" class="form-control">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Tous</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Actifs</option>
+                <option value="disabled" {% if status_filter == 'disabled' %}selected{% endif %}>Désactivés</option>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">Filtrer</button>
+            {% if search or ou_filter or status_filter != 'all' %}
+            <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">✖ Réinitialiser</a>
+            {% endif %}
+        </div>
     </form>
+
+    {% if column_chooser_enabled %}
+    <div class="column-chooser">
+        <details>
+            <summary>👁️ Colonnes visibles</summary>
+            <div class="column-checkboxes">
+                <label><input type="checkbox" data-col="col-email" checked> Email</label>
+                <label><input type="checkbox" data-col="col-department" checked> Service</label>
+                <label><input type="checkbox" data-col="col-lastlogon" checked> Dernière connexion</label>
+                <label><input type="checkbox" data-col="col-created" checked> Créé le</label>
+                <label><input type="checkbox" data-col="col-ou" checked> OU</label>
+            </div>
+        </details>
+    </div>
+    {% endif %}
 </div>
 
 <div class="table-container">
@@ -31,10 +66,11 @@
                 <th><input type="checkbox" id="select-all-users" onchange="toggleAllUsers(this)"></th>
                 <th>Nom d'affichage</th>
                 <th>Identifiant</th>
-                <th>Email</th>
-                <th class="hide-mobile">Service</th>
-                <th class="hide-mobile">Fonction</th>
-                <th>OU</th>
+                <th class="hide-mobile col-email">Email</th>
+                <th class="hide-tablet col-department">Service</th>
+                <th class="hide-tablet col-lastlogon">Dernière connexion</th>
+                <th class="hide-tablet col-created">Créé le</th>
+                <th class="hide-mobile col-ou">OU</th>
                 <th>Statut</th>
                 <th data-no-sort>Actions</th>
             </tr>
@@ -48,10 +84,23 @@
                     <div class="mobile-only"><small class="text-muted">{{ user.sAMAccountName }}</small></div>
                 </td>
                 <td>{{ user.sAMAccountName }}</td>
-                <td>{{ user.mail or '-' }}</td>
-                <td class="hide-mobile">{{ user.department or '-' }}</td>
-                <td class="hide-mobile">{{ user.title or '-' }}</td>
-                <td>
+                <td class="hide-mobile col-email">{{ user.mail or '-' }}</td>
+                <td class="hide-tablet col-department">{{ user.department or '-' }}</td>
+                <td class="hide-tablet col-lastlogon">
+                    {% if user.lastLogon %}
+                    <span title="{{ user.lastLogon.strftime('%d/%m/%Y %H:%M') }}">{{ user.lastLogon.strftime('%d/%m/%Y') }}</span>
+                    {% else %}
+                    <span class="text-muted">Jamais</span>
+                    {% endif %}
+                </td>
+                <td class="hide-tablet col-created">
+                    {% if user.whenCreated %}
+                    {{ user.whenCreated.strftime('%d/%m/%Y') }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td class="hide-mobile col-ou">
                     <small class="ou-path">{{ user.dn.split(',')[-2:] | join(',') }}</small>
                 </td>
                 <td>
@@ -73,7 +122,7 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="action" value="{{ 'enable' if user.disabled else 'disable' }}">
                         </form>
-                        <button type="button" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}" 
+                        <button type="button" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}"
                                 title="{{ 'Activer' if user.disabled else 'Désactiver' }}"
                                 onclick="document.getElementById('toggle-form-{{ loop.index }}').submit();">
                             {{ '✅' if user.disabled else '⏸️' }}
@@ -93,7 +142,13 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="9" class="text-center">Aucun utilisateur trouvé.</td>
+                <td colspan="10" class="text-center">
+                    {% if search or ou_filter or status_filter != 'all' %}
+                    Aucun utilisateur ne correspond aux filtres.
+                    {% else %}
+                    Aucun utilisateur trouvé.
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -153,6 +208,50 @@
     display: flex;
     gap: 0.5rem;
 }
+
+/* ── Filtres ──────────────────────────────────────────────────── */
+.filters-bar {
+    background: var(--bg-secondary, #fff);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: var(--border-radius, 6px);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+.filters-form {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+}
+.filter-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary, #555);
+    margin-bottom: 0.25rem;
+}
+.filter-group .form-control {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    background: var(--bg-primary, #f5f5f5);
+    color: var(--text-primary, #1b1b1b);
+}
+.filter-group .form-control:focus {
+    outline: none;
+    border-color: var(--primary, #0078d4);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.15);
+}
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+/* ── Tableau ──────────────────────────────────────────────────── */
 .pagination {
     display: flex;
     gap: 0.25rem;
@@ -187,9 +286,56 @@
     color: #0078d4;
 }
 
-/* Responsive Mobile */
+/* ── Column Chooser ──────────────────────────────────────────── */
+.column-chooser {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color, #e0e0e0);
+}
+.column-chooser details summary {
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary, #0078d4);
+}
+.column-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-primary, #f5f5f5);
+    border-radius: 4px;
+}
+.column-checkboxes label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.column-checkboxes input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+/* Column hidden by JS toggle */
+.col-hidden {
+    display: none !important;
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 768px) {
+    .filters-form {
+        grid-template-columns: 1fr;
+    }
+    .filter-actions {
+        justify-content: flex-start;
+    }
     .hide-mobile {
+        display: none;
+    }
+    .hide-tablet {
         display: none;
     }
     .mobile-only {
@@ -220,6 +366,12 @@
     }
 }
 
+@media (min-width: 769px) and (max-width: 1024px) {
+    .hide-tablet {
+        display: none;
+    }
+}
+
 @media (min-width: 769px) {
     .mobile-only {
         display: none;
@@ -227,24 +379,27 @@
 }
 
 .ou-path {
-    color: var(--text-secondary);
+    color: var(--text-secondary, #666);
     font-size: 0.75rem;
     word-break: break-all;
 }
 
-/* Action buttons with icons */
 .actions .btn-sm {
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
 }
 
-/* Mobile optimizations */
+.text-muted {
+    color: var(--text-secondary, #999);
+    font-size: 0.8rem;
+}
+
 @media (max-width: 768px) {
     .data-table td:nth-child(2) strong {
         font-size: 0.9375rem;
     }
     .mobile-only small {
-        color: var(--text-secondary);
+        color: var(--text-secondary, #666);
         font-size: 0.8125rem;
     }
     .badge {
@@ -254,6 +409,17 @@
     .actions {
         min-width: 180px;
     }
+}
+
+/* Dark mode */
+body.dark-mode .filters-bar {
+    background: var(--dark-bg-secondary, #1a1a2e);
+    border-color: var(--dark-border, #3a3a5a);
+}
+body.dark-mode .filter-group .form-control {
+    background: var(--dark-bg-primary, #0f0f1a);
+    border-color: var(--dark-border, #3a3a5a);
+    color: var(--dark-text-primary, #f0f0f5);
 }
 </style>
 {% endblock %}
@@ -271,6 +437,58 @@
             }, 500);
         });
     }
+})();
+
+// ── Column Chooser ──
+(function() {
+    const STORAGE_KEY = 'users_visible_columns';
+    const defaults = {
+        'col-email': true,
+        'col-department': true,
+        'col-lastLogon': true,
+        'col-created': true,
+        'col-ou': true
+    };
+
+    // Load saved state
+    let saved = {};
+    try {
+        saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch(e) {}
+
+    // Merge with defaults
+    const state = Object.assign({}, defaults, saved);
+
+    // Apply state on load
+    Object.keys(state).forEach(function(col) {
+        if (!state[col]) {
+            document.querySelectorAll('.' + col).forEach(function(el) {
+                el.classList.add('col-hidden');
+            });
+        }
+    });
+
+    // Sync checkboxes
+    document.querySelectorAll('.column-checkboxes input[data-col]').forEach(function(cb) {
+        const col = cb.getAttribute('data-col');
+        cb.checked = state[col] !== false;
+
+        cb.addEventListener('change', function() {
+            const c = this.getAttribute('data-col');
+            const visible = this.checked;
+            state[c] = visible;
+
+            document.querySelectorAll('.' + c).forEach(function(el) {
+                if (visible) {
+                    el.classList.remove('col-hidden');
+                } else {
+                    el.classList.add('col-hidden');
+                }
+            });
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        });
+    });
 })();
 
 function showMoveModal(dn, name) {
