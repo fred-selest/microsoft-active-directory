@@ -256,7 +256,10 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             error_msg = str(e)
             if not _is_md4_error(error_msg):
                 logger.warning(f"Connexion directe échouée: {error_msg[:100]}")
+            # Identifiants incorrects → retour immédiat (pas de fallback)
+            if _is_invalid_credentials_error(error_msg):
                 return None, error_msg
+            # Toute autre erreur (SSL, réseau, timeout) → fallback vers _try_connection()
 
     # Essayer toutes les méthodes
     conn, errors = _try_connection(server, username, password)
