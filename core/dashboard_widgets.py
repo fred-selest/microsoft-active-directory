@@ -15,7 +15,7 @@ def get_dashboard_widgets():
     """
     widgets = {
         'alerts': [],
-        'score_evolution': [],
+        'score_evolution': {'current': 0, 'trend': 'stable', 'last_audit': ''},
         'quick_stats': {},
         'recent_actions': []
     }
