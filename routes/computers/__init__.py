@@ -33,6 +33,15 @@ def extract_ou_path(dn):
     return parts[0] if parts else '-'
 
 
+def _first(value, default=''):
+    """Extraire la première valeur d'un attribut paged_search (scalaire ou liste)."""
+    if value is None:
+        return default
+    if isinstance(value, list):
+        return value[0] if value else default
+    return value if value != '' else default
+
+
 @computers_bp.route('/')
 @require_connection
 def list_computers():
@@ -44,11 +53,12 @@ def list_computers():
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
-    ou_filter = request.args.get('ou', '')  # Filtrer par OU spécifique
+    ou_filter = request.args.get('ou', '')
+    status_filter = request.args.get('status', 'all')   # all / active / disabled
+    os_filter = request.args.get('os', '')
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
 
-    # Déterminer la base de recherche
     search_base = ou_filter if ou_filter else base_dn
 
     if search_query:
@@ -58,34 +68,46 @@ def list_computers():
         search_filter = '(objectClass=computer)'
 
     try:
-        conn.search(search_base, search_filter, SUBTREE,
-                   attributes=['cn', 'description', 'distinguishedName',
-                              'operatingSystem', 'lastLogon', 'userAccountControl',
-                              'dNSHostName', 'operatingSystemVersion'])
-
+        # Recherche paginée pour récupérer tous les ordinateurs (pas de limite 1000)
+        attrs = ['cn', 'description', 'distinguishedName', 'operatingSystem',
+                 'lastLogon', 'userAccountControl', 'dNSHostName', 'operatingSystemVersion']
         computer_list = []
-        for entry in conn.entries:
-            uac = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 4096
-            is_disabled = bool(int(uac) & 2) if uac else False
-            
-            # Extraire le chemin OU depuis le DN
-            dn_str = decode_ldap_value(entry.distinguishedName)
-            ou_path = extract_ou_path(dn_str)
-            
+        for entry in conn.extend.standard.paged_search(
+                search_base, search_filter, SUBTREE,
+                attributes=attrs, paged_size=500):
+            if entry.get('type') != 'searchResEntry':
+                continue
+            a = entry.get('attributes', {})
+            uac_val = a.get('userAccountControl') or 4096
+            if isinstance(uac_val, list):
+                uac_val = uac_val[0] if uac_val else 4096
+            is_disabled = bool(int(uac_val) & 2)
+            dn_str = entry.get('dn', '')
             computer_list.append({
-                'cn': decode_ldap_value(entry.cn),
-                'description': decode_ldap_value(entry.description),
+                'cn': _first(a.get('cn')),
+                'description': _first(a.get('description')),
                 'dn': dn_str,
-                'os': decode_ldap_value(entry.operatingSystem),
-                'os_version': decode_ldap_value(entry.operatingSystemVersion),
-                'dns_name': decode_ldap_value(entry.dNSHostName),
+                'os': _first(a.get('operatingSystem')),
+                'os_version': _first(a.get('operatingSystemVersion')),
+                'dns_name': _first(a.get('dNSHostName')),
                 'disabled': is_disabled,
-                'ou_path': ou_path
+                'ou_path': extract_ou_path(dn_str)
             })
 
-        # OUs pour déplacement
+        # Extraire les OS uniques avant filtrage (pour le dropdown)
+        all_os = sorted(set(c['os'] for c in computer_list if c['os']))
+
+        # Appliquer les filtres en mémoire
+        if status_filter == 'active':
+            computer_list = [c for c in computer_list if not c['disabled']]
+        elif status_filter == 'disabled':
+            computer_list = [c for c in computer_list if c['disabled']]
+        if os_filter:
+            computer_list = [c for c in computer_list if c['os'] == os_filter]
+
+        # OUs pour le dropdown de filtre et le déplacement
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
-                   attributes=['name', 'distinguishedName'])
+                    attributes=['name', 'distinguishedName'])
         ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
                    for e in conn.entries]
         conn.unbind()
@@ -97,13 +119,20 @@ def list_computers():
         paginated = computer_list[start:start + per_page]
 
         return render_template('computers.html', computers=paginated, search=search_query,
-                             page=page, total_pages=total_pages, total=total,
-                             ous=ou_list, connected=is_connected())
-    except LDAPException as e:
-        conn.unbind()
+                               page=page, total_pages=total_pages, total=total,
+                               ous=ou_list, ou_filter=ou_filter,
+                               status_filter=status_filter, os_filter=os_filter,
+                               all_os=all_os, connected=is_connected())
+    except Exception as e:
+        try:
+            conn.unbind()
+        except Exception:
+            pass
         flash(f'Erreur: {str(e)}', 'error')
         return render_template('computers.html', computers=[], search=search_query,
-                             page=1, total_pages=1, total=0, ous=[], connected=is_connected())
+                               page=1, total_pages=1, total=0, ous=[],
+                               ou_filter='', status_filter='all', os_filter='',
+                               all_os=[], connected=is_connected())
 
 
 @computers_bp.route('/<path:dn>/toggle', methods=['POST'])

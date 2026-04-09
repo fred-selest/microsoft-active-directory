@@ -10,7 +10,18 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.4 — Avril 2026
+**Dernière version :** v1.37.5 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.37.5
+
+### ✨ Améliorations
+- **Filtres avancés sur /users/** : dropdown OU, filtre Actifs/Désactivés, bouton Effacer
+- **Filtres avancés sur /computers/** : dropdown OU, filtre Actifs/Désactivés, filtre OS, bouton Effacer
+
+### 🐛 Corrections
+- **Ordinateurs (et utilisateurs) manquants** : recherche LDAP limitée à 1000 résultats max — remplacée par `paged_search` pour récupérer tous les objets AD sans troncature silencieuse
 
 ---
 
