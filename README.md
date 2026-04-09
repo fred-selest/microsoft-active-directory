@@ -10,7 +10,17 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.2 — Avril 2026
+**Dernière version :** v1.37.3 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.37.3
+
+### 🐛 Corrections
+- **Fallback LDAP/389** : login fonctionne même si LDAPS/636 est rejeté par le DC
+- **API JSON 401** : bouton "Installer la mise à jour" ne retourne plus `<!DOCTYPE` en JS
+- **Page `/update` sécurisée** : nécessite d'être connecté en tant qu'admin
+- **LAPS** : accessible dès le premier lancement sans configuration préalable
 
 ---
 

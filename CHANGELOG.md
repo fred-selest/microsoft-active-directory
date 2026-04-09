@@ -5,6 +5,32 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.37.3] - 2026-04-09
+
+### Corrigé
+
+- **🔌 Fallback LDAP port 389 après échec LDAPS** (`routes/core.py`)
+  - Quand LDAPS (636) échouait avec `WinError 10054` (SSL reset), le code retournait immédiatement sans essayer le port 389
+  - Login impossible sur tout DC sans certificat LDAPS valide, même si LDAP/389 fonctionnait
+  - Correction : seule une erreur d'identifiants incorrects déclenche un retour immédiat ; toute autre erreur (SSL, réseau, timeout) laisse `_try_connection()` essayer toutes les méthodes (NTLM/389, STARTTLS/389, LDAPS/636)
+
+- **🔐 Routes API retournent JSON 401 au lieu de redirect HTML** (`routes/core.py`)
+  - Le décorateur `@require_connection` faisait un redirect HTML vers `/connect` pour toutes les requêtes non authentifiées
+  - Les appels AJAX (ex: bouton "Installer la mise à jour") recevaient du HTML → erreur JavaScript `Unexpected token '<', "<!DOCTYPE"... is not valid JSON`
+  - Correction : retour `{"error": "Non connecté", "redirect": "/connect"}` avec status 401 pour les requêtes `/api/*`, JSON ou `X-Requested-With: XMLHttpRequest`
+
+- **🛡️ Page `/update` protégée par authentification** (`routes/admin_tools.py`)
+  - La page de mise à jour était accessible sans être connecté, permettant de déclencher une mise à jour sans session valide
+  - Correction : `@require_connection` + `@require_permission('admin')` ajoutés ; `connected=True` corrigé dans le template
+
+### Impact
+
+- Login fonctionne sur tous les DC, même sans LDAPS configuré
+- LAPS accessible dès le premier lancement (auto-détection `ms-Mcs-AdmPwd`)
+- Mise à jour via l'interface fonctionne correctement pour les admins connectés
+
+---
+
 ## [1.37.2] - 2026-04-09
 
 ### Corrigé
