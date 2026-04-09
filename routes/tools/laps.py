@@ -1,4 +1,4 @@
-﻿"""Routes LAPS (Local Administrator Password Solution)."""
+"""Routes LAPS (Local Administrator Password Solution) et configuration LDAPS."""
 import logging
 import subprocess
 from flask import render_template, request, flash, session, redirect, url_for
@@ -11,6 +11,191 @@ from routes.core import get_ad_connection, decode_ldap_value, is_connected, requ
 from core.security import escape_ldap_filter, validate_csrf_token
 
 logger = logging.getLogger('laps')
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Configuration LDAPS automatique
+# ──────────────────────────────────────────────────────────────────────
+
+@tools_bp.route('/configure-ldaps', methods=['POST'])
+@require_connection
+@require_permission('admin')
+def configure_ldaps():
+    """Configurer LDAPS automatiquement via PowerShell (script dynamique)."""
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('users.create_user'))
+
+    base_dn = session.get('ad_base_dn', '')
+    domain = base_dn.replace('DC=', '').replace(',', '.') if base_dn else ''
+
+    # Script PowerShell dynamique — détecte le certificat automatiquement
+    ps_script = f'''
+$ErrorActionPreference = "Stop"
+
+Write-Host "=== Configuration LDAPS automatique ===" -ForegroundColor Cyan
+Write-Host ""
+
+# 1. Detecter le certificat du serveur (celui utilise pour le SSL du DC)
+Write-Host "[1/5] Recherche du certificat serveur..." -ForegroundColor Yellow
+$certs = Get-ChildItem -Path Cert:\\LocalMachine\\My | Where-Object {{
+    $_.HasPrivateKey -and
+    $_.Subject -like "*{domain}*" -and
+    $_.NotAfter -gt (Get-Date)
+}}
+
+if (-not $certs) {{
+    # Essayer tous les certificats avec une clef privee
+    $certs = Get-ChildItem -Path Cert:\\LocalMachine\\My | Where-Object {{
+        $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date)
+    }}
+}}
+
+if (-not $certs) {{
+    Write-Host "[ERREUR] Aucun certificat avec clef privee trouve dans Cert:\\LocalMachine\\My" -ForegroundColor Red
+    Write-Host "Aucun certificat disponible pour LDAPS." -ForegroundColor Yellow
+    Write-Host "NO_CERT"
+    exit 0
+}}
+
+# Prendre le premier certificat valide
+$cert = $certs | Sort-Object NotAfter -Descending | Select-Object -First 1
+$certThumbprint = $cert.Thumbprint
+$certSubject = $cert.SubjectName.Name
+$certExpiry = $cert.NotAfter
+
+Write-Host "[OK] Certificat selectionne : $certSubject" -ForegroundColor Green
+Write-Host "    Thumbprint : $certThumbprint" -ForegroundColor Gray
+Write-Host "    Valable jusqu'au : $certExpiry" -ForegroundColor Gray
+Write-Host ""
+
+# 2. Verifier/ajouter dans le magasin Root si auto-signe
+Write-Host "[2/5] Verification du magasin Root..." -ForegroundColor Yellow
+$rootCert = Get-ChildItem -Path Cert:\\LocalMachine\\Root | Where-Object {{ $_.Thumbprint -eq $certThumbprint }}
+if (-not $rootCert) {{
+    Write-Host "  Certificat non trouve dans Root, ajout en cours..." -ForegroundColor Yellow
+    $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", "LocalMachine")
+    $store.Open("ReadWrite")
+    $store.Add($cert)
+    $store.Close()
+    Write-Host "  [OK] Certificat ajoute au magasin Root" -ForegroundColor Green
+}} else {{
+    Write-Host "  [OK] Certificat deja present dans Root" -ForegroundColor Green
+}}
+Write-Host ""
+
+# 3. Configurer le mapping certificat pour NTDS
+Write-Host "[3/5] Configuration du mapping certificat NTDS..." -ForegroundColor Yellow
+$registryPath = "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\CertMapping"
+if (-not (Test-Path $registryPath)) {{
+    New-Item -Path $registryPath -ItemType Directory -Force | Out-Null
+    Write-Host "  [OK] Cle de registre creee" -ForegroundColor Green
+}}
+
+# Verifier si un mapping existe deja
+$existingMapping = Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue
+if ($existingMapping) {{
+    Write-Host "  [INFO] Mapping existant trouve, mise a jour..." -ForegroundColor Yellow
+}}
+
+# Creer ou mettre a jour le mapping
+$itemName = "1"
+if (-not (Test-Path "$registryPath\\$itemName")) {{
+    New-Item -Path $registryPath -Name $itemName -Force | Out-Null
+}}
+New-ItemProperty -Path "$registryPath\\$itemName" -Name "Subject" -Value $certSubject -PropertyType String -Force | Out-Null
+New-ItemProperty -Path "$registryPath\\$itemName" -Name "Thumbprint" -Value $certThumbprint -PropertyType String -Force | Out-Null
+New-ItemProperty -Path "$registryPath\\$itemName" -Name "MappingType" -Value 7 -PropertyType DWord -Force | Out-Null
+
+Write-Host "  [OK] Mapping certificat configure" -ForegroundColor Green
+Write-Host ""
+
+# 4. Redemarrer le service NTDS
+Write-Host "[4/5] Redemarrage du service NTDS..." -ForegroundColor Yellow
+try {{
+    Restart-Service -Name NTDS -Force -ErrorAction Stop
+    Write-Host "  [OK] Service NTDS redemarre" -ForegroundColor Green
+}} catch {{
+    Write-Host "  [ATTENTION] Impossible de redemarrer NTDS automatiquement: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  Redemarrez manuellement le service 'Active Directory Domain Services'" -ForegroundColor Yellow
+}}
+Write-Host "  Attente 10 secondes..." -ForegroundColor Yellow
+Start-Sleep -Seconds 10
+Write-Host ""
+
+# 5. Verifier le port 636
+Write-Host "[5/5] Verification du port LDAPS (636)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 2
+$test = Test-NetConnection -ComputerName localhost -Port 636 -WarningAction SilentlyContinue
+if ($test.TcpTestSucceeded) {{
+    Write-Host "  [SUCCESS] Port 636 (LDAPS) ouvert et ecoutant !" -ForegroundColor Green
+    Write-Host "SUCCESS"
+}} else {{
+    Write-Host "  [ATTENTION] Port 636 non detecte immediatement." -ForegroundColor Yellow
+    Write-Host "  Cela peut prendre quelques secondes apres le redemarrage NTDS." -ForegroundColor Yellow
+    Write-Host "  Attendez 30 secondes et reessayez, ou redemarrez le service AD DS." -ForegroundColor Yellow
+    Write-Host "PARTIAL_SUCCESS"
+}}
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "CONFIGURATION LDAPS TERMINEE" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Serveur : {domain}" -ForegroundColor Cyan
+Write-Host "  • Serveur LDAPS : $certSubject" -ForegroundColor White
+Write-Host "  • Port : 636" -ForegroundColor White
+Write-Host "  • SSL/TLS : Active" -ForegroundColor White
+Write-Host ""
+Write-Host "Prochaines etapes :" -ForegroundColor Yellow
+Write-Host "  1. Deconnectez-vous d'AD Web Interface" -ForegroundColor White
+Write-Host "  2. Reconnectez-vous avec :" -ForegroundColor White
+Write-Host "     - Port : 636" -ForegroundColor White
+Write-Host "     - SSL/TLS : Coche" -ForegroundColor White
+Write-Host "  3. Vous pourrez creer des utilisateurs avec mot de passe !" -ForegroundColor Green
+'''
+
+    try:
+        result = subprocess.run(
+            ['powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        stdout = result.stdout or ''
+        stderr = result.stderr or ''
+
+        logger.info(f"LDAPS Configure: returncode={result.returncode}")
+        logger.info(f"LDAPS Configure: stdout={stdout[:500]}")
+
+        if 'NO_CERT' in stdout:
+            flash('Aucun certificat avec clef privee trouve sur ce serveur. '
+                  'Installez un certificat SSL valide avant de configurer LDAPS.', 'error')
+        elif 'SUCCESS' in stdout:
+            lines = stdout.split('\n')
+            server_info = next((l for l in lines if 'Certificat selectionne' in l or 'Serveur :' in l), '')
+            flash(f'LDAPS configure avec succes !\n\n{server_info}\n\n'
+                  f'DECONNECTEZ-VOUS puis reconnectez-vous avec le port 636 et SSL active.', 'success')
+        elif 'PARTIAL_SUCCESS' in stdout:
+            flash('Configuration LDAPS terminee mais le port 636 n\'est pas encore detecte. '
+                  'Attendez 30 secondes ou redemarrez le service AD DS, puis reconnectez-vous en LDAPS (port 636, SSL coche).', 'warning')
+        else:
+            error_msg = stderr if stderr else stdout
+            logger.error(f"LDAPS Configure: error={error_msg[:500]}")
+            if 'Access is denied' in error_msg or 'access denied' in error_msg.lower():
+                flash('Erreur de permissions. Cette action necessite des droits d\'administrateur du serveur.', 'error')
+            else:
+                flash(f'Erreur lors de la configuration LDAPS: {error_msg[:300]}', 'error')
+
+    except subprocess.TimeoutExpired:
+        logger.error("LDAPS Configure: Timeout")
+        flash('Timeout lors de la configuration LDAPS. Le redemarrage NTDS peut prendre du temps.', 'error')
+    except Exception as e:
+        logger.error(f"LDAPS Configure: Exception={e}", exc_info=True)
+        flash(f'Erreur: {str(e)}', 'error')
+
+    return redirect(url_for('users.create_user'))
 
 
 @tools_bp.route('/laps/configure', methods=['POST'])
