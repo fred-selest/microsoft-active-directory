@@ -364,8 +364,9 @@ def get_secure_session_config():
     Pour dÃ©sactiver en dÃ©veloppement: SESSION_COOKIE_SECURE=false dans .env
     """
     import os
-    # Activer par dÃ©faut, sauf si explicitement dÃ©sactivÃ©
-    cookie_secure = os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
+    # Par defaut desactive (Waitress sert en HTTP interne)
+    # Activer uniquement si HTTPS termine directement (reverse proxy ou LDAPS)
+    cookie_secure = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 
     return {
         'SESSION_COOKIE_SECURE': cookie_secure,
