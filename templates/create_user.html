@@ -19,7 +19,7 @@
 <div class="alert alert-warning" style="margin-bottom:1rem;">
     ⚠️ Votre connexion AD est en <strong>LDAP non chiffré</strong>.
     La définition du mot de passe requiert <strong>LDAPS (port 636)</strong> ou <strong>STARTTLS</strong>.
-    <a href="{{ url_for('main.connect') }}">Reconnectez-vous</a> avec une connexion sécurisée.
+    <a href="{{ url_for('main.connect') }}?suggest_ssl=1" class="btn btn-sm btn-warning" style="margin-left:0.75rem;">🔒 Se reconnecter en LDAPS</a>
 </div>
 {% endif %}
 

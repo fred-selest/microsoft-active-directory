@@ -120,13 +120,18 @@ def connect():
     ad_cfg = detect_ad_config()
     detected_domain = ad_cfg['domain'].split('.')[0].upper() if ad_cfg.get('domain') else ''
     auto_detected = ad_cfg.get('auto_detected', False) and bool(ad_cfg.get('server', ''))
+
+    suggest_ssl = request.args.get('suggest_ssl', '0') == '1'
+    use_ssl = True if suggest_ssl else ad_cfg.get('use_ssl', False)
+    port = 636 if suggest_ssl else ad_cfg.get('port', 389)
+
     return render_template('connect.html', connected=is_connected(),
                            auto_domain=detected_domain,
                            auto_detected=auto_detected,
                            server=ad_cfg.get('server', ''),
-                           port=ad_cfg.get('port', 389),
+                           port=port,
                            base_dn=ad_cfg.get('base_dn', ''),
-                           use_ssl=ad_cfg.get('use_ssl', False))
+                           use_ssl=use_ssl)
 
 
 @main_bp.route('/disconnect')

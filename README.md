@@ -10,7 +10,14 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.3 — Avril 2026
+**Dernière version :** v1.37.4 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.37.4
+
+### ✨ Améliorations
+- **Bouton LDAPS sur création d'utilisateur** : le bandeau d'avertissement affiche désormais un bouton "🔒 Se reconnecter en LDAPS" qui pré-remplit automatiquement le formulaire de connexion avec port 636 et SSL coché
 
 ---
 

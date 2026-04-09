@@ -5,6 +5,17 @@ Toutes les modifications notables de ce projet sont documentées dans ce fichier
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.37.4] - 2026-04-09
+
+### Amélioré
+
+- **🔒 Bouton "Se reconnecter en LDAPS" sur la page de création d'utilisateur** (`templates/create_user.html`, `routes/main.py`)
+  - Le bandeau d'avertissement LDAP non chiffré affichait seulement un lien texte
+  - Remplacement par un bouton visible qui redirige vers `/connect?suggest_ssl=1`
+  - Le formulaire de connexion est automatiquement pré-rempli avec port 636 et SSL coché
+
+---
+
 ## [1.37.3] - 2026-04-09
 
 ### Corrigé
