@@ -10,7 +10,7 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.37.5 — Avril 2026
+**Dernière version :** v1.37.6 — Avril 2026
 
 ---
 
