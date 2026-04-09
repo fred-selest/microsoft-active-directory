@@ -251,7 +251,17 @@ function performUpdate() {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        // Vérifier le Content-Type avant de parser
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            // Le serveur a retourné du HTML (erreur 500, page de login, etc.)
+            return response.text().then(html => {
+                throw new Error('Le serveur a retourné une page HTML au lieu de JSON. Vérifiez que vous êtes connecté et administrateur.');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         clearInterval(progressInterval);
 
@@ -285,7 +295,17 @@ function performUpdate() {
         } else {
             progressContainer.style.display = 'none';
             status.innerHTML = '';
-            showStatusMessage(status, data.message || 'Erreur lors de la mise à jour', 'update-error');
+            let errorMsg = data.message || 'Erreur lors de la mise à jour';
+            
+            // Message d'erreur spécifique pour permission refusée
+            if (data.error) {
+                errorMsg = data.error;
+                if (data.permission) {
+                    errorMsg += ` (permission requise: ${data.permission})`;
+                }
+            }
+            
+            showStatusMessage(status, errorMsg, 'update-error');
             btn.disabled = false;
             btn.style.display = 'inline-block';
             btn.textContent = 'Reessayer';
