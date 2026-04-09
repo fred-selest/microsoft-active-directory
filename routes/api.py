@@ -306,10 +306,25 @@ def api_perform_update():
         result = perform_fast_update()
         if result.get('success'):
             threading.Thread(target=delayed_restart).start()
-            return jsonify({'success': True, 'message': 'Mise à jour en cours, redémarrage...'})
-        return jsonify(result), 500
+            return jsonify({
+                'success': True,
+                'message': f"Mise a jour terminee ({result.get('files_updated', 0)} fichiers). Redemarrage..."
+            })
+
+        errors = result.get('errors', [])
+        if errors:
+            detail = '; '.join(str(e) for e in errors[:3])
+            return jsonify({
+                'success': False,
+                'error': f"Erreurs lors de la mise a jour: {detail}"
+            }), 500
+
+        return jsonify({'success': False, 'error': 'Aucune mise a jour disponible'}), 500
+
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        import logging
+        logging.getLogger('api_update').error(f"Erreur mise a jour: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': f'Erreur: {str(e)[:300]}'}), 500
 
 
 @api_bp.route('/errors')
