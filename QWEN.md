@@ -2,7 +2,7 @@
 
 > Ce fichier décrit l'architecture interne du projet **AD Web Interface** à l'intention des assistants IA (Claude, Qwen, GPT…) afin d'accélérer la compréhension du code et d'éviter les erreurs courantes.
 
-**Version actuelle :** 1.37.9 (Avril 2026)
+**Version actuelle :** 1.37.10 (Avril 2026)
 
 ---
 
