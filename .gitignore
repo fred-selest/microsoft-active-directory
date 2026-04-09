@@ -5,44 +5,57 @@ __pycache__/
 .Python
 venv/
 env/
-Commande ECHO d‚sactiv‚e.
+
 # Logs
 logs/*.log
 logs/*.png
 logs/*.txt
 logs/analysis_*.json
-Commande ECHO d‚sactiv‚e.
+
 # Data
 data/settings.json
 data/backups/*
 data/crypto_salt.bin
 data/audit_history/
-Commande ECHO d‚sactiv‚e.
+
 # Configuration locale
 .env
 .env.local
-Commande ECHO d‚sactiv‚e.
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-Commande ECHO d‚sactiv‚e.
+
 # OS
 Thumbs.db
 .DS_Store
-Commande ECHO d‚sactiv‚e.
+
 # Tests
 logs/screenshots/
 logs/test_results.json
+
 # Worktrees
 .claude/worktrees/
-.qwen/
+
+# Qwen Code settings
+.qwen/settings.json
+
+# WinSW/NSSM Logs
+nssm/*.log
+nssm/**/*.log
+
+# Temporary files
+start
+$null
+
 # Markdown (sauf README)
 *.md
 !README.md
 !*/README.md
 SCRIPTS_MANAGER.md
+
 # Certificates
 scripts/codesign.*
 scripts/*.cer
