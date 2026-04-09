@@ -17,10 +17,68 @@
 
 {% if not can_set_password %}
 <div class="alert alert-warning" style="margin-bottom:1rem;">
-    ⚠️ Votre connexion AD est en <strong>LDAP non chiffré</strong>.
-    La définition du mot de passe requiert <strong>LDAPS (port 636)</strong> ou <strong>STARTTLS</strong>.
-    <a href="{{ url_for('main.connect') }}">Reconnectez-vous</a> avec une connexion sécurisée.
+    <h4 style="margin-top:0;">⚠️ Connexion LDAP non chiffrée</h4>
+    <p>La définition du mot de passe requiert <strong>LDAPS (port 636)</strong> ou <strong>STARTTLS</strong>.</p>
+
+    <div class="ldaps-actions" style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+        <form method="post" action="{{ url_for('tools.configure_ldaps') }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning btn-lg"
+                    onclick="return confirm('Configurer LDAPS automatiquement ?\n\nCette action va :\n- Détecter le certificat SSL du serveur\n- Configurer le mapping NTDS\n- Redémarrer le service AD DS\n- Activer le port 636 (LDAPS)\n\nAprès configuration, vous devrez vous reconnecter avec le port 636 et SSL activé.');">
+                🔧 Activer LDAPS automatiquement
+            </button>
+        </form>
+        <span class="text-muted" style="align-self:center;">ou</span>
+        <a href="{{ url_for('main.connect') }}?suggest_ssl=1" class="btn btn-secondary">🔒 Se reconnecter en LDAPS</a>
+    </div>
+
+    <details class="ldaps-manual-config" style="margin-top:1rem; padding:1rem; background:#f8f9fa; border-radius:6px;">
+        <summary style="cursor:pointer; font-weight:600;">📖 Configuration manuelle (avancé)</summary>
+        <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #ddd;">
+            <h5 style="margin-top:0;">Via le script PowerShell :</h5>
+            <pre style="background:#2d2d2d; color:#f8f8f2; padding:1rem; border-radius:6px; overflow-x:auto; font-size:0.875rem;"><code>.\scripts\configure_ldaps.ps1</code></pre>
+            <h5>Via GPO :</h5>
+            <ol>
+                <li>Installez un certificat SSL valide sur le contrôleur de domaine</li>
+                <li>Configurez le mapping dans <code>HKLM\SYSTEM\CurrentControlSet\Services\NTDS\CertMapping</code></li>
+                <li>Redémarrez le service <strong>Active Directory Domain Services</strong></li>
+                <li>Vérifiez que le port 636 est à l'écoute : <code>Test-NetConnection localhost -Port 636</code></li>
+            </ol>
+        </div>
+    </details>
 </div>
+
+<style>
+.ldaps-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.ldaps-actions form {
+    margin: 0;
+}
+.ldaps-manual-config pre {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.875rem;
+}
+.ldaps-manual-config code {
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+body.dark-mode .ldaps-manual-config {
+    background: var(--dark-bg-primary, #2d2d2d);
+}
+body.dark-mode .ldaps-manual-config pre {
+    background: #1a1a2e;
+}
+body.dark-mode .ldaps-manual-config summary {
+    color: #ffc107;
+}
+</style>
 {% endif %}
 
 <div class="form-container">
