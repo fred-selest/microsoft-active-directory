@@ -281,12 +281,12 @@ function closeGroupModal() {
 
 function saveGroup(event) {
     event.preventDefault();
-    
+
     const groupName = document.getElementById('group-name').value;
     const editName = document.getElementById('edit-group-name').value;
     const description = document.getElementById('group-description').value;
     const enabled = document.getElementById('group-enabled').checked;
-    
+
     const permissions = [];
     document.querySelectorAll('input[name="permissions"]:checked').forEach(cb => {
         permissions.push(cb.value);
@@ -296,7 +296,10 @@ function saveGroup(event) {
 
     fetch('/api/permissions', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
         body: JSON.stringify({
             group_name: groupName,
             edit_name: editName || null,
@@ -306,7 +309,16 @@ function saveGroup(event) {
             subject_type: subjectType
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => {
+                throw new Error(err.error || 'Erreur HTTP ' + response.status);
+            }).catch(() => {
+                throw new Error('Erreur HTTP ' + response.status);
+            });
+        }
+        return response.json();
+    })
     .then(result => {
         if (result.success) {
             alert('✅ Groupe enregistré avec succès !');
@@ -323,9 +335,21 @@ function saveGroup(event) {
 function deleteGroup(groupName) {
     if (confirm('Voulez-vous vraiment supprimer le groupe "' + groupName + '" ?\n\nLes permissions personnalisées seront perdues.')) {
         fetch('/api/permissions/' + encodeURIComponent(groupName), {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Erreur HTTP ' + response.status);
+                }).catch(() => {
+                    throw new Error('Erreur HTTP ' + response.status);
+                });
+            }
+            return response.json();
+        })
         .then(result => {
             if (result.success) {
                 alert('✅ Groupe supprimé !');
@@ -378,6 +402,7 @@ window.onclick = function(event) {
 
 // --- Autocomplete ---
 let _acTimer = null;
+let _acHighlightedIndex = -1; // Index de l'élément surligné
 
 function debouncedSearch(val) {
     clearTimeout(_acTimer);
@@ -389,35 +414,120 @@ function searchAD(query) {
     const type = document.getElementById('subject_type').value;
     const input = document.getElementById('group-name');
     if (input.disabled) return; // en mode édition, champ désactivé
+
     fetch('/api/ad-search?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(query))
-        .then(r => r.json())
-        .then(items => renderAutocomplete(items))
-        .catch(() => closeAutocomplete());
+        .then(r => {
+            if (!r.ok) {
+                // Erreur HTTP (401, 403, 500, etc.)
+                return r.json().then(err => {
+                    throw new Error(err.error || 'Erreur HTTP ' + r.status);
+                }).catch(() => {
+                    throw new Error('Erreur HTTP ' + r.status);
+                });
+            }
+            return r.json();
+        })
+        .then(data => {
+            // Vérifier si la réponse contient une erreur (ex: {"error": "..."})
+            if (data && data.error) {
+                showAutocompleteError(data.error);
+                return;
+            }
+            // Vérifier que c'est bien un tableau
+            if (!Array.isArray(data)) {
+                showAutocompleteError('Réponse API invalide');
+                return;
+            }
+            renderAutocomplete(data);
+        })
+        .catch(err => {
+            showAutocompleteError(err.message || 'Erreur de connexion');
+        });
+}
+
+function showAutocompleteError(message) {
+    const list = document.getElementById('autocomplete-list');
+    list.innerHTML = '';
+    const div = document.createElement('div');
+    div.style.cssText = 'padding: 0.5rem 0.75rem; color: var(--text-danger); font-size: 0.8125rem; font-style: italic;';
+    div.textContent = '⚠️ ' + message;
+    list.appendChild(div);
+    list.style.display = 'block';
 }
 
 function renderAutocomplete(items) {
     const list = document.getElementById('autocomplete-list');
     if (!items || items.length === 0) { closeAutocomplete(); return; }
     list.innerHTML = '';
-    items.forEach(item => {
+    _acHighlightedIndex = -1;
+
+    items.forEach((item, index) => {
         const div = document.createElement('div');
         div.style.cssText = 'padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; border-bottom: 1px solid var(--border-color);';
         div.textContent = item.label || item.value || item;
+        div.dataset.index = index;
         div.onmousedown = function(e) {
             e.preventDefault();
             document.getElementById('group-name').value = item.value || item;
             closeAutocomplete();
         };
-        div.onmouseover = function() { this.style.background = 'var(--bg-tertiary)'; };
-        div.onmouseout = function() { this.style.background = ''; };
+        div.onmouseover = function() {
+            highlightItem(index);
+        };
         list.appendChild(div);
     });
     list.style.display = 'block';
 }
 
+// Navigation clavier dans l'autocomplete
+document.addEventListener('keydown', function(e) {
+    const list = document.getElementById('autocomplete-list');
+    if (!list || list.style.display === 'none') return;
+
+    const items = list.querySelectorAll('div[data-index]');
+    if (items.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _acHighlightedIndex = Math.min(_acHighlightedIndex + 1, items.length - 1);
+        highlightItem(_acHighlightedIndex);
+        scrollToHighlighted(items);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _acHighlightedIndex = Math.max(_acHighlightedIndex - 1, 0);
+        highlightItem(_acHighlightedIndex);
+        scrollToHighlighted(items);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (_acHighlightedIndex >= 0 && _acHighlightedIndex < items.length) {
+            items[_acHighlightedIndex].onmousedown(new Event('mousedown'));
+        }
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAutocomplete();
+    }
+});
+
+function highlightItem(index) {
+    const list = document.getElementById('autocomplete-list');
+    if (!list) return;
+    const items = list.querySelectorAll('div[data-index]');
+    items.forEach((item, i) => {
+        item.style.background = (i === index) ? 'var(--bg-tertiary)' : '';
+        item.style.fontWeight = (i === index) ? '600' : '';
+    });
+}
+
+function scrollToHighlighted(items) {
+    if (items[_acHighlightedIndex]) {
+        items[_acHighlightedIndex].scrollIntoView({ block: 'nearest' });
+    }
+}
+
 function closeAutocomplete() {
     const list = document.getElementById('autocomplete-list');
     if (list) { list.style.display = 'none'; list.innerHTML = ''; }
+    _acHighlightedIndex = -1;
 }
 </script>
 
