@@ -53,6 +53,10 @@ def connect():
         base_dn = request.form.get('base_dn', '')
         domain = request.form.get('domain', '').strip()
 
+        # Valeurs par défaut pour le re-rendu du formulaire en cas d'erreur
+        auto_detected = False
+        detected_domain = domain
+
         # Préfixer le domaine si besoin
         if domain and '\\' not in username and '@' not in username:
             username = f"{domain}\\{username}"
