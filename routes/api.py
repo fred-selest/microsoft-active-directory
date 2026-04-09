@@ -284,7 +284,7 @@ def api_perform_update():
     """API pour effectuer une mise à jour."""
     import threading
     import time
-    from core.updater import perform_update_fast
+    from core.updater import perform_fast_update
 
     def delayed_restart():
         time.sleep(2)
@@ -293,7 +293,7 @@ def api_perform_update():
         os.execl(sys.executable, sys.executable, 'run.py')
 
     try:
-        result = perform_update_fast()
+        result = perform_fast_update()
         if result.get('success'):
             threading.Thread(target=delayed_restart).start()
             return jsonify({'success': True, 'message': 'Mise à jour en cours, redémarrage...'})
