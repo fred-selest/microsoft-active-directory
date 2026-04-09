@@ -3,6 +3,20 @@
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
+
+## [1.37.5] - 2026-04-09
+
+### Ajouté
+
+- **🔍 Filtres avancés sur /users/** : dropdown OU, filtre Actifs/Désactivés, bouton Effacer
+- **🔍 Filtres avancés sur /computers/** : dropdown OU, filtre Actifs/Désactivés, filtre OS, bouton Effacer
+
+### Corrigé
+
+- **Ordinateurs manquants** : `conn.search()` était limité à 1000 résultats par défaut (limite AD). Remplacement par `paged_search` (pages de 500) pour récupérer tous les objets sans troncature silencieuse. Même correction appliquée aux utilisateurs.
+
+---
+
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ## [1.37.4] - 2026-04-09
