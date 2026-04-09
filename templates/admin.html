@@ -225,9 +225,10 @@
         <form method="POST" action="{{ url_for('admin.save_features') }}" class="features-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+            {% set feat = settings.get('features', {}) %}
             <div class="feature-toggles">
                 <div class="feature-toggle">
-                    <input type="checkbox" id="feat_dark_mode" name="dark_mode" {% if settings.features.dark_mode %}checked{% endif %}>
+                    <input type="checkbox" id="feat_dark_mode" name="dark_mode" {% if feat.get('dark_mode', True) %}checked{% endif %}>
                     <label for="feat_dark_mode">
                         <strong>Mode sombre</strong>
                         <small>Activer le basculement thème clair/sombre</small>
@@ -235,7 +236,7 @@
                 </div>
 
                 <div class="feature-toggle">
-                    <input type="checkbox" id="feat_update" name="update_check" {% if settings.features.update_check %}checked{% endif %}>
+                    <input type="checkbox" id="feat_update" name="update_check" {% if feat.get('update_check', True) %}checked{% endif %}>
                     <label for="feat_update">
                         <strong>Vérification des mises à jour</strong>
                         <small>Vérifier les nouvelles versions au démarrage</small>
@@ -243,7 +244,7 @@
                 </div>
 
                 <div class="feature-toggle">
-                    <input type="checkbox" id="feat_pwa" name="pwa_enabled" {% if settings.features.pwa_enabled %}checked{% endif %}>
+                    <input type="checkbox" id="feat_pwa" name="pwa_enabled" {% if feat.get('pwa_enabled', True) %}checked{% endif %}>
                     <label for="feat_pwa">
                         <strong>Application PWA</strong>
                         <small>Installer comme application progressive</small>
@@ -251,7 +252,7 @@
                 </div>
 
                 <div class="feature-toggle">
-                    <input type="checkbox" id="feat_footer" name="show_footer" {% if settings.features.show_footer %}checked{% endif %}>
+                    <input type="checkbox" id="feat_footer" name="show_footer" {% if feat.get('show_footer', True) %}checked{% endif %}>
                     <label for="feat_footer">
                         <strong>Pied de page</strong>
                         <small>Afficher le footer de l'application</small>
@@ -259,7 +260,7 @@
                 </div>
 
                 <div class="feature-toggle">
-                    <input type="checkbox" id="feat_columns" name="users_column_chooser" {% if settings.features.users_column_chooser %}checked{% endif %}>
+                    <input type="checkbox" id="feat_columns" name="users_column_chooser" {% if feat.get('users_column_chooser', True) %}checked{% endif %}>
                     <label for="feat_columns">
                         <strong>Sélecteur de colonnes</strong>
                         <small>Permettre de choisir les colonnes affichées sur la page Utilisateurs</small>
@@ -274,6 +275,7 @@
     </div>
 
     <!-- Section 6: Fonctionnalités Désactivées -->
+    {% set disabled_features = [] %}
     {% if not config.FEATURE_RECYCLE_BIN_ENABLED %}
         {% set _ = disabled_features.append({'id': 'recycle_bin', 'name': 'Corbeille AD'}) %}
     {% endif %}
