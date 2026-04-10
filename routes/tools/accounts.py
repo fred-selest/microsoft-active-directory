@@ -28,7 +28,7 @@ def recycle_bin():
                     controls=[('1.2.840.113556.1.4.417', True, None)])
 
         for entry in conn.entries:
-            # Déterminer le type d'objet
+            # Determiner le type d'objet
             obj_classes = entry.objectClass.values if hasattr(entry, 'objectClass') and entry.objectClass else []
             if 'user' in obj_classes:
                 obj_type = 'Utilisateur'
@@ -54,9 +54,10 @@ def recycle_bin():
                 'lastKnownParent': last_parent,
                 'type': obj_type,
             })
-        conn.unbind()
     except Exception as e:
         flash(f'Corbeille AD non disponible: {e}', 'warning')
+    finally:
+        conn.unbind()
 
     return render_template('recycle_bin.html', objects=deleted_objects, connected=is_connected())
 
@@ -101,9 +102,10 @@ def locked_accounts():
                 'dn': decode_ldap_value(entry.entry_dn),
                 'lockoutTime': decode_ldap_value(entry.lockoutTime),
             })
-        conn.unbind()
     except Exception as e:
         flash(f'Erreur: {e}', 'error')
+    finally:
+        conn.unbind()
 
     return render_template('locked_accounts.html', accounts=locked, connected=is_connected())
 
@@ -258,9 +260,10 @@ def expiring_accounts():
                 data['lastLogon'] = 'Jamais'
                 inactive_accounts_list.append(dict(data))
 
-        conn.unbind()
     except Exception as e:
         flash(f'Erreur: {e}', 'error')
+    finally:
+        conn.unbind()
 
     # Trier par date (plus récent en premier)
     password_expiring_list.sort(key=lambda x: x.get('pwdLastSet', '9999'))

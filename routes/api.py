@@ -303,6 +303,7 @@ def api_check_update():
 
 
 @api_bp.route('/update/progress')
+@require_connection
 def api_update_progress():
     """Progression en temps réel de la mise à jour en cours."""
     return jsonify(_update_progress)
@@ -550,8 +551,6 @@ def api_ad_search():
                 if sam:
                     results.append({'value': sam, 'label': f'{sam} — {display}' if display else sam})
             results.sort(key=lambda x: x['value'])
-            conn.unbind()
-            return jsonify(results)
 
         elif subject_type == 'ou':
             search_filter = f'(&(objectClass=organizationalUnit)(ou=*{safe_q}*))'
@@ -563,19 +562,19 @@ def api_ad_search():
                 if dn:
                     results.append({'value': dn, 'label': f'{ou_name} ({dn})' if ou_name else dn})
             results.sort(key=lambda x: x['label'])
-            conn.unbind()
-            return jsonify(results)
 
-        conn.unbind()
-        # Pour group, retourner une liste de strings simples
-        return jsonify([{'value': r, 'label': r} for r in results])
+        # Retourner les resultats
+        if subject_type == 'group':
+            return jsonify([{'value': r, 'label': r} for r in results])
+        return jsonify(results)
 
-    except Exception as e:
+    except Exception:
+        return jsonify([])
+    finally:
         try:
             conn.unbind()
         except Exception:
             pass
-        return jsonify([])
 
 
 @api_bp.route('/permissions/<path:group_name>', methods=['DELETE'])

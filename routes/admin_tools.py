@@ -272,7 +272,7 @@ def alerts_page():
     try:
         # === COMPTES VERROUILLES ===
         conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'lockoutTime'])
+                   attributes=['cn', 'sAMAccountName', 'lockoutTime'], size_limit=100)
         alert_data['locked_accounts'] = len(conn.entries)
 
         if alert_data['locked_accounts'] > 0:
@@ -286,7 +286,7 @@ def alerts_page():
 
         # === COMPTES DESACTIVES ===
         conn.search(base_dn, '(&(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=2))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName'])
+                   attributes=['cn', 'sAMAccountName'], size_limit=1000)
         alert_data['disabled_accounts'] = len(conn.entries)
 
         if alert_data['disabled_accounts'] > 5:
@@ -300,8 +300,8 @@ def alerts_page():
 
         # === COMPTES INACTIFS (lastLogon > 90 jours) ===
         inactive_users_list = []
-        conn.search(base_dn, '(objectClass=user)', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'lastLogon'])
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'lastLogon'], size_limit=5000)
         for entry in conn.entries:
             last_logon_attr = getattr(entry, 'lastLogon', None)
             if last_logon_attr and last_logon_attr.value:
@@ -330,8 +330,8 @@ def alerts_page():
             })
 
         # === MOTS DE PASSE EXPIRANT (dans 14 jours) ===
-        conn.search(base_dn, '(objectClass=user)', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'pwdLastSet', 'userAccountControl'])
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'pwdLastSet', 'userAccountControl'], size_limit=5000)
         for entry in conn.entries:
             pwd_last_set_attr = getattr(entry, 'pwdLastSet', None)
             uac_attr = getattr(entry, 'userAccountControl', None)
@@ -367,8 +367,10 @@ def alerts_page():
             })
 
         # === COMPTES ADMIN (memberof Domain Admins) ===
-        conn.search(base_dn, '(&(objectClass=user)(memberof=CN=Domain Admins,CN=Users,' + base_dn + '))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'lastLogon'])
+        from core.security import escape_ldap_filter
+        safe_base_dn = escape_ldap_filter(base_dn)
+        conn.search(base_dn, f'(&(objectClass=user)(|(memberof=CN=Domain Admins,CN=Users,{safe_base_dn})(memberof=CN=Enterprise Admins,CN=Users,{safe_base_dn})))', SUBTREE,
+                   attributes=['cn', 'sAMAccountName'], size_limit=200)
         alert_data['admin_accounts'] = len(conn.entries)
 
         if alert_data['admin_accounts'] > 3:
@@ -380,31 +382,6 @@ def alerts_page():
                 'link': 'groups.view_group'
             })
 
-        # Vérifier les comptes inactifs (pas de connexion depuis 90 jours)
-        for entry in conn.entries:
-            last_logon = getattr(entry, 'lastLogon', None)
-            if last_logon and last_logon.value:
-                try:
-                    last_val = int(str(last_logon.value))
-                    if last_val > 0:
-                        last_date = datetime.fromtimestamp(last_val / 10000000 - 11644473600)
-                        if (now - last_date).days > 90:
-                            alert_data['inactive_accounts'] += 1
-                except:
-                    # Si impossible à parser, considérer comme inactif
-                    alert_data['inactive_accounts'] += 1
-            else:
-                # Pas de lastLogon = jamais connecté
-                alert_data['inactive_accounts'] += 1
-        
-        if alert_data['inactive_accounts'] > 10:
-            alerts.append({
-                'title': f'{alert_data["inactive_accounts"]} compte(s) inactif(s)',
-                'message': 'Des comptes n\'ont pas été utilisés récemment. Considérez une revue.',
-                'severity': 'info',
-                'date': now.strftime('%d/%m/%Y %H:%M')
-            })
-        
         # Groupes vides (exclure les groupes système Windows)
         # Ces groupes ont member.Count=0 mais sont des groupes "primaires" 
         # ou groupes BUILTIN qui ont des membres via primaryGroupID
@@ -417,7 +394,7 @@ def alerts_page():
         ]
         
         conn.search(base_dn, '(objectClass=group)', SUBTREE,
-                   attributes=['cn', 'member', 'primaryGroupToken', 'groupType'])
+                   attributes=['cn', 'member', 'primaryGroupToken', 'groupType'], size_limit=2000)
         for entry in conn.entries:
             # Vérifier si c'est un groupe système
             is_system_group = False
@@ -452,12 +429,12 @@ def alerts_page():
                 'severity': 'info',
                 'date': now.strftime('%d/%m/%Y %H:%M')
             })
-        
-        conn.unbind()
-        
+
     except Exception as e:
         flash(f'Erreur lors de la récupération des alertes: {str(e)}', 'error')
-    
+    finally:
+        conn.unbind()
+
     return render_template('alerts.html', alert_data=alert_data, alerts=alerts, connected=True)
 
 
