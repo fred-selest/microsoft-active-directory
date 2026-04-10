@@ -26,11 +26,10 @@ def list_groups():
 
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
-    ou_filter = request.args.get('ou', '')  # Filtrer par OU spécifique
+    ou_filter = request.args.get('ou', '')
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
 
-    # Déterminer la base de recherche
     search_base = ou_filter if ou_filter else base_dn
 
     if search_query:
@@ -39,20 +38,27 @@ def list_groups():
     else:
         search_filter = '(objectClass=group)'
 
+    group_list = []
     try:
+        # 1. Recherche des groupes
         conn.search(search_base, search_filter, SUBTREE,
                    attributes=['cn', 'description', 'distinguishedName', 'member', 'groupType'])
 
-        # Pre-compter les membres des groupes speciaux AVANT la boucle
-        # pour eviter d'invalider l'iterateur conn.entries
+        # 2. SAUVEGARDER les entrees AVANT toute autre recherche
+        # conn.search() ecrase conn.entries
+        group_entries = list(conn.entries)
+
+        # 3. Pre-compter pour les groupes speciaux (uses separate searches)
         special_counts = {}
         try:
-            conn.search(base_dn, '(&(objectClass=computer)(objectCategory=computer))', SUBTREE, attributes=['cn'])
+            conn.search(base_dn, '(&(objectClass=computer)(objectCategory=person))', SUBTREE,
+                       attributes=['cn'], size_limit=5000)
             special_counts['computers'] = len(conn.entries)
         except Exception:
             special_counts['computers'] = 0
         try:
-            conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE, attributes=['cn'])
+            conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
+                       attributes=['cn'], size_limit=5000)
             special_counts['users'] = len(conn.entries)
         except Exception:
             special_counts['users'] = 0
@@ -63,61 +69,88 @@ def list_groups():
         except Exception:
             special_counts['dc'] = 0
 
-        group_list = []
-        for entry in conn.entries:
-            members = entry.member.values if hasattr(entry, 'member') and entry.member else []
-            dn = str(entry.entry_dn).lower()
-            cn = str(entry.cn).lower() if entry.cn else ''
+        # 4. Parser les groupes SAUVEGARDES (pas conn.entries !)
+        SPECIAL_GROUPS = [
+            'domain computers', 'ordinateurs du domaine',
+            'domain users', 'utilisateurs du domaine',
+            'domain controllers', 'controleurs de domaine',
+            'domain guests', 'invites du domaine',
+            'enterprise admins', 'administrateurs de l\'entreprise',
+            'schema admins', 'administrateurs du schema'
+        ]
 
-            # Detection des groupes speciaux AD
-            is_special_group = False
-            actual_member_count = len(members)
+        for entry in group_entries:
+            try:
+                # DN
+                try:
+                    dn = str(entry.entry_dn).lower()
+                except Exception:
+                    dn = (decode_ldap_value(getattr(entry, 'distinguishedName', None)) or '').lower()
 
-            # Groupes speciaux dont les membres sont bases sur primaryGroupID
-            special_groups = [
-                'domain computers', 'ordinateurs du domaine',
-                'domain users', 'utilisateurs du domaine',
-                'domain controllers', 'controleurs de domaine',
-                'domain guests', 'invites du domaine',
-                'enterprise admins', 'administrateurs de l\'entreprise',
-                'schema admins', 'administrateurs du schema'
-            ]
+                # CN
+                cn = str(entry.cn).lower() if entry.cn else ''
 
-            for special in special_groups:
-                if special in cn or special in dn:
-                    is_special_group = True
-                    # Utiliser les pre-comptes au lieu de nouvelles requetes
-                    if 'computers' in special or 'ordinateurs' in special:
-                        actual_member_count = special_counts['computers']
-                    elif 'users' in special or 'utilisateurs' in special:
-                        actual_member_count = special_counts['users']
-                    elif 'controllers' in special or 'controleurs' in special:
-                        actual_member_count = special_counts['dc']
-                    break
-            
-            group_list.append({
-                'cn': decode_ldap_value(entry.cn),
-                'description': decode_ldap_value(getattr(entry, 'description', None)),
-                'dn': decode_ldap_value(entry.entry_dn),
-                'member_count': actual_member_count,
-                'is_special_group': is_special_group
-            })
+                # Membres
+                members = entry.member.values if hasattr(entry, 'member') and entry.member else []
+                member_count = len(members)
+
+                # Groupes speciaux
+                is_special = False
+                for special in SPECIAL_GROUPS:
+                    if special in cn or special in dn:
+                        is_special = True
+                        if 'computers' in special or 'ordinateurs' in special:
+                            member_count = special_counts['computers']
+                        elif 'users' in special or 'utilisateurs' in special:
+                            member_count = special_counts['users']
+                        elif 'controllers' in special or 'controleurs' in special:
+                            member_count = special_counts['dc']
+                        break
+
+                # groupType
+                raw_type = entry.groupType.value if hasattr(entry, 'groupType') and entry.groupType else -2147483646
+                try:
+                    gtype = int(raw_type)
+                except (ValueError, TypeError):
+                    gtype = -2147483646
+
+                is_security = bool(gtype & 0x80000000)
+                scope_map = {2: 'universal', 4: 'domain_local'}
+                scope = scope_map.get(gtype & 0x7, 'global')
+
+                group_list.append({
+                    'cn': decode_ldap_value(entry.cn),
+                    'description': decode_ldap_value(getattr(entry, 'description', None)),
+                    'dn': dn,
+                    'member_count': member_count,
+                    'is_special_group': is_special,
+                    'is_security': is_security,
+                    'scope': scope,
+                })
+            except Exception as e:
+                cn_raw = str(entry.cn) if hasattr(entry, 'cn') and entry.cn else 'UNKNOWN'
+                logger.warning(f"Erreur parsing groupe [{cn_raw}]: {type(e).__name__}: {e}")
+                continue
+
         conn.unbind()
+        logger.info(f"Groupes: {len(group_list)} affiches sur {len(group_entries)} trouves")
 
-        # Pagination
-        total = len(group_list)
-        total_pages = (total + per_page - 1) // per_page
-        start = (page - 1) * per_page
-        paginated = group_list[start:start + per_page]
-
-        return render_template('groups.html', groups=paginated, search=search_query,
-                             page=page, total_pages=total_pages, total=total,
-                             connected=is_connected())
     except LDAPException as e:
-        conn.unbind()
-        flash(f'Erreur: {str(e)}', 'error')
-        return render_template('groups.html', groups=[], search=search_query,
-                             page=1, total_pages=1, total=0, connected=is_connected())
+        try:
+            conn.unbind()
+        except Exception:
+            pass
+        flash(f'Erreur LDAP: {str(e)}', 'error')
+
+    # Pagination
+    total = len(group_list)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    start = (page - 1) * per_page
+    paginated = group_list[start:start + per_page]
+
+    return render_template('groups.html', groups=paginated, search=search_query,
+                         page=page, total_pages=total_pages, total=total,
+                         connected=is_connected())
 
 
 @groups_bp.route('/<path:dn>')
