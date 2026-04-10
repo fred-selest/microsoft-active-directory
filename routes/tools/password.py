@@ -130,8 +130,10 @@ def export_password_audit_csv():
         return redirect(url_for('tools.password_audit'))
 
     base_dn = session.get('ad_base_dn', '')
-    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
-    conn.unbind()
+    try:
+        audit_result = run_password_audit(conn, base_dn, max_age_days=90)
+    finally:
+        conn.unbind()
     return Response(
         export_audit_to_csv(audit_result),
         mimetype='text/csv',
@@ -151,8 +153,10 @@ def export_password_audit_json():
         return redirect(url_for('tools.password_audit'))
 
     base_dn = session.get('ad_base_dn', '')
-    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
-    conn.unbind()
+    try:
+        audit_result = run_password_audit(conn, base_dn, max_age_days=90)
+    finally:
+        conn.unbind()
     return Response(
         export_audit_to_json(audit_result),
         mimetype='application/json',
@@ -186,12 +190,12 @@ def export_password_audit_pdf():
 
     base_dn = session.get('ad_base_dn', '')
     domain_name = session.get('ad_domain', 'Domaine AD')
-    audit_result = run_password_audit(conn, base_dn, max_age_days=90)
-    
-    # Sauvegarder dans l'historique
-    save_audit(audit_result, domain_name)
-    
-    conn.unbind()
+    try:
+        audit_result = run_password_audit(conn, base_dn, max_age_days=90)
+        # Sauvegarder dans l'historique
+        save_audit(audit_result, domain_name)
+    finally:
+        conn.unbind()
     
     # Créer le PDF (code inchangé...)
     buffer = BytesIO()

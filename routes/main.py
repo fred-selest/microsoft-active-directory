@@ -210,26 +210,41 @@ def change_expired_password():
             return render_template('change_password.html', username=username, server=server)
 
         # Connexion LDAPS requise pour modifier unicodePwd
-        from ldap3 import MODIFY_REPLACE, NTLM, Server, Connection
+        from ldap3 import MODIFY_REPLACE, NTLM, Server, Connection, ALL
         from routes.core import _get_ntlm_user
 
+        conn = None
         try:
             ntlm_user = _get_ntlm_user(server, username)
             srv = Server(server, port=636, use_ssl=True, get_info=ALL)
             conn = Connection(srv, user=ntlm_user, password=password, authentication=NTLM, auto_bind=True)
 
+            # Rechercher le DN utilisateur depuis base_dn
+            base_dn = session.get('ad_base_dn', '')
+            sam_filter = username.split('\\')[-1] if '\\' in username else username
+            search_filter = f'(sAMAccountName={sam_filter})'
+            conn.search(base_dn, search_filter, SUBTREE, attributes=['distinguishedName'])
+
+            if not conn.entries:
+                flash('Utilisateur introuvable dans AD.', 'error')
+                return render_template('change_password.html', username=username, server=server)
+
+            user_dn = str(conn.entries[0].entry_dn)
+
             # Modifier unicodePwd
             unicode_pwd = f'"{new_pw}"'.encode('utf-16-le')
-            conn.modify(session.get('ad_base_dn', ''), {
+            conn.modify(user_dn, {
                 'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]
             })
 
+            if conn.result.get('result') != 0:
+                flash(f'Erreur: {conn.result.get("description", "inconnue")}', 'error')
+                return render_template('change_password.html', username=username, server=server)
+
             # Forcer le changement au prochain login
-            conn.modify(session.get('ad_base_dn', ''), {
+            conn.modify(user_dn, {
                 'pwdLastSet': [(MODIFY_REPLACE, [0])]
             })
-
-            conn.unbind()
 
             flash('Mot de passe modifie avec succes. Connectez-vous.', 'success')
             # Nettoyer la session
@@ -243,6 +258,9 @@ def change_expired_password():
                 flash('LDAPS requis mais non disponible. Activez LDAPS sur le DC ou contactez l\'administrateur.', 'error')
             else:
                 flash(f'Erreur: {err}', 'error')
+        finally:
+            if conn and conn.bound:
+                conn.unbind()
 
     return render_template('change_password.html', username=username, server=server)
 
@@ -363,7 +381,7 @@ def dashboard():
         try:
             # Compter utilisateurs
             conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))',
-                       SUBTREE, attributes=['userAccountControl'])
+                       SUBTREE, attributes=['userAccountControl'], size_limit=5000)
             for e in conn.entries:
                 stats['total_users'] += 1
                 uac = e.userAccountControl.value if hasattr(e, 'userAccountControl') else 512
@@ -373,7 +391,7 @@ def dashboard():
                     stats['active_users'] += 1
 
             # Compter groupes et groupes vides
-            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member', 'groupType'])
+            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member', 'groupType'], size_limit=2000)
             stats['total_groups'] = len(conn.entries)
             
             # Groupes spéciaux qui n'ont pas de membres directs mais utilisent primaryGroupID
@@ -399,7 +417,7 @@ def dashboard():
                     stats['empty_groups'] += 1
 
             # Compter OUs
-            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['name'])
+            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['name'], size_limit=1000)
             stats['total_ous'] = len(conn.entries)
 
             # Récupérer widgets

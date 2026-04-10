@@ -29,6 +29,9 @@ def configure_ldaps():
     base_dn = session.get('ad_base_dn', '')
     domain = base_dn.replace('DC=', '').replace(',', '.') if base_dn else ''
 
+    # Echapper les caracteres speciaux PowerShell
+    safe_domain = domain.replace("'", "''").replace('$', '`$').replace('"', '`"')
+
     # Script PowerShell dynamique — détecte le certificat automatiquement
     ps_script = f'''
 $ErrorActionPreference = "Stop"
@@ -40,7 +43,7 @@ Write-Host ""
 Write-Host "[1/5] Recherche du certificat serveur..." -ForegroundColor Yellow
 $certs = Get-ChildItem -Path Cert:\\LocalMachine\\My | Where-Object {{
     $_.HasPrivateKey -and
-    $_.Subject -like "*{domain}*" -and
+    $_.Subject -like "*{safe_domain}*" -and
     $_.NotAfter -gt (Get-Date)
 }}
 
@@ -204,11 +207,14 @@ Write-Host "  3. Vous pourrez creer des utilisateurs avec mot de passe !" -Foreg
 def configure_laps():
     """Configurer Windows LAPS automatiquement via PowerShell."""
     if not validate_csrf_token(request.form.get('csrf_token')):
-        flash('Token CSRF inval.', 'error')
+        flash('Token CSRF invalide.', 'error')
         return redirect(url_for('tools.laps_passwords'))
 
     base_dn = session.get('ad_base_dn', '')
     domain_dn = base_dn
+
+    # Echapper les caracteres speciaux PowerShell dans le DN
+    safe_domain_dn = domain_dn.replace("'", "''")
 
     # Script PowerShell avec verification de version et extension schema
     ps_script = f'''
@@ -323,7 +329,7 @@ Write-Host ""
 Write-Host "Liaison de la GPO au domaine..." -ForegroundColor Green
 
 try {{
-    New-GPLink -Name $gpoName -Target "{domain_dn}" -LinkEnabled Yes -ErrorAction Stop | Out-Null
+    New-GPLink -Name $gpoName -Target '{safe_domain_dn}' -LinkEnabled Yes -ErrorAction Stop | Out-Null
     Write-Host "OK GPO liee au domaine avec succes." -ForegroundColor Green
 }} catch {{
     if ($_.Exception.Message -like "*already linked*" -or $_.Exception.Message -like "*already exists*") {{
@@ -540,7 +546,7 @@ def laps_passwords():
 def laps_force_refresh(computer_dn=''):
     """Forcer la mise a jour LAPS sur un ordinateur."""
     if not validate_csrf_token(request.form.get('csrf_token')):
-        flash('Token CSRF inval.', 'error')
+        flash('Token CSRF invalide.', 'error')
         return redirect(url_for('tools.laps_passwords'))
 
     computer_name = request.form.get('computer_name', '').strip()
