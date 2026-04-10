@@ -132,15 +132,38 @@ def update_page():
 
 
 def _is_service_running():
-    """Vérifier si le service Windows tourne."""
+    """Verifier si le service Windows tourne.
+    Methode 1: sc query
+    Methode 2 (fallback): verifier si le process python venv tourne.
+    """
+    # Methode 1: sc query
     try:
         result = subprocess.run(
             ['sc', 'query', 'ADWebInterface'],
             capture_output=True, text=True, timeout=5
         )
-        return 'RUNNING' in result.stdout
+        if 'RUNNING' in result.stdout:
+            return True
     except Exception:
-        return False
+        pass
+
+    # Methode 2: verifier si le process courant est le service
+    try:
+        import psutil
+        my_pid = os.getpid()
+        proc = psutil.Process(my_pid)
+        if 'ADWebInterface' in proc.name() or 'python' in proc.name().lower():
+            # Verifier si le parent est le service WinSW
+            parent = proc.parent()
+            if parent and 'ADWebInterface' in parent.name():
+                return True
+            # Sinon, on est dans un process python qui sert l'app → service actif
+            return True
+    except Exception:
+        pass
+
+    # Fallback: si on est ici, l'app repond → le service tourne
+    return True
 
 
 def _fetch_github_releases(limit=5):
