@@ -392,12 +392,20 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
             # Validation SHA256
             sha = hashlib.sha256(data).hexdigest()
 
-            # Écriture atomique (tmp puis rename)
-            dest = PROJECT_ROOT / fp
+            # Écriture dans un dossier staging d'abord
+            staging = PROJECT_ROOT / 'data' / '.update_staging'
+            dest = staging / fp
             dest.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dest.with_suffix(dest.suffix + '.update_tmp')
-            tmp.write_bytes(data)
-            tmp.replace(dest)  # Atomique sur Windows
+            dest.write_bytes(data)
+
+            # Tentative de remplacement atomique
+            final_dest = PROJECT_ROOT / fp
+            final_dest.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                dest.replace(final_dest)
+            except PermissionError:
+                # Fichier verrouillé — laisser dans staging, sera copié au restart
+                logger.warning(f"Fichier verrouillé: {fp} — extrait dans staging (sera appliqué au restart)")
 
             return fp, sha, None
         except Exception as e:
