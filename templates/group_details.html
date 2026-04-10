@@ -8,14 +8,32 @@
     <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Retour aux groupes</a>
 </div>
 
+{% set is_builtin = 'cn=builtin' in (group.dn or '').lower() %}
+{% set is_special_ad = false %}
+{% set special_names = ['domain admins', 'administrateurs du domaine', 'enterprise admins', 'administrateurs de l\'entreprise', 'schema admins', 'administrateurs du schéma', 'group policy creator owners', 'propriétaires créateurs'] %}
+{% for sn in special_names %}
+    {% if sn in (group.dn or '').lower() %}
+        {% set is_special_ad = true %}
+    {% endif %}
+{% endfor %}
+{% set is_protected = is_builtin or is_special_ad %}
+
 <div class="group-info">
     <p><strong>DN:</strong> {{ group.dn }}</p>
     {% if group.description %}
     <p><strong>Description:</strong> {{ group.description }}</p>
     {% endif %}
     <p><strong>Nombre de membres:</strong> {{ group.members|length }}</p>
+    {% if is_protected %}
+    <div class="builtin-warning" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-top: 1rem; border-radius: 4px;">
+        <strong>⚠️ Groupe système protégé</strong><br>
+        Ce groupe est protégé et ne peut pas être modifié via l'interface.<br>
+        Pour ajouter ou retirer des membres, utilisez PowerShell (<code>Add-ADGroupMember</code> / <code>Remove-ADGroupMember</code>) ou la console ADUC.
+    </div>
+    {% endif %}
 </div>
 
+{% if not is_protected %}
 <div class="add-member-section">
     <h3>Ajouter un membre</h3>
     <form method="post" action="{{ url_for('groups.add_member', dn=group.dn) }}" class="add-member-form">
@@ -29,6 +47,7 @@
         <button type="submit" class="btn btn-primary">Ajouter</button>
     </form>
 </div>
+{% endif %}
 
 <h3>Membres du groupe</h3>
 
@@ -45,7 +64,15 @@
         <tbody>
             {% for member in group.members %}
             <tr>
-                <td>{{ member.cn }}</td>
+                <td>
+                    {% if member.cn %}
+                        {{ member.cn }}
+                    {% elif 'S-1-5-' in member.dn %}
+                        <em style="color: var(--text-secondary);">SID: {{ member.dn }}</em>
+                    {% else %}
+                        <em style="color: var(--text-secondary);">Inconnu</em>
+                    {% endif %}
+                </td>
                 <td>{{ member.sAMAccountName }}</td>
                 <td>
                     {% if member.type == 'user' %}
@@ -60,12 +87,14 @@
                     {% else %}
                     <a href="{{ url_for('groups.view_group', dn=member.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
                     {% endif %}
+                    {% if not is_protected %}
                     <form method="post" action="{{ url_for('groups.remove_member', dn=group.dn) }}"
                           style="display: inline;" onsubmit="return confirm('Retirer ce membre du groupe ?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="member_dn" value="{{ member.dn }}">
                         <button type="submit" class="btn btn-sm btn-danger">Retirer</button>
                     </form>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}

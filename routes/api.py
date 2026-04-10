@@ -942,7 +942,7 @@ def api_log_analysis_auto_fix():
         analyzer = LogAnalyzer()
         analyzer.analyze_all_logs(hours=24)
         results = analyzer.execute_auto_fixes()
-        
+
         return jsonify({
             'status': 'success',
             'results': results
@@ -952,3 +952,92 @@ def api_log_analysis_auto_fix():
             'status': 'error',
             'error': str(e)
         }), 500
+
+
+# =============================================================================
+# RECHERCHE UTILISATEURS & GROUPES (pour cohérence groupes <-> utilisateurs)
+# =============================================================================
+
+@api_bp.route('/users/search')
+@require_connection
+def api_search_users():
+    """API - Recherche d'utilisateurs pour l'ajout aux groupes.
+    Utilisée par le formulaire 'Ajouter un membre' sur la page groupe.
+    """
+    from ldap3 import SUBTREE
+    from core.security import escape_ldap_filter
+
+    query = request.args.get('q', '').strip()
+    if len(query) < 2:
+        return jsonify({'success': False, 'users': []})
+
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Non connecté'}), 401
+
+    try:
+        base_dn = session.get('ad_base_dn', '')
+        safe_q = escape_ldap_filter(query)
+        search_filter = f'(&(objectClass=user)(objectCategory=person)(|(cn=*{safe_q}*)(sAMAccountName=*{safe_q}*)(displayName=*{safe_q}*)))'
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['cn', 'sAMAccountName', 'distinguishedName'],
+                   size_limit=50)
+
+        users = []
+        for e in conn.entries:
+            dn = str(e.entry_dn)
+            cn = str(e.cn.value) if e.cn else ''
+            sam = str(e.sAMAccountName.value) if e.sAMAccountName else ''
+            if dn and 'cn=builtin' not in dn.lower():
+                users.append({'cn': cn, 'sAMAccountName': sam, 'dn': dn})
+
+        conn.unbind()
+        return jsonify({'success': True, 'users': users, 'count': len(users)})
+    except Exception as e:
+        try:
+            conn.unbind()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/groups/search')
+@require_connection
+def api_search_groups():
+    """API - Recherche de groupes pour l'ajout aux utilisateurs.
+    Utilisée par le formulaire 'Ajouter à un groupe' sur la page utilisateur.
+    """
+    from ldap3 import SUBTREE
+    from core.security import escape_ldap_filter
+
+    query = request.args.get('q', '').strip()
+    if len(query) < 1:
+        return jsonify({'success': False, 'groups': []})
+
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Non connecté'}), 401
+
+    try:
+        base_dn = session.get('ad_base_dn', '')
+        safe_q = escape_ldap_filter(query)
+        search_filter = f'(&(objectClass=group)(|(cn=*{safe_q}*)(description=*{safe_q}*)))'
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=['cn', 'distinguishedName'],
+                   size_limit=100)
+
+        groups = []
+        for e in conn.entries:
+            dn = str(e.entry_dn)
+            cn = str(e.cn.value) if e.cn else ''
+            if dn and 'cn=builtin' not in dn.lower():
+                groups.append({'cn': cn, 'dn': dn})
+
+        conn.unbind()
+        return jsonify({'success': True, 'groups': groups, 'count': len(groups)})
+    except Exception as e:
+        try:
+            conn.unbind()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'error': str(e)}), 500
