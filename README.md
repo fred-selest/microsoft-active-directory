@@ -10,7 +10,24 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.38.0 — Avril 2026
+**Dernière version :** v1.39.0 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.39.0
+
+### 🐛 7 Bugs Critical Corrigés
+
+- **C1 — Syntaxe LDAP `lockoutTime`** — remplacement du tuple invalide `(0, [(0, ...)])` par `(MODIFY_REPLACE, [bytes])` — le déblocage de comptes ne fonctionnait plus
+- **C2 — Itérateur invalide dans boucle groupes** — pre-comptage des groupes spéciaux (computers, users, DC) **avant** la boucle `for entry in conn.entries` — évitait le crash lors de l'affichage des groupes avec membres basés sur `primaryGroupID`
+- **C3 — Race condition `_update_progress`** — ajout de `threading.Lock()` sur toutes les lectures/écritures du dict partagé — évitait le crash si 2 mises à jour simultanées
+- **C4 — XSS dans export PDF** — sanitisation du `domain_name` avec `re.sub(r'[^\w._-]', '_', ...)` dans le header `Content-Disposition` — empêchait l'injection de caractères spéciaux dans le nom de fichier
+- **C5 — Erreur silencieuse `fix_type` inconnu** — retour HTTP 400 avec message explicite au lieu de 200 OK avec `success: False` sans détail
+
+### 🧹 Nettoyage
+
+- Suppression des `print()` debug dans `routes/groups/__init__.py`
+- Import `MODIFY_REPLACE` de `ldap3` pour syntaxe LDAP correcte
 
 ---
 
