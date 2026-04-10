@@ -13,6 +13,27 @@ from core.session_crypto import init_crypto
 from core.context_processor import inject_globals
 from core.debug_utils import init_debug, logger
 
+# Appliquer les fichiers staging d'une mise à jour précédente
+try:
+    import shutil
+    from pathlib import Path
+    staging = Path(__file__).parent / 'data' / '.update_staging'
+    if staging.exists():
+        applied = 0
+        for src in staging.rglob('*'):
+            if src.is_file():
+                rel = src.relative_to(staging)
+                dest = Path(__file__).parent / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(src), str(dest))
+                applied += 1
+        # Nettoyer staging
+        shutil.rmtree(staging, ignore_errors=True)
+        if applied > 0:
+            logger.info(f"Update staging appliqué: {applied} fichiers")
+except Exception as e:
+    logger.error(f"Erreur application staging: {e}")
+
 # Import des blueprints
 from routes.main import main_bp
 from routes.users import users_bp
