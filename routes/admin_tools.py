@@ -67,8 +67,8 @@ def update_page():
     # Watchdog status
     watchdog_active = False
     try:
-        from core.watchdog import _watchdog_instance
-        watchdog_active = _watchdog_instance is not None
+        from core import watchdog
+        watchdog_active = watchdog._watchdog_status.get('started', False)
     except Exception:
         pass
 
