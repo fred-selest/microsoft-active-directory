@@ -48,7 +48,7 @@ def edit_user(dn):
             'department': str(entry.department.value) if entry.department else '',
             'title': str(entry.title.value) if entry.title else '',
             'telephoneNumber': str(entry.telephoneNumber.value) if entry.telephoneNumber else '',
-            'description': str(entry.description.value) if entry.description else '',
+            'description': str(entry.description.value) if hasattr(entry, 'description') and entry.description else '',
         }
     except Exception as e:
         flash(f'Erreur: {str(e)}', 'error')

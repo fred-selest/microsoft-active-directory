@@ -74,7 +74,7 @@ def list_computers():
             
             computer_list.append({
                 'cn': decode_ldap_value(entry.cn),
-                'description': decode_ldap_value(entry.description),
+                'description': decode_ldap_value(getattr(entry, 'description', None)),
                 'dn': dn_str,
                 'os': decode_ldap_value(entry.operatingSystem),
                 'os_version': decode_ldap_value(entry.operatingSystemVersion),
