@@ -444,3 +444,143 @@ if update_info['update_available']:
 - Procédure de release Git pour AD Web Interface : 1) Mettre à jour fichier VERSION, 2) Commit avec message "chore: Bump version to X.Y.Z", 3) Créer tag annoté "git tag -a vX.Y.Z -m "Version X.Y.Z - Mois YYYY"", 4) Pousser main "git push origin main", 5) Pousser tag explicitement "git push origin vX.Y.Z" (JAMAIS --tags), 6) Vérifier sur GitHub "git ls-remote --tags origin". Ne jamais utiliser "git push --tags" car cela peut échouer avec des tags existants. Toujours pousser les tags individuellement.
 - Procédure de signature des scripts PowerShell pour AD Web Interface : 1) Utiliser scripts\sign_all.bat (en admin) OU scripts\sign_scripts.ps1, 2) Le script crée automatiquement un certificat auto-signé dans Cert:\LocalMachine\My, 3) Importe le certificat dans Trusted Root, 4) Signe tous les .ps1 avec Set-AuthenticodeSignature, 5) Vérifier avec Get-AuthenticodeSignature. Fichiers : sign_scripts.ps1 (script principal), sign_all.bat (wrapper batch), SIGNATURE_GUIDE.md (documentation). Version 1.36.2+.
 - ⚠️ IMPORTANT : Toujours vérifier que le fichier VERSION est à jour AVANT de commit/push. Après toute modification de code, mettre à jour VERSION (patch pour corrections, mineure pour features, majeure pour breaking changes). Le fichier VERSION doit toujours refléter la version réelle du code poussé sur GitHub.
+- Procédure pour créer une release GitHub proprement : 1) git push origin main (vérifier avec origin/main..HEAD vide), 2) git tag -a vX.Y.Z -m "message", 3) git push origin vX.Y.Z IMMÉDIATEMENT après le push main — AVANT que GitHub ne crée automatiquement une release immutable. IMPORTANT : Ne JAMAIS pousser le tag après que GitHub ait créé une release automatique car elle devient immutable. Si le tag existe déjà sur le remote, utiliser l'interface web GitHub pour éditer la release manuellement. Alternative : configurer les règles du repo pour permettre la suppression de tags.
+
+---
+
+## 13. Fichiers manquants
+
+Les fichiers suivants sont documentés dans le QWEN.md mais **n'existent pas physiquement** dans le projet :
+
+| Fichier documenté | Statut | Alternative |
+|-------------------|--------|-------------|
+| `core/data/audit_history/` (répertoire) | ✅ Existe mais vide par défaut | Historique mensuel généré automatiquement |
+| `static/js/display-debugger.js` | ⚠️ Existe mais usage inconnu | Outil de debug CSS — non critique |
+| `static/icons/icon-192.png` / `icon-512.png` | ⚠️ À vérifier | Icônes PWA |
+| `static/manifest.webmanifest` | ⚠️ À vérifier | Manifeste PWA |
+| `static/sw.js` | ⚠️ À vérifier | Service Worker PWA |
+| `data/backups/` (répertoire) | ✅ Existe mais vide par défaut | Sauvegardes générées automatiquement |
+| `data/themes/` (répertoire) | ❌ N'existe pas | Thèmes personnalisés — non implémenté |
+| `data/history/` (répertoire) | ❌ N'existe pas | Historique actions — non implémenté |
+| `templates/partials/_navbar.html` | ❌ N'existe pas (navbar inline dans base.html) | — |
+| `templates/partials/_sidebar.html` | ❌ N'existe pas (sidebar inline dans base.html) | — |
+| `templates/partials/_alerts.html` | ❌ N'existe pas (alerts inline dans base.html) | — |
+| `templates/partials/_footer.html` | ❌ N'existe pas (footer inline dans base.html) | — |
+| `templates/partials/_pagination.html` | ❌ N'existe pas (pagination inline) | — |
+
+> **Note :** Les partials listés ci-dessus sont intégrés directement dans `base.html` au lieu d'être des fichiers séparés. Ce n'est pas un bug mais une différence par rapport à la documentation.
+
+---
+
+## 14. Audit des bugs identifiés (Avril 2026)
+
+### 🔴 Critical — À corriger immédiatement
+
+| # | Fichier | Bug | Impact |
+|---|---------|-----|--------|
+| C1 | `routes/tools/accounts.py` | Conversion FILETIME incorrecte pour dates expiry/inactif | Toutes les dates de comptes expirés sont fausses |
+| C2 | `routes/main.py` | Timestamp `lastLogon` mal converti dans alerts_page | Alertes comptes inactifs incorrectes |
+| C3 | `routes/tools/laps.py` | Variables domaine non échappées avant appel PowerShell | Injection de commande potentielle |
+| C4 | `routes/api.py:6` | `download_file` sans validation taille max fichier | Disque plein possible (fichier 500MB+) |
+| C5 | `routes/tools/password.py` | Connexion LDAP non fermée dans `finally` si exception PDF | Fuite de connexions |
+
+### 🟠 High — À corriger cette semaine
+
+| # | Fichier | Bug | Impact |
+|---|---------|-----|--------|
+| H1 | `routes/main.py` dashboard | Pas de `size_limit` sur recherches LDAP | Crash si AD > 10k objets |
+| H2 | `routes/users/list_users.py` | Pas de pagination LDAP | Charge tous les users en mémoire |
+| H3 | `routes/groups/__init__.py` | Requête N+1 par membre de groupe | 500 membres = 500 requêtes |
+| H4 | `routes/ous/__init__.py` | 4 requêtes LDAP par OU pour stats | 50 OUs = 200 requêtes |
+| H5 | `routes/admin/__init__.py` | Logo upload sans `secure_filename` | Path traversal possible |
+| H6 | `routes/tools/misc.py` | Clés API stockées en clair dans session | Exposition si session compromise |
+| H7 | `core/updater.py` | Healthcheck trop léger (juste import app) | Serveur cassé non détecté |
+| H8 | `routes/api.py` | Endpoint `/api/update/progress` public | Info update visible sans auth |
+
+### 🟡 Medium — Prochain sprint
+
+| # | Fichier | Problème | Impact |
+|---|---------|----------|--------|
+| M1 | `core/context_processor.py` | `inject_globals` appelé à chaque requête sans cache | Surcharge inutile |
+| M2 | `routes/tools/password.py` | Password audit relancé à chaque clic (pas de cache) | Surcharge AD |
+| M3 | `routes/admin_tools.py` | Page `/update` : 3 appels bloquants séquentiels | Page lente si GitHub injoignable |
+| M4 | `core/updater.py` | `get_remote_file_hash()` jamais appelée | Code mort |
+| M5 | `routes/groups/__init__.py` | `print()` debug laissés (supprimés en v1.39) | Logs pollués |
+| M6 | `routes/api.py` | `_update_progress` dict global mutable | Race condition (fixé en v1.40) |
+
+### 🟢 Low — Dette technique
+
+| # | Fichier | Problème | Impact |
+|---|---------|----------|--------|
+| L1 | Plusieurs routes | Imports `from .core import` mélangés avec `from core.` | Incohérence style |
+| L2 | `routes/admin/__init__.py` | Dict settings par défaut codé en dur (30+ lignes) | Maintenance difficile |
+| L3 | `routes/tools/password.py` | Fonction PDF de 190 lignes | Non testable, non maintenable |
+| L4 | `routes/admin_tools.py` | `alerts_page` de 220 lignes avec 8 try/except imbriqués | Découpage nécessaire |
+| L5 | `routes/debug/__init__.py` | `import requests` non dans requirements.txt | Import optionnel non protégé |
+
+---
+
+## 15. Roadmap des nouveautés à venir
+
+### v1.41 — Corrections urgentes (Semaine prochaine)
+
+- [ ] **C1** : Fix conversion FILETIME dates comptes expirés/inactifs
+- [ ] **C2** : Fix timestamp `lastLogon` dans alerts_page
+- [ ] **C3** : Échappement variables domaine avant appel PowerShell (LAPS)
+- [ ] **C4** : Validation taille max fichiers téléchargés (50MB)
+- [ ] **C5** : `try/finally` avec `conn.unbind()` dans export PDF
+- [ ] **H1-H4** : `size_limit` + pagination LDAP sur toutes les recherches
+- [ ] **H5** : `secure_filename()` sur upload logo
+- [ ] **H6** : Hash des clés API en session (plus de stockage brut)
+- [ ] **H7** : Healthcheck amélioré (test routes critiques + LDAP)
+- [ ] **H8** : `@require_connection` sur `/api/update/progress`
+
+### v1.42 — Performance & Stabilité (Mois prochain)
+
+- [ ] **Recherche LDAP paginée** — `paged_search` sur /users, /groups, /computers, /ous
+- [ ] **Batch search membres groupes** — 1 requête au lieu de N pour les membres
+- [ ] **Comptage OU optimisé** — 1 recherche par type au lieu de 4 par OU
+- [ ] **Cache password audit** — Résultats cachés 5 min
+- [ ] **Cache context_processor** — `inject_globals` optimisé
+- [ ] **Page /update asynchrone** — Appels GitHub en AJAX côté client
+- [ ] **Suppression code mort** — `get_remote_file_hash()`, `print()` debug restants
+- [ ] **Refactoring** — Découper fonctions >100 lignes (PDF, alerts_page)
+
+### v1.43 — Sécurité renforcée
+
+- [ ] **Middleware CSRF global** — Decorateur automatique pour toutes les API POST/DELETE
+- [ ] **Chiffrement Fernet SMTP password** — Plus de stockage en clair dans settings.json
+- [ ] **Restart graceful** — Signal propre au lieu de `os._exit(0)`
+- [ ] **Audit sécurité étendu** — 8 → 12 contrôles (Kerberos, DCSync, Shadow Credentials)
+- [ ] **Rate limiting thread-safe** — Fonctionne across Waitress threads
+- [ ] **2FA TOTP** — Support authentification 2 facteurs pour les admins
+- [ ] **Validation scripts PowerShell** — Vérification intégrité avant exécution
+
+### v1.44 — Features utilisateur
+
+- [ ] **Recherche globale** — Barre unifiée (users + groups + computers + OUs)
+- [ ] **Favoris AD** — Marquer des objets comme favoris
+- [ ] **Historique modifications** — Timeline des changements par objet
+- [ ] **Export CSV universel** — Sur toutes les listes (users, groups, computers, OUs)
+- [ ] **Bulk operations** — Sélection multiple + actions en masse
+- [ ] **Templates création** — Modèles prédéfinis pour utilisateurs
+- [ ] **Notifications navigateur** — Fin de mise à jour, comptes verrouillés
+
+### v1.45 — Infrastructure
+
+- [ ] **Multi-serveur sync** — Sync config entre srv-dc01 et srv-dc02
+- [ ] **Monitoring externe** — Endpoint `/api/health` pour Prometheus/Grafana
+- [ ] **Backup planifié** — Quotidien avec rétention configurable
+- [ ] **Rollback points** — Points de restauration avant chaque update
+- [ ] **API REST documentée** — OpenAPI/Swagger automatique
+- [ ] **Docker support** — Containerisation optionnelle
+
+### v1.46 — Long terme
+
+- [ ] **Kerberos auth** — Remplacer NTLM par Kerberos
+- [ ] **SCIM provisioning** — Provisioning automatique depuis HR system
+- [ ] **SSO Azure AD / Entra ID** — Intégration cloud
+- [ ] **Webhooks** — Notifications sur événements AD (création, suppression, verrouillage)
+- [ ] **Rapports planifiés** — Envoi auto par email (hebdo/mensuel)
+- [ ] **Internationalisation** — Support complet EN + ES + DE
+- [ ] **Thèmes personnalisés** — Interface de création de thèmes (dossier `data/themes/`)
