@@ -91,7 +91,40 @@
     </table>
 </div>
 
-<p class="results-count">{{ groups|length }} groupe(s) trouve(s)</p>
+<p class="results-count">{{ total }} groupe(s) — Page {{ page }}/{{ total_pages }}</p>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="btn btn-sm btn-secondary">← Précédent</a>
+    {% endif %}
+    {% for p in range(1, total_pages + 1) %}
+    <a href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
+       class="btn btn-sm {% if p == page %}btn-primary{% else %}btn-secondary{% endif %}">{{ p }}</a>
+    {% endfor %}
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="btn btn-sm btn-secondary">Suivant →</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.pagination {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+.results-count {
+    text-align: center;
+    margin-top: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+</style>
 {% endblock %}
 
 

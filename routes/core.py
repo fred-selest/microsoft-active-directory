@@ -162,6 +162,12 @@ def _is_invalid_credentials_error(error_msg):
     return 'invalidcredentials' in msg or 'error 49' in msg or '80090308' in msg
 
 
+def _is_password_expired_error(error_msg):
+    """Vérifier si l'erreur indique un mot de passe expiré (LDAP 49 / data 773)."""
+    msg = str(error_msg)
+    return '773' in msg or 'password expired' in msg.lower() or 'pwd_expired' in msg.lower()
+
+
 def _is_channel_binding_error(error_msg):
     """Vérifier si l'erreur est liée au channel binding / LDAP signing."""
     msg = str(error_msg)
@@ -220,11 +226,15 @@ def _try_connection(server, username, password):
                                    or conn.result.get('message')
                                    or f"code {conn.result.get('result', '?')}")
                 errors.append(f"{label}: {result_desc[:80]}")
+                if _is_password_expired_error(result_desc):
+                    return None, "PASSWORD_EXPIRED"
                 if _is_invalid_credentials_error(result_desc):
                     return None, "Identifiants incorrects (vérifiez login/mot de passe)"
 
         except Exception as e:
             err_str = str(e)
+            if _is_password_expired_error(err_str):
+                return None, "PASSWORD_EXPIRED"
             if _is_invalid_credentials_error(err_str):
                 return None, f"{label}: identifiants incorrects"
 
