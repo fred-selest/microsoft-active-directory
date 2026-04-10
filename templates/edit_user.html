@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Modifier {{ user.displayName or user.cn }} - AD Web Interface{% endblock %}
+{% block title %}✏️ Modifier {{ user.displayName or user.cn }} - AD Web Interface{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -74,12 +74,165 @@
     </form>
 </div>
 
+<!-- ════════════════════ UNITÉ ORGANISATIONNELLE ════════════════════ -->
+<div class="form-container">
+    <div class="form-section">
+        <h3>📁 Unité Organisationnelle</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+            OU actuelle : <code>{{ user.current_ou or 'Racine' }}</code>
+        </p>
+        <form method="post" class="ou-move-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="move_ou">
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <select name="target_ou" required>
+                        <option value="">— Choisir une OU cible —</option>
+                        {% for ou in ous %}
+                        <option value="{{ ou.dn }}" {% if ou.dn == user.current_ou %}selected{% endif %}>{{ ou.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-secondary">🔄 Déplacer</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ════════════════════ GROUPES ════════════════════ -->
+<div class="form-container">
+    <div class="form-section">
+        <h3>👥 Appartenance aux groupes</h3>
+
+        <h4>Groupes actuels ({{ user.current_groups|length }})</h4>
+        {% if user.current_groups %}
+        <table class="data-table" style="margin-bottom: 1.5rem;">
+            <thead>
+                <tr>
+                    <th>Groupe</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for grp in user.current_groups %}
+                <tr>
+                    <td>{{ grp.cn }}</td>
+                    <td>
+                        <form method="post" style="display: inline;" onsubmit="return confirm('Retirer {{ user.sAMAccountName }} de ce groupe ?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="remove_group">
+                            <input type="hidden" name="group_dn" value="{{ grp.dn }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Retirer</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">Cet utilisateur n'appartient à aucun groupe (hors groupe principal).</p>
+        {% endif %}
+
+        <h4>Ajouter à un groupe</h4>
+        <form method="post" class="add-group-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="add_group">
+            <div class="form-row" style="position: relative;">
+                <div class="form-group" style="flex: 1;">
+                    <input type="text" id="group_search" name="group_dn_display"
+                           placeholder="Rechercher un groupe..."
+                           autocomplete="off">
+                    <input type="hidden" id="group_dn_hidden" name="group_dn">
+                    <div id="group-suggestions" class="suggestions-dropdown"></div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary" id="btn-add-group">➕ Ajouter</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
-.user-info-summary {
-    background: var(--bg-tertiary);
-    padding: 1rem;
-    border-radius: 6px;
-    margin-bottom: 1.5rem;
+.form-container + .form-container { margin-top: 1.5rem; }
+.ou-move-form .form-row, .add-group-form .form-row { display: flex; gap: 0.75rem; align-items: flex-end; }
+.ou-move-form select, .add-group-form .form-row input[type="text"] { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary); }
+.suggestions-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: 4px; max-height: 250px; overflow-y: auto;
+    z-index: 1000; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
+.suggestion-item { padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; border-bottom: 1px solid var(--border-color); }
+.suggestion-item:hover { background: var(--bg-tertiary); }
+.suggestion-item small { color: var(--text-secondary); }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Recherche AJAX de groupes pour l'ajout
+var grpSearch = document.getElementById('group_search');
+var grpHidden = document.getElementById('group_dn_hidden');
+var grpSuggestions = document.getElementById('group-suggestions');
+
+if (grpSearch) {
+    var grpTimeout;
+    grpSearch.addEventListener('input', function() {
+        clearTimeout(grpTimeout);
+        var query = this.value;
+        if (query.length < 2) {
+            grpSuggestions.style.display = 'none';
+            return;
+        }
+        grpTimeout = setTimeout(function() {
+            fetch('/api/groups/search?q=' + encodeURIComponent(query))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success && data.groups.length > 0) {
+                        var currentDns = {{ user.current_groups|map(attribute='dn')|list|tojson }};
+                        var filtered = data.groups.filter(function(g) {
+                            return currentDns.indexOf(g.dn) === -1;
+                        });
+                        if (filtered.length > 0) {
+                            grpSuggestions.innerHTML = filtered.map(function(g) {
+                                return '<div class="suggestion-item" data-dn="' + g.dn + '">' + g.cn + '</div>';
+                            }).join('');
+                            grpSuggestions.style.display = 'block';
+                        } else {
+                            grpSuggestions.innerHTML = '<div class="suggestion-item" style="color: var(--text-secondary);">Déjà membre de ces groupes</div>';
+                            grpSuggestions.style.display = 'block';
+                        }
+                    } else {
+                        grpSuggestions.style.display = 'none';
+                    }
+                });
+        }, 300);
+    });
+
+    grpSuggestions.addEventListener('click', function(e) {
+        if (e.target.classList.contains('suggestion-item') && e.target.dataset.dn) {
+            grpSearch.value = e.target.textContent.trim();
+            grpHidden.value = e.target.dataset.dn;
+            grpSuggestions.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!grpSearch.contains(e.target) && !grpSuggestions.contains(e.target)) {
+            grpSuggestions.style.display = 'none';
+        }
+    });
+
+    // Validation avant soumission
+    document.querySelector('.add-group-form').addEventListener('submit', function(e) {
+        if (!grpHidden.value) {
+            e.preventDefault();
+            alert('Veuillez sélectionner un groupe dans la liste.');
+        }
+    });
+}
+</script>
 {% endblock %}
