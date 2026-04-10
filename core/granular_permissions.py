@@ -55,6 +55,7 @@ ALL_PERMISSIONS = {
 }
 
 # Rôles prédéfinis avec permissions
+# (uniquement les groupes AD natifs en français)
 PREDEFINED_ROLES = {
     'Administrateurs du domaine': {
         'permissions': list(ALL_PERMISSIONS.keys()),
@@ -64,27 +65,7 @@ PREDEFINED_ROLES = {
         'permissions': list(ALL_PERMISSIONS.keys()),
         'description': 'Accès complet'
     },
-    'IT Support': {
-        'permissions': [
-            'users:read', 'users:update',
-            'groups:read', 'groups:update',
-            'computers:read', 'computers:update',
-            'ous:read',
-            'tools:locked_accounts', 'tools:expiring_accounts',
-            'admin:audit_logs'
-        ],
-        'description': 'Support informatique - Lecture + Modification limitée'
-    },
-    'Helpdesk': {
-        'permissions': [
-            'users:read', 'users:update',
-            'groups:read',
-            'computers:read',
-            'tools:locked_accounts',
-        ],
-        'description': 'Helpdesk - Réinitialisation MDP et débloquage'
-    },
-    'Domain Users': {
+    'Utilisateurs du domaine': {
         'permissions': [
             'users:read',
             'groups:read',
