@@ -10,11 +10,11 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.42.0 — Avril 2026
+**Dernière version :** v1.43.0 — Avril 2026
 
 ---
 
-## 🆕 Nouveautés v1.42.0
+## 🆕 Nouveautés v1.43.0
 
 ### ⚡ Mise à jour par ZIP (v4.0)
 - **1 seule requête HTTP** au lieu de 200+ — téléchargement du ZIP GitHub (~5 Mo)
