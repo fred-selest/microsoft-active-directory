@@ -43,12 +43,12 @@ def update_page():
     """Page de mise à jour."""
     import os
     import platform
-    import sys
     import subprocess
+    import json
     from datetime import datetime
 
     try:
-        from core.updater import check_for_updates_fast, get_update_statistics
+        from core.updater import check_for_updates_fast, get_update_statistics, PROJECT_ROOT, MANIFEST_FILE
         update_info = check_for_updates_fast()
 
         # Statistiques de mise a jour (si update disponible)
@@ -64,6 +64,48 @@ def update_page():
         }
         update_stats = None
 
+    # Watchdog status
+    watchdog_active = False
+    try:
+        from core.watchdog import _watchdog_instance
+        watchdog_active = _watchdog_instance is not None
+    except Exception:
+        pass
+
+    # Manifeste local
+    manifest_info = None
+    try:
+        if MANIFEST_FILE.exists():
+            m_data = json.loads(MANIFEST_FILE.read_text(encoding='utf-8'))
+            manifest_info = {
+                'files_count': len(m_data),
+                'updated_at': datetime.fromtimestamp(
+                    os.path.getmtime(str(MANIFEST_FILE))
+                ).strftime('%d/%m/%Y %H:%M')
+            }
+    except Exception:
+        pass
+
+    # Sync check result
+    sync_info = None
+    try:
+        sync_script = PROJECT_ROOT / 'scripts' / 'sync_check.ps1'
+        if sync_script.exists():
+            result = subprocess.run(
+                ['powershell', '-ExecutionPolicy', 'Bypass', '-File', str(sync_script)],
+                capture_output=True, text=True, timeout=30, cwd=str(PROJECT_ROOT)
+            )
+            output = result.stdout.strip()
+            # Extraire les infos pertinentes
+            for line in output.splitlines():
+                if 'Version locale' in line:
+                    local_v = line.split(':')[-1].strip() if ':' in line else ''
+                if 'Version GitHub' in line:
+                    remote_v = line.split(':')[-1].strip() if ':' in line else ''
+            sync_info = {'output': output[-500:] if output else '', 'local': local_v, 'remote': remote_v}
+    except Exception:
+        pass
+
     # Informations système
     sys_info = {
         'python_version': platform.python_version(),
@@ -71,6 +113,7 @@ def update_page():
         'hostname': platform.node(),
         'service_running': _is_service_running(),
         'server_pid': os.getpid(),
+        'watchdog_active': watchdog_active,
     }
 
     # Fetch changelog depuis GitHub (dernières releases)
@@ -82,6 +125,8 @@ def update_page():
         update_stats=update_stats,
         sys_info=sys_info,
         releases=releases,
+        manifest_info=manifest_info,
+        sync_info=sync_info,
         connected=True
     )
 
