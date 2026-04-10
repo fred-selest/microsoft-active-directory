@@ -12,6 +12,11 @@
     <div class="card version-card">
         <div class="card-header">
             <h3>📦 Versions</h3>
+            {% if update_info.latest_version %}
+            <span class="last-check-badge">
+                Dernière vérif : <span id="last-check-time">{{ update_info.latest_version }}</span>
+            </span>
+            {% endif %}
         </div>
         <div class="card-body">
             <div class="version-compare">
@@ -35,6 +40,9 @@
                 {% else %}
                     <span class="badge badge-success">✅ À jour</span>
                 {% endif %}
+                <button class="btn btn-sm btn-secondary" onclick="location.reload()" title="Vérifier maintenant">
+                    🔄 Vérifier
+                </button>
             </div>
         </div>
     </div>
@@ -68,6 +76,22 @@
                         {% endif %}
                     </td>
                 </tr>
+                <tr>
+                    <th>Watchdog</th>
+                    <td>
+                        {% if sys_info.watchdog_active %}
+                            <span class="badge badge-success">● Actif</span>
+                        {% else %}
+                            <span class="badge badge-secondary">● Inactif</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if manifest_info %}
+                <tr>
+                    <th>Manifeste</th>
+                    <td>{{ manifest_info.files_count }} fichiers — {{ manifest_info.updated_at }}</td>
+                </tr>
+                {% endif %}
             </table>
         </div>
     </div>
@@ -84,9 +108,9 @@
            Le service redémarrera automatiquement après l'installation.</p>
 
         {% if update_stats %}
-        <div class="update-summary" style="background: var(--bg-tertiary); padding: 1rem; border-radius: 4px; margin: 1rem 0;">
-            <p style="margin: 0 0 0.5rem 0;"><strong>Résumé de la mise à jour :</strong></p>
-            <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.875rem;">
+        <div class="update-summary">
+            <p><strong>Résumé de la mise à jour :</strong></p>
+            <ul>
                 <li>{{ update_stats.total_files }} fichier(s) à mettre à jour</li>
                 <li>Taille totale : {{ "%.2f"|format(update_stats.total_size_mb) }} Mo</li>
                 <li>Types : {{ update_stats.file_types|map(attribute=0)|join(', ') if update_stats.file_types else '—' }}</li>
@@ -105,9 +129,43 @@
                 <div class="progress-bar" id="progress-bar"></div>
             </div>
             <p class="progress-text" id="progress-text">Initialisation…</p>
+            <div class="update-phases" id="update-phases">
+                <div class="phase-item" data-phase="staging"><span class="phase-icon">📥</span> Téléchargement staging</div>
+                <div class="phase-item" data-phase="replacing"><span class="phase-icon">🔄</span> Remplacement fichiers</div>
+                <div class="phase-item" data-phase="dependencies"><span class="phase-icon">📦</span> Dépendances Python</div>
+                <div class="phase-item" data-phase="healthcheck"><span class="phase-icon">🏥</span> Healthcheck</div>
+                <div class="phase-item" data-phase="restart"><span class="phase-icon">🔄</span> Redémarrage service</div>
+            </div>
             <pre id="update-log" class="update-log"></pre>
+            <div id="update-errors" class="update-errors"></div>
+        </div>
+
+        <div id="update-actions" class="update-actions" style="display: none;">
+            <button class="btn btn-secondary" onclick="cancelAutoReload()">⏹ Annuler rechargement</button>
+            <button class="btn btn-primary" onclick="window.location.reload()">🔄 Recharger maintenant</button>
         </div>
         <div id="update-status"></div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ════════════════════ SYNC CHECK ════════════════════ -->
+{% if sync_info %}
+<div class="card sync-card">
+    <div class="card-header">
+        <h3>🔗 Sync Check — Comparaison serveurs</h3>
+    </div>
+    <div class="card-body">
+        {% if sync_info.local and sync_info.remote %}
+        <div class="sync-summary">
+            <span class="sync-local">Local : {{ sync_info.local }}</span>
+            <span class="sync-arrow">→</span>
+            <span class="sync-remote">GitHub : {{ sync_info.remote }}</span>
+        </div>
+        {% endif %}
+        {% if sync_info.output %}
+        <pre class="sync-output">{{ sync_info.output }}</pre>
+        {% endif %}
     </div>
 </div>
 {% endif %}
@@ -120,15 +178,24 @@
     <div class="card-body">
         <div class="cmd-grid">
             <div class="cmd-item">
-                <code>.\nssm\ADWebInterface.exe restart</code>
+                <div class="cmd-row">
+                    <code>.\nssm\ADWebInterface.exe restart</code>
+                    <button class="btn-copy-cmd" onclick="copyCmd(this)" title="Copier">📋</button>
+                </div>
                 <span>Redémarrer le service</span>
             </div>
             <div class="cmd-item">
-                <code>.\nssm\ADWebInterface.exe status</code>
+                <div class="cmd-row">
+                    <code>.\nssm\ADWebInterface.exe status</code>
+                    <button class="btn-copy-cmd" onclick="copyCmd(this)" title="Copier">📋</button>
+                </div>
                 <span>Vérifier l'état du service</span>
             </div>
             <div class="cmd-item">
-                <code>.\nssm\ADWebInterface.exe stop</code>
+                <div class="cmd-row">
+                    <code>.\nssm\ADWebInterface.exe stop</code>
+                    <button class="btn-copy-cmd" onclick="copyCmd(this)" title="Copier">📋</button>
+                </div>
                 <span>Arrêter le service</span>
             </div>
         </div>
@@ -214,6 +281,15 @@
     padding: 1.25rem;
 }
 
+/* ── Last check badge ───────────────────────────────────────────── */
+.last-check-badge {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
 /* ── Version compare ────────────────────────────────────────────── */
 .version-compare {
     display: flex;
@@ -255,10 +331,20 @@
     font-weight: 700;
 }
 
-/* ── Meta table ─────────────────────────────────────────────────── */
-.meta-table {
-    width: 100%;
+/* ── Version status ─────────────────────────────────────────────── */
+.version-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
+.error-detail {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #721c24;
+}
+
+/* ── Meta table ─────────────────────────────────────────────────── */
+.meta-table { width: 100%; }
 .meta-table th {
     text-align: left;
     padding: 0.5rem 0.75rem;
@@ -278,8 +364,51 @@
     border-color: var(--primary);
     box-shadow: var(--shadow-md);
 }
-.update-btn-row {
-    margin-bottom: 1rem;
+.update-btn-row { margin-bottom: 1rem; }
+
+/* ── Update summary ─────────────────────────────────────────────── */
+.update-summary {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+.update-summary p { margin: 0 0 0.5rem 0; }
+.update-summary ul { margin: 0; padding-left: 1.5rem; font-size: 0.875rem; }
+
+/* ── Update phases ──────────────────────────────────────────────── */
+.update-phases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.75rem 0;
+}
+.phase-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+.phase-item.active {
+    background: rgba(0,120,212,0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.phase-item.done {
+    background: rgba(21,87,36,0.1);
+    border-color: #155724;
+    color: #155724;
+}
+.phase-item.error {
+    background: rgba(114,28,36,0.1);
+    border-color: #721c24;
+    color: #721c24;
 }
 
 /* ── Progress ───────────────────────────────────────────────────── */
@@ -331,6 +460,48 @@
     word-break: break-all;
 }
 
+/* ── Update errors ──────────────────────────────────────────────── */
+.update-errors {
+    margin-top: 0.75rem;
+}
+.update-error-item {
+    background: rgba(114,28,36,0.1);
+    border: 1px solid #721c24;
+    color: #721c24;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Update actions buttons ─────────────────────────────────────── */
+.update-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+/* ── Sync check ─────────────────────────────────────────────────── */
+.sync-card { margin-bottom: 1.5rem; }
+.sync-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+.sync-arrow { color: var(--text-secondary); }
+.sync-output {
+    background: var(--bg-primary);
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    color: var(--text-secondary);
+}
+
 /* ── Commands grid ──────────────────────────────────────────────── */
 .cmd-grid {
     display: grid;
@@ -338,21 +509,36 @@
     gap: 0.75rem;
 }
 .cmd-item {
-    display: flex;
-    flex-direction: column;
     padding: 0.75rem;
     background: var(--bg-primary);
     border-radius: 6px;
     border: 1px solid var(--border-color);
 }
+.cmd-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
 .cmd-item code {
     font-size: 0.85rem;
     color: var(--primary);
-    margin-bottom: 0.25rem;
 }
+.btn-copy-cmd {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.2rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+.btn-copy-cmd:hover { opacity: 1; }
+.btn-copy-cmd.copied { opacity: 1; }
 .cmd-item span {
+    display: block;
     font-size: 0.8rem;
     color: var(--text-secondary);
+    margin-top: 0.25rem;
 }
 
 /* ── Releases / Changelog ───────────────────────────────────────── */
@@ -388,9 +574,7 @@
     overflow: hidden;
     transition: max-height 0.3s ease;
 }
-.release-notes.open {
-    max-height: 2000px;
-}
+.release-notes.open { max-height: 2000px; }
 .release-notes-content {
     padding-top: 0.75rem;
     margin-top: 0.75rem;
@@ -430,43 +614,65 @@
     border-radius: 6px;
     margin-top: 0.75rem;
 }
-.error-detail {
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    color: #721c24;
-}
 
 /* ── Dark mode ──────────────────────────────────────────────────── */
-body.dark-mode .card-header {
-    background: rgba(0,120,212,0.12);
-}
-body.dark-mode .update-log {
-    background: #0f0f1a;
-    color: #5cb85c;
-}
-body.dark-mode .cmd-item {
-    background: var(--dark-bg-primary, #1a1a2e);
-    border-color: var(--dark-border);
-}
-body.dark-mode .progress-bar-container {
-    background: var(--dark-bg-primary, #1a1a2e);
-}
-body.dark-mode .release-notes-content {
-    color: var(--dark-text-primary);
-}
-body.dark-mode .release-notes-content code {
-    background: var(--dark-bg-primary, #1a1a2e);
+body.dark-mode .card-header { background: rgba(0,120,212,0.12); }
+body.dark-mode .update-log { background: #0f0f1a; color: #5cb85c; }
+body.dark-mode .cmd-item { background: var(--dark-bg-primary, #1a1a2e); border-color: var(--dark-border); }
+body.dark-mode .progress-bar-container { background: var(--dark-bg-primary, #1a1a2e); }
+body.dark-mode .release-notes-content { color: var(--dark-text-primary); }
+body.dark-mode .release-notes-content code { background: var(--dark-bg-primary, #1a1a2e); }
+body.dark-mode .phase-item { background: var(--dark-bg-primary, #1a1a2e); border-color: var(--dark-border); }
+body.dark-mode .sync-output { background: var(--dark-bg-primary, #1a1a2e); color: var(--dark-text-secondary); }
+
+/* ── Responsive mobile ──────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .version-compare { flex-direction: column; gap: 0.5rem; }
+    .version-arrow { transform: rotate(90deg); }
+    .version-number { font-size: 1.25rem; }
+    .version-status { flex-direction: column; align-items: flex-start; }
+    .update-actions { flex-direction: column; }
+    .update-phases { flex-direction: column; }
+    .sync-summary { flex-direction: column; gap: 0.5rem; }
+    .cmd-grid { grid-template-columns: 1fr; }
 }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+var _reloadInterval = null;
+var _cancelReload = false;
+
 function escapeHtml(t) {
     if (!t) return '';
     var d = document.createElement('div');
     d.textContent = String(t);
     return d.innerHTML;
+}
+
+function copyCmd(btn) {
+    var code = btn.parentElement.querySelector('code');
+    if (code && navigator.clipboard) {
+        navigator.clipboard.writeText(code.textContent).then(function() {
+            btn.classList.add('copied');
+            btn.textContent = '✅';
+            setTimeout(function() {
+                btn.classList.remove('copied');
+                btn.textContent = '📋';
+            }, 2000);
+        });
+    }
+}
+
+function setUpdatePhase(phaseName, status) {
+    var phases = document.querySelectorAll('.phase-item');
+    phases.forEach(function(p) {
+        if (p.dataset.phase === phaseName) {
+            p.classList.remove('active', 'done', 'error');
+            if (status) p.classList.add(status);
+        }
+    });
 }
 
 function performUpdate() {
@@ -478,16 +684,25 @@ function performUpdate() {
         return;
     }
 
+    // Demander permission notification
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
     var prog = document.getElementById('update-progress');
     var bar = document.getElementById('progress-bar');
     var txt = document.getElementById('progress-text');
     var log = document.getElementById('update-log');
     var stat = document.getElementById('update-status');
+    var errs = document.getElementById('update-errors');
+    var actions = document.getElementById('update-actions');
 
+    _cancelReload = false;
     btn.disabled = true;
     btn.style.opacity = '0.6';
     prog.style.display = 'block';
     stat.innerHTML = '';
+    errs.innerHTML = '';
     log.textContent = '';
     bar.style.width = '2%';
     txt.textContent = 'Démarrage de la mise à jour…';
@@ -498,62 +713,108 @@ function performUpdate() {
         fetch('/api/update/progress')
         .then(function(r) { return r.json(); })
         .then(function(p) {
-            if (p.status === 'idle') return; // pas encore démarré
+            if (p.status === 'idle') return;
 
-            // Mise à jour barre
             bar.style.width = (p.percent || 0) + '%';
 
+            // Phases visuelles
             if (p.status === 'running') {
                 var done = p.done || 0, total = p.total || 0;
                 var fileShort = p.current_file ? p.current_file.split('/').pop() : '';
                 txt.textContent = total > 0
                     ? 'Téléchargement ' + done + '/' + total + (fileShort ? ' — ' + fileShort : '')
                     : 'Téléchargement en cours…';
+                setUpdatePhase('staging', 'active');
+                if (done > 0 && total > 0 && done === total) {
+                    setUpdatePhase('staging', 'done');
+                    setUpdatePhase('replacing', 'active');
+                }
                 return;
             }
 
-            // Terminé — arrêter le polling
             clearInterval(pollInterval);
             pollInterval = null;
             bar.style.width = '100%';
 
             if (p.status === 'success') {
+                setUpdatePhase('staging', 'done');
+                setUpdatePhase('replacing', 'done');
+                setUpdatePhase('dependencies', 'done');
+                setUpdatePhase('healthcheck', 'done');
+                setUpdatePhase('restart', 'active');
+
                 txt.textContent = 'Mise à jour terminée !';
                 var skipped = p.files_skipped ? ' (' + p.files_skipped + ' fichiers déjà à jour)' : '';
                 log.textContent = (p.message || 'Installation réussie.') + skipped;
+                actions.style.display = 'flex';
+
                 var msg = document.createElement('p');
                 msg.className = 'update-success';
                 msg.textContent = 'Mise à jour appliquée. Redémarrage du service…';
                 stat.appendChild(msg);
-                // Compte à rebours
+
+                // Notification navigateur
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('✅ Mise à jour terminée', {
+                        body: 'Version ' + latestVersion + ' installée avec succès.',
+                        icon: '/static/img/logo.png'
+                    });
+                }
+
+                // Compte à rebours annulable
                 var cd = 15;
                 var cdP = document.createElement('p');
                 cdP.className = 'update-success';
+                cdP.id = 'cd-text';
                 cdP.innerHTML = 'Page rechargée dans <strong id="cd">' + cd + '</strong>s…';
                 stat.appendChild(cdP);
-                var ci = setInterval(function() {
+                _reloadInterval = setInterval(function() {
                     cd--;
                     var el = document.getElementById('cd');
                     if (el) el.textContent = cd;
-                    if (cd <= 0) { clearInterval(ci); window.location.reload(); }
+                    if (cd <= 0 || _cancelReload) {
+                        clearInterval(_reloadInterval);
+                        if (!_cancelReload) window.location.reload();
+                    }
                 }, 1000);
 
             } else if (p.status === 'rollback') {
+                setUpdatePhase('healthcheck', 'error');
                 txt.textContent = 'Rollback automatique effectué';
                 bar.style.background = '#f59e0b';
-                var e = document.createElement('p');
-                e.className = 'update-error';
-                e.textContent = (p.errors && p.errors[0]) ? p.errors[0] : 'Healthcheck échoué — ancienne version restaurée.';
-                stat.appendChild(e);
+                actions.style.display = 'flex';
+
+                if (p.errors && p.errors.length > 0) {
+                    p.errors.forEach(function(err) {
+                        var d = document.createElement('div');
+                        d.className = 'update-error-item';
+                        d.textContent = '❌ ' + err;
+                        errs.appendChild(d);
+                    });
+                }
+
                 btn.disabled = false;
                 btn.style.opacity = '1';
 
             } else { // error
                 txt.textContent = 'Échec de la mise à jour';
-                var e = document.createElement('p');
-                e.className = 'update-error';
-                e.textContent = (p.errors && p.errors[0]) ? p.errors[0] : (p.message || 'Erreur inconnue.');
-                stat.appendChild(e);
+                bar.style.background = '#dc3545';
+                actions.style.display = 'flex';
+
+                if (p.errors && p.errors.length > 0) {
+                    p.errors.forEach(function(err) {
+                        var d = document.createElement('div');
+                        d.className = 'update-error-item';
+                        d.textContent = '❌ ' + err;
+                        errs.appendChild(d);
+                    });
+                } else {
+                    var d = document.createElement('div');
+                    d.className = 'update-error-item';
+                    d.textContent = '❌ ' + (p.message || 'Erreur inconnue.');
+                    errs.appendChild(d);
+                }
+
                 btn.disabled = false;
                 btn.style.opacity = '1';
             }
@@ -581,15 +842,15 @@ function performUpdate() {
     })
     .then(function(data) {
         if (data.success) {
-            // Démarrer le polling de progression toutes les 1.5s
             pollInterval = setInterval(pollProgress, 1500);
         } else {
             bar.style.width = '100%';
+            bar.style.background = '#dc3545';
             txt.textContent = 'Impossible de démarrer';
-            var e = document.createElement('p');
-            e.className = 'update-error';
-            e.textContent = data.error || 'Erreur inconnue.';
-            stat.appendChild(e);
+            var e = document.createElement('div');
+            e.className = 'update-error-item';
+            e.textContent = '❌ ' + (data.error || 'Erreur inconnue.');
+            errs.appendChild(e);
             btn.disabled = false;
             btn.style.opacity = '1';
         }
@@ -597,12 +858,38 @@ function performUpdate() {
     .catch(function(err) {
         if (pollInterval) { clearInterval(pollInterval); }
         txt.textContent = 'Erreur réseau';
-        var e = document.createElement('p');
-        e.className = 'update-error';
-        e.textContent = 'Erreur : ' + (err.message || 'inconnue');
-        stat.appendChild(e);
+        var e = document.createElement('div');
+        e.className = 'update-error-item';
+        e.textContent = '❌ ' + (err.message || 'inconnue');
+        errs.appendChild(e);
         btn.disabled = false;
         btn.style.opacity = '1';
+    });
+}
+
+function cancelAutoReload() {
+    _cancelReload = true;
+    if (_reloadInterval) { clearInterval(_reloadInterval); }
+    var cdText = document.getElementById('cd-text');
+    if (cdText) {
+        cdText.innerHTML = '<strong>Rechargement automatique annulé.</strong> Cliquez sur "Recharger maintenant" quand vous êtes prêt.';
+    }
+}
+
+// Icône clignotante sur l'onglet quand update terminée
+function flashTitle(msg) {
+    var orig = document.title;
+    var flash = true;
+    var interval = setInterval(function() {
+        document.title = flash ? '● ' + msg : orig;
+        flash = !flash;
+    }, 1000);
+    // Arrêter quand la page redevient visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            clearInterval(interval);
+            document.title = orig;
+        }
     });
 }
 </script>
