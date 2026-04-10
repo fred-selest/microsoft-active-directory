@@ -133,27 +133,50 @@ def get_remote_file_hash(filepath):
         return None, None
 
 
-def download_file(filepath, app_dir, content=None):
+def download_file(filepath, app_dir, content=None, expected_sha=None, staging_dir=None):
     """
-    Télécharger un fichier depuis GitHub.
+    Télécharger un fichier depuis GitHub avec validation SHA256.
+    Si staging_dir est fourni, écrire dans le dossier de staging atomique.
     Si content est fourni, l'utiliser directement (évite une requête).
+    
+    Retourne tuple: (success: bool, error: str|None)
     """
-    local_path = app_dir / filepath
-    try:
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        if content is not None:
-            # Utiliser le contenu déjà téléchargé
-            local_path.write_bytes(content)
-        else:
-            # Télécharger le fichier
-            url = f"{GITHUB_RAW_BASE}/{filepath}"
-            with urllib.request.urlopen(url, timeout=30) as r:
-                local_path.write_bytes(r.read())
-        return True
-    except Exception as e:
-        print(f"  Erreur {filepath}: {e}")
-        return False
+    # Determiner le chemin cible
+    if staging_dir:
+        target_path = staging_dir / filepath
+    else:
+        target_path = app_dir / filepath
+
+    # Retry avec backoff
+    last_error = None
+    for attempt in range(3):
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+
+            if content is not None:
+                data = content
+            else:
+                url = f"{GITHUB_RAW_BASE}/{filepath}"
+                with urllib.request.urlopen(url, timeout=30) as r:
+                    data = r.read()
+
+            # Validation SHA256
+            if expected_sha:
+                actual_sha = hashlib.sha256(data).hexdigest()
+                if actual_sha != expected_sha:
+                    logger.error(f"SHA256 mismatch pour {filepath}: attendu={expected_sha[:12]}... obtenu={actual_sha[:12]}...")
+                    return False, f"SHA256 mismatch pour {filepath}"
+
+            target_path.write_bytes(data)
+            return True, None
+
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"Erreur téléchargement {filepath} (tentative {attempt+1}/3): {e}")
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+
+    return False, last_error or 'Erreur inconnue'
 
 
 def get_file_list():
@@ -534,6 +557,7 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
         }
 
     app_dir = PROJECT_ROOT
+    staging_dir = app_dir / '.update_staging'
 
     if not silent:
         print("Récupération de la liste des fichiers...")
@@ -574,14 +598,33 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
     # Backup avant toute modification
     backup_path = backup_current_files(files_to_update)
 
+    # Nettoyage du dossier de staging
+    if staging_dir.exists():
+        import shutil
+        shutil.rmtree(staging_dir, ignore_errors=True)
+    staging_dir.mkdir(parents=True, exist_ok=True)
+
+    # Ecrire le flag d'update en cours (persistance en cas de crash)
+    flag_file = PROJECT_ROOT / 'data' / '.update_in_progress'
+    flag_file.write_text(json.dumps({
+        'started_at': datetime.now().isoformat(),
+        'files_count': len(files_to_update),
+        'version': get_remote_version()[0]
+    }), encoding='utf-8')
+
     errors = []
     updated = 0
     total = len(files_to_update)
 
-    # Télécharger en parallèle
+    # Télécharger en parallèle dans le staging avec validation SHA256
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_file = {
-            executor.submit(download_file, f['path'], app_dir): f['path']
+            executor.submit(
+                download_file,
+                f['path'], app_dir,
+                expected_sha=f.get('sha'),
+                staging_dir=staging_dir
+            ): f['path']
             for f in files_to_update
         }
 
@@ -590,17 +633,45 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
             filepath = future_to_file[future]
             done_count += 1
             try:
-                if future.result():
+                success, error = future.result()
+                if success:
                     updated += 1
                 else:
-                    errors.append(filepath)
+                    errors.append(error or filepath)
             except Exception as e:
                 errors.append(f"{filepath}: {e}")
             if on_progress:
                 try:
                     on_progress(done_count, total, filepath)
-                except Exception:
-                    pass
+                except Exception as cb_err:
+                    logger.warning(f"Progress callback error: {cb_err}")
+
+    # Si erreurs de téléchargement → rollback avant de remplacer
+    if errors:
+        logger.error(f"{len(errors)} erreur(s) de téléchargement — rollback")
+        rollback_ok = restore_backup(backup_path)
+        flag_file.unlink(missing_ok=True)
+        return {
+            'success': False,
+            'files_updated': updated,
+            'files_skipped': files_skipped,
+            'backup_path': str(backup_path),
+            'healthcheck': False,
+            'rollback_performed': rollback_ok,
+            'errors': [f"{len(errors)} fichier(s) n'ont pas pu être téléchargés"] + errors[:10]
+        }
+
+    # === Phase atomique : remplacer tous les fichiers d'un coup ===
+    import shutil
+    for file_info in files_to_update:
+        src = staging_dir / file_info['path']
+        dst = app_dir / file_info['path']
+        if src.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(src), str(dst))
+
+    # Nettoyage du staging
+    shutil.rmtree(staging_dir, ignore_errors=True)
 
     # Healthcheck post-téléchargement
     hc_ok, hc_msg = post_update_healthcheck()
@@ -609,6 +680,7 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
         # Rollback automatique
         logger.error(f"Healthcheck échoué: {hc_msg} — rollback en cours")
         rollback_ok = restore_backup(backup_path)
+        flag_file.unlink(missing_ok=True)
         return {
             'success': False,
             'files_updated': updated,
@@ -616,21 +688,31 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
             'backup_path': str(backup_path),
             'healthcheck': False,
             'rollback_performed': rollback_ok,
-            'errors': [f"Healthcheck échoué: {hc_msg}"] + errors
+            'errors': [f"Healthcheck échoué: {hc_msg}"]
         }
 
-    # Sauvegarder le manifeste uniquement si tout s'est bien passé
-    if not errors:
-        save_manifest(files_info)
+    # Installation automatique des dépendances
+    if not silent:
+        print("Vérification des dépendances Python...")
+    dep_ok, dep_msg = update_dependencies(silent=True)
+    if not dep_ok:
+        logger.warning(f"update_dependencies: {dep_msg}")
+
+    # Sauvegarder le manifeste
+    save_manifest(files_info)
+
+    # Nettoyage du flag
+    flag_file.unlink(missing_ok=True)
 
     return {
-        'success': len(errors) == 0,
+        'success': True,
         'files_updated': updated,
         'files_skipped': files_skipped,
         'backup_path': str(backup_path),
         'healthcheck': hc_ok,
         'rollback_performed': False,
-        'errors': errors
+        'dependencies_updated': dep_ok,
+        'errors': []
     }
 
 

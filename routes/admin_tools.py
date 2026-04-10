@@ -21,8 +21,13 @@ def update_page():
     from datetime import datetime
 
     try:
-        from core.updater import check_for_updates_fast
+        from core.updater import check_for_updates_fast, get_update_statistics
         update_info = check_for_updates_fast()
+
+        # Statistiques de mise a jour (si update disponible)
+        update_stats = None
+        if update_info.get('update_available'):
+            update_stats, stats_err = get_update_statistics()
     except Exception as e:
         update_info = {
             'update_available': False,
@@ -30,6 +35,7 @@ def update_page():
             'latest_version': None,
             'error': str(e)
         }
+        update_stats = None
 
     # Informations système
     sys_info = {
@@ -46,6 +52,7 @@ def update_page():
     return render_template(
         'update.html',
         update_info=update_info,
+        update_stats=update_stats,
         sys_info=sys_info,
         releases=releases,
         connected=True

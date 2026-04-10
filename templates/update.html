@@ -83,6 +83,17 @@
         <p>Une nouvelle version <strong>{{ update_info.latest_version }}</strong> est disponible.
            Le service redémarrera automatiquement après l'installation.</p>
 
+        {% if update_stats %}
+        <div class="update-summary" style="background: var(--bg-tertiary); padding: 1rem; border-radius: 4px; margin: 1rem 0;">
+            <p style="margin: 0 0 0.5rem 0;"><strong>Résumé de la mise à jour :</strong></p>
+            <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.875rem;">
+                <li>{{ update_stats.total_files }} fichier(s) à mettre à jour</li>
+                <li>Taille totale : {{ "%.2f"|format(update_stats.total_size_mb) }} Mo</li>
+                <li>Types : {{ update_stats.file_types|map(attribute=0)|join(', ') if update_stats.file_types else '—' }}</li>
+            </ul>
+        </div>
+        {% endif %}
+
         <div class="update-btn-row">
             <button id="btn-update" class="btn btn-primary btn-lg" onclick="performUpdate()">
                 🔧 Mettre à jour vers {{ update_info.latest_version }}
@@ -459,11 +470,18 @@ function escapeHtml(t) {
 }
 
 function performUpdate() {
-    var btn  = document.getElementById('btn-update');
+    var latestVersion = '{{ update_info.latest_version }}';
+    var btn = document.getElementById('btn-update');
+
+    // Modale de confirmation
+    if (!confirm('Installer la mise à jour vers la version ' + latestVersion + ' ?\n\nLe service redémarrera automatiquement après l\'installation.')) {
+        return;
+    }
+
     var prog = document.getElementById('update-progress');
-    var bar  = document.getElementById('progress-bar');
-    var txt  = document.getElementById('progress-text');
-    var log  = document.getElementById('update-log');
+    var bar = document.getElementById('progress-bar');
+    var txt = document.getElementById('progress-text');
+    var log = document.getElementById('update-log');
     var stat = document.getElementById('update-status');
 
     btn.disabled = true;
@@ -544,7 +562,14 @@ function performUpdate() {
     }
 
     // Lancer la mise à jour
-    fetch('/api/perform-update', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    var csrfToken = '{{ csrf_token() }}';
+    fetch('/api/perform-update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
     .then(function(res) {
         var ct = res.headers.get('content-type');
         if (!ct || !ct.includes('application/json')) {

@@ -14,6 +14,7 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 # État de progression partagé pour la mise à jour (protégé par lock)
 _update_progress_lock = threading.Lock()
+_update_running = threading.Event()  # Empêche les updates concurrentes (double-clic)
 _update_progress = {
     'status': 'idle',   # idle | running | success | error | rollback
     'percent': 0,
@@ -324,11 +325,18 @@ def api_perform_update():
     import threading
     import time
     from core.updater import perform_fast_update
+    from core.security import validate_csrf_token
 
-    # Eviter les mises a jour concurrentes
+    # Validation CSRF
+    csrf_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        return jsonify({'success': False, 'error': 'Token CSRF invalide ou manquant'}), 403
+
+    # Eviter les mises a jour concurrentes (test-and-set atomique)
     with _update_progress_lock:
-        if _update_progress['status'] == 'running':
+        if _update_running.is_set():
             return jsonify({'success': False, 'error': 'Mise à jour déjà en cours'}), 409
+        _update_running.set()
 
     def progress_callback(done, total, filepath):
         with _update_progress_lock:
@@ -390,6 +398,8 @@ def api_perform_update():
                     'errors': [str(e)[:300]],
                     'message': f'Erreur inattendue: {str(e)[:200]}'
                 })
+        finally:
+            _update_running.clear()  # Libérer le verrou atomique
 
     threading.Thread(target=run_update, daemon=True).start()
     return jsonify({'success': True, 'message': 'Mise à jour démarrée'})
