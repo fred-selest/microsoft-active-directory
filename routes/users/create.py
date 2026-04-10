@@ -38,7 +38,7 @@ def create_user():
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
         ou_list = [
-            {'name': str(e.name.value) if e.name else '', 'dn': str(e.distinguishedName.value)}
+            {'name': str(e.name.value) if e.name else '', 'dn': str(e.entry_dn)}
             for e in conn.entries
         ]
         ou_list.sort(key=lambda x: x['name'])

@@ -33,7 +33,7 @@ def bitlocker_keys():
                                 'msFVE-VolumeGuid', 'whenCreated'])
 
         for entry in conn.entries:
-            dn = decode_ldap_value(entry.distinguishedName)
+            dn = decode_ldap_value(entry.entry_dn)
             computer_name = next(
                 (p[3:] for p in dn.split(',') if p.upper().startswith('CN=') and not p.startswith('CN={')),
                 ''

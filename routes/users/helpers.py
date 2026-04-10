@@ -21,7 +21,7 @@ def get_ous(conn, base_dn: str) -> List[Dict[str, str]]:
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
         return [
-            {'name': str(e.name.value) if e.name else '', 'dn': str(e.distinguishedName)}
+            {'name': str(e.name.value) if e.name else '', 'dn': str(e.entry_dn)}
             for e in conn.entries
         ]
     except Exception:

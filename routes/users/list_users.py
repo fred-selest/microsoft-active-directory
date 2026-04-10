@@ -134,7 +134,7 @@ def list_users():
                 'cn': str(entry.cn.value) if entry.cn else '',
                 'sAMAccountName': str(entry.sAMAccountName.value) if entry.sAMAccountName else '',
                 'mail': str(entry.mail.value) if entry.mail else '',
-                'dn': str(entry.distinguishedName),
+                'dn': str(entry.entry_dn),
                 'displayName': str(entry.displayName.value) if entry.displayName else '',
                 'department': str(entry.department.value) if entry.department else '',
                 'title': str(entry.title.value) if entry.title else '',
@@ -151,7 +151,7 @@ def list_users():
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
         ou_list = [
-            {'name': str(e.name.value) if e.name else '', 'dn': str(e.distinguishedName)}
+            {'name': str(e.name.value) if e.name else '', 'dn': str(e.entry_dn)}
             for e in conn.entries
         ]
         ou_list.sort(key=lambda o: o['name'].lower())

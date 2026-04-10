@@ -48,7 +48,7 @@ def delete_user(dn):
                 'sAMAccountName': username,
                 'cn': str(entry.cn.value) if entry.cn else '',
                 'displayName': str(entry.displayName.value) if entry.displayName else '',
-                'distinguishedName': str(entry.distinguishedName)
+                'distinguishedName': str(entry.entry_dn)
             }
             logger.info(f"delete_user: backup attributes = {attributes}")
         

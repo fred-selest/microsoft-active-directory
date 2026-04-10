@@ -160,7 +160,7 @@ def toggle_user_status(dn):
         uac = entry.userAccountControl.value
         uac = int(uac) if uac else 512
 
-        actual_dn = str(entry.distinguishedName)
+        actual_dn = str(entry.entry_dn)
         username = str(entry.sAMAccountName.value) if entry.sAMAccountName else 'inconnu'
         
         # Vérifier si le compte a un mot de passe défini
