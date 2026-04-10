@@ -1,7 +1,7 @@
 """Routes gestion des comptes : corbeille AD, comptes verrouillés, comptes expirant."""
 from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, session
-from ldap3 import SUBTREE
+from ldap3 import SUBTREE, MODIFY_REPLACE
 
 from . import tools_bp
 from ..core import get_ad_connection, decode_ldap_value, is_connected, require_connection, require_permission
@@ -127,7 +127,7 @@ def bulk_unlock_accounts():
     try:
         for dn in selected:
             try:
-                conn.modify(dn, {'lockoutTime': [(0, [(0, b'\x00\x00\x00\x00\x00\x00\x00\x00')])]})
+                conn.modify(dn, {'lockoutTime': [(MODIFY_REPLACE, [b'\x00\x00\x00\x00\x00\x00\x00\x00'])]})
                 if conn.result['result'] == 0:
                     unlocked += 1
                 else:
@@ -157,7 +157,7 @@ def unlock_account(dn):
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.locked_accounts'))
     try:
-        conn.modify(dn, {'lockoutTime': [(0, [(0, b'\x00\x00\x00\x00\x00\x00\x00\x00')])]})
+        conn.modify(dn, {'lockoutTime': [(MODIFY_REPLACE, [b'\x00\x00\x00\x00\x00\x00\x00\x00'])]})
         if conn.result['result'] == 0:
             flash('Compte débloqué avec succès.', 'success')
         else:

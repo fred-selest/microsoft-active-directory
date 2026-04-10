@@ -384,11 +384,15 @@ def export_password_audit_pdf():
     
     buffer.seek(0)
     
+    import re
+    safe_domain = re.sub(r'[^\w._-]', '_', domain_name)
+    safe_filename = f'audit_mdp_{safe_domain}_{datetime.now().strftime("%Y%m%d")}.pdf'
+
     return Response(
         buffer.getvalue(),
         mimetype='application/pdf',
         headers={
-            'Content-Disposition': f'attachment;filename=audit_mdp_{domain_name.replace(" ", "_")}_{datetime.now().strftime("%Y%m%d")}.pdf'
+            'Content-Disposition': f'attachment;filename={safe_filename}'
         }
     )
 

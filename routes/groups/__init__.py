@@ -41,54 +41,59 @@ def list_groups():
 
     try:
         conn.search(search_base, search_filter, SUBTREE,
-                   attributes=['cn', 'description', 'distinguishedName', 'member', 'groupType', 'distinguishedName'])
+                   attributes=['cn', 'description', 'distinguishedName', 'member', 'groupType'])
+
+        # Pre-compter les membres des groupes speciaux AVANT la boucle
+        # pour eviter d'invalider l'iterateur conn.entries
+        special_counts = {}
+        try:
+            conn.search(base_dn, '(&(objectClass=computer)(objectCategory=computer))', SUBTREE, attributes=['cn'])
+            special_counts['computers'] = len(conn.entries)
+        except Exception:
+            special_counts['computers'] = 0
+        try:
+            conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE, attributes=['cn'])
+            special_counts['users'] = len(conn.entries)
+        except Exception:
+            special_counts['users'] = 0
+        try:
+            dc_ou = f'OU=Domain Controllers,{base_dn}'
+            conn.search(dc_ou, '(objectClass=computer)', SUBTREE, attributes=['cn'])
+            special_counts['dc'] = len(conn.entries)
+        except Exception:
+            special_counts['dc'] = 0
 
         group_list = []
         for entry in conn.entries:
             members = entry.member.values if hasattr(entry, 'member') and entry.member else []
             dn = str(entry.distinguishedName).lower()
             cn = str(entry.cn).lower() if entry.cn else ''
-            
-            # Détection des groupes spéciaux AD
+
+            # Detection des groupes speciaux AD
             is_special_group = False
             actual_member_count = len(members)
-            
-            # Groupes spéciaux dont les membres sont basés sur primaryGroupID
+
+            # Groupes speciaux dont les membres sont bases sur primaryGroupID
             special_groups = [
                 'domain computers', 'ordinateurs du domaine',
                 'domain users', 'utilisateurs du domaine',
-                'domain controllers', 'contrôleurs de domaine',
-                'domain guests', 'invités du domaine',
+                'domain controllers', 'controleurs de domaine',
+                'domain guests', 'invites du domaine',
                 'enterprise admins', 'administrateurs de l\'entreprise',
-                'schema admins', 'administrateurs du schéma'
+                'schema admins', 'administrateurs du schema'
             ]
-            
+
             for special in special_groups:
                 if special in cn or special in dn:
                     is_special_group = True
-                    print(f"*** DETECTED special group: {entry.cn} (cn={cn}, dn={dn})")
-                    # Compter les membres réels via primaryGroupID
+                    # Utiliser les pre-comptes au lieu de nouvelles requetes
                     if 'computers' in special or 'ordinateurs' in special:
-                        # Compter les ordinateurs
-                        print(f"*** Counting computers in {base_dn}...")
-                        conn.search(base_dn, '(&(objectClass=computer)(objectCategory=computer))', SUBTREE, attributes=['cn'])
-                        actual_member_count = len(conn.entries)
-                        print(f"*** Found {actual_member_count} computers")
+                        actual_member_count = special_counts['computers']
                     elif 'users' in special or 'utilisateurs' in special:
-                        # Compter les utilisateurs
-                        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE, attributes=['cn'])
-                        actual_member_count = len(conn.entries)
-                    elif 'controllers' in special or 'contrôleurs' in special:
-                        # Compter les DC - rechercher dans l'OU Domain Controllers
-                        dc_ou = f'OU=Domain Controllers,{base_dn}'
-                        try:
-                            conn.search(dc_ou, '(objectClass=computer)', SUBTREE, attributes=['cn'])
-                            actual_member_count = len(conn.entries)
-                        except:
-                            actual_member_count = len(members)
+                        actual_member_count = special_counts['users']
+                    elif 'controllers' in special or 'controleurs' in special:
+                        actual_member_count = special_counts['dc']
                     break
-            
-            print(f"*** Group {entry.cn}: member_count={actual_member_count}, is_special={is_special_group}")
             
             group_list.append({
                 'cn': decode_ldap_value(entry.cn),

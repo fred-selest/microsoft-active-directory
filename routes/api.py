@@ -4,6 +4,7 @@ Blueprint pour les routes API.
 Contient toutes les routes /api/*
 """
 from flask import Blueprint, jsonify, request, session
+import threading
 import platform
 
 from .core import get_ad_connection, is_connected, require_connection, require_permission
@@ -11,7 +12,8 @@ from core.features import require_feature
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-# État de progression partagé pour la mise à jour
+# État de progression partagé pour la mise à jour (protégé par lock)
+_update_progress_lock = threading.Lock()
 _update_progress = {
     'status': 'idle',   # idle | running | success | error | rollback
     'percent': 0,
@@ -228,6 +230,14 @@ def api_password_audit_quick_fix():
                 'total': results['total']
             }
 
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Type de correction inconnu: {fix_type}',
+                'modified': 0,
+                'total': 0
+            }), 400
+
     except Exception as e:
         results = {'success': False, 'message': str(e), 'modified': 0, 'total': 0}
 
@@ -315,64 +325,71 @@ def api_perform_update():
     import time
     from core.updater import perform_fast_update
 
-    # Éviter les mises à jour concurrentes
-    if _update_progress['status'] == 'running':
-        return jsonify({'success': False, 'error': 'Mise à jour déjà en cours'}), 409
+    # Eviter les mises a jour concurrentes
+    with _update_progress_lock:
+        if _update_progress['status'] == 'running':
+            return jsonify({'success': False, 'error': 'Mise à jour déjà en cours'}), 409
 
     def progress_callback(done, total, filepath):
-        _update_progress['done'] = done
-        _update_progress['total'] = total
-        _update_progress['current_file'] = filepath
-        _update_progress['percent'] = int(done / total * 100) if total else 0
+        with _update_progress_lock:
+            _update_progress['done'] = done
+            _update_progress['total'] = total
+            _update_progress['current_file'] = filepath
+            _update_progress['percent'] = int(done / total * 100) if total else 0
 
     def run_update():
-        _update_progress.update({
-            'status': 'running', 'percent': 0, 'done': 0, 'total': 0,
-            'current_file': '', 'files_skipped': 0, 'healthcheck': None,
-            'rollback_performed': False, 'errors': [], 'message': 'Téléchargement en cours...'
-        })
+        with _update_progress_lock:
+            _update_progress.update({
+                'status': 'running', 'percent': 0, 'done': 0, 'total': 0,
+                'current_file': '', 'files_skipped': 0, 'healthcheck': None,
+                'rollback_performed': False, 'errors': [], 'message': 'Téléchargement en cours...'
+            })
         try:
             result = perform_fast_update(on_progress=progress_callback)
             if result.get('rollback_performed'):
-                _update_progress.update({
-                    'status': 'rollback',
-                    'percent': 100,
-                    'healthcheck': False,
-                    'rollback_performed': True,
-                    'errors': result.get('errors', []),
-                    'message': 'Healthcheck échoué — rollback effectué automatiquement'
-                })
+                with _update_progress_lock:
+                    _update_progress.update({
+                        'status': 'rollback',
+                        'percent': 100,
+                        'healthcheck': False,
+                        'rollback_performed': True,
+                        'errors': result.get('errors', []),
+                        'message': 'Healthcheck échoué — rollback effectué automatiquement'
+                    })
                 return
             if result.get('success'):
-                _update_progress.update({
-                    'status': 'success',
-                    'percent': 100,
-                    'files_skipped': result.get('files_skipped', 0),
-                    'healthcheck': result.get('healthcheck', True),
-                    'rollback_performed': False,
-                    'errors': [],
-                    'message': f"Mise à jour terminée ({result.get('files_updated', 0)} fichiers). Redémarrage..."
-                })
+                with _update_progress_lock:
+                    _update_progress.update({
+                        'status': 'success',
+                        'percent': 100,
+                        'files_skipped': result.get('files_skipped', 0),
+                        'healthcheck': result.get('healthcheck', True),
+                        'rollback_performed': False,
+                        'errors': [],
+                        'message': f"Mise à jour terminée ({result.get('files_updated', 0)} fichiers). Redémarrage..."
+                    })
                 # Redémarrage différé via WinSW
                 time.sleep(2)
                 _do_restart()
             else:
                 errors = result.get('errors', [])
-                _update_progress.update({
-                    'status': 'error',
-                    'percent': 100,
-                    'errors': errors,
-                    'message': 'Erreur lors de la mise à jour'
-                })
+                with _update_progress_lock:
+                    _update_progress.update({
+                        'status': 'error',
+                        'percent': 100,
+                        'errors': errors,
+                        'message': 'Erreur lors de la mise à jour'
+                    })
         except Exception as e:
             import logging
             logging.getLogger('api_update').error(f"Erreur mise a jour: {e}", exc_info=True)
-            _update_progress.update({
-                'status': 'error',
-                'percent': 100,
-                'errors': [str(e)[:300]],
-                'message': f'Erreur inattendue: {str(e)[:200]}'
-            })
+            with _update_progress_lock:
+                _update_progress.update({
+                    'status': 'error',
+                    'percent': 100,
+                    'errors': [str(e)[:300]],
+                    'message': f'Erreur inattendue: {str(e)[:200]}'
+                })
 
     threading.Thread(target=run_update, daemon=True).start()
     return jsonify({'success': True, 'message': 'Mise à jour démarrée'})
