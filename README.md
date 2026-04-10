@@ -10,7 +10,31 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.43.0 — Avril 2026
+**Dernière version :** v1.44.0 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.44.0
+
+### 🔴 2 Bugs Critical Corrigés
+- **C1 — `change_expired_password()` utilisait `base_dn` au lieu du DN utilisateur** — le mot de passe ne pouvait jamais être modifié. Fix : recherche du DN via `sAMAccountName` avant modification.
+- **C2 — Fuites de connexions LDAP dans `accounts.py`** — `conn.unbind()` était dans le bloc `try` au lieu de `finally`. Corrigé sur `recycle_bin()`, `locked_accounts()`, `expiring_accounts()`.
+
+### 🟠 3 Bugs High Corrigés
+- **H1 — `alerts_page()` fuite de connexion** — `finally: conn.unbind()` ajouté après 6 recherches LDAP.
+- **H2 — Exports password audit** — `try/finally: conn.unbind()` sur CSV, JSON et PDF.
+- **H3 — `api_ad_search()`** — `finally: conn.unbind()` unifié pour toutes les branches (group/user/ou).
+
+### 🟡 5 Bugs Medium Corrigés
+- **M1 — Injection PowerShell dans `laps.py`** — échappement des caractères spéciaux (`'`, `$`, `"`) avant interpolation dans les scripts.
+- **M2 — `size_limit` sur `alerts_page()`** — 5 recherches LDAP limitées (100 à 5000 entrées).
+- **M3 — `size_limit` sur `dashboard()`** — 3 recherches LDAP limitées (1000 à 5000 entrées).
+- **M4 — `change_expired_password()` sans `finally`** — connexion non fermée en cas d'erreur.
+- **M5 — Boucle inactive_accounts dupliquée** — la 2e boucle itérait sur Domain Admins au lieu de tous les users. Supprimée.
+
+### 🟢 2 Bugs Low Corrigés
+- **L1** — Message CSRF tronqué `'Token CSRF inval.'` → `'Token CSRF invalide.'`
+- **L2** — `/api/update/progress` protégé par `@require_connection` (était public).
 
 ---
 
