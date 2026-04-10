@@ -3,10 +3,37 @@
 Blueprint pour les routes d'administration et outils.
 Contient: update, diagnostic, alerts, errors, security-audit, permissions
 """
+import time
 from flask import Blueprint, render_template, session, flash
 from .core import require_connection, require_permission, get_ad_connection
 
 admin_tools_bp = Blueprint('admin_tools', __name__, url_prefix='/')
+
+# Cache des releases GitHub (30 min) pour eviter les requetes repetitives
+_release_cache = {'data': None, 'time': 0, 'ttl': 1800}
+
+
+def _get_github_headers():
+    """Headers GitHub API avec token si disponible (reduit rate limit de 60/h a 5000/h)."""
+    import os
+    headers = {'User-Agent': 'AD-WebInterface/1.0'}
+    token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GITHUB_API_TOKEN')
+    if not token:
+        env_file = None
+        try:
+            from pathlib import Path
+            env_file = Path(__file__).resolve().parent.parent / '.env'
+            if env_file.exists():
+                for line in env_file.read_text(encoding='utf-8').splitlines():
+                    line = line.strip()
+                    if line.startswith('GITHUB_TOKEN=') and not line.startswith('#'):
+                        token = line.split('=', 1)[1].strip().strip('"').strip("'")
+                        break
+        except Exception:
+            pass
+    if token:
+        headers['Authorization'] = f'token {token}'
+    return headers
 
 
 @admin_tools_bp.route('/update')
@@ -71,56 +98,53 @@ def _is_service_running():
         return False
 
 
-def _fetch_github_releases(limit=10):
-    """Récupérer les dernières releases GitHub."""
+def _fetch_github_releases(limit=5):
+    """
+    Recuperer les dernieres releases GitHub avec cache 30 min.
+    Un SEUL appel API (endpoint /releases inclut tag, notes et date).
+    Avec GITHUB_TOKEN : 5000 req/h au lieu de 60.
+    """
     import urllib.request
     import json as json_mod
 
+    # Verifier le cache
+    now = time.time()
+    if _release_cache['data'] is not None and (now - _release_cache['time']) < _release_cache['ttl']:
+        return _release_cache['data']
+
     releases = []
     try:
-        url = "https://api.github.com/repos/fred-selest/microsoft-active-directory/tags"
-        req = urllib.request.Request(url, headers={'User-Agent': 'AD-WebInterface/1.0'})
+        # Un seul appel : /releases inclut tag_name, body (notes), published_at (date)
+        url = f"https://api.github.com/repos/fred-selest/microsoft-active-directory/releases?per_page={limit}"
+        req = urllib.request.Request(url, headers=_get_github_headers())
         with urllib.request.urlopen(req, timeout=10) as r:
-            tags = json_mod.loads(r.read().decode('utf-8'))[:limit]
+            data = json_mod.loads(r.read().decode('utf-8'))
 
-        for tag in tags:
-            tag_name = tag.get('name', '')
-            # Extraire la version (v1.37.8 -> 1.37.8)
+        for rel in data:
+            tag_name = rel.get('tag_name', '')
             version = tag_name.lstrip('v') if tag_name.startswith('v') else tag_name
-            # Essayer de récupérer le commit date
-            commit_url = tag.get('commit', {}).get('url', '')
-            date_str = None
-            if commit_url:
+
+            date_str = '—'
+            pub_date = rel.get('published_at')
+            if pub_date:
                 try:
-                    with urllib.request.urlopen(commit_url, timeout=5) as r:
-                        commit_data = json_mod.loads(r.read().decode('utf-8'))
-                        date_str = commit_data.get('commit', {}).get('committer', {}).get('date', '')
-                        if date_str:
-                            dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ')
-                            date_str = dt.strftime('%d/%m/%Y')
+                    dt = datetime.strptime(pub_date, '%Y-%m-%dT%H:%M:%SZ')
+                    date_str = dt.strftime('%d/%m/%Y')
                 except Exception:
                     pass
-
-            # Essayer de récupérer les notes de release
-            notes = None
-            try:
-                release_url = f"https://api.github.com/repos/fred-selest/microsoft-active-directory/releases/tags/{tag_name}"
-                with urllib.request.urlopen(release_url, timeout=5) as r:
-                    release_data = json_mod.loads(r.read().decode('utf-8'))
-                    notes = release_data.get('body', '')
-            except Exception:
-                pass
 
             releases.append({
                 'tag': tag_name,
                 'version': version,
-                'date': date_str or '—',
-                'notes': notes,
+                'date': date_str,
+                'notes': rel.get('body'),
             })
-    except Exception as e:
-        # Pas de releases fetchables → vide
+
+    except Exception:
         pass
 
+    _release_cache['data'] = releases
+    _release_cache['time'] = now
     return releases
 
 
