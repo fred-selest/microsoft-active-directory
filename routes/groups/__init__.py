@@ -97,7 +97,7 @@ def list_groups():
             
             group_list.append({
                 'cn': decode_ldap_value(entry.cn),
-                'description': decode_ldap_value(entry.description),
+                'description': decode_ldap_value(getattr(entry, 'description', None)),
                 'dn': decode_ldap_value(entry.entry_dn),
                 'member_count': actual_member_count,
                 'is_special_group': is_special_group
@@ -154,7 +154,7 @@ def view_group(dn):
 
         group = {
             'cn': decode_ldap_value(entry.cn),
-            'description': decode_ldap_value(entry.description),
+            'description': decode_ldap_value(getattr(entry, 'description', None)),
             'dn': dn,
             'members': members
         }
@@ -353,7 +353,7 @@ def edit_group(dn):
         entry = conn.entries[0]
         group = {
             'cn': decode_ldap_value(entry.cn),
-            'description': decode_ldap_value(entry.description),
+            'description': decode_ldap_value(getattr(entry, 'description', None)),
             'dn': dn,
         }
     except Exception as e:

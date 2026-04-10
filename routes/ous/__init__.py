@@ -43,7 +43,7 @@ def list_ous():
             
             ou_list.append({
                 'name': decode_ldap_value(e.name),
-                'description': decode_ldap_value(e.description),
+                'description': decode_ldap_value(getattr(e, 'description', None)),
                 'dn': ou_dn,
                 'users_count': ou_stats['users'],
                 'groups_count': ou_stats['groups'],
@@ -225,7 +225,7 @@ def edit_ou(dn):
         entry = conn.entries[0]
         ou = {
             'name': decode_ldap_value(entry.name),
-            'description': decode_ldap_value(entry.description),
+            'description': decode_ldap_value(getattr(entry, 'description', None)),
             'dn': dn
         }
     except Exception as e:
