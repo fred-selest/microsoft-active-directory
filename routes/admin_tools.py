@@ -86,23 +86,22 @@ def update_page():
     except Exception:
         pass
 
-    # Sync check result
+    # Sync check result (uniquement si difference de version)
     sync_info = None
     try:
-        sync_script = PROJECT_ROOT / 'scripts' / 'sync_check.ps1'
-        if sync_script.exists():
-            result = subprocess.run(
-                ['powershell', '-ExecutionPolicy', 'Bypass', '-File', str(sync_script)],
-                capture_output=True, text=True, timeout=30, cwd=str(PROJECT_ROOT)
-            )
-            output = result.stdout.strip()
-            # Extraire les infos pertinentes
-            for line in output.splitlines():
-                if 'Version locale' in line:
-                    local_v = line.split(':')[-1].strip() if ':' in line else ''
-                if 'Version GitHub' in line:
-                    remote_v = line.split(':')[-1].strip() if ':' in line else ''
-            sync_info = {'output': output[-500:] if output else '', 'local': local_v, 'remote': remote_v}
+        from core.updater import check_for_updates_fast, get_remote_version
+        remote_ver, _ = get_remote_version()
+        current_ver = update_info.get('current_version', '')
+        # N'afficher le sync_check que si les versions different
+        if remote_ver and remote_ver != current_ver:
+            sync_script = PROJECT_ROOT / 'scripts' / 'sync_check.ps1'
+            if sync_script.exists():
+                result = subprocess.run(
+                    ['powershell', '-ExecutionPolicy', 'Bypass', '-File', str(sync_script)],
+                    capture_output=True, text=True, timeout=30, cwd=str(PROJECT_ROOT)
+                )
+                output = result.stdout.strip()
+                sync_info = {'output': output[-500:] if output else '', 'local': current_ver, 'remote': remote_ver}
     except Exception:
         pass
 
