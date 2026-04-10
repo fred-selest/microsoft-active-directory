@@ -10,7 +10,43 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.39.0 — Avril 2026
+**Dernière version :** v1.42.0 — Avril 2026
+
+---
+
+## 🆕 Nouveautés v1.42.0
+
+### ⚡ Mise à jour par ZIP (v4.0)
+- **1 seule requête HTTP** au lieu de 200+ — téléchargement du ZIP GitHub (~5 Mo)
+- **Extraction différentielle SHA256** — seuls les fichiers modifiés sont écrits
+- **Backup parallèle** avant écrasement + rollback automatique si healthcheck échoue
+- **Écriture atomique** (tmp → rename) — plus d'état incohérent en cas de coupure
+
+### 🔒 Cohérence parfaite Groupes ↔ Utilisateurs
+- **Page Groupes** → formulaire "Ajouter un membre" avec **recherche AJAX** d'utilisateurs (autocomplete)
+- **Page Utilisateur** → section "Appartenance aux groupes" avec **recherche AJAX** de groupes + liste des groupes actuels avec bouton "Retirer"
+- **API** : `GET /api/users/search` + `GET /api/groups/search` — recherche par CN, sAMAccountName, displayName
+- **Filtre `CN=Builtin`** — les groupes système sont exclus de toutes les recherches
+
+### 🛡️ Protection des groupes système
+- **Groupes Builtin** — message d'avertissement clair, boutons ajout/retrait masqués
+- **Groupes AD protégés** — Domain Admins, Enterprise Admins, Schema Admins, etc.
+- **Affichage des SID** — les membres sans CN (S-1-5-4) affichent leur SID complet
+
+### 🔧 Gestion OU + Groupes dans l'édition utilisateur
+- **Déplacement OU** — dropdown des OUs disponibles + bouton "Déplacer"
+- **Ajout/Retrait de groupes** — recherche AJAX + boutons directs
+- **Template edit_user.html reconstruit** — données pré-remplies, recherche BASE sur DN
+
+### 🐛 Corrections de bugs
+- **`entry.distinguishedName` → `entry.entry_dn`** (13 fichiers) — propriété ldap3 toujours disponible
+- **71 groupes affichés** au lieu de 1 — `conn.entries` n'est plus écrasé par les recherches speciales
+- **Permissions `testino`** — extraction du sAMAccountName depuis `SELEST\testino`
+- **Mot de passe expiré** — détection LDAP data 773, redirection vers `/change-password`
+- **Rôles prédéfinis** — uniquement les groupes AD natifs français (supprimé IT Support, Helpdesk, Domain Users)
+- **`errors.html`** — normalisation API errors + protection `.indexOf()` sur undefined
+- **`view_group`** — décodage URL des DN + fallback SUBTREE si BASE échoue (code 53)
+- **Filtre `cn=builtin`** sur `/users/` et `/groups/` — groupes système masqués
 
 ---
 
