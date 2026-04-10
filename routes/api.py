@@ -558,7 +558,7 @@ def api_ad_search():
             conn.search(base_dn, search_filter, SUBTREE, attributes=['distinguishedName', 'ou'], size_limit=20)
             results = []
             for e in conn.entries:
-                dn = decode_ldap_value(e.distinguishedName.value) if e.distinguishedName else ''
+                dn = str(e.entry_dn) if hasattr(e, 'entry_dn') else ''
                 ou_name = decode_ldap_value(e.ou.value) if e.ou else ''
                 if dn:
                     results.append({'value': dn, 'label': f'{ou_name} ({dn})' if ou_name else dn})

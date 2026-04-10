@@ -69,7 +69,7 @@ def list_computers():
             is_disabled = bool(int(uac) & 2) if uac else False
             
             # Extraire le chemin OU depuis le DN
-            dn_str = decode_ldap_value(entry.distinguishedName)
+            dn_str = decode_ldap_value(entry.entry_dn)
             ou_path = extract_ou_path(dn_str)
             
             computer_list.append({
@@ -86,7 +86,7 @@ def list_computers():
         # OUs pour déplacement
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
-        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.entry_dn)}
                    for e in conn.entries]
         conn.unbind()
 

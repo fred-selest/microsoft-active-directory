@@ -511,7 +511,7 @@ def laps_passwords():
                     computers.append({
                         'cn': decode_ldap_value(entry.cn),
                         'os': decode_ldap_value(getattr(entry, 'operatingSystem', None)) or 'Inconnu',
-                        'dn': decode_ldap_value(entry.distinguishedName),
+                        'dn': decode_ldap_value(entry.entry_dn),
                         'laps_type': laps_type,
                         'laps_password': pwd,
                         'laps_expiration': exp or 'Inconnue',

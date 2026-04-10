@@ -66,7 +66,7 @@ def list_groups():
         group_list = []
         for entry in conn.entries:
             members = entry.member.values if hasattr(entry, 'member') and entry.member else []
-            dn = str(entry.distinguishedName).lower()
+            dn = str(entry.entry_dn).lower()
             cn = str(entry.cn).lower() if entry.cn else ''
 
             # Detection des groupes speciaux AD
@@ -98,7 +98,7 @@ def list_groups():
             group_list.append({
                 'cn': decode_ldap_value(entry.cn),
                 'description': decode_ldap_value(entry.description),
-                'dn': decode_ldap_value(entry.distinguishedName),
+                'dn': decode_ldap_value(entry.entry_dn),
                 'member_count': actual_member_count,
                 'is_special_group': is_special_group
             })
@@ -274,7 +274,7 @@ def create_group():
     try:
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
-        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+        ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.entry_dn)}
                    for e in conn.entries]
     except:
         ou_list = []

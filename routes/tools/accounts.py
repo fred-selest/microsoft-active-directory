@@ -49,7 +49,7 @@ def recycle_bin():
 
             deleted_objects.append({
                 'cn': decode_ldap_value(entry.cn),
-                'dn': decode_ldap_value(entry.distinguishedName),
+                'dn': decode_ldap_value(entry.entry_dn),
                 'whenChanged': when_changed,
                 'lastKnownParent': last_parent,
                 'type': obj_type,
@@ -98,7 +98,7 @@ def locked_accounts():
             locked.append({
                 'cn': decode_ldap_value(entry.cn),
                 'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
-                'dn': decode_ldap_value(entry.distinguishedName),
+                'dn': decode_ldap_value(entry.entry_dn),
                 'lockoutTime': decode_ldap_value(entry.lockoutTime),
             })
         conn.unbind()
@@ -229,7 +229,7 @@ def expiring_accounts():
                 'cn': decode_ldap_value(entry.cn),
                 'sAMAccountName': sam,
                 'mail': decode_ldap_value(entry.mail) if hasattr(entry, 'mail') else None,
-                'dn': decode_ldap_value(entry.distinguishedName),
+                'dn': decode_ldap_value(entry.entry_dn),
             }
 
             # Vérifier expiration du compte

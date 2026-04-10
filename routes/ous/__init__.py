@@ -36,7 +36,7 @@ def list_ous():
                    attributes=['name', 'description', 'distinguishedName'])
 
         for e in conn.entries:
-            ou_dn = decode_ldap_value(e.distinguishedName)
+            ou_dn = decode_ldap_value(e.entry_dn)
             
             # Compter les objets dans chaque OU
             ou_stats = _count_ou_objects(conn, ou_dn)
@@ -157,7 +157,7 @@ def create_ou():
     try:
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
-        parent_ous = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.distinguishedName)}
+        parent_ous = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.entry_dn)}
                       for e in conn.entries]
     except Exception:
         parent_ous = []
