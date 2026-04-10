@@ -7,6 +7,15 @@ import os
 import platform
 from pathlib import Path
 
+# Charger .env si disponible (permet au healthcheck de fonctionner)
+try:
+    from dotenv import load_dotenv
+    env_file = Path(__file__).parent / '.env'
+    if env_file.exists():
+        load_dotenv(env_file, encoding='utf-8')
+except ImportError:
+    pass
+
 # Détection du système d'exploitation
 CURRENT_OS = platform.system().lower()
 IS_WINDOWS = CURRENT_OS == 'windows'
