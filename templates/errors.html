@@ -180,12 +180,18 @@ async function loadErrors() {
     try {
         const response = await fetch('/api/errors');
         const data = await response.json();
-        
-        allErrors = data.errors || [];
+
+        // Normaliser en objets {file, line}
+        allErrors = (data.errors || []).map(function(e) {
+            if (typeof e === 'string') {
+                return { file: 'server.log', line: e };
+            }
+            return e;
+        });
         displayErrors(allErrors);
         updateStats(allErrors);
     } catch (error) {
-        document.getElementById('errors-container').innerHTML = 
+        document.getElementById('errors-container').innerHTML =
             '<div class="error-item error">Erreur de chargement: ' + error.message + '</div>';
     }
 }
@@ -201,16 +207,18 @@ function displayErrors(errors) {
         return;
     }
     
-    container.innerHTML = errors.map(err => {
-        const isError = err.line.includes('ERROR') || err.line.includes('Exception');
-        const isTraceback = err.line.includes('Traceback') || err.line.includes('File "');
-        
+    container.innerHTML = errors.map(function(err) {
+        var line = err.line || '';
+        var file = err.file || '';
+        var isError = line.indexOf('ERROR') !== -1 || line.indexOf('Exception') !== -1;
+        var isTraceback = line.indexOf('Traceback') !== -1 || line.indexOf('File "') !== -1;
+
         return `
             <div class="error-item ${isError ? 'error' : ''} ${isTraceback ? 'traceback' : ''}">
                 <div class="error-header">
-                    <span class="error-file">${err.file}</span>
+                    <span class="error-file">${escapeHtml(file)}</span>
                 </div>
-                <div class="error-line">${escapeHtml(err.line)}</div>
+                <div class="error-line">${escapeHtml(line)}</div>
             </div>
         `;
     }).join('');
@@ -220,9 +228,9 @@ function displayErrors(errors) {
  * Mettre à jour les statistiques
  */
 function updateStats(errors) {
-    const total = errors.length;
-    const server = errors.filter(e => e.file.includes('server.log')).length;
-    const service = errors.filter(e => e.file.includes('service')).length;
+    var total = errors.length;
+    var server = errors.filter(function(e) { return (e.file || '').indexOf('server.log') !== -1; }).length;
+    var service = errors.filter(function(e) { return (e.file || '').indexOf('service') !== -1; }).length;
     
     document.getElementById('total-errors').textContent = total;
     document.getElementById('server-errors').textContent = server;
@@ -240,7 +248,7 @@ function refreshErrors() {
  * Exporter
  */
 function exportErrors() {
-    const content = allErrors.map(e => `[${e.file}] ${e.line}`).join('\n');
+    var content = allErrors.map(function(e) { return '[' + (e.file || 'unknown') + '] ' + (e.line || ''); }).join('\n');
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
