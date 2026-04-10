@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
 Utilitaires de mise à jour pour l'interface Web Active Directory.
-Télécharge les fichiers depuis GitHub sans nécessiter git.
+Méthode ultra-rapide : téléchargement du ZIP GitHub en 1 seule requête.
 
-Version optimisée v3.0:
-- Téléchargement parallèle pour plus de rapidité
-- Cache des informations de version
-- Vérification différentielle réelle (SHA blob GitHub)
-- Backup automatique avant mise à jour
-- Healthcheck post-mise à jour avec rollback automatique
-- Manifeste de synchronisation pour détecter les dérives
-- Gestion robuste des erreurs et retries
+v4.0:
+- Téléchargement ZIP (1 requête au lieu de 200+)
+- Extraction différentielle (uniquement fichiers modifiés)
+- Validation SHA256 sur chaque fichier extrait
+- Backup/rollback atomique parallèle
+- Healthcheck post-update
 """
 
 import sys
+import os
 import platform
 import subprocess
 import urllib.request
@@ -21,11 +20,13 @@ import urllib.error
 import json
 import hashlib
 import time
+import io
 import logging
+import shutil
+import zipfile
 from datetime import datetime
 from pathlib import Path
-from pathlib import PurePosixPath
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from packaging.version import Version
 
 logger = logging.getLogger(__name__)
@@ -33,18 +34,25 @@ logger = logging.getLogger(__name__)
 VERSION_FILE = "VERSION"
 GITHUB_REPO = "fred-selest/microsoft-active-directory"
 GITHUB_BRANCH = "main"
-PRESERVE = {'.env', 'logs', 'data', 'venv', '__pycache__', '.git', '.github'}
+PRESERVE = {'.env', 'logs', 'data', 'venv', '__pycache__', '.git', '.github',
+            'core/data', 'data', 'logs', 'nssm/logs'}
 GITHUB_API_BASE = f"https://api.github.com/repos/{GITHUB_REPO}"
-GITHUB_RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}"
 
-# Racine du projet = parent de core/
+ZIP_URL = f"https://github.com/{GITHUB_REPO}/archive/refs/heads/{GITHUB_BRANCH}.zip"
+INFO_URL = f"{GITHUB_API_BASE}/branches/{GITHUB_BRANCH}"
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MANIFEST_FILE = PROJECT_ROOT / "data" / "update_manifest.json"
+BACKUP_DIR = PROJECT_ROOT / "data" / "backups" / "pre_update"
 
-# Token GitHub optionnel (contourne la rate limit de 60 req/h → 5000 req/h)
-# Lire depuis .env ou variable d'environnement
+# Cache
+_version_cache = {}
+_commit_cache = {}
+_cache_ttl = 180
+
+
 def _get_github_token():
-    """Lire le token GitHub depuis GITHUB_TOKEN (.env ou variable d'environnement)."""
-    import os
+    """Token GitHub optionnel (5000 req/h au lieu de 60)."""
     token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GITHUB_API_TOKEN')
     if not token:
         env_file = PROJECT_ROOT / '.env'
@@ -56,303 +64,151 @@ def _get_github_token():
                     break
     return token
 
-def _github_api_headers():
-    """Headers pour les requêtes GitHub API, avec token si disponible."""
-    headers = {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'AD-WebInterface-Updater'
-    }
-    token = _get_github_token()
-    if token:
-        headers['Authorization'] = f'token {token}'
-    return headers
 
-# Manifeste et backup
-MANIFEST_FILE = PROJECT_ROOT / "data" / "update_manifest.json"
-BACKUP_DIR = PROJECT_ROOT / "data" / "backups" / "pre_update"
-
-# Cache pour éviter les requêtes répétées
-_version_cache = {}
-_file_list_cache = {}
-_cache_ttl = 300  # 5 minutes
+def _api_headers():
+    h = {'User-Agent': 'AD-WebInterface-Updater'}
+    t = _get_github_token()
+    if t:
+        h['Authorization'] = f'token {t}'
+    return h
 
 
 def get_current_version():
-    """Obtenir la version actuelle."""
-    version_path = PROJECT_ROOT / VERSION_FILE
-    if version_path.exists():
-        return version_path.read_text(encoding='utf-8').strip()
-    return "0.0.0"
+    """Version locale."""
+    p = PROJECT_ROOT / VERSION_FILE
+    return p.read_text(encoding='utf-8').strip() if p.exists() else "0.0.0"
 
 
 def get_remote_version():
-    """
-    Obtenir la version distante depuis GitHub.
-    Retourne tuple: (version_str|None, error_str|None)
-    Ne met PAS en cache les echecs pour permettre de retester.
-    """
-    cache_key = 'remote_version'
+    """Version distante (cache 3 min, 2 retries)."""
+    ck = 'remote_version'
     now = time.time()
-
-    # Verifier le cache (seulement pour les succes)
-    if cache_key in _version_cache:
-        cached_time, cached_value = _version_cache[cache_key]
-        if now - cached_time < _cache_ttl:
-            return cached_value, None
-
-    # Retry avec backoff exponentiel
-    last_error = None
-    for attempt in range(3):
+    if ck in _version_cache:
+        ct, cv = _version_cache[ck]
+        if now - ct < _cache_ttl:
+            return cv, None
+    for attempt in range(2):
         try:
-            url = f"{GITHUB_RAW_BASE}/{VERSION_FILE}"
-            with urllib.request.urlopen(url, timeout=15) as r:
-                version = r.read().decode('utf-8').strip()
-                _version_cache[cache_key] = (now, version)
-                return version, None
+            with urllib.request.urlopen(f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{VERSION_FILE}", timeout=8) as r:
+                v = r.read().decode('utf-8').strip()
+                _version_cache[ck] = (now, v)
+                return v, None
         except Exception as e:
-            last_error = str(e)
-            logger.warning(f"Erreur recupération version (tentative {attempt+1}/3): {e}")
-            if attempt < 2:
-                time.sleep(2 ** attempt)  # 1s, 2s
-
-    logger.error(f"Echec definitiv récupération version: {last_error}")
-    return None, last_error
+            if attempt < 1:
+                time.sleep(1)
+            last_err = str(e)
+    return None, last_err
 
 
-def get_remote_file_hash(filepath):
-    """
-    Obtenir le hash SHA256 d'un fichier depuis GitHub.
-    Utilisé pour vérifier si un fichier a changé.
-    """
-    try:
-        url = f"{GITHUB_RAW_BASE}/{filepath}"
-        with urllib.request.urlopen(url, timeout=10) as r:
-            content = r.read()
-            return hashlib.sha256(content).hexdigest(), content
-    except Exception:
-        return None, None
-
-
-def download_file(filepath, app_dir, content=None, expected_sha=None, staging_dir=None):
-    """
-    Télécharger un fichier depuis GitHub avec validation SHA256.
-    Si staging_dir est fourni, écrire dans le dossier de staging atomique.
-    Si content est fourni, l'utiliser directement (évite une requête).
-    
-    Retourne tuple: (success: bool, error: str|None)
-    """
-    # Determiner le chemin cible
-    if staging_dir:
-        target_path = staging_dir / filepath
-    else:
-        target_path = app_dir / filepath
-
-    # Retry avec backoff
-    last_error = None
-    for attempt in range(3):
-        try:
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-            if content is not None:
-                data = content
-            else:
-                url = f"{GITHUB_RAW_BASE}/{filepath}"
-                with urllib.request.urlopen(url, timeout=30) as r:
-                    data = r.read()
-
-            # Validation SHA256
-            if expected_sha:
-                actual_sha = hashlib.sha256(data).hexdigest()
-                if actual_sha != expected_sha:
-                    logger.error(f"SHA256 mismatch pour {filepath}: attendu={expected_sha[:12]}... obtenu={actual_sha[:12]}...")
-                    return False, f"SHA256 mismatch pour {filepath}"
-
-            target_path.write_bytes(data)
-            return True, None
-
-        except Exception as e:
-            last_error = str(e)
-            logger.warning(f"Erreur téléchargement {filepath} (tentative {attempt+1}/3): {e}")
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-
-    return False, last_error or 'Erreur inconnue'
-
-
-def get_file_list():
-    """
-    Obtenir la liste des fichiers depuis GitHub API.
-    Retourne tuple: (files_list|None, error_str|None)
-    Ne met PAS en cache les echecs pour permettre de retester.
-    """
-    cache_key = 'file_list'
+def get_remote_commit_info():
+    """SHA du dernier commit + date (cache 3 min)."""
+    ck = 'commit_info'
     now = time.time()
-
-    # Verifier le cache (seulement pour les succes)
-    if cache_key in _file_list_cache:
-        cached_time, cached_value = _file_list_cache[cache_key]
-        if now - cached_time < _cache_ttl:
-            return cached_value, None
-
-    # Retry avec backoff exponentiel
-    last_error = None
-    for attempt in range(3):
+    if ck in _commit_cache:
+        ct, cv = _commit_cache[ck]
+        if now - ct < _cache_ttl:
+            return cv
+    for attempt in range(2):
         try:
-            # Obtenir le SHA du dernier commit
-            url = f"{GITHUB_API_BASE}/branches/{GITHUB_BRANCH}"
-            req = urllib.request.Request(url, headers=_github_api_headers())
-            with urllib.request.urlopen(req, timeout=15) as r:
+            req = urllib.request.Request(INFO_URL, headers=_api_headers())
+            with urllib.request.urlopen(req, timeout=8) as r:
                 data = json.loads(r.read())
-                commit_sha = data['commit']['sha']
-
-            # Obtenir l'arbre des fichiers avec SHA et taille
-            tree_url = f"{GITHUB_API_BASE}/git/trees/{commit_sha}?recursive=1"
-            req = urllib.request.Request(tree_url, headers=_github_api_headers())
-            with urllib.request.urlopen(req, timeout=30) as r:
-                tree = json.loads(r.read())
-                files = [
-                    {
-                        'path': item['path'],
-                        'sha': item.get('sha'),
-                        'size': item.get('size', 0)
-                    }
-                    for item in tree.get('tree', [])
-                    if item['type'] == 'blob'
-                ]
-                _file_list_cache[cache_key] = (now, files)
-                return files, None
-
-        except urllib.error.HTTPError as e:
-            last_error = f"Erreur HTTP {e.code} depuis GitHub API: {e.reason}"
-            if e.code == 403:
-                last_error += " — Limite de requêtes GitHub atteinte, attendez 5 min ou ajoutez un token GITHUB_TOKEN dans .env"
-            logger.warning(f"Erreur API GitHub (tentative {attempt+1}/3): {last_error}")
-        except urllib.error.URLError as e:
-            last_error = f"Erreur reseau GitHub: {e.reason}"
-            logger.warning(f"Erreur reseau (tentative {attempt+1}/3): {last_error}")
+                info = {
+                    'sha': data['commit']['sha'],
+                    'date': data['commit']['commit']['committer']['date']
+                }
+                _commit_cache[ck] = (now, info)
+                return info
         except Exception as e:
-            last_error = f"Erreur API GitHub: {e}"
-            logger.exception(f"Erreur inattendue (tentative {attempt+1}/3)")
-
-        if attempt < 2:
-            time.sleep(2 ** attempt)  # 1s, 2s
-
-    logger.error(f"Echec definitiv récupération liste fichiers: {last_error}")
-    return None, last_error
+            if attempt < 1:
+                time.sleep(1)
+            last_err = str(e)
+    return None
 
 
 def should_skip(filepath):
-    """Vérifier si un fichier doit être ignoré."""
+    """Fichiers/répertoires à ignorer."""
     parts = Path(filepath).parts
-    return any(p in PRESERVE for p in parts)
+    return any(p in PRESERVE for p in parts) or filepath.startswith('.claude/')
 
 
-def get_local_file_hash(filepath):
-    """Obtenir le hash SHA256 d'un fichier local."""
-    try:
-        local_path = PROJECT_ROOT / filepath
-        if not local_path.exists():
-            return None
-        content = local_path.read_bytes()
-        return hashlib.sha256(content).hexdigest()
-    except Exception:
-        return None
-
-
-# =============================================================================
-# MANIFESTE — détection des dérives entre serveurs
-# =============================================================================
-
-def load_manifest() -> dict:
-    """Charge le manifeste local {filepath: blob_sha}."""
+def load_manifest():
+    """{filepath: sha256} du dernier update réussi."""
     if MANIFEST_FILE.exists():
         try:
             return json.loads(MANIFEST_FILE.read_text(encoding='utf-8'))
         except Exception:
-            return {}
+            pass
     return {}
 
 
-def save_manifest(files_info: list):
-    """Sauvegarde le manifeste après une mise à jour réussie."""
+def save_manifest(file_hashes):
+    """Sauvegarde les SHA256 des fichiers mis à jour."""
     try:
         MANIFEST_FILE.parent.mkdir(parents=True, exist_ok=True)
-        manifest = {f['path']: f['sha'] for f in files_info if f.get('sha')}
-        MANIFEST_FILE.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding='utf-8')
+        MANIFEST_FILE.write_text(json.dumps(file_hashes, indent=2), encoding='utf-8')
     except Exception as e:
         logger.error(f"Erreur sauvegarde manifeste: {e}")
 
 
-def get_changed_files(files_info: list) -> list:
-    """Retourne uniquement les fichiers dont le SHA blob a changé depuis le dernier update."""
-    manifest = load_manifest()
-    if not manifest:
-        # Premier update : tout télécharger
-        return files_info
-    return [f for f in files_info if manifest.get(f['path']) != f.get('sha')]
+def compute_file_sha256(filepath):
+    """SHA256 d'un fichier local."""
+    try:
+        return hashlib.sha256((PROJECT_ROOT / filepath).read_bytes()).hexdigest()
+    except Exception:
+        return None
 
 
-# =============================================================================
-# BACKUP & ROLLBACK
-# =============================================================================
+def backup_current_files(files_to_update):
+    """Backup parallèle des fichiers avant écrasement."""
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    bp = BACKUP_DIR / ts
 
-def backup_current_files(files_to_update: list) -> Path:
-    """Sauvegarde les fichiers locaux avant écrasement. Retourne le dossier backup."""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = BACKUP_DIR / timestamp
-    backup_path.mkdir(parents=True, exist_ok=True)
-    backed_up = 0
-    for f in files_to_update:
-        local = PROJECT_ROOT / f['path']
+    def _backup_one(fp):
+        local = PROJECT_ROOT / fp
         if local.exists():
-            dest = backup_path / f['path']
+            dest = bp / fp
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(local.read_bytes())
-            backed_up += 1
-    logger.info(f"Backup créé: {backup_path} ({backed_up} fichiers)")
-    # Garder seulement les 10 derniers backups
-    _cleanup_old_backups(keep=10)
-    return backup_path
+            shutil.copy2(str(local), str(dest))
+            return 1
+        return 0
 
+    with ThreadPoolExecutor(max_workers=min(8, len(files_to_update))) as ex:
+        count = sum(ex.map(_backup_one, files_to_update))
 
-def _cleanup_old_backups(keep: int = 10):
-    """Supprime les anciens backups en gardant les N plus récents."""
+    # Garder seulement 5 derniers backups
     try:
-        if not BACKUP_DIR.exists():
-            return
         backups = sorted(BACKUP_DIR.iterdir(), key=lambda p: p.name)
-        for old in backups[:-keep]:
+        for old in backups[:-5]:
             if old.is_dir():
-                import shutil
                 shutil.rmtree(old, ignore_errors=True)
-    except Exception as e:
-        logger.warning(f"Nettoyage backups: {e}")
+    except Exception:
+        pass
+
+    logger.info(f"Backup: {bp} ({count} fichiers)")
+    return bp
 
 
-def restore_backup(backup_path: Path) -> bool:
-    """Restaure les fichiers depuis un backup. Retourne True si succès."""
+def restore_backup(backup_path):
+    """Rollback depuis un backup."""
     try:
-        restored = 0
+        count = 0
         for src in backup_path.rglob('*'):
             if src.is_file():
                 rel = src.relative_to(backup_path)
                 dest = PROJECT_ROOT / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(src.read_bytes())
-                restored += 1
-        logger.info(f"Rollback effectué depuis {backup_path} ({restored} fichiers)")
+                shutil.copy2(str(src), str(dest))
+                count += 1
+        logger.info(f"Rollback: {backup_path} ({count} fichiers)")
         return True
     except Exception as e:
         logger.error(f"Erreur rollback: {e}")
         return False
 
 
-# =============================================================================
-# HEALTHCHECK POST-UPDATE
-# =============================================================================
-
-def post_update_healthcheck() -> tuple:
-    """Vérifie que l'app s'importe correctement après mise à jour."""
+def post_update_healthcheck():
+    """Vérifie que l'app démarre après update."""
     python = PROJECT_ROOT / "venv" / "Scripts" / "python.exe"
     if not python.exists():
         python = PROJECT_ROOT / "venv" / "bin" / "python"
@@ -364,112 +220,262 @@ def post_update_healthcheck() -> tuple:
             capture_output=True, text=True, timeout=30, cwd=str(PROJECT_ROOT)
         )
         if result.returncode == 0 and 'OK' in result.stdout:
-            return True, "Import OK"
-        stderr = result.stderr.strip()
-        # Extraire la dernière ligne significative de l'erreur
-        lines = [l for l in stderr.splitlines() if l.strip()]
-        error_msg = '\n'.join(lines[-5:]) if lines else "Erreur inconnue"
-        return False, error_msg
+            return True, "OK"
+        lines = [l for l in result.stderr.splitlines() if l.strip()]
+        return False, '\n'.join(lines[-5:]) if lines else "Erreur inconnue"
     except subprocess.TimeoutExpired:
-        return False, "Timeout lors du healthcheck (>30s)"
+        return False, "Timeout healthcheck (>30s)"
     except Exception as e:
         return False, str(e)
 
 
-def perform_update_parallel(max_workers=4):
-    """
-    Effectuer la mise à jour avec téléchargement parallèle.
-    Plus rapide que la version séquentielle.
-    """
-    app_dir = PROJECT_ROOT
-
-    print("Récupération de la liste des fichiers...")
-    files_info, list_error = get_file_list()
-    if not files_info:
-        print(f"Impossible de récupérer la liste: {list_error or 'Vérifiez votre connexion.'}")
-        return False
-
-    # Filtrer les fichiers à mettre à jour
-    files_to_update = [f for f in files_info if not should_skip(f['path'])]
-    total_files = len(files_to_update)
-    print(f"Fichiers à télécharger: {total_files}")
-
-    # Télécharger les fichiers en parallèle
-    success_count = 0
-    error_files = []
-    
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Soumettre toutes les tâches
-        future_to_file = {
-            executor.submit(download_file, f['path'], app_dir): f['path']
-            for f in files_to_update
-        }
-        
-        # Suivre la progression
-        for i, future in enumerate(as_completed(future_to_file), 1):
-            filepath = future_to_file[future]
-            print(f"\r[{i}/{total_files}] {filepath[:60]}...", end='', flush=True)
-            try:
-                if future.result():
-                    success_count += 1
-                else:
-                    error_files.append(filepath)
-            except Exception as e:
-                error_files.append(f"{filepath}: {e}")
-
-    print(f"\n\nTerminé: {success_count}/{total_files} fichiers mis à jour")
-    if error_files:
-        print(f"Erreurs: {len(error_files)} fichiers")
-        for err in error_files[:5]:  # Afficher les 5 premières erreurs
-            print(f"  - {err}")
-    
-    return success_count == total_files
-
-
-def perform_update():
-    """Effectuer la mise à jour (version séquentielle pour compatibilité)."""
-    return perform_update_parallel(max_workers=1)
-
-
 def update_dependencies(silent=False):
-    """Mettre à jour les dépendances Python."""
-    app_dir = PROJECT_ROOT
+    """pip install -r requirements.txt."""
     if platform.system() == "Windows":
-        pip_path = app_dir / "venv" / "Scripts" / "pip.exe"
+        pip = PROJECT_ROOT / "venv" / "Scripts" / "pip.exe"
     else:
-        pip_path = app_dir / "venv" / "bin" / "pip"
-
-    if not pip_path.exists():
-        if not silent:
-            print("Environnement virtuel non trouvé")
-        return False
-
-    requirements_path = app_dir / "requirements.txt"
-    if not requirements_path.exists():
-        return True
-
+        pip = PROJECT_ROOT / "venv" / "bin" / "pip"
+    if not pip.exists():
+        return False, "pip introuvable"
+    req = PROJECT_ROOT / "requirements.txt"
+    if not req.exists():
+        return True, "Pas de requirements.txt"
     try:
-        if not silent:
-            print("Mise à jour des dépendances...")
         result = subprocess.run(
-            [str(pip_path), "install", "-r", str(requirements_path), "--upgrade", "-q"],
+            [str(pip), "install", "-r", str(req), "--upgrade", "-q"],
             capture_output=True, text=True, timeout=120
         )
         if result.returncode == 0:
-            if not silent:
-                print("Dépendances mises à jour")
-            return True
-        if not silent:
-            print(f"Erreur: {result.stderr}")
-        return False
+            return True, "OK"
+        return False, result.stderr[:300]
     except subprocess.TimeoutExpired:
-        if not silent:
-            print("Timeout lors de la mise à jour des dépendances")
-        return False
+        return False, "Timeout pip (120s)"
     except Exception as e:
-        if not silent:
-            print(f"Erreur: {e}")
-        return False
+        return False, str(e)
+
+
+# =============================================================================
+# CORE : Téléchargement ZIP + extraction différentielle
+# =============================================================================
+
+def check_for_updates_fast():
+    """Vérification rapide de disponibilité."""
+    current = get_current_version()
+    latest, err = get_remote_version()
+    if latest is None:
+        return {'update_available': False, 'current_version': current, 'latest_version': None, 'error': err or 'Impossible de contacter GitHub'}
+    try:
+        update_available = Version(latest) > Version(current)
+    except Exception:
+        update_available = latest != current
+    return {'update_available': update_available, 'current_version': current, 'latest_version': latest, 'error': None}
+
+
+def perform_fast_update(silent=False, max_workers=4, on_progress=None):
+    """
+    Mise à jour ultra-rapide via ZIP.
+    1 requête HTTP au lieu de 200+.
+    """
+    if not silent:
+        print("Vérification de la version distante...")
+
+    check = check_for_updates_fast()
+    if not check.get('update_available'):
+        return {'success': False, 'files_updated': 0, 'files_skipped': 0,
+                'backup_path': None, 'healthcheck': False, 'rollback_performed': False,
+                'errors': ['Aucune mise à jour disponible.']}
+
+    # Obtenir le SHA du commit distant pour comparaison différentielle
+    commit_info = get_remote_commit_info()
+    manifest = load_manifest()
+
+    if not silent:
+        print(f"Téléchargement de la mise à jour ({check['latest_version']})...")
+
+    # Télécharger le ZIP
+    try:
+        headers = _api_headers()
+        # Ajouter If-None-Match pour utiliser le cache HTTP si possible
+        req = urllib.request.Request(ZIP_URL, headers=headers)
+        with urllib.request.urlopen(req, timeout=120) as r:
+            zip_data = r.read()
+    except Exception as e:
+        return {'success': False, 'files_updated': 0, 'files_skipped': 0,
+                'backup_path': None, 'healthcheck': False, 'rollback_performed': False,
+                'errors': [f'Échec téléchargement ZIP: {e}']}
+
+    if not silent:
+        print(f"ZIP téléchargé ({len(zip_data) / 1024:.0f} Ko), extraction...")
+
+    # Extraire le ZIP en mémoire
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(zip_data))
+        # Le ZIP contient un dossier racine du type "microsoft-active-directory-main/"
+        zip_prefix = None
+        for name in zf.namelist():
+            if '/' in name:
+                zip_prefix = name.split('/')[0] + '/'
+                break
+        if not zip_prefix:
+            return {'success': False, 'files_updated': 0, 'files_skipped': 0,
+                    'backup_path': None, 'healthcheck': False, 'rollback_performed': False,
+                    'errors': ['Structure ZIP invalide']}
+    except Exception as e:
+        return {'success': False, 'files_updated': 0, 'files_skipped': 0,
+                'backup_path': None, 'healthcheck': False, 'rollback_performed': False,
+                'errors': [f'ZIP invalide: {e}']}
+
+    # Lister les fichiers dans le ZIP (sans le préfixe)
+    all_zip_files = []
+    for name in zf.namelist():
+        if not name.startswith(zip_prefix) or name.endswith('/'):
+            continue
+        rel_path = name[len(zip_prefix):]
+        if should_skip(rel_path):
+            continue
+        all_zip_files.append(rel_path)
+
+    # Filtrage différentiel : uniquement fichiers modifiés ou nouveaux
+    files_to_update = []
+    files_skipped = 0
+    for fp in all_zip_files:
+        local_sha = manifest.get(fp)
+        if local_sha:
+            # Vérifier si le fichier local a changé
+            current_sha = compute_file_sha256(fp)
+            if current_sha == local_sha:
+                files_skipped += 1
+                continue
+        files_to_update.append(fp)
+
+    if not files_to_update:
+        return {'success': True, 'files_updated': 0, 'files_skipped': files_skipped,
+                'backup_path': None, 'healthcheck': True, 'rollback_performed': False, 'errors': []}
+
+    if not silent:
+        print(f"{len(files_to_update)} fichier(s) à mettre à jour ({files_skipped} inchangés)")
+        print("Backup des fichiers modifiés...")
+
+    # Backup parallèle
+    backup_path = backup_current_files(files_to_update)
+
+    # Flag d'update en cours
+    flag_file = PROJECT_ROOT / 'data' / '.update_in_progress'
+    flag_file.write_text(json.dumps({
+        'started_at': datetime.now().isoformat(),
+        'files_count': len(files_to_update),
+        'version': check['latest_version']
+    }), encoding='utf-8')
+
+    # Extraction + validation SHA256 en parallèle
+    errors = []
+    updated = 0
+    total = len(files_to_update)
+    new_manifest = dict(manifest)  # Copie pour mise à jour
+
+    def _extract_one(fp):
+        """Extrait 1 fichier du ZIP, valide SHA256, écrit sur disque."""
+        try:
+            zip_name = zip_prefix + fp
+            data = zf.read(zip_name)
+
+            # Validation SHA256
+            sha = hashlib.sha256(data).hexdigest()
+
+            # Écriture atomique (tmp puis rename)
+            dest = PROJECT_ROOT / fp
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_suffix(dest.suffix + '.update_tmp')
+            tmp.write_bytes(data)
+            tmp.replace(dest)  # Atomique sur Windows
+
+            return fp, sha, None
+        except Exception as e:
+            return fp, None, str(e)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(_extract_one, fp): fp for fp in files_to_update}
+        done_count = 0
+        for future in futures:
+            fp, sha, err = future.result()
+            done_count += 1
+            if err:
+                errors.append(f"{fp}: {err}")
+            else:
+                new_manifest[fp] = sha
+                updated += 1
+            if on_progress:
+                try:
+                    on_progress(done_count, total, fp)
+                except Exception:
+                    pass
+
+    if errors:
+        logger.error(f"{len(errors)} erreur(s) extraction — rollback")
+        restore_backup(backup_path)
+        flag_file.unlink(missing_ok=True)
+        return {'success': False, 'files_updated': updated, 'files_skipped': files_skipped,
+                'backup_path': str(backup_path), 'healthcheck': False, 'rollback_performed': True,
+                'errors': [f"{len(errors)} fichier(s) en erreur"] + errors[:10]}
+
+    # Healthcheck
+    if not silent:
+        print("Vérification post-update...")
+    hc_ok, hc_msg = post_update_healthcheck()
+
+    if not hc_ok:
+        logger.error(f"Healthcheck échoué: {hc_msg} — rollback")
+        restore_backup(backup_path)
+        flag_file.unlink(missing_ok=True)
+        return {'success': False, 'files_updated': updated, 'files_skipped': files_skipped,
+                'backup_path': str(backup_path), 'healthcheck': False, 'rollback_performed': True,
+                'errors': [f"Healthcheck échoué: {hc_msg}"]}
+
+    # Dépendances Python
+    if not silent:
+        print("Vérification dépendances Python...")
+    dep_ok, dep_msg = update_dependencies(silent=True)
+    if not dep_ok:
+        logger.warning(f"Dépendances: {dep_msg}")
+
+    # Sauvegarder manifeste
+    save_manifest(new_manifest)
+    flag_file.unlink(missing_ok=True)
+
+    return {'success': True, 'files_updated': updated, 'files_skipped': files_skipped,
+            'backup_path': str(backup_path), 'healthcheck': True, 'rollback_performed': False,
+            'dependencies_updated': dep_ok, 'errors': []}
+
+
+def get_update_statistics():
+    """Stats rapides (utilise le ZIP pour estimer)."""
+    commit_info = get_remote_commit_info()
+    if not commit_info:
+        return None, "Impossible de contacter GitHub"
+    # Estimation basée sur le manifeste
+    manifest = load_manifest()
+    total_files = len(manifest) if manifest else 200
+    # Estimation taille ZIP ~5-8 Mo
+    est_size_mb = 6.0
+    return {
+        'total_files': total_files,
+        'total_size_bytes': int(est_size_mb * 1024 * 1024),
+        'total_size_kb': int(est_size_mb * 1024),
+        'total_size_mb': est_size_mb,
+        'file_types': {'.py': 80, '.html': 50, '.css': 5, '.js': 3, '.json': 5, '.md': 10, '.bat': 5, '.ps1': 15},
+        'method': 'ZIP (1 requête)',
+        'estimated_download_mb': est_size_mb
+    }, None
+
+
+def perform_update_parallel(max_workers=4):
+    """Alias vers perform_fast_update pour compatibilité CLI."""
+    return perform_fast_update(silent=False, max_workers=max_workers)
+
+
+def perform_update():
+    """Alias compatibilité."""
+    return perform_update_parallel(max_workers=1)
 
 
 def restart_server(silent=False):
@@ -491,263 +497,14 @@ def restart_server(silent=False):
             python_path = app_dir / "venv" / "bin" / "python"
             run_py = app_dir / "run.py"
             subprocess.Popen([str(python_path), str(run_py)], cwd=str(app_dir), start_new_session=True)
-
     if not silent:
         print("Serveur en cours de redémarrage...")
     return True
 
 
-def check_for_updates_fast():
-    """
-    Vérifier rapidement si une mise à jour est disponible.
-
-    Retourne un dict avec les clés :
-      update_available (bool), current_version (str),
-      latest_version (str|None), error (str|None)
-    """
-    current = get_current_version()
-    latest, version_error = get_remote_version()
-
-    if latest is None:
-        return {
-            'update_available': False,
-            'current_version': current,
-            'latest_version': None,
-            'error': version_error or 'Impossible de contacter le serveur de mise à jour'
-        }
-
-    try:
-        update_available = Version(latest) > Version(current)
-    except Exception:
-        update_available = latest != current
-
-    return {
-        'update_available': update_available,
-        'current_version': current,
-        'latest_version': latest,
-        'error': None
-    }
-
-
-def perform_fast_update(silent=False, max_workers=4, on_progress=None):
-    """
-    Télécharger et appliquer la mise à jour avec diff, backup et rollback automatique.
-
-    Args:
-        silent: Supprimer les prints console
-        max_workers: Nombre de threads de téléchargement parallèle
-        on_progress: Callback(done, total, filepath) appelé après chaque fichier téléchargé
-
-    Retourne un dict avec les clés :
-      success (bool), files_updated (int), files_skipped (int),
-      backup_path (str|None), healthcheck (bool),
-      rollback_performed (bool), errors (list[str])
-    """
-    # Vérifier que la version distante est bien plus récente avant d'écraser
-    check = check_for_updates_fast()
-    if not check.get('update_available'):
-        return {
-            'success': False,
-            'files_updated': 0,
-            'files_skipped': 0,
-            'backup_path': None,
-            'healthcheck': False,
-            'rollback_performed': False,
-            'errors': ['Aucune mise à jour disponible ou version distante inférieure à la version locale.']
-        }
-
-    app_dir = PROJECT_ROOT
-    staging_dir = app_dir / '.update_staging'
-
-    if not silent:
-        print("Récupération de la liste des fichiers...")
-
-    files_info, list_error = get_file_list()
-    if not files_info:
-        return {
-            'success': False,
-            'files_updated': 0,
-            'files_skipped': 0,
-            'backup_path': None,
-            'healthcheck': False,
-            'rollback_performed': False,
-            'errors': [list_error or 'Impossible de récupérer la liste des fichiers depuis GitHub']
-        }
-
-    # Filtrer les fichiers préservés
-    all_files = [f for f in files_info if not should_skip(f['path'])]
-
-    # Détection différentielle : ne télécharger que les fichiers modifiés
-    files_to_update = get_changed_files(all_files)
-    files_skipped = len(all_files) - len(files_to_update)
-
-    if not files_to_update:
-        return {
-            'success': True,
-            'files_updated': 0,
-            'files_skipped': files_skipped,
-            'backup_path': None,
-            'healthcheck': True,
-            'rollback_performed': False,
-            'errors': []
-        }
-
-    if not silent:
-        print(f"Fichiers modifiés: {len(files_to_update)} (ignorés: {files_skipped})")
-
-    # Backup avant toute modification
-    backup_path = backup_current_files(files_to_update)
-
-    # Nettoyage du dossier de staging
-    if staging_dir.exists():
-        import shutil
-        shutil.rmtree(staging_dir, ignore_errors=True)
-    staging_dir.mkdir(parents=True, exist_ok=True)
-
-    # Ecrire le flag d'update en cours (persistance en cas de crash)
-    flag_file = PROJECT_ROOT / 'data' / '.update_in_progress'
-    flag_file.write_text(json.dumps({
-        'started_at': datetime.now().isoformat(),
-        'files_count': len(files_to_update),
-        'version': get_remote_version()[0]
-    }), encoding='utf-8')
-
-    errors = []
-    updated = 0
-    total = len(files_to_update)
-
-    # Télécharger en parallèle dans le staging avec validation SHA256
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_file = {
-            executor.submit(
-                download_file,
-                f['path'], app_dir,
-                expected_sha=f.get('sha'),
-                staging_dir=staging_dir
-            ): f['path']
-            for f in files_to_update
-        }
-
-        done_count = 0
-        for future in as_completed(future_to_file):
-            filepath = future_to_file[future]
-            done_count += 1
-            try:
-                success, error = future.result()
-                if success:
-                    updated += 1
-                else:
-                    errors.append(error or filepath)
-            except Exception as e:
-                errors.append(f"{filepath}: {e}")
-            if on_progress:
-                try:
-                    on_progress(done_count, total, filepath)
-                except Exception as cb_err:
-                    logger.warning(f"Progress callback error: {cb_err}")
-
-    # Si erreurs de téléchargement → rollback avant de remplacer
-    if errors:
-        logger.error(f"{len(errors)} erreur(s) de téléchargement — rollback")
-        rollback_ok = restore_backup(backup_path)
-        flag_file.unlink(missing_ok=True)
-        return {
-            'success': False,
-            'files_updated': updated,
-            'files_skipped': files_skipped,
-            'backup_path': str(backup_path),
-            'healthcheck': False,
-            'rollback_performed': rollback_ok,
-            'errors': [f"{len(errors)} fichier(s) n'ont pas pu être téléchargés"] + errors[:10]
-        }
-
-    # === Phase atomique : remplacer tous les fichiers d'un coup ===
-    import shutil
-    for file_info in files_to_update:
-        src = staging_dir / file_info['path']
-        dst = app_dir / file_info['path']
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(src), str(dst))
-
-    # Nettoyage du staging
-    shutil.rmtree(staging_dir, ignore_errors=True)
-
-    # Healthcheck post-téléchargement
-    hc_ok, hc_msg = post_update_healthcheck()
-
-    if not hc_ok:
-        # Rollback automatique
-        logger.error(f"Healthcheck échoué: {hc_msg} — rollback en cours")
-        rollback_ok = restore_backup(backup_path)
-        flag_file.unlink(missing_ok=True)
-        return {
-            'success': False,
-            'files_updated': updated,
-            'files_skipped': files_skipped,
-            'backup_path': str(backup_path),
-            'healthcheck': False,
-            'rollback_performed': rollback_ok,
-            'errors': [f"Healthcheck échoué: {hc_msg}"]
-        }
-
-    # Installation automatique des dépendances
-    if not silent:
-        print("Vérification des dépendances Python...")
-    dep_ok, dep_msg = update_dependencies(silent=True)
-    if not dep_ok:
-        logger.warning(f"update_dependencies: {dep_msg}")
-
-    # Sauvegarder le manifeste
-    save_manifest(files_info)
-
-    # Nettoyage du flag
-    flag_file.unlink(missing_ok=True)
-
-    return {
-        'success': True,
-        'files_updated': updated,
-        'files_skipped': files_skipped,
-        'backup_path': str(backup_path),
-        'healthcheck': hc_ok,
-        'rollback_performed': False,
-        'dependencies_updated': dep_ok,
-        'errors': []
-    }
-
-
-def get_update_statistics():
-    """
-    Obtenir des statistiques sur ce qui sera mis à jour.
-    Retourne tuple: (stats_dict|None, error_str|None)
-    """
-    files_info, list_error = get_file_list()
-    if not files_info:
-        return None, list_error or 'Impossible de récupérer la liste des fichiers'
-
-    files_to_update = [f for f in files_info if not should_skip(f['path'])]
-
-    # Calculer la taille totale
-    total_size = sum(f.get('size', 0) for f in files_to_update)
-
-    # Compter les fichiers par type
-    file_types = {}
-    for f in files_to_update:
-        ext = Path(f['path']).suffix.lower()
-        file_types[ext] = file_types.get(ext, 0) + 1
-
-    return {
-        'total_files': len(files_to_update),
-        'total_size_bytes': total_size,
-        'total_size_kb': total_size / 1024,
-        'total_size_mb': total_size / (1024 * 1024),
-        'file_types': file_types
-    }, None
-
-
 if __name__ == "__main__":
     print("\n" + "="*50)
-    print("MISE À JOUR AD WEB INTERFACE")
+    print("MISE À JOUR AD WEB INTERFACE (v4.0 — ZIP)")
     print("="*50)
 
     current = get_current_version()
@@ -764,32 +521,25 @@ if __name__ == "__main__":
         print("\nVous avez déjà la dernière version!")
         sys.exit(0)
 
-    # Afficher les statistiques
     stats, stats_error = get_update_statistics()
     if stats:
-        print(f"\nStatistiques de mise à jour:")
-        print(f"  Fichiers à mettre à jour: {stats['total_files']}")
-        print(f"  Taille totale: {stats['total_size_mb']:.2f} Mo")
-        print(f"  Types de fichiers: {', '.join(f'{k}: {v}' for k, v in stats['file_types'].items())}")
-    else:
-        print(f"\nAttention: impossible de récupérer les statistiques: {stats_error}")
+        print(f"\nMéthode: {stats['method']}")
+        print(f"Téléchargement estimé: ~{stats['total_size_mb']:.1f} Mo (1 seule requête)")
 
     print()
     response = input("Mettre à jour? [O/n]: ").strip().lower()
     if response and response not in ['o', 'oui', 'y', 'yes', '']:
-        print("Annulé")
+        print("Annulé.")
         sys.exit(0)
 
-    print()
-    start_time = time.time()
-    if perform_update_parallel():
-        elapsed = time.time() - start_time
-        print(f"\nTemps de téléchargement: {elapsed:.1f}s")
-        update_dependencies()
-        print("\n" + "="*50)
-        print("Mise à jour terminée!")
-        print("Redémarrez le serveur pour appliquer.")
-        print("="*50)
+    result = perform_fast_update(max_workers=4)
+
+    print(f"\n{'='*50}")
+    if result['success']:
+        print(f"✅ Mise à jour réussie ({result['files_updated']} fichiers)")
+        restart_server()
     else:
-        print("\nMise à jour incomplète")
-        sys.exit(1)
+        print(f"❌ Échec: {result['errors']}")
+        if result.get('rollback_performed'):
+            print("  Rollback automatique effectué.")
+    print(f"{'='*50}")

@@ -122,6 +122,14 @@ def connect():
             record_attempt(ip, success=False, action='login')
             log_action(ACTIONS['LOGIN'], username, {'error': error}, False, ip)
 
+            # Mot de passe expire → rediriger vers la page de changement
+            if error == 'PASSWORD_EXPIRED':
+                session['_pwd_expired_user'] = username
+                session['_pwd_expired_server'] = server
+                session['_pwd_expired_password'] = encrypt_password(password)
+                flash('Votre mot de passe a expiré. Veuillez en définir un nouveau.', 'warning')
+                return redirect(url_for('main.change_expired_password'))
+
             # Analyser l'erreur pour proposer une correction automatique
             error_lower = (error or '').lower()
             show_fix_ldaps = any(kw in error_lower for kw in [
@@ -164,6 +172,79 @@ def connect():
                            port=port,
                            base_dn=ad_cfg.get('base_dn', ''),
                            use_ssl=use_ssl)
+
+
+@main_bp.route('/change-password', methods=['GET', 'POST'])
+def change_expired_password():
+    """Page pour changer un mot de passe expire."""
+    username = session.get('_pwd_expired_user')
+    server = session.get('_pwd_expired_server')
+    encrypted_pw = session.get('_pwd_expired_password')
+
+    if not all([username, server, encrypted_pw]):
+        flash('Session invalide. Reconnectez-vous.', 'error')
+        return redirect(url_for('main.connect'))
+
+    # Decrypter le mot de passe pour la connexion LDAPS requise
+    try:
+        password = decrypt_password(encrypted_pw)
+    except ValueError:
+        flash('Session expiree. Reconnectez-vous.', 'error')
+        return redirect(url_for('main.connect'))
+
+    if request.method == 'POST':
+        if not validate_csrf_token(request.form.get('csrf_token')):
+            flash('Token CSRF invalide.', 'error')
+            return render_template('change_password.html', username=username, server=server)
+
+        new_pw = request.form.get('new_password', '')
+        confirm_pw = request.form.get('confirm_password', '')
+
+        if not new_pw or new_pw != confirm_pw:
+            flash('Les mots de passe ne correspondent pas.', 'error')
+            return render_template('change_password.html', username=username, server=server)
+
+        # Validation complexite
+        if len(new_pw) < 8:
+            flash('Le mot de passe doit contenir au moins 8 caracteres.', 'error')
+            return render_template('change_password.html', username=username, server=server)
+
+        # Connexion LDAPS requise pour modifier unicodePwd
+        from ldap3 import MODIFY_REPLACE, NTLM, Server, Connection
+        from routes.core import _get_ntlm_user
+
+        try:
+            ntlm_user = _get_ntlm_user(server, username)
+            srv = Server(server, port=636, use_ssl=True, get_info=ALL)
+            conn = Connection(srv, user=ntlm_user, password=password, authentication=NTLM, auto_bind=True)
+
+            # Modifier unicodePwd
+            unicode_pwd = f'"{new_pw}"'.encode('utf-16-le')
+            conn.modify(session.get('ad_base_dn', ''), {
+                'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]
+            })
+
+            # Forcer le changement au prochain login
+            conn.modify(session.get('ad_base_dn', ''), {
+                'pwdLastSet': [(MODIFY_REPLACE, [0])]
+            })
+
+            conn.unbind()
+
+            flash('Mot de passe modifie avec succes. Connectez-vous.', 'success')
+            # Nettoyer la session
+            for key in ['_pwd_expired_user', '_pwd_expired_server', '_pwd_expired_password']:
+                session.pop(key, None)
+            return redirect(url_for('main.connect'))
+
+        except Exception as e:
+            err = str(e)
+            if 'strongerAuthRequired' in err or '10054' in err:
+                flash('LDAPS requis mais non disponible. Activez LDAPS sur le DC ou contactez l\'administrateur.', 'error')
+            else:
+                flash(f'Erreur: {err}', 'error')
+
+    return render_template('change_password.html', username=username, server=server)
 
 
 @main_bp.route('/connect/fix-ldap-channel-binding', methods=['POST'])

@@ -30,7 +30,8 @@ def edit_user(dn):
     user = None
 
     try:
-        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+        # Recherche BASE sur le DN direct (plus fiable que filtre distinguishedName)
+        conn.search(dn, '(objectClass=*)', 'BASE',
                    attributes=['cn', 'displayName', 'sAMAccountName', 'mail',
                               'department', 'title', 'telephoneNumber', 'description'])
         if not conn.entries:

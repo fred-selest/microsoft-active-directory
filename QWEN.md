@@ -447,6 +447,7 @@ if update_info['update_available']:
 - Procédure pour créer une release GitHub proprement : 1) git push origin main (vérifier avec origin/main..HEAD vide), 2) git tag -a vX.Y.Z -m "message", 3) git push origin vX.Y.Z IMMÉDIATEMENT après le push main — AVANT que GitHub ne crée automatiquement une release immutable. IMPORTANT : Ne JAMAIS pousser le tag après que GitHub ait créé une release automatique car elle devient immutable. Si le tag existe déjà sur le remote, utiliser l'interface web GitHub pour éditer la release manuellement. Alternative : configurer les règles du repo pour permettre la suppression de tags.
 
 ---
+- Règle absolue : NE JAMAIS commiter ou pusher une correction de bug sans d'abord l'avoir testée localement. Toujours : 1) Appliquer la correction, 2) Redémarrer le service (.\nssm\ADWebInterface.exe restart), 3) Tester la page/fonction concernée, 4) Vérifier les logs (Get-Content logs\server.log -Tail 20), 5) SEULEMENT SI ça fonctionne → commit + push.
 
 ## 13. Fichiers manquants
 

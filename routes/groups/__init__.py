@@ -27,6 +27,7 @@ def list_groups():
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
     ou_filter = request.args.get('ou', '')
+    group_filter = request.args.get('filter', '')
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
 
@@ -135,6 +136,22 @@ def list_groups():
         conn.unbind()
         logger.info(f"Groupes: {len(group_list)} affiches sur {len(group_entries)} trouves")
 
+        # Appliquer les filtres
+        if group_filter == 'security':
+            group_list = [g for g in group_list if g['is_security']]
+        elif group_filter == 'distribution':
+            group_list = [g for g in group_list if not g['is_security']]
+        elif group_filter == 'empty':
+            group_list = [g for g in group_list if g['member_count'] == 0]
+        elif group_filter == 'with_members':
+            group_list = [g for g in group_list if g['member_count'] > 0]
+        elif group_filter == 'global':
+            group_list = [g for g in group_list if g['scope'] == 'global']
+        elif group_filter == 'domain_local':
+            group_list = [g for g in group_list if g['scope'] == 'domain_local']
+        elif group_filter == 'universal':
+            group_list = [g for g in group_list if g['scope'] == 'universal']
+
     except LDAPException as e:
         try:
             conn.unbind()
@@ -149,7 +166,7 @@ def list_groups():
     paginated = group_list[start:start + per_page]
 
     return render_template('groups.html', groups=paginated, search=search_query,
-                         page=page, total_pages=total_pages, total=total,
+                         filter=group_filter, page=page, total_pages=total_pages, total=total,
                          connected=is_connected())
 
 
