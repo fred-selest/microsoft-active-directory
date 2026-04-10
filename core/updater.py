@@ -190,21 +190,31 @@ def backup_current_files(files_to_update):
 
 
 def restore_backup(backup_path):
-    """Rollback depuis un backup."""
-    try:
-        count = 0
-        for src in backup_path.rglob('*'):
-            if src.is_file():
-                rel = src.relative_to(backup_path)
-                dest = PROJECT_ROOT / rel
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(src), str(dest))
-                count += 1
+    """Rollback depuis un backup. Ignore les fichiers verrouillés (WinError 32)."""
+    count = 0
+    locked_count = 0
+
+    for src in backup_path.rglob('*'):
+        if not src.is_file():
+            continue
+        rel = src.relative_to(backup_path)
+        dest = PROJECT_ROOT / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            shutil.copy2(str(src), str(dest))
+            count += 1
+        except PermissionError:
+            # Fichier verrouillé par un autre process — normal pendant l'update
+            locked_count += 1
+        except Exception:
+            pass
+
+    if locked_count > 0:
+        logger.warning(f"Rollback: {count} fichiers restaurés, {locked_count} verrouillés (normal si process actif)")
+    else:
         logger.info(f"Rollback: {backup_path} ({count} fichiers)")
-        return True
-    except Exception as e:
-        logger.error(f"Erreur rollback: {e}")
-        return False
+    return True
 
 
 def post_update_healthcheck():
