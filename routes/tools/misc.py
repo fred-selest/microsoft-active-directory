@@ -130,21 +130,21 @@ def generate_api_key_route():
     """Générer une nouvelle clé API."""
     name = request.form.get('name', 'Clé API')
     permissions = request.form.getlist('permissions')
-    
+
     # Générer une clé
     raw_key = secrets.token_urlsafe(32)
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()[:16]
-    
-    # Stocker la clé (dans la session pour l'instant)
+
+    # Stocker UNIQUEMENT le hash (JAMAIS la clé brute)
     if 'api_keys' not in session:
         session['api_keys'] = {}
-    
+
     session['api_keys'][key_hash] = {
         'name': name,
         'permissions': permissions,
         'created': datetime.now().isoformat(),
-        'last_used': None,
-        'raw_key': raw_key  # À ne jamais stocker en prod !
+        'last_used': None
+        # raw_key N'est JAMAIS stocké - retourné une seule fois à l'utilisateur
     }
     
     # Afficher la clé une seule fois

@@ -219,12 +219,20 @@ def _try_connection(server, username, password):
                 session['ad_port'] = port
                 return conn, None
             else:
-                # bind() a retourné False sans exception — récupérer la raison LDAP
-                result_desc = 'bind failed'
+                # bind() a retourné False — récupérer la raison détaillée
                 if conn.result:
+                    result_code = conn.result.get('result', 0)
                     result_desc = (conn.result.get('description')
                                    or conn.result.get('message')
-                                   or f"code {conn.result.get('result', '?')}")
+                                   or f"code {result_code}")
+                    # Vérifier le code data hex (773 = password expired)
+                    msg = conn.result.get('message', '')
+                    if '773' in msg or 'pwd_expired' in msg.lower():
+                        return None, "PASSWORD_EXPIRED"
+                    if result_code == 49 and ('773' in msg or 'data 773' in msg.lower()):
+                        return None, "PASSWORD_EXPIRED"
+                else:
+                    result_desc = 'bind failed'
                 errors.append(f"{label}: {result_desc[:80]}")
                 if _is_password_expired_error(result_desc):
                     return None, "PASSWORD_EXPIRED"
@@ -351,8 +359,6 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if port != 389 or use_ssl:
         try:
             srv = _make_server(server, port, use_ssl)
-            # Pour LDAPS (port 636), utiliser NTLM pour accepter le format DOMAIN\\user
-            # Cela permet d'utiliser le même format que sur port 389
             if use_ssl and port == 636:
                 user = _get_ntlm_user(server, username)
                 auth = NTLM
@@ -361,16 +367,28 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 auth = SIMPLE
             conn = Connection(srv, user=user, password=password,
                             authentication=auth,
-                            auto_bind=True,
-                            receive_timeout=10)  # Timeout de réception
-            if conn.bound:
+                            auto_bind=False,
+                            receive_timeout=10)
+            conn.open()
+            if conn.bind():
+                session['ad_use_ssl'] = use_ssl
+                session['ad_starttls'] = False
+                session['ad_port'] = port
                 logger.info(f"Connexion réussie: {server}:{port} (SSL={use_ssl}, auth={auth})")
                 return conn, None
+            else:
+                # Bind échoué — capturer le code LDAP détaillé
+                if conn.result:
+                    msg = conn.result.get('message', '')
+                    result_code = conn.result.get('result', 0)
+                    if '773' in msg or (result_code == 49 and '773' in msg):
+                        return None, "PASSWORD_EXPIRED"
+                    if _is_invalid_credentials_error(msg):
+                        return None, "Identifiants incorrects"
         except Exception as e:
             error_msg = str(e)
             if not _is_md4_error(error_msg):
                 logger.warning(f"Connexion directe échouée: {error_msg[:100]}")
-            # Identifiants incorrects → retour immédiat (pas de fallback)
             if _is_invalid_credentials_error(error_msg):
                 return None, error_msg
             # Toute autre erreur (SSL, réseau, timeout) → fallback vers _try_connection()

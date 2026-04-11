@@ -256,9 +256,14 @@ def expiring_accounts():
                 data['lastLogon'] = last_logon.strftime('%d/%m/%Y')
                 if last_logon <= inactive_threshold:
                     inactive_accounts_list.append(dict(data))
-            else:
-                data['lastLogon'] = 'Jamais'
-                inactive_accounts_list.append(dict(data))
+            # Exclure les comptes qui n'ont JAMAIS été connectés (bruit)
+            # Sauf s'ils ont été créés il y a plus de 90 jours
+            elif last_logon is None:
+                created_date = _safe_ad_date(entry, 'whenCreated')
+                if created_date and created_date <= inactive_threshold:
+                    # Compte créé il y a > 90 jours mais jamais utilisé
+                    data['lastLogon'] = 'Jamais'
+                    inactive_accounts_list.append(dict(data))
 
     except Exception as e:
         flash(f'Erreur: {e}', 'error')

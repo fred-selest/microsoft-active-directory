@@ -102,7 +102,13 @@ def update_page():
                 )
                 output = result.stdout.strip()
                 sync_info = {'output': output[-500:] if output else '', 'local': current_ver, 'remote': remote_ver}
-    except Exception:
+    except subprocess.TimeoutExpired:
+        # Graceful handling du timeout - pas d'erreur 500
+        flash('La vérification de synchronisation a mis trop de temps. Réessayez plus tard.', 'warning')
+    except Exception as e:
+        # Logger l'erreur silencieusement - pas de crash de la page
+        import logging
+        logging.getLogger('admin_tools').debug(f"Sync check failed: {e}")
         pass
 
     # Informations système

@@ -2,6 +2,7 @@
 Blueprint pour la gestion des groupes.
 """
 import logging
+from urllib.parse import unquote
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3.core.exceptions import LDAPException
@@ -81,6 +82,10 @@ def list_groups():
         ]
 
         for entry in group_entries:
+            entry_dn = str(entry.entry_dn).lower()
+            # Exclure les groupes système du conteneur Builtin
+            if 'cn=builtin' in entry_dn:
+                continue
             try:
                 # DN
                 try:
@@ -174,14 +179,26 @@ def list_groups():
 @require_connection
 def view_group(dn):
     """Voir les détails d'un groupe."""
+    from urllib.parse import unquote
+    dn = unquote(dn)  # Décoder le DN si URL-encodé (ex: op%C3%A9rateurs)
+    logger.info(f"view_group DN brut: {repr(dn)}")
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('groups.list_groups'))
 
     try:
+        # Recherche BASE sur le DN direct
         conn.search(dn, '(objectClass=*)', 'BASE',
                    attributes=['cn', 'description', 'member', 'managedBy', 'groupType'])
+
+        # Si la recherche BASE échoue (CN=Builtin, etc.), fallback SUBTREE
+        if not conn.entries or conn.result.get('result') == 53:  # 53 = unwillingToPerform
+            if conn.result.get('result') == 53:
+                logger.warning(f"BASE search unwillingToPerform (53) pour: {dn}, fallback SUBTREE")
+            safe_dn = escape_ldap_filter(dn)
+            conn.search(base_dn, f'(distinguishedName={safe_dn})', SUBTREE,
+                       attributes=['cn', 'description', 'member', 'managedBy', 'groupType'])
 
         if not conn.entries:
             flash('Groupe non trouvé.', 'error')
@@ -191,16 +208,20 @@ def view_group(dn):
         members = []
         if hasattr(entry, 'member') and entry.member:
             for member_dn in entry.member.values:
-                conn.search(str(member_dn), '(objectClass=*)', 'BASE',
-                           attributes=['cn', 'sAMAccountName', 'objectClass'])
-                if conn.entries:
-                    m = conn.entries[0]
-                    obj_class = m.objectClass.values if hasattr(m, 'objectClass') else []
-                    members.append({
-                        'cn': decode_ldap_value(m.cn),
-                        'dn': str(member_dn),
-                        'type': 'user' if 'user' in obj_class else 'group'
-                    })
+                try:
+                    conn.search(str(member_dn), '(objectClass=*)', 'BASE',
+                               attributes=['cn', 'sAMAccountName', 'objectClass'])
+                    if conn.entries:
+                        m = conn.entries[0]
+                        obj_class = m.objectClass.values if hasattr(m, 'objectClass') else []
+                        members.append({
+                            'cn': decode_ldap_value(m.cn),
+                            'dn': str(member_dn),
+                            'type': 'user' if 'user' in obj_class else 'group'
+                        })
+                except Exception as member_err:
+                    logger.warning(f"Erreur recherche membre {member_dn}: {member_err}")
+                    continue
 
         group = {
             'cn': decode_ldap_value(entry.cn),
@@ -221,6 +242,27 @@ def view_group(dn):
 @require_permission('write')
 def add_member(dn):
     """Ajouter un membre à un groupe."""
+    dn = unquote(dn)
+    dn_lower = dn.lower()
+
+    # Protection groupes système Builtin
+    if 'cn=builtin' in dn_lower:
+        flash('Impossible de modifier ce groupe. Les groupes du conteneur Builtin sont protégés par Active Directory. Utilisez PowerShell (Add-ADGroupMember) ou la console ADUC.', 'warning')
+        return redirect(url_for('groups.view_group', dn=dn))
+
+    # Protection groupes spéciaux AD (même hors Builtin)
+    special_groups_ad = [
+        'domain admins', 'administrateurs du domaine',
+        'enterprise admins', 'administrateurs de l\'entreprise',
+        'schema admins', 'administrateurs du schéma',
+        'group policy creator owners', 'propriétaires créateurs de la stratégie de groupe',
+        'dnsadmins', 'dnsupdateproxy'
+    ]
+    for sg in special_groups_ad:
+        if sg in dn_lower:
+            flash(f'Impossible de modifier le groupe "{sg.title()}". C\'est un groupe spécial Active Directory protégé. Utilisez PowerShell (Add-ADGroupMember) ou la console ADUC.', 'warning')
+            return redirect(url_for('groups.view_group', dn=dn))
+
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('groups.view_group', dn=dn))
@@ -254,9 +296,25 @@ def add_member(dn):
 @require_permission('write')
 def remove_member(dn):
     """Retirer un membre d'un groupe."""
-    if not validate_csrf_token(request.form.get('csrf_token')):
-        flash('Token CSRF invalide.', 'error')
+    dn = unquote(dn)
+    dn_lower = dn.lower()
+
+    # Protection groupes système
+    if 'cn=builtin' in dn_lower:
+        flash('Impossible de modifier ce groupe. Les groupes du conteneur Builtin sont protégés.', 'warning')
         return redirect(url_for('groups.view_group', dn=dn))
+
+    special_groups_ad = [
+        'domain admins', 'administrateurs du domaine',
+        'enterprise admins', 'administrateurs de l\'entreprise',
+        'schema admins', 'administrateurs du schéma',
+        'group policy creator owners', 'propriétaires créateurs de la stratégie de groupe',
+        'dnsadmins', 'dnsupdateproxy'
+    ]
+    for sg in special_groups_ad:
+        if sg in dn_lower:
+            flash(f'Impossible de modifier le groupe "{sg.title()}". C\'est un groupe spécial AD protégé.', 'warning')
+            return redirect(url_for('groups.view_group', dn=dn))
 
     member_dn = request.form.get('member_dn')
     conn, error = get_ad_connection()

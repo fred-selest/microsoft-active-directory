@@ -1,0 +1,31 @@
+{
+  // ── Mode d'approbation : auto-edit pour les fichiers, validation pour les commandes shell ──
+  "permissions": {
+    "defaultMode": "auto-edit",
+    "confirmFileEdits": false,
+    "confirmShellCommands": true
+  },
+
+  // ── Modèle : contexte maximum et cache activé ──
+  "model": {
+    "maxSessionTurns": -1,
+    "generationConfig": {
+      "enableCacheControl": true
+    }
+  },
+
+  // ── Interface : optimisé pour la rapidité ──
+  "ui": {
+    "showLineNumbers": true,
+    "hideTips": false,
+    "accessibility": {
+      "enableLoadingPhrases": false
+    }
+  },
+
+  // ── Git : Co-author automatique ──
+  "general": {
+    "gitCoAuthor": true,
+    "enableAutoUpdate": true
+  }
+}
