@@ -346,16 +346,21 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
         all_zip_files.append(rel_path)
 
     # Filtrage différentiel : uniquement fichiers modifiés ou nouveaux
+    # Comparaison : SHA du fichier dans le NOUVEAU ZIP vs SHA du fichier LOCAL
+    # (et non pas manifest vs local — le manifest est l'ancien ZIP, pas le nouveau)
     files_to_update = []
     files_skipped = 0
     for fp in all_zip_files:
-        local_sha = manifest.get(fp)
-        if local_sha:
-            # Vérifier si le fichier local a changé
-            current_sha = compute_file_sha256(fp)
-            if current_sha == local_sha:
-                files_skipped += 1
-                continue
+        zip_name = zip_prefix + fp
+        try:
+            new_zip_sha = hashlib.sha256(zf.read(zip_name)).hexdigest()
+        except Exception:
+            files_to_update.append(fp)
+            continue
+        current_sha = compute_file_sha256(fp)
+        if current_sha == new_zip_sha:
+            files_skipped += 1
+            continue
         files_to_update.append(fp)
 
     if not files_to_update:
