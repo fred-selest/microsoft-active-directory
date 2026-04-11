@@ -372,8 +372,24 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
         files_to_update.append(fp)
 
     if not files_to_update:
-        return {'success': True, 'files_updated': 0, 'files_skipped': files_skipped,
-                'backup_path': None, 'healthcheck': True, 'rollback_performed': False, 'errors': []}
+        # Sécurité : si aucun fichier à mettre à jour mais la version locale
+        # ne correspond pas à la version distante, le manifest est périmé.
+        # On force une mise à jour complète en ignorant le manifest.
+        local_ver = get_current_version()
+        remote_ver = check.get('latest_version', '')
+        if local_ver != remote_ver:
+            logger.warning(
+                f"Manifest périmé détecté (local={local_ver}, distant={remote_ver}). "
+                f"Suppression du manifest et relance en mode complet."
+            )
+            try:
+                MANIFEST_FILE.unlink(missing_ok=True)
+            except Exception:
+                pass
+            files_to_update = list(all_zip_files)
+        else:
+            return {'success': True, 'files_updated': 0, 'files_skipped': files_skipped,
+                    'backup_path': None, 'healthcheck': True, 'rollback_performed': False, 'errors': []}
 
     if not silent:
         print(f"{len(files_to_update)} fichier(s) à mettre à jour ({files_skipped} inchangés)")
