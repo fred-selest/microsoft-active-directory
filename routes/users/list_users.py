@@ -58,11 +58,16 @@ def list_users():
         conn.search(search_base, search_filter, SUBTREE,
                    attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName',
                               'displayName', 'userAccountControl', 'department', 'title',
-                              'lastLogonTimestamp', 'lastLogon', 'whenCreated', 'pwdLastSet'])
+                              'lastLogonTimestamp', 'lastLogon', 'whenCreated', 'pwdLastSet'],
+                   size_limit=10000)
 
         user_list = []
         now = datetime.now()
         for entry in conn.entries:
+            entry_dn = str(entry.entry_dn).lower()
+            # Exclure les utilisateurs système du conteneur Builtin et Users
+            if 'cn=builtin' in entry_dn:
+                continue
             uac_val = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 512
             try:
                 uac = int(uac_val)

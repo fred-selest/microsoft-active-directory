@@ -135,7 +135,7 @@ def get_audit_logs(limit=100, action_filter=None, user_filter=None):
                 continue
 
     except Exception as e:
-        print(f"Erreur lecture logs: {e}")
+        logger.error(f"Erreur lecture logs: {e}", exc_info=True)
 
     return logs
 

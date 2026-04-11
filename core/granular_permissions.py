@@ -2,9 +2,12 @@
 Permissions Granulaires - Gestion fine des droits par groupe AD
 """
 import json
+import logging
 import os
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger('granular_permissions')
 
 # Fichier de configuration des permissions (chemin absolu depuis la racine du projet)
 PERMISSIONS_FILE = Path(__file__).resolve().parent.parent / 'data' / 'permissions.json'
@@ -175,17 +178,6 @@ def get_group_permissions(group_name, user_groups=None):
 def has_permission(user_groups, required_permission, username=None, user_dn=None):
     """
     Vérifier si un utilisateur a une permission spécifique.
-    Gère les nouvelles permissions granulaires, les anciennes (legacy),
-    et les sujets de type utilisateur ou OU.
-
-    Args:
-        user_groups: Liste des groupes AD de l'utilisateur
-        required_permission: Permission requise (ex: 'users:create' ou 'write')
-        username: sAMAccountName de l'utilisateur (pour sujets de type 'user')
-        user_dn: DN complet de l'utilisateur (pour sujets de type 'ou')
-
-    Returns:
-        bool: True si l'utilisateur a la permission
     """
     if not user_groups and not username:
         return False
@@ -199,7 +191,10 @@ def has_permission(user_groups, required_permission, username=None, user_dn=None
     permissions_data = load_permissions()
     custom_groups = permissions_data.get('groups', {})
 
-    # Vérifier les entrées personnalisées (group, user, ou)
+    logger.info(f"has_permission: username={username}, user_groups={user_groups}, required={required_permission}")
+    logger.info(f"Custom subjects: {list(custom_groups.keys())}")
+
+    # Vérifier les entrées personnalisées (group / user / ou)
     for subject_name, entry in custom_groups.items():
         if not entry.get('enabled', True):
             continue
@@ -210,27 +205,39 @@ def has_permission(user_groups, required_permission, username=None, user_dn=None
         if subject_type == 'group':
             matched = subject_name in (user_groups or [])
         elif subject_type == 'user':
-            matched = bool(username) and username.lower() == subject_name.lower()
+            if username:
+                sam = username.split('\\')[-1].split('@')[0]
+                matched = sam.lower() == subject_name.lower()
+                logger.info(f"  Match user: sam='{sam}' vs subject='{subject_name}' → {matched}")
         elif subject_type == 'ou':
             matched = bool(user_dn) and subject_name.lower() in user_dn.lower()
 
         if matched:
             entry_perms = set(entry.get('permissions', []))
+            logger.info(f"  Matched subject '{subject_name}': perms={entry_perms}")
             if entry_perms & required_permissions:
+                logger.info(f"  ✅ Permission accordée")
                 return True
+            else:
+                logger.info(f"  ❌ Pas d'intersection avec required={required_permissions}")
 
     # Vérifier les rôles prédéfinis (type 'group' uniquement)
     for group in (user_groups or []):
         if group in PREDEFINED_ROLES:
             role_perms = set(PREDEFINED_ROLES[group]['permissions'])
+            logger.info(f"  Predefined role '{group}': perms={role_perms}")
             if role_perms & required_permissions:
+                logger.info(f"  ✅ Permission accordée via rôle")
                 return True
 
     # Fallback rôle admin legacy
     from flask import session
-    if session.get('user_role') == 'admin':
+    user_role = session.get('user_role', 'unknown')
+    logger.info(f"  Fallback: user_role={user_role}")
+    if user_role == 'admin':
         return True
 
+    logger.info(f"  ❌ Permission refusée")
     return False
 
 

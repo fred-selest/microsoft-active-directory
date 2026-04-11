@@ -123,7 +123,7 @@ def password_audit():
 @require_permission('admin')
 def export_password_audit_csv():
     """Exporter l'audit des mots de passe en CSV."""
-    from password_audit import run_password_audit, export_audit_to_csv
+    from core.password_audit import run_password_audit, export_audit_to_csv
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
@@ -146,7 +146,7 @@ def export_password_audit_csv():
 @require_permission('admin')
 def export_password_audit_json():
     """Exporter l'audit des mots de passe en JSON."""
-    from password_audit import run_password_audit, export_audit_to_json
+    from core.password_audit import run_password_audit, export_audit_to_json
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
@@ -169,7 +169,7 @@ def export_password_audit_json():
 @require_permission('admin')
 def export_password_audit_pdf():
     """Exporter l'audit des mots de passe en PDF professionnel."""
-    from password_audit import run_password_audit
+    from core.password_audit import run_password_audit
     from core.audit_history import save_audit
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
@@ -249,7 +249,7 @@ def export_password_audit_pdf():
     )
     
     # En-tête
-    elements.append(Paragraph("🔐 Audit de Sécurité des Mots de Passe", title_style))
+    elements.append(Paragraph("Audit de Securite des Mots de Passe", title_style))
     elements.append(Paragraph(f"Domaine: {domain_name}", subtitle_style))
     elements.append(Paragraph(
         f"Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}",
@@ -268,7 +268,7 @@ def export_password_audit_pdf():
         'danger': 'Critique'
     }.get(score_color, 'Inconnu')
     
-    elements.append(Paragraph("📊 Score Global de Sécurité", heading_style))
+    elements.append(Paragraph("Score Global de Securite", heading_style))
     
     score_table = Table([[
         f"Score: {round(score)}/100",
@@ -289,7 +289,7 @@ def export_password_audit_pdf():
     elements.append(Spacer(1, 0.5*cm))
     
     # Statistiques détaillées
-    elements.append(Paragraph("📈 Statistiques Détaillées", heading_style))
+    elements.append(Paragraph("Statistiques Detaillees", heading_style))
     
     stats_data = [
         ['Indicateur', 'Valeur'],
@@ -317,7 +317,7 @@ def export_password_audit_pdf():
     # Politique de mot de passe
     policy = audit_result.get('policy', {})
     if policy:
-        elements.append(Paragraph("📋 Politique de Mot de Passe", heading_style))
+        elements.append(Paragraph("Politique de Mot de Passe", heading_style))
         
         policy_data = [
             ['Paramètre', 'Valeur'],
@@ -345,7 +345,7 @@ def export_password_audit_pdf():
     # Recommandations
     recommendations = audit_result.get('recommendations', [])
     if recommendations:
-        elements.append(Paragraph("💡 Recommandations de Sécurité", heading_style))
+        elements.append(Paragraph("Recommandations de Securite", heading_style))
         
         for i, rec in enumerate(recommendations[:10], 1):  # Limiter à 10
             rec_style = ParagraphStyle(
@@ -406,7 +406,7 @@ def export_password_audit_pdf():
 @require_permission('admin')
 def password_auditor_report():
     """Générer un rapport style Specops Password Auditor."""
-    from password_audit import run_password_audit, generate_auditor_issues
+    from core.password_audit import run_password_audit, generate_auditor_issues
     from datetime import datetime
     from core.updater import get_current_version
 

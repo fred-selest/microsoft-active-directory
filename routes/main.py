@@ -3,6 +3,7 @@
 Blueprint pour les routes principales (main).
 Contient: index, connect, disconnect, dashboard, ous, audit, toggle-dark-mode
 """
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE
 from datetime import datetime
@@ -13,6 +14,8 @@ from core.security import validate_csrf_token, check_rate_limit, record_attempt
 from core.session_crypto import encrypt_password
 from core.audit import log_action, ACTIONS
 from core.ad_detect import get_local_domain, detect_ad_config
+
+logger = logging.getLogger(__name__)
 
 main_bp = Blueprint('main', __name__)
 
@@ -426,7 +429,7 @@ def dashboard():
             # Alertes critiques
             critical_alerts = widgets.get('alerts', [])
         except Exception as e:
-            print(f"Dashboard error: {e}")
+            logger.error(f"Dashboard error: {e}", exc_info=True)
             pass
         conn.unbind()
 

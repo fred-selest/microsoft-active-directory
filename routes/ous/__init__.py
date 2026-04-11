@@ -66,7 +66,7 @@ def list_ous():
 def _count_ou_objects(conn, ou_dn):
     """
     Compter les objets dans une OU.
-    Utilise LEVEL pour éviter les problèmes de permissions sur les sous-arborescences.
+    Utilise une SEULE requête LDAP avec filtre large au lieu de 4 requêtes.
 
     Returns:
         dict: {'users': int, 'groups': int, 'computers': int, 'sub_ous': int, 'total': int}
@@ -74,24 +74,27 @@ def _count_ou_objects(conn, ou_dn):
     stats = {'users': 0, 'groups': 0, 'computers': 0, 'sub_ous': 0, 'total': 0}
 
     try:
-        # Compter utilisateurs (niveau direct seulement - plus fiable)
-        search_filter = '(&(objectClass=user)(objectCategory=person))'
-        conn.search(ou_dn, search_filter, search_scope=LEVEL, attributes=['sAMAccountName'])
-        stats['users'] = len(conn.entries)
+        # UNE SEULE requête pour tous les types d'objets
+        search_filter = (
+            '(|(objectClass=user)(objectClass=group)(objectClass=computer)'
+            '(objectClass=organizationalUnit))'
+        )
+        conn.search(ou_dn, search_filter, search_scope=LEVEL,
+                   attributes=['objectClass'])
 
-        # Compter groupes
-        conn.search(ou_dn, '(objectClass=group)', search_scope=LEVEL, attributes=['cn'])
-        stats['groups'] = len(conn.entries)
+        for entry in conn.entries:
+            obj_classes = entry.objectClass.values if hasattr(entry, 'objectClass') and entry.objectClass else []
 
-        # Compter ordinateurs
-        conn.search(ou_dn, '(objectClass=computer)', search_scope=LEVEL, attributes=['cn'])
-        stats['computers'] = len(conn.entries)
+            # Compter par type (un objet peut avoir plusieurs types)
+            if 'user' in obj_classes and 'person' in [str(c) for c in obj_classes]:
+                stats['users'] += 1
+            elif 'group' in obj_classes:
+                stats['groups'] += 1
+            elif 'computer' in obj_classes:
+                stats['computers'] += 1
+            elif 'organizationalUnit' in obj_classes:
+                stats['sub_ous'] += 1
 
-        # Compter sous-OUs (niveau direct seulement)
-        conn.search(ou_dn, '(objectClass=organizationalUnit)', search_scope=LEVEL, attributes=['name'])
-        stats['sub_ous'] = len(conn.entries)
-
-        # Total
         stats['total'] = stats['users'] + stats['groups'] + stats['computers']
 
     except Exception as e:

@@ -3,6 +3,7 @@ Blueprint pour l'administration.
 """
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from werkzeug.utils import secure_filename
 
 from routes.core import is_connected, require_connection, require_permission
 from core.security import validate_csrf_token
@@ -50,14 +51,21 @@ def save_general():
     if 'logo' in request.files:
         file = request.files['logo']
         if file and file.filename:
-            ext = file.filename.rsplit('.', 1)[-1].lower()
-            if ext in {'png', 'jpg', 'jpeg', 'svg'}:
+            # Sécuriser le nom de fichier
+            original_filename = secure_filename(file.filename)
+            ext = original_filename.rsplit('.', 1)[-1].lower() if '.' in original_filename else ''
+
+            # Valider l'extension
+            ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'svg', 'gif', 'webp'}
+            if ext in ALLOWED_EXTENSIONS:
                 logo_filename = f'logo.{ext}'
                 logo_path = os.path.join(current_app.static_folder, 'images', logo_filename)
                 os.makedirs(os.path.dirname(logo_path), exist_ok=True)
                 file.save(logo_path)
                 settings['site']['logo'] = logo_filename
                 flash('Logo mis à jour!', 'success')
+            else:
+                flash(f'Extension non autorisée: .{ext}. Formats acceptés: {", ".join(ALLOWED_EXTENSIONS)}', 'error')
 
     if save_settings(settings):
         flash('Paramètres enregistrés!', 'success')
@@ -156,6 +164,7 @@ def test_smtp():
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
+    from core.updater import get_current_version
     
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
@@ -185,13 +194,14 @@ def test_smtp():
             </ul>
             <p>Si vous recevez cet email, la configuration SMTP est correcte.</p>
             <hr>
-            <p><small>AD Web Interface v1.34.0</small></p>
+            <p><small>AD Web Interface v{version}</small></p>
         </body>
         </html>
         """.format(
             server=smtp.get('server', 'N/A'),
             port=smtp.get('port', 'N/A'),
-            tls='Oui' if smtp.get('use_tls') else 'Non'
+            tls='Oui' if smtp.get('use_tls') else 'Non',
+            version=get_current_version()
         )
 
         msg.attach(MIMEText(body, 'html', 'utf-8'))
