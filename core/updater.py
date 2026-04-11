@@ -36,6 +36,10 @@ GITHUB_REPO = "fred-selest/microsoft-active-directory"
 GITHUB_BRANCH = "main"
 PRESERVE = {'.env', 'logs', 'data', 'venv', '__pycache__', '.git', '.github',
             'core/data', 'data', 'logs', 'nssm/logs'}
+
+# Fichiers critiques toujours mis à jour, même si le SHA local correspond au ZIP
+# (évite le bug où l'ancien updater en mémoire les saute)
+ALWAYS_UPDATE = {'VERSION', 'core/updater.py'}
 GITHUB_API_BASE = f"https://api.github.com/repos/{GITHUB_REPO}"
 
 ZIP_URL = f"https://github.com/{GITHUB_REPO}/archive/refs/heads/{GITHUB_BRANCH}.zip"
@@ -348,9 +352,13 @@ def perform_fast_update(silent=False, max_workers=4, on_progress=None):
     # Filtrage différentiel : uniquement fichiers modifiés ou nouveaux
     # Comparaison : SHA du fichier dans le NOUVEAU ZIP vs SHA du fichier LOCAL
     # (et non pas manifest vs local — le manifest est l'ancien ZIP, pas le nouveau)
+    # Les fichiers dans ALWAYS_UPDATE sont systématiquement inclus (VERSION, updater.py).
     files_to_update = []
     files_skipped = 0
     for fp in all_zip_files:
+        if fp in ALWAYS_UPDATE:
+            files_to_update.append(fp)
+            continue
         zip_name = zip_prefix + fp
         try:
             new_zip_sha = hashlib.sha256(zf.read(zip_name)).hexdigest()
