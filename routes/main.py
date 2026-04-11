@@ -302,19 +302,24 @@ def fix_ldap_channel_binding():
         logger.info(f"Fix LDAP: stdout={stdout[:500]}")
 
         if 'SUCCESS' in stdout:
-            flash('Correction LDAP appliquee avec succes! Reessayez de vous connecter.', 'success')
+            # Effacer les clés de connexion AD pour forcer une reconnexion en LDAPS
+            for key in ('ad_password_enc', 'ad_use_ssl', 'ad_starttls', 'ad_port'):
+                session.pop(key, None)
+            flash('LDAPS configuré avec succès ! Reconnectez-vous avec le port 636 et SSL activé.', 'success')
+            return redirect(url_for('main.connect', suggest_ssl=1))
         elif 'PARTIAL' in stdout:
-            flash('Correction partiellement appliquee. Redemarrez le service AD DS manuellement, puis reessayez.', 'warning')
+            flash('Correction partiellement appliquée. Redémarrez le service AD DS manuellement, puis reconnectez-vous en LDAPS (port 636, SSL coché).', 'warning')
+            return redirect(url_for('main.connect', suggest_ssl=1))
         else:
             error_msg = stderr if stderr else stdout
             if 'Access is denied' in error_msg or 'access denied' in error_msg.lower():
-                flash('Erreur de permissions. Executez ce script en tant qu\'Administrateur.', 'error')
+                flash('Erreur de permissions. Exécutez ce script en tant qu\'Administrateur.', 'error')
             else:
                 flash(f'Erreur lors de la correction: {error_msg[:300]}', 'error')
 
     except subprocess.TimeoutExpired:
         logger.error("Fix LDAP: Timeout")
-        flash('Timeout lors de l\'execution du script.', 'error')
+        flash('Timeout lors de l\'exécution du script.', 'error')
     except Exception as e:
         logger.error(f"Fix LDAP: Exception={e}", exc_info=True)
         flash(f'Erreur: {str(e)}', 'error')

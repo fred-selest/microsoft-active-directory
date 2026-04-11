@@ -183,11 +183,16 @@ Write-Host "  3. Vous pourrez creer des utilisateurs avec mot de passe !" -Foreg
         elif 'SUCCESS' in stdout:
             lines = stdout.split('\n')
             server_info = next((l for l in lines if 'Certificat selectionne' in l or 'Serveur :' in l), '')
-            flash(f'LDAPS configure avec succes !\n\n{server_info}\n\n'
-                  f'DECONNECTEZ-VOUS puis reconnectez-vous avec le port 636 et SSL active.', 'success')
+            # Effacer les clés de session AD pour forcer une nouvelle connexion en LDAPS
+            for key in ('ad_password_enc', 'ad_use_ssl', 'ad_starttls', 'ad_port'):
+                session.pop(key, None)
+            flash(f'LDAPS configuré avec succès ! {server_info} '
+                  f'Reconnectez-vous maintenant avec le port 636 et SSL activé.', 'success')
+            return redirect(url_for('main.connect', suggest_ssl=1))
         elif 'PARTIAL_SUCCESS' in stdout:
-            flash('Configuration LDAPS terminee mais le port 636 n\'est pas encore detecte. '
-                  'Attendez 30 secondes ou redemarrez le service AD DS, puis reconnectez-vous en LDAPS (port 636, SSL coche).', 'warning')
+            flash('Configuration LDAPS terminée mais le port 636 n\'est pas encore détecté. '
+                  'Attendez 30 secondes ou redémarrez le service AD DS, puis reconnectez-vous en LDAPS (port 636, SSL coché).', 'warning')
+            return redirect(url_for('main.connect', suggest_ssl=1))
         else:
             error_msg = stderr if stderr else stdout
             logger.error(f"LDAPS Configure: error={error_msg[:500]}")
