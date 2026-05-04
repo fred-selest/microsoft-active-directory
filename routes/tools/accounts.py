@@ -72,7 +72,33 @@ def restore_deleted_object(dn):
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.recycle_bin'))
     try:
-        flash("La restauration d'objets supprimés n'est pas encore implémentée.", 'warning')
+                # Rechercher l'objet dans la corbeille
+        conn.search(dn, '(isDeleted=TRUE)', SUBTREE,
+                    attributes=['cn', 'lastKnownParent', 'distinguishedName'],
+                    controls=[('1.2.840.113556.1.4.417', True, None)])
+        
+        if not conn.entries:
+            flash("Objet introuvable dans la corbeille.", 'error')
+            return redirect(url_for('tools.recycle_bin'))
+        
+        entry = conn.entries[0]
+        new_rdn = entry.cn[0] if hasattr(entry.cn, '__getitem__') else entry.cn
+        parent_dn = entry.lastKnownParent[0] if hasattr(entry.lastKnownParent, '__getitem__') else entry.lastKnownParent
+        
+        # Restaurer l'objet à son emplacement d'origine
+        try:
+            conn.rename(
+                decode_ldap_value(entry.entry_dn),
+                new_rdn,
+                decode_ldap_value(parent_dn),
+                delete_source=False
+            )
+            if conn.result['result'] == 0:
+                flash("Objet restauré avec succès.", 'success')
+            else:
+                flash("Erreur: %s" % conn.result.get('description', 'erreur inconnue'), 'error')
+        except Exception as e:
+            flash("Erreur lors de la restauration: %s" % str(e), 'error')
     finally:
         conn.unbind()
     return redirect(url_for('tools.recycle_bin'))
@@ -129,7 +155,7 @@ def bulk_unlock_accounts():
     try:
         for dn in selected:
             try:
-                conn.modify(dn, {'lockoutTime': [(MODIFY_REPLACE, [b'\x00\x00\x00\x00\x00\x00\x00\x00'])]})
+                conn.modify(dn, [('lockoutTime', [MODIFY_REPLACE, b'\x00\x00\x00\x00\x00\x00\x00\x00'])])
                 if conn.result['result'] == 0:
                     unlocked += 1
                 else:
@@ -159,7 +185,7 @@ def unlock_account(dn):
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.locked_accounts'))
     try:
-        conn.modify(dn, {'lockoutTime': [(MODIFY_REPLACE, [b'\x00\x00\x00\x00\x00\x00\x00\x00'])]})
+        conn.modify(dn, [('lockoutTime', [MODIFY_REPLACE, b'\x00\x00\x00\x00\x00\x00\x00\x00'])])
         if conn.result['result'] == 0:
             flash('Compte débloqué avec succès.', 'success')
         else:
