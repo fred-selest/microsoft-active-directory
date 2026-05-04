@@ -115,6 +115,71 @@ def api_diagnostic():
                         'passed': False,
                         'message': f'Erreur de recherche: {str(e)}'
                     })
+
+                # Check LAPS schema + passwords
+                try:
+                    base_dn = session.get('ad_base_dn', '')
+                    laps_schema = []
+                    if conn.server.schema and conn.server.schema.attribute_types:
+                        schema_keys = list(conn.server.schema.attribute_types.keys())
+                        if 'ms-Mcs-AdmPwd' in schema_keys:
+                            laps_schema.append('Legacy LAPS')
+                        for attr in ['msLAPS-Password', 'msLAPS-EncryptedPassword']:
+                            if attr in schema_keys:
+                                laps_schema.append('Windows LAPS')
+                                break
+
+                    if not laps_schema:
+                        results['checks'].append({
+                            'name': 'LAPS',
+                            'passed': False,
+                            'message': 'Schéma LAPS absent — LAPS non configuré',
+                            'details': 'Configurez LAPS depuis /tools/laps'
+                        })
+                        results['warnings'].append({
+                            'name': 'LAPS non configuré',
+                            'message': 'Les attributs LAPS ne sont pas présents dans le schéma AD.',
+                            'suggestion': 'Accédez à /tools/laps pour configurer Windows LAPS.'
+                        })
+                    else:
+                        laps_attrs = ['cn']
+                        if 'Legacy LAPS' in laps_schema:
+                            laps_attrs.append('ms-Mcs-AdmPwd')
+                        if 'Windows LAPS' in laps_schema:
+                            laps_attrs.extend(['msLAPS-Password', 'msLAPS-EncryptedPassword'])
+                        conn.search(base_dn, '(objectClass=computer)', SUBTREE, attributes=laps_attrs, size_limit=500)
+                        laps_count = sum(
+                            1 for e in conn.entries
+                            if (('ms-Mcs-AdmPwd' in laps_attrs and hasattr(e, 'ms-Mcs-AdmPwd') and getattr(e, 'ms-Mcs-AdmPwd').value) or
+                                ('msLAPS-Password' in laps_attrs and hasattr(e, 'msLAPS-Password') and getattr(e, 'msLAPS-Password').value) or
+                                ('msLAPS-EncryptedPassword' in laps_attrs and hasattr(e, 'msLAPS-EncryptedPassword') and getattr(e, 'msLAPS-EncryptedPassword').value))
+                        )
+                        schema_str = ' + '.join(laps_schema)
+                        if laps_count > 0:
+                            results['checks'].append({
+                                'name': 'LAPS',
+                                'passed': True,
+                                'message': f'Schéma : {schema_str}. {laps_count} ordinateur(s) avec mot de passe LAPS.'
+                            })
+                        else:
+                            results['checks'].append({
+                                'name': 'LAPS',
+                                'passed': False,
+                                'message': f'Schéma détecté ({schema_str}) mais aucun ordinateur n\'a de mot de passe LAPS.',
+                                'details': 'GPO LAPS non déployée — configurez depuis /tools/laps'
+                            })
+                            results['warnings'].append({
+                                'name': 'GPO LAPS non déployée',
+                                'message': f'Le schéma LAPS est présent ({schema_str}) mais aucun ordinateur n\'a encore généré de mot de passe.',
+                                'suggestion': 'Accédez à /tools/laps et cliquez sur "Configurer la GPO Windows LAPS".'
+                            })
+                except Exception as e:
+                    results['checks'].append({
+                        'name': 'LAPS',
+                        'passed': False,
+                        'message': f'Erreur check LAPS: {str(e)[:80]}'
+                    })
+
                 conn.unbind()
         except Exception as e:
             results['checks'].append({
