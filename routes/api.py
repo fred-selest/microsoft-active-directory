@@ -196,7 +196,7 @@ def api_diagnostic():
 @require_connection
 def api_password_audit():
     """API d'audit des mots de passe."""
-    from core.password_audit import run_password_audit
+    from password_audit.runner import run_password_audit
     from core.audit_history import save_audit
     from core.auto_alerts import send_critical_alerts
     from core.audit import log_action, ACTIONS
@@ -250,7 +250,7 @@ def api_password_audit_quick_fix():
     try:
         if fix_type == 'force_password_change':
             if not accounts:
-                from core.password_audit import check_weak_passwords
+                from password_audit import check_weak_passwords
                 weak_accounts = check_weak_passwords(conn, base_dn)
                 accounts = [{'dn': acc.get('dn'), 'username': acc.get('username')} for acc in weak_accounts]
 
@@ -274,7 +274,7 @@ def api_password_audit_quick_fix():
 
         elif fix_type == 'enable_password_expiry_admin':
             if not accounts:
-                from core.password_audit import check_admin_weak_passwords
+                from password_audit.admin import check_admin_weak_passwords
                 admin_accounts = check_admin_weak_passwords(conn, base_dn)
                 accounts = [{'dn': acc.get('dn'), 'username': acc.get('username')} for acc in admin_accounts]
 
