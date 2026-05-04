@@ -1,6 +1,9 @@
 """
 Module de debug pour AD Web Interface.
 Fournit des outils de débogage pour le développement.
+
+ATTENTION: Ce module est désactivé en production (DEBUG=False).
+Les logs ne seront écrits que si le mode debug est activé.
 """
 
 import logging
@@ -10,17 +13,10 @@ from functools import wraps
 from flask import session, g, request
 import time
 
-# Configuration logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/debug.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-
+# Logger dédié, pas de configuration globale
 logger = logging.getLogger('ad_debug')
+
+# Par défaut, pas de handler — chaque module configure ses propres handlers
 
 
 class DebugTimer:
@@ -104,7 +100,7 @@ def check_feature_flags():
     }
     
     for flag, enabled in flags.items():
-        status = "✅" if enabled else "❌"
+        status = "OK" if enabled else "N/A"
         logger.debug(f"🚩 FEATURE FLAG: {status} {flag}")
     
     return flags
@@ -171,7 +167,25 @@ def get_debug_info():
 
 
 def init_debug(app):
-    """Initialiser le debug pour l'application Flask."""
+    """Initialiser le debug pour l'application Flask.
+    
+    ATTENTION: Ne configure le logger qu'en mode DEBUG.
+    En production (DEBUG=False), le logger reste silencieux.
+    """
+    from config import get_config
+    config = get_config()
+    
+    if not config.DEBUG:
+        logger.info("Debug module disabled — DEBUG=False")
+        return
+    
+    # Activer les logs DEBUG uniquement en mode debug
+    handler = logging.FileHandler('logs/debug.log', encoding='utf-8')
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
     
     @app.before_request
     def before_request():
