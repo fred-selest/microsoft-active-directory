@@ -199,16 +199,29 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
             <tr>
                 <td colspan="6" class="text-center">
                     <div class="no-laps-data">
-                        <p><strong>Aucun mot de passe LAPS trouve.</strong></p>
-                        <p>Les ordinateurs n'ont pas encore envoyé leurs mots de passe LAPS.</p>
-                        <p>Forcez la mise a jour sur un ordinateur specifique:</p>
-                        
+                        <p><strong>Aucun mot de passe LAPS trouvé.</strong></p>
+                        <p>Le schéma LAPS est détecté dans l'AD mais aucun ordinateur n'a encore envoyé son mot de passe.</p>
+                        <p><strong>Cause probable :</strong> la GPO LAPS n'est pas créée ou n'est pas liée au domaine.</p>
+
+                        <div style="margin: 1.5rem 0;">
+                            <form method="post" action="{{ url_for('tools.configure_laps') }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-primary btn-lg"
+                                    onclick="return confirm('Créer/mettre à jour la GPO Windows LAPS sur ce domaine ?');">
+                                    🔧 Configurer la GPO Windows LAPS
+                                </button>
+                            </form>
+                        </div>
+
+                        <p style="margin-top: 1rem; font-size: 0.875rem; color: #666;">
+                            Ou forcez la mise à jour manuellement sur un ordinateur spécifique :
+                        </p>
                         <form method="post" action="{{ url_for('tools.laps_force_refresh') }}" class="force-laps-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="form-group">
                                 <input type="text" name="computer_name" placeholder="Nom de l'ordinateur (ex: fred-dell)" class="form-control" required>
                             </div>
-                            <button type="submit" class="btn btn-primary">🔄 Forcer la mise a jour LAPS</button>
+                            <button type="submit" class="btn btn-primary">🔄 Forcer la mise à jour LAPS</button>
                         </form>
                     </div>
                 </td>
