@@ -1,6 +1,7 @@
 """
 Blueprint de debug pour AD Web Interface.
-Routes de débogage pour le développement.
+Routes de débogage pour le développement uniquement.
+Ces routes sont désactivées en production (DEBUG=False).
 """
 
 from flask import Blueprint, render_template, jsonify, session, request, flash, redirect, url_for
@@ -33,9 +34,30 @@ def require_admin(f):
     return decorated
 
 
+def _is_debug_enabled():
+    """Vérifie si le mode debug est activé dans la config."""
+    from config import get_config
+    config = get_config()
+    return config.DEBUG
+
+
+def _require_debug(f):
+    """Décorateur pour protéger les routes debug — ne fonctionne qu'en mode DEBUG=True."""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not _is_debug_enabled():
+            return jsonify({'error': 'Debug routes disabled in production'}), 404
+        return f(*args, **kwargs)
+    
+    return decorated
+
+
 @debug_bp.route('/')
 @require_connection
 @require_admin
+@_require_debug
 def debug_dashboard():
     """Page de debug principale."""
     from core.debug_utils import get_debug_info, log_session_data, check_feature_flags
@@ -67,6 +89,7 @@ def debug_dashboard():
 @debug_bp.route('/api')
 @require_connection
 @require_admin
+@_require_debug
 def debug_api():
     """API de debug - retourne les infos en JSON."""
     from core.debug_utils import get_debug_info
@@ -76,6 +99,7 @@ def debug_api():
 @debug_bp.route('/routes')
 @require_connection
 @require_admin
+@_require_debug
 def debug_routes():
     """Liste toutes les routes enregistrées."""
     from flask import current_app
@@ -100,6 +124,7 @@ def debug_routes():
 @debug_bp.route('/templates')
 @require_connection
 @require_admin
+@_require_debug
 def debug_templates():
     """Liste tous les templates."""
     import os
@@ -126,6 +151,7 @@ def debug_templates():
 @debug_bp.route('/session')
 @require_connection
 @require_admin
+@_require_debug
 def debug_session():
     """Affiche le contenu de la session."""
     session_data = dict(session)
@@ -144,6 +170,7 @@ def debug_session():
 @debug_bp.route('/config')
 @require_connection
 @require_admin
+@_require_debug
 def debug_config():
     """Affiche la configuration."""
     from config import get_config
@@ -178,6 +205,7 @@ def debug_config():
 @debug_bp.route('/logs')
 @require_connection
 @require_admin
+@_require_debug
 def debug_logs():
     """Affiche les derniers logs."""
     import os
@@ -215,6 +243,7 @@ def debug_logs():
 @debug_bp.route('/test/<page_name>')
 @require_connection
 @require_admin
+@_require_debug
 def debug_test_page(page_name):
     """Teste une page spécifique."""
     from flask import url_for
@@ -225,7 +254,7 @@ def debug_test_page(page_name):
         'users': 'users.list_users',
         'groups': 'groups.list_groups',
         'computers': 'computers.list_computers',
-        'ous': 'ous',
+        'ous': 'ous.list_ous',
         'laps': 'tools.laps_passwords',
         'bitlocker': 'tools.bitlocker_keys',
         'recycle-bin': 'tools.recycle_bin',
@@ -252,7 +281,7 @@ def debug_test_page(page_name):
             'page': page_name,
             'endpoint': endpoint,
             'url': url,
-            'status': '✅ OK'
+            'status': 'OK'
         })
     except Exception as e:
         return jsonify({
@@ -260,13 +289,14 @@ def debug_test_page(page_name):
             'page': page_name,
             'endpoint': endpoint,
             'error': str(e),
-            'status': '❌ ERROR'
+            'status': 'ERROR'
         }), 500
 
 
 @debug_bp.route('/all-pages')
 @require_connection
 @require_admin
+@_require_debug
 def debug_all_pages():
     """Teste toutes les pages et retourne les erreurs."""
     from flask import url_for
@@ -295,7 +325,7 @@ def debug_all_pages():
     for path, name in pages:
         try:
             resp = requests.get(base_url + path, cookies=request.cookies, timeout=5)
-            status = '✅' if resp.status_code == 200 else '⚠️'
+            status = 'OK' if resp.status_code == 200 else 'WARN'
             results.append({
                 'page': name,
                 'path': path,
@@ -308,13 +338,13 @@ def debug_all_pages():
                 'page': name,
                 'path': path,
                 'status_code': None,
-                'status': '❌',
+                'status': 'ERROR',
                 'error': str(e)
             })
     
     return jsonify({
         'total_pages': len(results),
-        'success': sum(1 for r in results if r['status'] == '✅'),
-        'errors': sum(1 for r in results if r['status'] == '❌'),
+        'success': sum(1 for r in results if r['status'] == 'OK'),
+        'errors': sum(1 for r in results if r['status'] == 'ERROR'),
         'results': results
     })

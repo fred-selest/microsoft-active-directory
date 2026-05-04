@@ -11,7 +11,7 @@ from ..core import require_connection, require_permission
 @tools_bp.route('/templates')
 @require_connection
 def user_templates():
-    """Page des modèles utilisateurs (placeholder)."""
+    """Page des modèles utilisateurs."""
     return render_template('user_templates.html', connected=True)
 
 
@@ -35,9 +35,10 @@ def edit_user_template(template_id):
 @require_connection
 @require_permission('write')
 def delete_user_template(template_id):
-    """Supprimer un modèle."""
-    # TODO: Implémenter la suppression
-    return render_template('user_templates.html', connected=True)
+    """Supprimer un modèle utilisateur."""
+    # TODO: Implémenter la suppression côté backend
+    # Pour l'instant, redirection vers la liste des templates
+    return render_template('user_templates.html', connected=True, message="Fonctionnalité en cours de développement.")
 
 
 @tools_bp.route('/favorites')
@@ -51,8 +52,9 @@ def favorites():
 @require_connection
 def toggle_favorite():
     """Ajouter/retirer un favori."""
-    # TODO: Implémenter
-    return render_template('favorites_page.html', connected=True)
+    # TODO: Implémenter la logique de favoris
+    # Pour l'instant, retour à la page favorites
+    return render_template('favorites_page.html', connected=True, message="Fonctionnalité en cours de développement.")
 
 
 @tools_bp.route('/api-docs')
