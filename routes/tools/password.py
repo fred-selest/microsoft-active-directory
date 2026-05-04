@@ -123,7 +123,7 @@ def password_audit():
 @require_permission('admin')
 def export_password_audit_csv():
     """Exporter l'audit des mots de passe en CSV."""
-    from core.password_audit import run_password_audit, export_audit_to_csv
+    from password_audit.runner import run_password_audit; from password_audit.export import export_audit_to_csv
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
@@ -146,7 +146,7 @@ def export_password_audit_csv():
 @require_permission('admin')
 def export_password_audit_json():
     """Exporter l'audit des mots de passe en JSON."""
-    from core.password_audit import run_password_audit, export_audit_to_json
+    from password_audit.runner import run_password_audit; from password_audit.export import export_audit_to_json
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
@@ -169,7 +169,7 @@ def export_password_audit_json():
 @require_permission('admin')
 def export_password_audit_pdf():
     """Exporter l'audit des mots de passe en PDF professionnel."""
-    from core.password_audit import run_password_audit
+    from password_audit.runner import run_password_audit
     from core.audit_history import save_audit
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
@@ -406,7 +406,7 @@ def export_password_audit_pdf():
 @require_permission('admin')
 def password_auditor_report():
     """Générer un rapport style Specops Password Auditor."""
-    from core.password_audit import run_password_audit, generate_auditor_issues
+    from password_audit.runner import run_password_audit, generate_auditor_issues
     from datetime import datetime
     from core.updater import get_current_version
 
