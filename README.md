@@ -10,7 +10,15 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.44.0 — Avril 2026
+**Dernière version :** v1.44.6 — Mai 2026
+
+---
+
+## 🆕 Nouveautés v1.44.6
+
+### ✨ Améliorations
+- **Bouton GPO LAPS** : sur `/tools/laps`, quand le schéma est présent mais aucun mot de passe n'est encore généré, un bouton "🔧 Configurer la GPO Windows LAPS" s'affiche directement dans le tableau pour déclencher la création/liaison de la GPO.
+- **Diagnostic LAPS** : la page `/diagnostic` teste désormais la présence du schéma LAPS (Legacy / Windows LAPS) et le nombre d'ordinateurs avec mot de passe — avec avertissement si la GPO n'est pas déployée.
 
 ---
 
