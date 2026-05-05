@@ -76,3 +76,22 @@ backup_pre_update/
 # Certificates
 scripts/codesign.*
 scripts/*.cer
+ 
+.claude\settings.json 
+.claude\settings.local.json 
+check_testino.py 
+check_testino_ad_rights.py 
+core\data\settings.json 
+data\permissions.json 
+data\update_manifest.json 
+decode.ps1 
+routes\tools\accounts_part3.dat 
+routes\tools\test.dat 
+routes\tools\test_write.txt 
+server_address.txt 
+temp_b64.txt 
+temp_b64_clean.txt 
+test_flask.py 
+test_imports.py 
+test_imports2.py 
+test_imports3.py 
