@@ -1,0 +1,6 @@
+{
+  "autoUpdatesChannel": "latest",
+  "env": {
+    "CLAUDE_CODE_GIT_BASH_PATH": "C:\\Program Files\\Git\\bin\\bash.exe"
+  }
+}

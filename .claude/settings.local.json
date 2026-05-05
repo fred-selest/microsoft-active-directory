@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -ExecutionPolicy Bypass -File scripts/fix_ldap_channel_binding.ps1)",
+      "Bash(powershell -Command \"Start-Process powershell -ArgumentList '-ExecutionPolicy Bypass -File C:\\\\AD-WebInterface\\\\scripts\\\\fix_ldap_channel_binding.ps1' -Verb RunAs -Wait -PassThru | Select-Object ExitCode\")",
+      "Bash(powershell -Command \"Start-Process powershell -ArgumentList '-ExecutionPolicy Bypass -Command \\\\\"& { C:\\\\AD-WebInterface\\\\scripts\\\\fix_ldap_channel_binding.ps1 *>&1 | Out-File -FilePath C:\\\\AD-WebInterface\\\\ldaps_test.log -Encoding UTF8 }\\\\\"' -Verb RunAs -Wait\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(where claude:*)",
+      "Read(//c/Users/admin/AppData/Local/AnthropicClaude//**)",
+      "Read(//c/Users/admin/.local/bin/**)",
+      "Read(//c/Users/admin/**)"
+    ]
+  }
+}
