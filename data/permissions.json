@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "updated": "2026-04-11T17:36:04.312837",
+  "groups": {
+    "Utilisateurs_O365": {
+      "permissions": [
+        "users:create",
+        "users:read",
+        "users:update",
+        "users:delete",
+        "groups:read",
+        "groups:update",
+        "computers:read",
+        "computers:update",
+        "ous:read",
+        "ous:update"
+      ],
+      "description": "support info",
+      "enabled": true,
+      "subject_type": "group",
+      "updated": "2026-04-11T17:34:13.414733"
+    }
+  }
+}
