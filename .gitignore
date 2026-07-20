@@ -4,19 +4,27 @@ __pycache__/
 *.so
 .Python
 venv/
+.venv/
+.venv*/
 env/
 
-# Logs
-logs/*.log
-logs/*.png
-logs/*.txt
-logs/analysis_*.json
-
-# Data
-data/settings.json
-data/backups/*
-data/crypto_salt.bin
+# =============================================================================
+# DONNEES SENSIBLES — NE JAMAIS VERSIONNER
+# Ces fichiers contiennent des informations sur le domaine AD de production :
+# comptes, politiques de mot de passe, faiblesses de securite.
+# Voir AUDIT_2026-07-20.md (constat C2).
+# =============================================================================
 data/audit_history/
+data/settings.json
+data/permissions.json
+data/crypto_salt.bin
+data/backups/
+logs/
+
+# Exceptions : documentation et exemples de configuration
+!logs/.gitkeep
+!data/README.md
+!data/*.example.json
 
 # Configuration locale
 .env
@@ -31,10 +39,6 @@ data/audit_history/
 # OS
 Thumbs.db
 .DS_Store
-
-# Tests
-logs/screenshots/
-logs/test_results.json
 
 # Worktrees
 .claude/worktrees/
@@ -56,6 +60,8 @@ $null
 !QWEN.md
 !*/README.md
 !scripts/SIGNATURE_GUIDE.md
+!AUDIT_*.md
+!MIGRATION_*.md
 
 # Ancienne documentation (obsolète)
 DEBUG_GUIDE.md
@@ -76,22 +82,21 @@ backup_pre_update/
 # Certificates
 scripts/codesign.*
 scripts/*.cer
- 
-.claude\settings.json 
-.claude\settings.local.json 
-check_testino.py 
-check_testino_ad_rights.py 
-core\data\settings.json 
-data\permissions.json 
-data\update_manifest.json 
-decode.ps1 
-routes\tools\accounts_part3.dat 
-routes\tools\test.dat 
-routes\tools\test_write.txt 
-server_address.txt 
-temp_b64.txt 
-temp_b64_clean.txt 
-test_flask.py 
-test_imports.py 
-test_imports2.py 
-test_imports3.py 
+
+# Fichiers de travail locaux
+# NB: utiliser des slashes '/' — git n'interprete pas '\' comme separateur,
+# les anciennes entrees en 'data\fichier.json' ne matchaient jamais.
+.claude/settings.json
+.claude/settings.local.json
+core/data/settings.json
+data/update_manifest.json
+routes/tools/*.dat
+routes/tools/test_write.txt
+check_testino.py
+check_testino_ad_rights.py
+decode.ps1
+server_address.txt
+temp_b64.txt
+temp_b64_clean.txt
+test_flask.py
+test_imports*.py

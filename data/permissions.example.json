@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "Exemple de configuration des permissions granulaires.",
+    "Copier en 'permissions.json' (ignore par git) et adapter a votre domaine.",
+    "Ce fichier decrit qui a le droit de faire quoi ; il reference des noms de",
+    "groupes/utilisateurs AD reels et ne doit donc jamais etre versionne.",
+    "",
+    "subject_type : 'group' (nom CN du groupe AD) | 'user' (sAMAccountName) | 'ou' (fragment de DN)",
+    "permissions  : voir ALL_PERMISSIONS dans core/granular_permissions.py",
+    "",
+    "Si ce fichier est absent, l'application se rabat sur PREDEFINED_ROLES",
+    "(Administrateurs du domaine = acces complet, Utilisateurs du domaine = lecture seule)."
+  ],
+  "version": "1.0",
+  "updated": "1970-01-01T00:00:00.000000",
+  "groups": {
+    "Support-Informatique": {
+      "description": "Exemple : equipe support — gestion des utilisateurs, lecture ailleurs",
+      "subject_type": "group",
+      "enabled": true,
+      "permissions": [
+        "users:create",
+        "users:read",
+        "users:update",
+        "groups:read",
+        "computers:read",
+        "ous:read"
+      ]
+    }
+  }
+}

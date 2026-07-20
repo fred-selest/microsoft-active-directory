@@ -60,6 +60,42 @@ jobs:
           python -c "from core.security import escape_ldap_filter; print('Security OK')"
 
   # ===========================================================================
+  # Garde-fou : aucune donnee du domaine AD ne doit etre versionnee
+  # Voir AUDIT_2026-07-20.md (constat C2) — ces fichiers ont deja fuite une
+  # fois dans un depot public. Ce job DOIT bloquer le merge.
+  # ===========================================================================
+  no-sensitive-files:
+    name: Aucun fichier sensible versionne
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verifier qu'aucun fichier sensible n'est suivi par git
+        run: |
+          echo "Fichiers suivis correspondant aux motifs interdits :"
+          FOUND=$(git ls-files | grep -E \
+            '^(data/audit_history/|data/permissions\.json$|data/settings\.json$|data/crypto_salt\.bin$|data/backups/|logs/(?!\.gitkeep))' \
+            -P || true)
+          if [ -n "$FOUND" ]; then
+            echo "$FOUND"
+            echo ""
+            echo "ECHEC : ces fichiers contiennent des donnees du domaine AD de production."
+            echo "Retirez-les du suivi git :  git rm -r --cached <chemin>"
+            exit 1
+          fi
+          echo "  (aucun) — OK"
+
+      - name: Verifier que .env n'est pas versionne
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "ECHEC : .env est versionne."
+            exit 1
+          fi
+          echo "OK"
+
+  # ===========================================================================
   # Security Scan
   # ===========================================================================
   security:
