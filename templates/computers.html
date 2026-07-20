@@ -7,15 +7,85 @@
     <h2>Ordinateurs</h2>
 </div>
 
-<div class="search-box">
-    <form method="get">
-        <div class="form-group">
-            <input type="text" name="search" placeholder="Rechercher un ordinateur..."
+<div class="filters-bar">
+    <form method="get" action="{{ url_for('computers.list_computers') }}" class="filters-form">
+        <div class="filter-group">
+            <label for="search">🔍 Recherche</label>
+            <input type="text" id="search" name="search" placeholder="Nom, description…"
                    value="{{ search }}" class="form-control">
         </div>
-        <button type="submit" class="btn btn-secondary">Rechercher</button>
+        <div class="filter-group">
+            <label for="os_filter">💻 Système d'exploitation</label>
+            <select id="os_filter" name="os" class="form-control">
+                <option value="">— Tous les OS —</option>
+                {% for os in os_list %}
+                <option value="{{ os }}" {% if os_filter == os %}selected{% endif %}>{{ os }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="ou_filter">📁 Unité d'organisation</label>
+            <select id="ou_filter" name="ou" class="form-control">
+                <option value="">— Toutes les OUs —</option>
+                {% for ou in ous %}
+                <option value="{{ ou.dn }}" {% if ou_filter == ou.dn %}selected{% endif %}>{{ ou.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">Filtrer</button>
+            {% if search or ou_filter or os_filter %}
+            <a href="{{ url_for('computers.list_computers') }}" class="btn btn-secondary">✖ Réinitialiser</a>
+            {% endif %}
+        </div>
     </form>
 </div>
+
+<style>
+.filters-bar {
+    background: var(--bg-secondary, #fff);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: var(--border-radius, 6px);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+.filters-form {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1.5fr auto;
+    gap: 1rem;
+    align-items: end;
+}
+.filter-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary, #555);
+    margin-bottom: 0.25rem;
+}
+.filter-group .form-control {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    background: var(--bg-primary, #f5f5f5);
+    color: var(--text-primary, #1b1b1b);
+}
+.filter-group .form-control:focus {
+    outline: none;
+    border-color: var(--primary, #0078d4);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.15);
+}
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+@media (max-width: 768px) {
+    .filters-form { grid-template-columns: 1fr; }
+}
+</style>
 
 <div class="table-container">
     <table class="data-table sortable">

@@ -45,6 +45,7 @@ def list_computers():
     base_dn = session.get('ad_base_dn', '')
     search_query = request.args.get('search', '')
     ou_filter = request.args.get('ou', '')  # Filtrer par OU spécifique
+    os_filter = request.args.get('os', '')  # Filtrer par système d'exploitation
     page = request.args.get('page', 1, type=int)
     per_page = config.ITEMS_PER_PAGE
 
@@ -83,11 +84,24 @@ def list_computers():
                 'ou_path': ou_path
             })
 
-        # OUs pour déplacement
+        # Liste des systèmes d'exploitation présents (pour le menu déroulant),
+        # calculée AVANT le filtrage par OS pour que le menu reste complet.
+        os_list = sorted({c['os'] for c in computer_list if c['os']}, key=str.lower)
+
+        # Filtre par système d'exploitation (côté applicatif : le menu propose
+        # les OS réellement présents, on filtre par correspondance exacte).
+        if os_filter:
+            computer_list = [c for c in computer_list if c['os'] == os_filter]
+
+        # Trier par nom
+        computer_list.sort(key=lambda c: (c['cn'] or '').lower())
+
+        # OUs pour déplacement / filtre
         conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE,
                    attributes=['name', 'distinguishedName'])
         ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.entry_dn)}
                    for e in conn.entries]
+        ou_list.sort(key=lambda o: (o['name'] or '').lower())
         conn.unbind()
 
         # Pagination
@@ -98,12 +112,14 @@ def list_computers():
 
         return render_template('computers.html', computers=paginated, search=search_query,
                              page=page, total_pages=total_pages, total=total,
-                             ous=ou_list, connected=is_connected())
+                             ous=ou_list, ou_filter=ou_filter,
+                             os_list=os_list, os_filter=os_filter, connected=is_connected())
     except LDAPException as e:
         conn.unbind()
         flash(f'Erreur: {str(e)}', 'error')
         return render_template('computers.html', computers=[], search=search_query,
-                             page=1, total_pages=1, total=0, ous=[], connected=is_connected())
+                             page=1, total_pages=1, total=0, ous=[], ou_filter=ou_filter,
+                             os_list=[], os_filter=os_filter, connected=is_connected())
 
 
 @computers_bp.route('/<path:dn>/toggle', methods=['POST'])
