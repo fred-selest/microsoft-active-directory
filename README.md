@@ -10,7 +10,17 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.47.0 — Juillet 2026
+**Dernière version :** v1.47.1 — Juillet 2026
+
+---
+
+## 🆕 Nouveautés v1.47.1 — QA : pages & interactivité
+
+Passage de contrôle sur l'ensemble des pages (rendu, cohérence, interactivité) :
+
+- **4 pages corrigées qui plantaient en erreur 500** : Documentation API, Favoris, Rapport d'audit des mots de passe, Modèles utilisateurs (variables de contexte manquantes ou import erroné).
+- **Historique d'audit des mots de passe** : le contenu dynamique (alertes, courbe d'évolution, liste, suppression, envoi e-mail) ne se chargeait pas — les appels API visaient une URL sans le préfixe `/tools`. Corrigé.
+- Tests de non-régression ajoutés.
 
 ---
 

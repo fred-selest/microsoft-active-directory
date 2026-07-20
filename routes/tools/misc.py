@@ -12,7 +12,10 @@ from ..core import require_connection, require_permission
 @require_connection
 def user_templates():
     """Page des modèles utilisateurs."""
-    return render_template('user_templates.html', connected=True)
+    # Le stockage des modèles n'est pas encore implémenté côté backend :
+    # on passe un dict vide pour que la page affiche son état « aucun modèle »
+    # au lieu de planter (le template itère templates.items()).
+    return render_template('user_templates.html', templates={}, connected=True)
 
 
 @tools_bp.route('/templates/create', methods=['GET', 'POST'])
@@ -38,14 +41,23 @@ def delete_user_template(template_id):
     """Supprimer un modèle utilisateur."""
     # TODO: Implémenter la suppression côté backend
     # Pour l'instant, redirection vers la liste des templates
-    return render_template('user_templates.html', connected=True, message="Fonctionnalité en cours de développement.")
+    return render_template('user_templates.html', templates={}, connected=True, message="Fonctionnalité en cours de développement.")
 
 
 @tools_bp.route('/favorites')
 @require_connection
 def favorites():
     """Page des favoris."""
-    return render_template('favorites_page.html', connected=True)
+    # Backend des favoris non encore implémenté : valeurs par défaut pour que
+    # la page rende son état vide au lieu de planter (counts.* non gardé).
+    favorites_list = session.get('favorites', [])
+    counts = {'user': 0, 'group': 0, 'computer': 0, 'ou': 0}
+    for fav in favorites_list:
+        t = fav.get('type')
+        if t in counts:
+            counts[t] += 1
+    return render_template('favorites_page.html', favorites=favorites_list,
+                           counts=counts, connected=True)
 
 
 @tools_bp.route('/favorites/toggle', methods=['POST'])
@@ -54,7 +66,9 @@ def toggle_favorite():
     """Ajouter/retirer un favori."""
     # TODO: Implémenter la logique de favoris
     # Pour l'instant, retour à la page favorites
-    return render_template('favorites_page.html', connected=True, message="Fonctionnalité en cours de développement.")
+    return render_template('favorites_page.html', favorites=[],
+                           counts={'user': 0, 'group': 0, 'computer': 0, 'ou': 0},
+                           connected=True, message="Fonctionnalité en cours de développement.")
 
 
 @tools_bp.route('/api-docs')
@@ -106,6 +120,9 @@ def api_documentation():
         '/api/scripts/history/clear': {'POST': 'Vider l\'historique'},
     }
     
+    # Catalogue des permissions granulaires (le template affiche ce tableau)
+    from core.granular_permissions import get_available_permissions
+
     api_data = {
         'version': get_current_version(),
         'base_url': request.host_url.rstrip('/') + '/api',
@@ -113,7 +130,8 @@ def api_documentation():
             'type': 'Session Cookie',
             'example': 'curl -b session=YOUR_SESSION_ID http://localhost:5000/api/health'
         },
-        'endpoints': api_endpoints
+        'endpoints': api_endpoints,
+        'permissions': get_available_permissions()
     }
     
     # Récupérer les clés API de la session

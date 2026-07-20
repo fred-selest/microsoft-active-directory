@@ -406,7 +406,8 @@ def export_password_audit_pdf():
 @require_permission('tools:password_audit')
 def password_auditor_report():
     """Générer un rapport style Specops Password Auditor."""
-    from password_audit.runner import run_password_audit, generate_auditor_issues
+    from password_audit.runner import run_password_audit
+    from password_audit.report import generate_auditor_issues  # défini dans report.py, pas runner.py
     from datetime import datetime
     from core.updater import get_current_version
 
