@@ -10,7 +10,15 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.46.0 — Juillet 2026
+**Dernière version :** v1.46.1 — Juillet 2026
+
+---
+
+## 🆕 Nouveautés v1.46.1 — Correctif de redémarrage post-mise à jour
+
+- **🔧 Le service ne redémarrait pas après une mise à jour** : la commande de redémarrage WinSW `restart` arrêtait le service en tuant le process qui l'exécutait *avant* la phase de démarrage, laissant le serveur à terre (démarrage manuel requis). Corrigé : utilisation de la variante de self-restart WinSW `restart!`, et sortie en code non nul en secours pour déclencher la relance automatique `<onfailure>` du service.
+
+> ⚠️ **Cette mise à jour précise** peut, une dernière fois, nécessiter un démarrage manuel du service (le correctif ne s'applique qu'*après* installation). Un simple `net stop ADWebInterface && net start ADWebInterface` suffit. Les mises à jour suivantes redémarreront ensuite proprement.
 
 ---
 

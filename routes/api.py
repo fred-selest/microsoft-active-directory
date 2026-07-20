@@ -473,18 +473,48 @@ def api_perform_update():
 
 
 def _do_restart():
-    """Redémarre le service via WinSW ou os._exit en fallback."""
+    """
+    Redémarre le service applicatif après une mise à jour.
+
+    ⚠️ Ce code s'exécute DANS le process du service. Un service ne peut pas se
+    redémarrer en lançant un simple `restart` synchrone : l'arrêt tue le process
+    courant (celui qui a lancé la commande) avant la phase de démarrage, ce qui
+    laisse le service à terre (bug observé après la mise à jour 1.46.0).
+
+    Deux mécanismes fiables, dans l'ordre :
+      1. WinSW `restart!` — la variante « self-restart » : WinSW se détache et
+         redémarre le service après l'arrêt du process courant.
+      2. Fallback : sortie en code NON NUL → la règle `<onfailure action="restart"/>`
+         du service WinSW relance automatiquement. (Un exit 0 = succès = AUCUNE
+         relance : c'était l'autre moitié du bug.)
+    """
     import subprocess
     import os
-    nssm_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'nssm')
-    nssm_exe = os.path.join(nssm_dir, 'ADWebInterface.exe')
-    if os.path.exists(nssm_exe):
+    import sys
+    import logging
+    log = logging.getLogger('updater')
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    winsw_exe = os.path.join(base_dir, 'nssm', 'ADWebInterface.exe')
+
+    if sys.platform == 'win32' and os.path.exists(winsw_exe):
         try:
-            subprocess.run([nssm_exe, 'restart'], capture_output=True, timeout=30)
+            # restart! = self-restart WinSW, conçu pour être appelé PAR le service.
+            # Popen détaché (pas run) : on ne doit pas attendre, l'arrêt va nous tuer.
+            flags = (getattr(subprocess, 'DETACHED_PROCESS', 0)
+                     | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0))
+            subprocess.Popen([winsw_exe, 'restart!'], creationflags=flags,
+                             close_fds=True)
+            log.info("Redémarrage demandé via WinSW 'restart!'")
             return
-        except Exception:
-            pass
-    os._exit(0)
+        except Exception as e:
+            log.error(f"WinSW restart! a échoué: {e} — fallback sortie non-zero")
+
+    # Fallback multi-plateforme : sortie non-zero.
+    #  - Windows  : WinSW <onfailure action="restart"/> relance le service.
+    #  - Linux    : systemd Restart=on-failure / always relance l'unité.
+    log.warning("Redémarrage via sortie du process (code 1)")
+    os._exit(1)
 
 
 @api_bp.route('/errors')
