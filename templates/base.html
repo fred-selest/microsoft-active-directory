@@ -44,7 +44,7 @@
         body { font-family: {{ branding.font_family }}; }
         {% endif %}
         {% if site_settings.custom_css %}
-        {{ site_settings.custom_css|safe }}
+        {{ site_settings.custom_css|safe_css|safe }}
         {% endif %}
     </style>
     {% endif %}

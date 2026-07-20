@@ -4,6 +4,7 @@ Fonctions utilitaires pour les utilisateurs.
 """
 from ldap3 import SUBTREE
 from typing import List, Dict, Optional
+from core.security import escape_ldap_filter
 
 
 def get_ous(conn, base_dn: str) -> List[Dict[str, str]]:
@@ -47,7 +48,7 @@ def get_user_attributes(conn, dn: str, attributes: List[str] = None) -> Optional
         ]
     
     try:
-        search_filter = f'(distinguishedName={dn})'
+        search_filter = f'(distinguishedName={escape_ldap_filter(dn)})'
         conn.search(conn.default_naming_context, search_filter, SUBTREE,
                    attributes=attributes)
         

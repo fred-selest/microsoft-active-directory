@@ -23,8 +23,13 @@ def is_safe_path(base_dir: Path, target_path: Path) -> bool:
         base_resolved = base_dir.resolve()
         target_resolved = target_path.resolve()
 
-        # Vérifier que le chemin cible commence par le chemin de base
-        return str(target_resolved).startswith(str(base_resolved))
+        # Comparaison hiérarchique réelle (et non par préfixe de chaîne, qui
+        # laissait passer /opt/app-evil pour une base /opt/app).
+        try:
+            return target_resolved.is_relative_to(base_resolved)  # Python 3.9+
+        except AttributeError:
+            # Fallback Python < 3.9
+            return base_resolved == target_resolved or base_resolved in target_resolved.parents
     except (OSError, ValueError):
         return False
 

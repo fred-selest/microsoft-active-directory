@@ -4,6 +4,7 @@ Audit de Sécurité Renforcé - Détection et réparation automatique
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from ldap3 import SUBTREE, MODIFY_REPLACE
+from core.security import escape_ldap_filter
 
 
 def check_security_issues(conn, base_dn):
@@ -495,7 +496,7 @@ def fix_assign_manager(conn, base_dn, accounts, manager_dn):
     for account in accounts:
         try:
             # Trouver le DN du compte
-            conn.search(base_dn, f'(sAMAccountName={account})', SUBTREE)
+            conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(account)})', SUBTREE)
             if conn.entries:
                 account_dn = str(conn.entries[0].distinguishedName)
                 
@@ -523,7 +524,7 @@ def fix_delete_empty_groups(conn, base_dn, groups):
     for group in groups:
         try:
             # Trouver le DN du groupe
-            conn.search(base_dn, f'(cn={group})', SUBTREE)
+            conn.search(base_dn, f'(cn={escape_ldap_filter(group)})', SUBTREE)
             if conn.entries:
                 group_dn = str(conn.entries[0].distinguishedName)
                 
@@ -548,7 +549,7 @@ def fix_disable_unconstrained_delegation(conn, base_dn, accounts):
     
     for account in accounts:
         try:
-            conn.search(base_dn, f'(sAMAccountName={account})', SUBTREE)
+            conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(account)})', SUBTREE)
             if conn.entries:
                 account_dn = str(conn.entries[0].distinguishedName)
                 current_uac = int(conn.entries[0].userAccountControl.value)
@@ -578,7 +579,7 @@ def fix_enable_password_expiry(conn, base_dn, accounts):
     
     for account in accounts:
         try:
-            conn.search(base_dn, f'(sAMAccountName={account})', SUBTREE)
+            conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(account)})', SUBTREE)
             if conn.entries:
                 account_dn = str(conn.entries[0].distinguishedName)
                 current_uac = int(conn.entries[0].userAccountControl.value)
@@ -608,7 +609,7 @@ def fix_disable_inactive_accounts(conn, base_dn, accounts):
     
     for account in accounts:
         try:
-            conn.search(base_dn, f'(sAMAccountName={account})', SUBTREE)
+            conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(account)})', SUBTREE)
             if conn.entries:
                 account_dn = str(conn.entries[0].distinguishedName)
                 current_uac = int(conn.entries[0].userAccountControl.value)

@@ -6,6 +6,7 @@ Gestion des autorisations granulaires par groupe AD.
 # IMPORTANT: OpenSSL MD4/NTLM init (DOIT ÊTRE LE PREMIER IMPORT)
 import _openssl_init
 
+import os
 import ssl
 from functools import wraps
 from flask import session, redirect, url_for, flash, g, current_app, request, jsonify
@@ -26,11 +27,38 @@ _tls_version = getattr(ssl, 'PROTOCOL_TLS_CLIENT', None)
 if _tls_version is None:
     _tls_version = getattr(ssl, 'PROTOCOL_TLS', ssl.PROTOCOL_SSLv23)
 
-_tls_config = Tls(
-    validate=ssl.CERT_NONE,
-    version=_tls_version,
-    ciphers='HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP'
-)
+# Validation du certificat LDAPS/STARTTLS.
+#
+# ⚠️ Défaut = CERT_NONE (comportement historique) pour NE PAS casser les
+# déploiements existants, dont les contrôleurs de domaine à certificat
+# auto-signé : passer à la vérification stricte par défaut ferait échouer
+# toutes leurs connexions. La vérification est donc OPT-IN.
+#
+# Pour se protéger d'une interception (l'attaquant présente un faux certificat
+# et capture les identifiants admin du domaine), activer dans .env :
+#   AD_TLS_VERIFY=true
+#   AD_CA_BUNDLE=C:\chemin\vers\ca-du-domaine.pem   (optionnel : sinon magasin système)
+_tls_verify = os.environ.get('AD_TLS_VERIFY', 'false').lower() == 'true'
+_ca_bundle = os.environ.get('AD_CA_BUNDLE', '').strip() or None
+
+if _tls_verify:
+    logger.info("Validation TLS activée (AD_TLS_VERIFY=true)"
+                + (f", CA={_ca_bundle}" if _ca_bundle else ", magasin système"))
+    _tls_config = Tls(
+        validate=ssl.CERT_REQUIRED,
+        version=_tls_version,
+        ca_certs_file=_ca_bundle,
+        ciphers='HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP'
+    )
+else:
+    logger.warning("Validation TLS désactivée (CERT_NONE) — vulnérable à "
+                   "l'interception. Activez AD_TLS_VERIFY=true si votre DC a un "
+                   "certificat de confiance.")
+    _tls_config = Tls(
+        validate=ssl.CERT_NONE,
+        version=_tls_version,
+        ciphers='HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP'
+    )
 
 
 def decode_ldap_value(value):

@@ -88,6 +88,10 @@ if config.DEBUG:
 
 app.context_processor(inject_globals)
 
+# Filtre de neutralisation du CSS personnalisé (anti-XSS, cf. base.html)
+from core.security import sanitize_css as _sanitize_css
+app.jinja_env.filters['safe_css'] = _sanitize_css
+
 # =============================================================================
 # ANALYSE AUTOMATIQUE DES LOGS AU DÉMARRAGE
 # =============================================================================

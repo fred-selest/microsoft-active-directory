@@ -33,7 +33,7 @@ def reset_password(dn):
     user = None
 
     try:
-        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+        conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
                    attributes=['cn', 'displayName', 'sAMAccountName'])
         if not conn.entries:
             flash('Utilisateur introuvable.', 'error')

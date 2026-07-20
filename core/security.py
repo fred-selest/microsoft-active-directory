@@ -3,8 +3,10 @@ Module de securite pour l'interface Web Active Directory.
 Contient les fonctions de protection contre les attaques courantes.
 """
 
+import hmac
 import os
 import re
+import threading
 import time
 from functools import wraps
 from flask import request, jsonify, session
@@ -37,6 +39,27 @@ def escape_ldap_filter(value):
     return result
 
 
+def sanitize_css(value):
+    """
+    Neutraliser un CSS personnalisé avant injection dans un bloc <style>.
+
+    Le réglage custom_css est rendu tel quel dans <style> (templates/base.html).
+    Une valeur contenant « </style><script>… » s'échapperait du bloc et
+    s'exécuterait (XSS stocké). Le CSS légitime n'a jamais besoin de « < » ni
+    « > » : les retirer suffit à empêcher toute fermeture de balise. On neutralise
+    aussi quelques vecteurs CSS hérités (expression(), javascript:).
+    """
+    if not value:
+        return ''
+    result = str(value)
+    # Empêche toute sortie du bloc <style> (</style>, <script>, etc.)
+    result = result.replace('<', '').replace('>', '')
+    # Vecteurs CSS hérités (anciens IE / url(javascript:...))
+    for bad in ('javascript:', 'expression(', 'behavior:', 'vbscript:'):
+        result = re.sub(re.escape(bad), '', result, flags=re.IGNORECASE)
+    return result
+
+
 def sanitize_dn_component(value):
     """
     Nettoyer un composant DN pour eviter les injections.
@@ -57,6 +80,10 @@ def sanitize_dn_component(value):
 # === RATE LIMITING ===
 
 # Stockage des tentatives de connexion (en memoire)
+# Protégé par _attempts_lock : muté depuis plusieurs threads Waitress, et
+# _cleanup_old_attempts reconstruit les dictionnaires — une écriture concurrente
+# pendant la reconstruction corromprait l'état du rate limiter.
+_attempts_lock = threading.RLock()
 _login_attempts = {}
 _action_attempts = {}  # Pour les actions sensibles
 _api_attempts = {}
@@ -64,7 +91,7 @@ _cleanup_time = 0
 
 
 def _cleanup_old_attempts():
-    """Nettoyer les anciennes tentatives."""
+    """Nettoyer les anciennes tentatives. À appeler avec _attempts_lock détenu."""
     global _login_attempts, _action_attempts, _api_attempts, _cleanup_time
     current_time = time.time()
 
@@ -99,34 +126,35 @@ def check_rate_limit(ip_address, max_attempts=5, window_seconds=300, action=None
     Returns:
         tuple: (autorise, temps_restant, tentatives_restantes)
     """
-    _cleanup_old_attempts()
-    current_time = time.time()
+    with _attempts_lock:
+        _cleanup_old_attempts()
+        current_time = time.time()
 
-    # ClÃ© unique : IP seule ou IP + action
-    key = (ip_address, action) if action else ip_address
-    attempts_dict = _action_attempts if action else _login_attempts
+        # ClÃ© unique : IP seule ou IP + action
+        key = (ip_address, action) if action else ip_address
+        attempts_dict = _action_attempts if action else _login_attempts
 
-    if key not in attempts_dict:
-        return True, 0, max_attempts
+        if key not in attempts_dict:
+            return True, 0, max_attempts
 
-    data = attempts_dict[key]
+        data = attempts_dict[key]
 
-    # Verifier si la fenetre est expiree
-    if current_time - data.get('first_attempt', 0) > window_seconds:
-        if key in attempts_dict:
-            del attempts_dict[key]
-        return True, 0, max_attempts
+        # Verifier si la fenetre est expiree
+        if current_time - data.get('first_attempt', 0) > window_seconds:
+            if key in attempts_dict:
+                del attempts_dict[key]
+            return True, 0, max_attempts
 
-    # Calculer le temps restant et les tentatives restantes
-    elapsed = current_time - data.get('first_attempt', 0)
-    remaining_time = int(window_seconds - elapsed)
-    attempts_left = max(0, max_attempts - data.get('count', 0))
+        # Calculer le temps restant et les tentatives restantes
+        elapsed = current_time - data.get('first_attempt', 0)
+        remaining_time = int(window_seconds - elapsed)
+        attempts_left = max(0, max_attempts - data.get('count', 0))
 
-    # Verifier le nombre de tentatives
-    if data.get('count', 0) >= max_attempts:
-        return False, remaining_time, 0
+        # Verifier le nombre de tentatives
+        if data.get('count', 0) >= max_attempts:
+            return False, remaining_time, 0
 
-    return True, remaining_time, attempts_left
+        return True, remaining_time, attempts_left
 
 
 def record_attempt(ip_address, success=False, action=None):
@@ -140,49 +168,54 @@ def record_attempt(ip_address, success=False, action=None):
     """
     current_time = time.time()
 
-    # ClÃ© unique : IP seule ou IP + action
-    key = (ip_address, action) if action else ip_address
-    attempts_dict = _action_attempts if action else _login_attempts
+    with _attempts_lock:
+        # ClÃ© unique : IP seule ou IP + action
+        key = (ip_address, action) if action else ip_address
+        attempts_dict = _action_attempts if action else _login_attempts
 
-    if success:
-        # Reinitialiser les tentatives en cas de succes
-        if key in attempts_dict:
-            del attempts_dict[key]
-        return
+        if success:
+            # Reinitialiser les tentatives en cas de succes
+            if key in attempts_dict:
+                del attempts_dict[key]
+            return
 
-    if key not in attempts_dict:
-        attempts_dict[key] = {
-            'count': 1,
-            'first_attempt': current_time,
-            'last_attempt': current_time,
-            'action': action
-        }
-    else:
-        attempts_dict[key]['count'] += 1
-        attempts_dict[key]['last_attempt'] = current_time
+        if key not in attempts_dict:
+            attempts_dict[key] = {
+                'count': 1,
+                'first_attempt': current_time,
+                'last_attempt': current_time,
+                'action': action
+            }
+        else:
+            attempts_dict[key]['count'] += 1
+            attempts_dict[key]['last_attempt'] = current_time
 
 
-def get_rate_limit_status(ip_address, action=None):
+def get_rate_limit_status(ip_address, action=None, max_attempts=5, window_seconds=300):
     """
     Obtenir le statut du rate limiting pour une IP.
     Utile pour afficher les informations dans l'UI.
+
+    max_attempts / window_seconds doivent correspondre aux valeurs du décorateur
+    appliqué à la route concernée, sinon le statut affiché est faux.
     """
-    key = (ip_address, action) if action else ip_address
-    attempts_dict = _action_attempts if action else _login_attempts
+    with _attempts_lock:
+        key = (ip_address, action) if action else ip_address
+        attempts_dict = _action_attempts if action else _login_attempts
 
-    if key not in attempts_dict:
-        return {'limited': False, 'attempts': 0, 'max_attempts': 5, 'remaining_time': 0}
+        if key not in attempts_dict:
+            return {'limited': False, 'attempts': 0,
+                    'max_attempts': max_attempts, 'remaining_time': 0}
 
-    data = attempts_dict[key]
-    current_time = time.time()
-    elapsed = current_time - data.get('first_attempt', 0)
+        data = attempts_dict[key]
+        elapsed = time.time() - data.get('first_attempt', 0)
 
-    return {
-        'limited': data.get('count', 0) >= 5,
-        'attempts': data.get('count', 0),
-        'max_attempts': 5,
-        'remaining_time': max(0, int(300 - elapsed))
-    }
+        return {
+            'limited': data.get('count', 0) >= max_attempts,
+            'attempts': data.get('count', 0),
+            'max_attempts': max_attempts,
+            'remaining_time': max(0, int(window_seconds - elapsed))
+        }
 
 
 def rate_limit(max_attempts=5, window_seconds=300, action=None):
@@ -202,7 +235,10 @@ def rate_limit(max_attempts=5, window_seconds=300, action=None):
                 record_attempt(ip, success=False, action=action)
 
                 # RÃ©ponse adaptÃ©e selon le type de requÃªte
-                if request.is_json or request.endpoint.startswith('api_'):
+                # request.endpoint est None quand aucune route ne correspond
+                # (404) — cas fréquent sous un scan, précisément quand le rate
+                # limiter est le plus sollicité. Sans le garde, AttributeError → 500.
+                if request.is_json or (request.endpoint or '').startswith('api_'):
                     return jsonify({
                         'success': False,
                         'error': 'Trop de tentatives',
@@ -320,9 +356,14 @@ def add_security_headers(response):
     # Politique de referrer
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
 
-    # HTTP Strict Transport Security (HSTS) - Force HTTPS
-    # Active seulement si la connexion est sÃ©curisÃ©e
-    if request.is_secure or os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true':
+    # HTTP Strict Transport Security (HSTS)
+    # N'envoyer HSTS que sur une connexion réellement HTTPS. L'émettre en HTTP
+    # est incorrect (le navigateur l'ignore, ou pire, met en cache une politique
+    # HTTPS pour un service servi en HTTP → site injoignable). On s'appuie sur la
+    # connexion effective ou sur FORCE_HTTPS, pas sur SESSION_COOKIE_SECURE dont
+    # ce n'est pas le rôle.
+    force_https = os.environ.get('FORCE_HTTPS', 'false').lower() == 'true'
+    if request.is_secure or force_https:
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
 
     # Permissions-Policy - Restreint les APIs du navigateur
@@ -389,8 +430,11 @@ def generate_csrf_token():
 
 
 def validate_csrf_token(token):
-    """Valider un token CSRF."""
-    return token and token == session.get('csrf_token')
+    """Valider un token CSRF (comparaison à temps constant)."""
+    expected = session.get('csrf_token')
+    if not token or not expected:
+        return False
+    return hmac.compare_digest(str(token), str(expected))
 
 
 def csrf_protect():

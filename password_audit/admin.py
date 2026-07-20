@@ -2,6 +2,7 @@
 """Vérifications des comptes administrateurs et de service."""
 from datetime import datetime
 from ldap3 import SUBTREE
+from core.security import escape_ldap_filter
 
 
 def _clean_str(s):
@@ -155,7 +156,7 @@ def check_service_accounts(conn, base_dn):
         for pattern in service_patterns:
             conn.search(
                 base_dn,
-                f'(&(objectClass=user)(objectCategory=person)(sAMAccountName=*{pattern}*))',
+                f'(&(objectClass=user)(objectCategory=person)(sAMAccountName=*{escape_ldap_filter(pattern)}*))',
                 SUBTREE,
                 attributes=[
                     'sAMAccountName',

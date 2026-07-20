@@ -452,7 +452,7 @@ def edit_group(dn):
     group = None
 
     try:
-        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+        conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
                    attributes=['cn', 'description', 'distinguishedName'])
         if not conn.entries:
             flash('Groupe introuvable.', 'error')

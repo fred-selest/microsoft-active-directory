@@ -10,7 +10,22 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.46.1 — Juillet 2026
+**Dernière version :** v1.47.0 — Juillet 2026
+
+---
+
+## 🆕 Nouveautés v1.47.0 — Durcissement sécurité & robustesse
+
+### 🔒 Sécurité
+- **Validation du certificat LDAPS (opt-in)** : nouvelle option `AD_TLS_VERIFY=true` (+ `AD_CA_BUNDLE`) pour vérifier le certificat du contrôleur de domaine et se protéger d'une interception des identifiants. Désactivée par défaut pour rester compatible avec les DC à certificat auto-signé.
+- **Injections LDAP résiduelles corrigées** : échappement systématique des filtres construits à partir de DN/comptes/motifs (`security_audit`, `ous`, `groups`, `users`, `password_audit`).
+- **XSS stocké via CSS personnalisé neutralisé** : le champ *CSS personnalisé* ne peut plus s'échapper du bloc `<style>`.
+- **Comparaison du jeton CSRF à temps constant** (`hmac.compare_digest`).
+- **Path traversal** : vérification hiérarchique réelle des chemins (plus de faux positif par préfixe de chaîne).
+- **HSTS** n'est plus émis que sur une connexion réellement HTTPS.
+
+### 🛠️ Robustesse
+- **Rate limiter** protégé par verrou (accès concurrents Waitress) et corrigé (plus d'erreur 500 sur une requête 404 sous scan ; statut affiché conforme aux seuils réels).
 
 ---
 

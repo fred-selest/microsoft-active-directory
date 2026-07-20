@@ -8,7 +8,7 @@ from ldap3.core.exceptions import LDAPException
 
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, require_permission)
-from core.security import validate_csrf_token
+from core.security import validate_csrf_token, escape_ldap_filter
 from core.audit import log_action
 
 logger = logging.getLogger(__name__)
@@ -219,7 +219,7 @@ def edit_ou(dn):
     ou = None
 
     try:
-        conn.search(base_dn, f'(distinguishedName={dn})', SUBTREE,
+        conn.search(base_dn, f'(distinguishedName={escape_ldap_filter(dn)})', SUBTREE,
                    attributes=['name', 'description', 'distinguishedName'])
         if not conn.entries:
             flash('OU introuvable.', 'error')
