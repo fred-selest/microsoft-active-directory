@@ -70,6 +70,11 @@ app.config['SESSION_COOKIE_NAME'] = secure_session['SESSION_COOKIE_NAME']
 config.init_directories()
 init_crypto(config.SECRET_KEY)
 
+# Sessions côté serveur (C4) : le cookie ne porte qu'un identifiant opaque ;
+# les données (dont le mot de passe AD chiffré) restent sur le serveur.
+from core.server_session import init_server_sessions
+init_server_sessions(app, config.DATA_DIR / 'sessions')
+
 # Enregistrement des blueprints
 app.register_blueprint(main_bp)
 app.register_blueprint(users_bp)

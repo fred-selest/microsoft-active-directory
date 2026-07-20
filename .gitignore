@@ -19,6 +19,7 @@ data/settings.json
 data/permissions.json
 data/crypto_salt.bin
 data/backups/
+data/sessions/
 logs/
 
 # Exceptions : documentation et exemples de configuration
