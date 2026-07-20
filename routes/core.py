@@ -223,16 +223,25 @@ def _try_connection(server, username, password):
     ntlm_user = _get_ntlm_user(server, username)
     upn_user = _get_upn_user(server, username)
 
-    # Méthodes: (port, ssl, user, auth, label, starttls)
-    # Pour LDAPS (636), essayer d'abord NTLM (plus compatible), puis SIMPLE avec UPN
+    # Méthodes: (port, ssl, user, auth, label, starttls, encrypted)
+    # ORDRE = transport chiffré d'abord (constat É2). On tente LDAPS (636) puis
+    # STARTTLS (389 chiffré) avant tout LDAP en clair : ainsi, dès qu'un canal
+    # sécurisé est disponible, c'est lui qui sert la session — au lieu d'aboutir
+    # en clair simplement parce que NTLM/389 répondait en premier.
     methods = [
-        (389, False, ntlm_user, NTLM, "NTLM", False),
-        (389, False, upn_user, SIMPLE, "STARTTLS", True),
-        (636, True, ntlm_user, NTLM, "LDAPS-NTLM", False),  # NTLM en LDAPS
-        (636, True, upn_user, SIMPLE, "LDAPS-SIMPLE", False),  # SIMPLE avec UPN en LDAPS
+        (636, True, ntlm_user, NTLM, "LDAPS-NTLM", False, True),      # NTLM en LDAPS
+        (636, True, upn_user, SIMPLE, "LDAPS-SIMPLE", False, True),   # SIMPLE/UPN en LDAPS
+        (389, False, upn_user, SIMPLE, "STARTTLS", True, True),       # STARTTLS = chiffré
+        (389, False, ntlm_user, NTLM, "NTLM", False, False),         # LDAP EN CLAIR (dernier recours)
     ]
 
-    for port, use_ssl, user, auth, label, starttls in methods:
+    # LDAP en clair : autorisé par défaut (compatibilité DC sans LDAPS), mais
+    # peut être interdit pour forcer un transport chiffré.
+    allow_insecure = os.environ.get('AD_ALLOW_INSECURE_LDAP', 'true').lower() == 'true'
+    if not allow_insecure:
+        methods = [m for m in methods if m[6]]  # ne garder que les méthodes chiffrées
+
+    for port, use_ssl, user, auth, label, starttls, encrypted in methods:
         try:
             srv = _make_server(server, port, use_ssl)
             conn = Connection(srv, user=user, password=password, authentication=auth, auto_bind=False)
@@ -245,6 +254,13 @@ def _try_connection(server, username, password):
                 session['ad_use_ssl'] = use_ssl
                 session['ad_starttls'] = starttls
                 session['ad_port'] = port
+                if not encrypted:
+                    logger.warning(
+                        f"Connexion AD établie EN CLAIR via {label} (port {port}). "
+                        f"Le trafic LDAP transite sans chiffrement. Configurez LDAPS "
+                        f"sur le contrôleur de domaine, ou AD_ALLOW_INSECURE_LDAP=false "
+                        f"pour l'interdire."
+                    )
                 return conn, None
             else:
                 # bind() a retourné False — récupérer la raison détaillée
@@ -286,6 +302,8 @@ def _try_connection(server, username, password):
                         session['ad_use_ssl'] = use_ssl
                         session['ad_starttls'] = starttls
                         session['ad_port'] = port
+                        if not encrypted:
+                            logger.warning(f"Connexion AD établie EN CLAIR via {label} (IPv4, port {port}).")
                         return conn, None
                     else:
                         result_desc = 'bind failed'
