@@ -482,10 +482,12 @@ async function fixProtocol(type, itemName, scriptName) {
     button.innerHTML = '⏳ En cours...';
 
     try {
+        // itemName identifie le protocole (SMBv1, NTLM/LM, LDAP Signing, Channel Binding).
+        // Le serveur mappe cet identifiant vers le script à exécuter (allowlist).
         const response = await fetch('/api/fix-protocol', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({protocol: type})
+            body: JSON.stringify({item: itemName})
         });
 
         const data = await response.json();

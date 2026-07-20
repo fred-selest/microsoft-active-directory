@@ -561,6 +561,67 @@ def api_security_fix():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# Correspondance protocole -> script de correction. FIXÉE CÔTÉ SERVEUR :
+# le client ne fournit qu'un identifiant de protocole ; le nom du script exécuté
+# n'est jamais celui envoyé par le client. Les clés sont normalisées (minuscules)
+# et couvrent les libellés produits par password_audit.protocol.check_legacy_protocols.
+_PROTOCOL_FIX_SCRIPTS = {
+    'smbv1': 'fix_smbv1.ps1',
+    'ntlm/lm': 'fix_ntlm.ps1',
+    'ntlm': 'fix_ntlm.ps1',
+    'ldap signing': 'fix_ldap_signing.ps1',
+    'channel binding': 'fix_channel_binding.ps1',
+}
+
+
+@api_bp.route('/fix-protocol', methods=['POST'])
+@require_connection
+@require_permission('system:execute_script')
+def api_fix_protocol():
+    """
+    Appliquer la correction d'un protocole hérité détecté par l'audit
+    (SMBv1, NTLM/LM, LDAP Signing, Channel Binding) en exécutant le script
+    PowerShell correspondant sur le contrôleur de domaine.
+
+    Sécurité : action à fort impact, réservée à la permission
+    system:execute_script. Le script exécuté est déterminé par une table
+    serveur (_PROTOCOL_FIX_SCRIPTS) — jamais par une valeur du client.
+    """
+    from core.scripts_manager import execute_script, check_script_prerequisites, AVAILABLE_SCRIPTS
+    from core.audit import log_action, ACTIONS
+
+    data = request.get_json(silent=True) or request.form or {}
+    # Accepte 'item' (libellé du protocole) ; 'protocol' toléré par compatibilité.
+    raw = str(data.get('item') or data.get('protocol') or '').strip().lower()
+
+    script_name = _PROTOCOL_FIX_SCRIPTS.get(raw)
+    if not script_name:
+        return jsonify({'success': False,
+                        'error': f'Protocole non reconnu : "{raw}". '
+                                 f'Valeurs acceptées : {", ".join(sorted(set(_PROTOCOL_FIX_SCRIPTS)))}.'}), 400
+
+    # Double garde : le script mappé doit être un script déclaré et présent.
+    if script_name not in AVAILABLE_SCRIPTS:
+        return jsonify({'success': False, 'error': f'Script indisponible : {script_name}'}), 404
+
+    prereqs = check_script_prerequisites(script_name)
+    if not prereqs.get('ready'):
+        return jsonify({'success': False,
+                        'error': 'Prérequis non satisfaits (droits administrateur / PowerShell).',
+                        'prerequisites': prereqs}), 400
+
+    result = execute_script(script_name=script_name)
+
+    log_action(
+        ACTIONS['OTHER'],
+        session.get('ad_username', 'unknown'),
+        {'action': 'fix_protocol', 'protocol': raw, 'script': script_name,
+         'success': result.get('success')},
+        result.get('success', False)
+    )
+    return jsonify(result)
+
+
 @api_bp.route('/permissions', methods=['POST'])
 @require_connection
 @require_permission('admin:permissions')

@@ -10,7 +10,14 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.47.1 — Juillet 2026
+**Dernière version :** v1.48.0 — Juillet 2026
+
+---
+
+## 🆕 Nouveautés v1.48.0 — Correction des protocoles hérités
+
+- **Bouton « corriger le protocole » fonctionnel** : sur la page *Audit des mots de passe*, la correction d'un protocole hérité détecté (SMBv1, NTLM/LM, LDAP Signing, Channel Binding) exécute désormais le script PowerShell de durcissement correspondant sur le contrôleur de domaine. L'endpoint `/api/fix-protocol` était appelé par l'interface mais n'existait pas encore.
+- **Sécurisé** : action réservée à la permission `system:execute_script` ; le script exécuté est déterminé par une table serveur (le client ne peut pas choisir un script arbitraire) ; action journalisée.
 
 ---
 
