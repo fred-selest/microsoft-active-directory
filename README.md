@@ -14,6 +14,32 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 📸 Aperçu
+
+> Les captures ci-dessous utilisent un annuaire de démonstration (données fictives).
+
+### Tableau de bord
+![Tableau de bord](docs/screenshots/dashboard.png)
+
+### Gestion des utilisateurs
+![Utilisateurs](docs/screenshots/users.png)
+
+<table>
+  <tr>
+    <td width="50%"><b>Groupes</b><br><img src="docs/screenshots/groups.png" alt="Groupes"></td>
+    <td width="50%"><b>Ordinateurs</b><br><img src="docs/screenshots/computers.png" alt="Ordinateurs"></td>
+  </tr>
+  <tr>
+    <td width="50%"><b>Permissions granulaires (RBAC)</b><br><img src="docs/screenshots/permissions.png" alt="Permissions"></td>
+    <td width="50%"><b>Audit de sécurité</b><br><img src="docs/screenshots/security_audit.png" alt="Audit de sécurité"></td>
+  </tr>
+</table>
+
+### Connexion
+![Connexion](docs/screenshots/connect.png)
+
+---
+
 ## 🆕 Nouveautés v1.47.0 — Durcissement sécurité & robustesse
 
 ### 🔒 Sécurité
