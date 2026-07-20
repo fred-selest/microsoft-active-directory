@@ -231,7 +231,7 @@ def api_password_audit():
 
 @api_bp.route('/password-audit/quick-fix', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def api_password_audit_quick_fix():
     """API pour appliquer des corrections rapides sur l'audit MDP."""
     from ldap3 import MODIFY_REPLACE
@@ -377,7 +377,7 @@ def api_update_progress():
 
 @api_bp.route('/watchdog/status')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:diagnostic')
 def api_watchdog_status():
     """État courant du watchdog de surveillance."""
     from core.watchdog import get_watchdog_status
@@ -386,7 +386,7 @@ def api_watchdog_status():
 
 @api_bp.route('/perform-update', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('system:update')
 def api_perform_update():
     """API pour effectuer une mise à jour avec progression réelle et rollback automatique."""
     import threading
@@ -489,7 +489,7 @@ def _do_restart():
 
 @api_bp.route('/errors')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:audit_logs')
 def api_error_logs():
     """API pour récupérer les logs d'erreurs."""
     import os
@@ -512,7 +512,7 @@ def api_error_logs():
 
 @api_bp.route('/security-fix', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:security_audit')
 def api_security_fix():
     """API pour appliquer des corrections de sécurité."""
     from core.security_audit import apply_security_fix
@@ -533,7 +533,7 @@ def api_security_fix():
 
 @api_bp.route('/permissions', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:permissions')
 def api_permissions():
     """API pour sauvegarder les permissions d'un sujet (groupe, utilisateur ou OU)."""
     from core.granular_permissions import set_group_permissions
@@ -574,7 +574,7 @@ def api_permissions():
 
 @api_bp.route('/ad-search')
 @require_connection
-@require_permission('admin')
+@require_permission('users:read')
 def api_ad_search():
     """
     Recherche LDAP pour l'autocomplete des groupes/utilisateurs/OUs.
@@ -645,7 +645,7 @@ def api_ad_search():
 
 @api_bp.route('/permissions/<path:group_name>', methods=['DELETE'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:permissions')
 def api_delete_permissions(group_name):
     """API pour supprimer les permissions d'un sujet."""
     from core.granular_permissions import delete_group_permissions
@@ -672,7 +672,7 @@ def api_delete_permissions(group_name):
 
 @api_bp.route('/scripts')
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def api_list_scripts():
     """API pour lister les scripts PowerShell disponibles."""
     from core.scripts_manager import list_available_scripts
@@ -689,7 +689,7 @@ def api_list_scripts():
 
 @api_bp.route('/scripts/<script_name>/execute', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def api_execute_script(script_name):
     """API pour exécuter un script PowerShell."""
     from core.scripts_manager import (
@@ -745,7 +745,7 @@ def api_execute_script(script_name):
 
 @api_bp.route('/scripts/<script_name>/download')
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def api_download_script(script_name):
     """API pour télécharger un script PowerShell."""
     from core.scripts_manager import download_script, AVAILABLE_SCRIPTS
@@ -774,7 +774,7 @@ def api_download_script(script_name):
 
 @api_bp.route('/scripts/<script_name>/content')
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def api_get_script_content(script_name):
     """API pour obtenir le contenu d'un script (affichage)."""
     from core.scripts_manager import get_script_content, AVAILABLE_SCRIPTS
@@ -801,7 +801,7 @@ def api_get_script_content(script_name):
 
 @api_bp.route('/scripts/<script_name>/prerequisites')
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def api_check_script_prerequisites(script_name):
     """API pour vérifier les prérequis d'un script."""
     from core.scripts_manager import check_script_prerequisites, AVAILABLE_SCRIPTS
@@ -823,7 +823,7 @@ def api_check_script_prerequisites(script_name):
 
 @api_bp.route('/scripts/history')
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def api_get_scripts_history():
     """API pour obtenir l'historique des exécutions de scripts."""
     from core.scripts_manager import get_execution_history
@@ -840,7 +840,7 @@ def api_get_scripts_history():
 
 @api_bp.route('/scripts/history/clear', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def api_clear_scripts_history():
     """API pour vider l'historique des exécutions."""
     from core.scripts_manager import clear_execution_history
@@ -867,7 +867,7 @@ def api_clear_scripts_history():
 
 @api_bp.route('/log-analysis/latest')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:log_analysis')
 def api_log_analysis_latest():
     """API - Obtenir le dernier rapport d'analyse."""
     from core.log_analyzer import analyzer
@@ -906,7 +906,7 @@ def api_log_analysis_latest():
 
 @api_bp.route('/log-analysis/history')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:log_analysis')
 def api_log_analysis_history():
     """API - Historique des analyses."""
     from core.log_analyzer import analyzer
@@ -940,7 +940,7 @@ def api_log_analysis_history():
 
 @api_bp.route('/log-analysis/report/<report_id>')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:log_analysis')
 def api_log_analysis_report(report_id):
     """API - Obtenir un rapport spécifique."""
     from pathlib import Path
@@ -972,7 +972,7 @@ def api_log_analysis_report(report_id):
 
 @api_bp.route('/log-analysis/run', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:log_analysis')
 def api_log_analysis_run():
     """API - Lancer une analyse manuelle."""
     from core.log_analyzer import LogAnalyzer
@@ -998,7 +998,7 @@ def api_log_analysis_run():
 
 @api_bp.route('/log-analysis/auto-fix', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:log_analysis')
 def api_log_analysis_auto_fix():
     """API - Exécuter les corrections automatiques."""
     from core.log_analyzer import LogAnalyzer

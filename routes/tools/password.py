@@ -112,7 +112,7 @@ def password_policy():
 
 @tools_bp.route('/password-audit')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def password_audit():
     """Page d'audit des mots de passe."""
     return render_template('password_audit.html', connected=is_connected())
@@ -120,7 +120,7 @@ def password_audit():
 
 @tools_bp.route('/password-audit/export/csv')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def export_password_audit_csv():
     """Exporter l'audit des mots de passe en CSV."""
     from password_audit.runner import run_password_audit; from password_audit.export import export_audit_to_csv
@@ -143,7 +143,7 @@ def export_password_audit_csv():
 
 @tools_bp.route('/password-audit/export/json')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def export_password_audit_json():
     """Exporter l'audit des mots de passe en JSON."""
     from password_audit.runner import run_password_audit; from password_audit.export import export_audit_to_json
@@ -166,7 +166,7 @@ def export_password_audit_json():
 
 @tools_bp.route('/password-audit/export/pdf')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def export_password_audit_pdf():
     """Exporter l'audit des mots de passe en PDF professionnel."""
     from password_audit.runner import run_password_audit
@@ -403,7 +403,7 @@ def export_password_audit_pdf():
 
 @tools_bp.route('/password-audit/report')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def password_auditor_report():
     """Générer un rapport style Specops Password Auditor."""
     from password_audit.runner import run_password_audit, generate_auditor_issues
@@ -455,7 +455,7 @@ def password_auditor_report():
 
 @tools_bp.route('/password-audit/history')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def password_audit_history():
     """Page d'historique des audits."""
     from core.audit_history import get_audit_history, get_history_stats
@@ -471,7 +471,7 @@ def password_audit_history():
 
 @tools_bp.route('/api/password-audit/history')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def api_password_audit_history():
     """API - Historique des audits."""
     from core.audit_history import get_audit_history, get_audit_evolution, get_history_stats
@@ -488,7 +488,7 @@ def api_password_audit_history():
 
 @tools_bp.route('/api/password-audit/compare')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def api_password_audit_compare():
     """API - Comparer deux audits."""
     from core.audit_history import compare_audits
@@ -504,7 +504,7 @@ def api_password_audit_compare():
 
 @tools_bp.route('/password-audit/history/<audit_id>/delete', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def delete_audit_history(audit_id):
     """Supprimer un audit de l'historique."""
     from core.audit_history import delete_audit
@@ -521,7 +521,7 @@ def delete_audit_history(audit_id):
 
 @tools_bp.route('/password-audit/send-email', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def send_audit_email_route():
     """Envoyer le dernier audit par email."""
     from core.email_notifications import send_audit_email
@@ -571,7 +571,7 @@ def send_audit_email_route():
 
 @tools_bp.route('/api/password-audit/test-email', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def test_email_config_route():
     """Tester la configuration email."""
     from core.email_notifications import test_email_config
@@ -586,7 +586,7 @@ def test_email_config_route():
 
 @tools_bp.route('/api/password-audit/alerts-summary')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:password_audit')
 def api_password_audit_alerts_summary():
     """API - Résumé des alertes critiques."""
     from core.auto_alerts import get_alert_summary

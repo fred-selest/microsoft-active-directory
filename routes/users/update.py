@@ -17,7 +17,7 @@ from core.ldap_errors import format_ldap_error, handle_ldap_exception
 
 @users_bp.route('/<path:dn>/edit', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('users:update')
 def edit_user(dn):
     """Modifier les informations d'un utilisateur."""
     dn = unquote(dn)  # Décoder le DN si URL-encodé

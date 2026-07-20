@@ -13,7 +13,7 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 @admin_bp.route('/')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def admin_page():
     """Page d'administration."""
     try:
@@ -33,7 +33,7 @@ def admin_page():
 
 @admin_bp.route('/save/general', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def save_general():
     """Sauvegarder les paramètres généraux."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -77,7 +77,7 @@ def save_general():
 
 @admin_bp.route('/save/features', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def save_features():
     """Sauvegarder les paramètres de fonctionnalités."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -104,7 +104,7 @@ def save_features():
 
 @admin_bp.route('/save/security', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def save_security():
     """Sauvegarder les paramètres de sécurité."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -128,7 +128,7 @@ def save_security():
 
 @admin_bp.route('/save/smtp', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def save_smtp_settings():
     """Sauvegarder les paramètres SMTP."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -158,7 +158,7 @@ def save_smtp_settings():
 
 @admin_bp.route('/test/smtp', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def test_smtp():
     """Tester l'envoi d'email SMTP."""
     import smtplib
@@ -235,7 +235,7 @@ def test_smtp():
 
 @admin_bp.route('/reset', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def reset_settings():
     """Réinitialiser les paramètres."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -254,7 +254,7 @@ def reset_settings():
 
 @admin_bp.route('/save/menu', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def save_menu():
     """Sauvegarder les paramètres de menu."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -292,7 +292,7 @@ def save_menu():
 
 @admin_bp.route('/export')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def export_settings():
     """Exporter les paramètres en JSON."""
     import json
@@ -310,7 +310,7 @@ def export_settings():
 
 @admin_bp.route('/save/password', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:settings')
 def save_password_settings():
     """Sauvegarder les paramètres de mot de passe par défaut."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -336,7 +336,7 @@ def save_password_settings():
 
 @admin_bp.route('/generate-password', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('users:update')
 def api_generate_password():
     """Générer un nouveau mot de passe par défaut."""
     from core.settings_manager import generate_new_default_password
@@ -367,7 +367,7 @@ def api_generate_password():
 
 @admin_bp.route('/check-password-strength', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('users:update')
 def api_check_password_strength():
     """Vérifier la force d'un mot de passe."""
     from core.password_generator import check_password_complexity

@@ -108,7 +108,7 @@ def list_computers():
 
 @computers_bp.route('/<path:dn>/toggle', methods=['POST'])
 @require_connection
-@require_permission('write')
+@require_permission('computers:update')
 def toggle_computer(dn):
     """Activer/désactiver un ordinateur."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -146,7 +146,7 @@ def toggle_computer(dn):
 
 @computers_bp.route('/<path:dn>/delete', methods=['POST'])
 @require_connection
-@require_permission('delete')
+@require_permission('computers:delete')
 def delete_computer(dn):
     """Supprimer un ordinateur."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -174,7 +174,7 @@ def delete_computer(dn):
 
 @computers_bp.route('/<path:dn>/move', methods=['POST'])
 @require_connection
-@require_permission('write')
+@require_permission('computers:update')
 def move_computer(dn):
     """Déplacer un ordinateur vers une autre OU."""
     if not validate_csrf_token(request.form.get('csrf_token')):

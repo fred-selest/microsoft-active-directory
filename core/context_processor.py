@@ -44,22 +44,57 @@ def inject_globals():
         settings, menu_items, tool_items, admin_items, dropdown_items = {}, [], [], [], {}
 
     def check_user_permission(permission):
-        """Vérifie si l'utilisateur actuel a une permission spécifique."""
+        """
+        Vérifie si l'utilisateur actuel détient une permission.
+
+        Doit rester cohérent avec le décorateur require_permission de
+        routes/core.py : l'UI ne doit afficher que ce que l'utilisateur peut
+        réellement atteindre, et inversement ne rien masquer d'accessible.
+        """
         if not config.RBAC_ENABLED:
             return True
+
         user_groups = session.get('user_groups', [])
         user_role = session.get('user_role', config.DEFAULT_ROLE)
-        
-        # Les admins ont toutes les permissions
+
+        # Filet de sécurité administrateur du domaine (cf. has_permission)
         if user_role == 'admin':
             return True
-        
-        # Sinon vérifier les permissions granulaires
-        if user_groups:
-            from core.granular_permissions import has_permission as has_granular_permission
-            return has_granular_permission(user_groups, permission)
-        
-        return False
+
+        from core.granular_permissions import has_permission as has_granular_permission
+        # username / user_dn sont nécessaires pour les règles de type
+        # 'user' et 'ou' ; sans eux l'UI masquerait des entrées accessibles.
+        return has_granular_permission(
+            user_groups, permission,
+            username=session.get('ad_username'),
+            user_dn=session.get('user_dn'),
+        )
+
+    def check_any_permission(*permissions):
+        """Vrai si l'utilisateur détient au moins une des permissions listées."""
+        return any(check_user_permission(p) for p in permissions)
+
+    def check_permission_prefix(prefix):
+        """
+        Vrai si l'utilisateur détient au moins une permission de la catégorie.
+        Utilisé pour décider de l'affichage d'une section entière du menu.
+        """
+        if not config.RBAC_ENABLED:
+            return True
+        if session.get('user_role') == 'admin':
+            return True
+
+        from core.granular_permissions import (
+            ALL_PERMISSIONS, get_effective_permissions,
+        )
+        effective = get_effective_permissions(
+            session.get('user_groups', []),
+            username=session.get('ad_username'),
+            user_dn=session.get('user_dn'),
+        )
+        return any(
+            p.startswith(f'{prefix}:') for p in effective if p in ALL_PERMISSIONS
+        )
 
     try:
         alert_counts = get_alert_counts()
@@ -76,6 +111,8 @@ def inject_globals():
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
         'check_user_permission': check_user_permission,
+        'check_any_permission': check_any_permission,
+        'check_permission_prefix': check_permission_prefix,
         'dark_mode': session.get('dark_mode', False),
         'config': config,
         'csrf_token': generate_csrf_token,

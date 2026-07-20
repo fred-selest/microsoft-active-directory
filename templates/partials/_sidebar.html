@@ -13,13 +13,10 @@
             {% endfor %}
         </div>
 
-        {# Sections Outils & Administration — admins uniquement #}
-        {% if connected and check_user_permission('admin') %}
+        {# Sections Outils & Administration — visibles selon les permissions
+           reellement detenues (cf. AUDIT C1 : l'alias 'admin' accordait tout). #}
+        {% if connected %}
 
-        {% set visible_tools = tool_items | selectattr('feature', 'none') | list
-                             + tool_items | rejectattr('feature', 'none')
-                                         | selectattr('feature', 'defined')
-                                         | list %}
         {% set active_tools = [] %}
         {% for item in tool_items %}
             {% if not item.feature or config[item.feature] %}
@@ -27,7 +24,7 @@
             {% endif %}
         {% endfor %}
 
-        {% if active_tools %}
+        {% if active_tools and check_permission_prefix('tools') %}
         <div class="sidebar-section">
             <div class="sidebar-label">Outils</div>
             {% for item in active_tools %}
@@ -50,7 +47,12 @@
             {% endif %}
         {% endfor %}
 
-        {% if active_admin %}
+        {% if active_admin and check_any_permission('admin:settings', 'admin:backups',
+                                                    'admin:audit_logs', 'admin:diagnostic',
+                                                    'admin:security_audit', 'admin:alerts',
+                                                    'admin:permissions', 'admin:api_keys',
+                                                    'admin:log_analysis', 'admin:user_templates',
+                                                    'system:update', 'system:execute_script') %}
         <div class="sidebar-section">
             <div class="sidebar-label">Administration</div>
             {% for item in active_admin %}

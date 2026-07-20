@@ -17,7 +17,7 @@ def user_templates():
 
 @tools_bp.route('/templates/create', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('admin:user_templates')
 def create_user_template():
     """Créer un modèle utilisateur."""
     return render_template('template_form.html', action='create', connected=True)
@@ -25,7 +25,7 @@ def create_user_template():
 
 @tools_bp.route('/templates/<template_id>/edit', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('admin:user_templates')
 def edit_user_template(template_id):
     """Éditer un modèle."""
     return render_template('template_form.html', action='edit', template_id=template_id, connected=True)
@@ -33,7 +33,7 @@ def edit_user_template(template_id):
 
 @tools_bp.route('/templates/<template_id>/delete', methods=['POST'])
 @require_connection
-@require_permission('write')
+@require_permission('admin:user_templates')
 def delete_user_template(template_id):
     """Supprimer un modèle utilisateur."""
     # TODO: Implémenter la suppression côté backend
@@ -59,7 +59,7 @@ def toggle_favorite():
 
 @tools_bp.route('/api-docs')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:api_keys')
 def api_documentation():
     """Documentation de l'API."""
     from core.updater import get_current_version
@@ -127,7 +127,7 @@ def api_documentation():
 
 @tools_bp.route('/api-docs/generate-key', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:api_keys')
 def generate_api_key_route():
     """Générer une nouvelle clé API."""
     name = request.form.get('name', 'Clé API')
@@ -159,7 +159,7 @@ def generate_api_key_route():
 
 @tools_bp.route('/api-docs/revoke-key', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('admin:api_keys')
 def revoke_api_key_route():
     """Révoquer une clé API."""
     key = request.form.get('key')

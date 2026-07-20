@@ -19,7 +19,7 @@ logger = logging.getLogger('laps')
 
 @tools_bp.route('/configure-ldaps', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('system:configure_ldaps')
 def configure_ldaps():
     """Configurer LDAPS automatiquement via PowerShell (script dynamique)."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -213,7 +213,7 @@ Write-Host "  3. Vous pourrez creer des utilisateurs avec mot de passe !" -Foreg
 
 @tools_bp.route('/laps/configure', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('system:configure_ldaps')
 def configure_laps():
     """Configurer Windows LAPS automatiquement via PowerShell."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -418,7 +418,7 @@ Write-Host "SUCCESS"
 
 @tools_bp.route('/laps')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:laps')
 def laps_passwords():
     """Afficher les mots de passe LAPS."""
     conn, error = get_ad_connection()
@@ -557,7 +557,7 @@ def laps_passwords():
 @tools_bp.route('/laps/refresh', methods=['POST'])
 @tools_bp.route('/laps/refresh/<path:computer_dn>', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:laps')
 def laps_force_refresh(computer_dn=''):
     """Forcer la mise a jour LAPS sur un ordinateur."""
     if not validate_csrf_token(request.form.get('csrf_token')):

@@ -239,7 +239,7 @@ def view_group(dn):
 
 @groups_bp.route('/<path:dn>/add-member', methods=['POST'])
 @require_connection
-@require_permission('write')
+@require_permission('groups:update')
 def add_member(dn):
     """Ajouter un membre à un groupe."""
     dn = unquote(dn)
@@ -293,7 +293,7 @@ def add_member(dn):
 
 @groups_bp.route('/<path:dn>/remove-member', methods=['POST'])
 @require_connection
-@require_permission('write')
+@require_permission('groups:update')
 def remove_member(dn):
     """Retirer un membre d'un groupe."""
     dn = unquote(dn)
@@ -338,7 +338,7 @@ def remove_member(dn):
 
 @groups_bp.route('/<path:dn>/delete', methods=['POST'])
 @require_connection
-@require_permission('delete')
+@require_permission('groups:delete')
 def delete_group(dn):
     """Supprimer un groupe."""
     if not validate_csrf_token(request.form.get('csrf_token')):
@@ -368,7 +368,7 @@ def delete_group(dn):
 
 @groups_bp.route('/create', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('groups:create')
 def create_group():
     """Créer un nouveau groupe."""
     conn, error = get_ad_connection()
@@ -440,7 +440,7 @@ def create_group():
 
 @groups_bp.route('/<path:dn>/edit', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('groups:update')
 def edit_group(dn):
     """Modifier la description d'un groupe."""
     conn, error = get_ad_connection()

@@ -147,7 +147,7 @@ def build_ou_tree(base_dn, ous):
 
 @ous_bp.route('/create', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('ous:create')
 def create_ou():
     """Créer une nouvelle OU."""
     conn, error = get_ad_connection()
@@ -207,7 +207,7 @@ def create_ou():
 
 @ous_bp.route('/<path:dn>/edit', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('ous:update')
 def edit_ou(dn):
     """Modifier la description d'une OU."""
     conn, error = get_ad_connection()
@@ -265,7 +265,7 @@ def edit_ou(dn):
 
 @ous_bp.route('/<path:dn>/delete', methods=['POST'])
 @require_connection
-@require_permission('delete')
+@require_permission('ous:delete')
 def delete_ou(dn):
     """Supprimer une OU."""
     if not validate_csrf_token(request.form.get('csrf_token')):

@@ -17,7 +17,7 @@ from core.ldap_errors import format_ldap_error, handle_ldap_exception
 
 @users_bp.route('/<path:dn>/delete', methods=['POST'])
 @require_connection
-@require_permission('delete')
+@require_permission('users:delete')
 def delete_user(dn):
     """Supprimer un utilisateur."""
     logger = logging.getLogger('users')
@@ -85,7 +85,7 @@ def delete_user(dn):
 
 @users_bp.route('/<path:dn>/move', methods=['POST'])
 @require_connection
-@require_permission('write')
+@require_permission('users:update')
 def move_user(dn):
     """Déplacer un utilisateur vers une autre OU."""
     # Décoder le DN si nécessaire (peut être URL-encodé)

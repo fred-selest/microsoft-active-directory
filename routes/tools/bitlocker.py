@@ -9,7 +9,7 @@ from core.security import escape_ldap_filter
 
 @tools_bp.route('/bitlocker')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:bitlocker')
 def bitlocker_keys():
     """Afficher les clés de récupération BitLocker."""
     conn, error = get_ad_connection()

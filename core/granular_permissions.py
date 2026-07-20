@@ -42,11 +42,15 @@ ALL_PERMISSIONS = {
     
     # Tools
     'tools:locked_accounts': 'Voir comptes verrouillés',
+    'tools:unlock_accounts': 'Déverrouiller des comptes',
     'tools:expiring_accounts': 'Voir comptes expirants',
     'tools:password_policy': 'Voir politique MDP',
     'tools:password_audit': 'Audit MDP',
     'tools:expiring_pdf': 'Export PDF expirants',
-    
+    'tools:recycle_bin': 'Corbeille AD (voir et restaurer)',
+    'tools:laps': 'Consulter les mots de passe LAPS',
+    'tools:bitlocker': 'Consulter les clés de récupération BitLocker',
+
     # Admin
     'admin:settings': 'Paramètres',
     'admin:backups': 'Sauvegardes',
@@ -55,6 +59,27 @@ ALL_PERMISSIONS = {
     'admin:security_audit': 'Audit de sécurité',
     'admin:alerts': 'Alertes',
     'admin:user_templates': 'Modèles utilisateurs',
+    'admin:permissions': 'Gérer les permissions (méta — donne le pouvoir de tout s\'accorder)',
+    'admin:api_keys': 'Générer et révoquer les clés API',
+    'admin:log_analysis': 'Analyse des logs',
+
+    # Système — actions à fort impact sur le contrôleur de domaine
+    'system:execute_script': 'Exécuter des scripts PowerShell sur le DC',
+    'system:update': 'Déclencher une mise à jour de l\'application',
+    'system:configure_ldaps': 'Configurer LDAPS / LAPS sur le domaine',
+}
+
+# Permissions considérées comme sensibles : elles permettent, directement ou
+# indirectement, d'obtenir un contrôle complet sur le domaine. A n'accorder
+# qu'aux administrateurs. Utilisé par l'UI pour afficher un avertissement.
+SENSITIVE_PERMISSIONS = {
+    'system:execute_script',
+    'system:update',
+    'system:configure_ldaps',
+    'admin:permissions',
+    'admin:settings',
+    'tools:laps',
+    'tools:bitlocker',
 }
 
 # Rôles prédéfinis avec permissions
@@ -79,31 +104,23 @@ PREDEFINED_ROLES = {
     },
 }
 
-# Anciennes permissions (système legacy) -> Nouvelles permissions
-LEGACY_PERMISSION_MAPPING = {
-    'read': [
-        'users:read', 'groups:read', 'computers:read', 'ous:read'
-    ],
-    'write': [
-        'users:read', 'users:update', 'users:create',
-        'groups:read', 'groups:update', 'groups:create',
-        'computers:read', 'computers:update', 'computers:create',
-        'ous:read', 'ous:update', 'ous:create',
-        'tools:locked_accounts', 'tools:expiring_accounts',
-        'tools:password_policy', 'tools:password_audit'
-    ],
-    'delete': [
-        'users:delete', 'groups:delete', 'computers:delete', 'ous:delete'
-    ],
-    'admin': list(ALL_PERMISSIONS.keys()),
-    'audit_logs': ['admin:audit_logs'],
-    'password_reset': ['users:update', 'users:read'],
-    'user_create': ['users:create', 'users:read', 'users:update'],
-    'user_delete': ['users:delete', 'users:read'],
-    'group_modify': ['groups:update', 'groups:read', 'groups:create'],
-    'backup_restore': ['admin:backups', 'admin:audit_logs'],
-    'debug_access': ['admin:diagnostic'],
-}
+# NOTE SECURITE (constat C1 de AUDIT_2026-07-20.md)
+#
+# Ce module exposait auparavant un LEGACY_PERMISSION_MAPPING traduisant des
+# alias larges ('admin', 'write', 'delete') en listes de permissions, combiné
+# à un contrôle par *intersection* :
+#
+#     if entry_perms & required_permissions:   # <- accordait sur 1 seul match
+#         return True
+#
+# Comme 'admin' était traduit en la totalité des permissions, n'importe quelle
+# permission unique (par ex. 'users:read') satisfaisait require_permission('admin')
+# et donnait accès aux 64 routes d'administration, dont l'exécution de scripts
+# PowerShell sur le contrôleur de domaine.
+#
+# Le mapping a été supprimé et le contrôle passé en *inclusion* (voir
+# has_permission ci-dessous). Les gardes de routes utilisent désormais des
+# permissions granulaires. Ne pas réintroduire d'alias à large périmètre.
 
 
 def ensure_data_dir():
@@ -175,26 +192,27 @@ def get_group_permissions(group_name, user_groups=None):
     return group_perms
 
 
-def has_permission(user_groups, required_permission, username=None, user_dn=None):
+def get_effective_permissions(user_groups, username=None, user_dn=None):
     """
-    Vérifier si un utilisateur a une permission spécifique.
-    """
-    if not user_groups and not username:
-        return False
+    Calculer l'ensemble des permissions effectives d'un utilisateur.
 
-    # Convertir les permissions legacy
-    if required_permission in LEGACY_PERMISSION_MAPPING:
-        required_permissions = set(LEGACY_PERMISSION_MAPPING[required_permission])
-    else:
-        required_permissions = {required_permission}
+    Les permissions s'additionnent : entrées personnalisées correspondantes
+    (groupe / utilisateur / OU) + rôles prédéfinis des groupes de l'utilisateur.
+
+    Args:
+        user_groups: Liste des noms de groupes AD (CN) de l'utilisateur
+        username: sAMAccountName ou DOMAINE\\login
+        user_dn: DN complet de l'utilisateur (pour les règles de type 'ou')
+
+    Returns:
+        set: Permissions effectives
+    """
+    effective = set()
 
     permissions_data = load_permissions()
     custom_groups = permissions_data.get('groups', {})
 
-    logger.info(f"has_permission: username={username}, user_groups={user_groups}, required={required_permission}")
-    logger.info(f"Custom subjects: {list(custom_groups.keys())}")
-
-    # Vérifier les entrées personnalisées (group / user / ou)
+    # Entrées personnalisées (group / user / ou)
     for subject_name, entry in custom_groups.items():
         if not entry.get('enabled', True):
             continue
@@ -208,36 +226,74 @@ def has_permission(user_groups, required_permission, username=None, user_dn=None
             if username:
                 sam = username.split('\\')[-1].split('@')[0]
                 matched = sam.lower() == subject_name.lower()
-                logger.info(f"  Match user: sam='{sam}' vs subject='{subject_name}' → {matched}")
         elif subject_type == 'ou':
             matched = bool(user_dn) and subject_name.lower() in user_dn.lower()
 
         if matched:
-            entry_perms = set(entry.get('permissions', []))
-            logger.info(f"  Matched subject '{subject_name}': perms={entry_perms}")
-            if entry_perms & required_permissions:
-                logger.info(f"  ✅ Permission accordée")
-                return True
-            else:
-                logger.info(f"  ❌ Pas d'intersection avec required={required_permissions}")
+            effective |= set(entry.get('permissions', []))
 
-    # Vérifier les rôles prédéfinis (type 'group' uniquement)
+    # Rôles prédéfinis (type 'group' uniquement)
     for group in (user_groups or []):
         if group in PREDEFINED_ROLES:
-            role_perms = set(PREDEFINED_ROLES[group]['permissions'])
-            logger.info(f"  Predefined role '{group}': perms={role_perms}")
-            if role_perms & required_permissions:
-                logger.info(f"  ✅ Permission accordée via rôle")
-                return True
+            effective |= set(PREDEFINED_ROLES[group]['permissions'])
 
-    # Fallback rôle admin legacy
-    from flask import session
-    user_role = session.get('user_role', 'unknown')
-    logger.info(f"  Fallback: user_role={user_role}")
-    if user_role == 'admin':
+    return effective
+
+
+def has_permission(user_groups, required_permission, username=None, user_dn=None):
+    """
+    Vérifier si un utilisateur détient une permission.
+
+    Le contrôle se fait par INCLUSION : la permission demandée doit figurer
+    explicitement dans les permissions effectives de l'utilisateur. Voir la
+    note de sécurité en tête de module (constat C1) — un contrôle par
+    intersection accordait auparavant l'accès administrateur à quiconque
+    détenait une permission quelconque.
+
+    Args:
+        user_groups: Liste des noms de groupes AD (CN) de l'utilisateur
+        required_permission: Permission requise, ex. 'users:delete'
+        username: sAMAccountName ou DOMAINE\\login
+        user_dn: DN complet de l'utilisateur
+
+    Returns:
+        bool: True si la permission est accordée
+    """
+    if not user_groups and not username:
+        return False
+
+    # Une permission inconnue est refusée. Cela transforme une faute de frappe
+    # dans un garde de route en refus d'accès (visible, corrigeable) plutôt
+    # qu'en autorisation silencieuse.
+    if required_permission not in ALL_PERMISSIONS:
+        logger.error(
+            f"Permission inconnue demandée: '{required_permission}' — accès refusé. "
+            f"Vérifiez le garde @require_permission correspondant."
+        )
+        return False
+
+    effective = get_effective_permissions(user_groups, username=username, user_dn=user_dn)
+
+    if required_permission in effective:
+        logger.debug(f"Permission '{required_permission}' accordée à {username}")
         return True
 
-    logger.info(f"  ❌ Permission refusée")
+    # Filet de sécurité : les administrateurs du domaine (déterminés par
+    # config.ADMIN_GROUPS lors de la connexion) conservent un accès complet,
+    # afin qu'une configuration de permissions erronée ne puisse pas verrouiller
+    # définitivement l'accès à l'application.
+    from flask import session
+    if session.get('user_role') == 'admin':
+        logger.debug(
+            f"Permission '{required_permission}' accordée à {username} "
+            f"via le filet de sécurité 'administrateur du domaine'"
+        )
+        return True
+
+    logger.info(
+        f"Permission '{required_permission}' refusée à {username} "
+        f"(groupes={user_groups})"
+    )
     return False
 
 
@@ -376,18 +432,13 @@ def get_permission_categories():
     Returns:
         dict: {category: [permissions]}
     """
-    categories = {
-        'users': [],
-        'groups': [],
-        'computers': [],
-        'ous': [],
-        'tools': [],
-        'admin': []
-    }
-    
+    # Construit dynamiquement depuis ALL_PERMISSIONS : ajouter une permission
+    # dans une nouvelle categorie suffit pour qu'elle apparaisse dans l'UI,
+    # sans avoir a maintenir cette liste en parallele.
+    categories = {}
+
     for perm in ALL_PERMISSIONS.keys():
         category = perm.split(':')[0]
-        if category in categories:
-            categories[category].append(perm)
-    
+        categories.setdefault(category, []).append(perm)
+
     return categories

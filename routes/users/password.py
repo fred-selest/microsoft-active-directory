@@ -18,7 +18,7 @@ from core.ldap_errors import format_ldap_error, handle_ldap_exception
 
 @users_bp.route('/<path:dn>/reset-password', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('users:update')
 def reset_password(dn):
     """Réinitialiser le mot de passe d'un utilisateur."""
     logger = logging.getLogger('users')
@@ -125,7 +125,7 @@ def reset_password(dn):
 
 @users_bp.route('/<path:dn>/toggle', methods=['POST'])
 @require_connection
-@require_permission('write')
+@require_permission('users:update')
 def toggle_user_status(dn):
     """Activer ou désactiver un compte utilisateur."""
     logger = logging.getLogger('users')

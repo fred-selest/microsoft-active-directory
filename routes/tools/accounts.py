@@ -11,7 +11,7 @@ from ..core import get_ad_connection, decode_ldap_value, is_connected, require_c
 
 @tools_bp.route('/recycle-bin')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:recycle_bin')
 def recycle_bin():
     """Afficher la corbeille AD."""
     conn, error = get_ad_connection()
@@ -64,7 +64,7 @@ def recycle_bin():
 
 @tools_bp.route('/recycle-bin/<path:dn>/restore', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:recycle_bin')
 def restore_deleted_object(dn):
     """Restaurer un objet supprimé (placeholder — nécessite corbeille AD activée)."""
     conn, error = get_ad_connection()
@@ -138,7 +138,7 @@ def locked_accounts():
 
 @tools_bp.route('/locked-accounts/unlock', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:unlock_accounts')
 def bulk_unlock_accounts():
     """Débloquer un ou plusieurs comptes utilisateurs."""
     conn, error = get_ad_connection()
@@ -177,7 +177,7 @@ def bulk_unlock_accounts():
 
 @tools_bp.route('/locked-accounts/unlock/<path:dn>', methods=['POST'])
 @require_connection
-@require_permission('admin')
+@require_permission('tools:unlock_accounts')
 def unlock_account(dn):
     """Débloquer un compte utilisateur individuel."""
     conn, error = get_ad_connection()
@@ -309,7 +309,7 @@ def expiring_accounts():
 
 @tools_bp.route('/expiring/export-pdf')
 @require_connection
-@require_permission('admin')
+@require_permission('tools:expiring_pdf')
 def export_expiring_pdf():
     """Export PDF des comptes expirants (placeholder)."""
     flash('Export PDF non implémenté.', 'info')

@@ -38,7 +38,7 @@ def _get_github_headers():
 
 @admin_tools_bp.route('/update')
 @require_connection
-@require_permission('admin')
+@require_permission('system:update')
 def update_page():
     """Page de mise à jour."""
     import os
@@ -230,7 +230,7 @@ def diagnostic_page():
 
 @admin_tools_bp.route('/scripts')
 @require_connection
-@require_permission('admin')
+@require_permission('system:execute_script')
 def scripts_page():
     """Page de gestion des scripts PowerShell."""
     return render_template('scripts.html', connected=True)
@@ -238,7 +238,7 @@ def scripts_page():
 
 @admin_tools_bp.route('/log-analysis')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:log_analysis')
 def log_analysis_page():
     """Page d'analyse automatique des logs."""
     return render_template('log_analysis.html', connected=True)
@@ -470,7 +470,7 @@ def error_logs():
 
 @admin_tools_bp.route('/security-audit')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:security_audit')
 def security_audit():
     """Audit de sécurité."""
     from core.security_audit import check_security_issues
@@ -502,7 +502,7 @@ def security_audit():
 
 @admin_tools_bp.route('/permissions')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:permissions')
 def permissions_page():
     """Page de gestion des permissions."""
     from core.granular_permissions import get_all_groups_with_permissions, get_available_permissions, get_permission_categories

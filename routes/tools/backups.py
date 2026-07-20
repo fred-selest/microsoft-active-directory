@@ -7,7 +7,7 @@ from ..core import is_connected, require_connection, require_permission
 
 @tools_bp.route('/backups')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:backups')
 def backups():
     """Liste des sauvegardes d'objets AD."""
     from core.backup import get_backups
@@ -17,7 +17,7 @@ def backups():
 
 @tools_bp.route('/backups/<filename>')
 @require_connection
-@require_permission('admin')
+@require_permission('admin:backups')
 def view_backup(filename):
     """Voir le détail d'une sauvegarde."""
     from core.backup import get_backup_content

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 @users_bp.route('/create', methods=['GET', 'POST'])
 @require_connection
-@require_permission('write')
+@require_permission('users:create')
 def create_user():
     """Créer un nouvel utilisateur."""
     conn, error = get_ad_connection()
