@@ -10,7 +10,25 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.48.0 — Juillet 2026
+**Dernière version :** v1.49.0 — Juillet 2026
+
+---
+
+## 🆕 Nouveautés v1.49.0 — Durcissement en profondeur & ergonomie
+
+### 🔒 Sécurité
+- **Sessions côté serveur** : les données de session (dont le mot de passe AD chiffré) ne voyagent plus dans le cookie du navigateur. Le cookie ne porte qu'un identifiant opaque signé ; les données restent sur le serveur (`data/sessions/`). La déconnexion et l'expiration invalident réellement la session. *(Implémentation autonome, sans dépendance supplémentaire.)*
+- **Protection CSRF globale** : toute requête modifiant l'état est désormais validée de façon centralisée (fin des oublis route par route). Le jeton est injecté automatiquement côté client — aucune manipulation nécessaire.
+- **Transport chiffré préféré** : la connexion tente LDAPS puis STARTTLS **avant** tout LDAP en clair. Nouvelle option `AD_ALLOW_INSECURE_LDAP=false` pour interdire totalement le trafic non chiffré.
+
+### ✨ Ergonomie
+- **Filtres sur la page Ordinateurs** : recherche par nom, par **système d'exploitation** et par **unité d'organisation** — à l'identique de la page Utilisateurs.
+
+### 🧹 Qualité
+- Empreintes **SHA256** ajoutées aux paquets de release (vérification d'intégrité).
+- Suppression de templates orphelins.
+
+> ℹ️ **Après cette mise à jour**, les utilisateurs connectés devront se reconnecter une fois (changement du mécanisme de session).
 
 ---
 
