@@ -121,6 +121,55 @@ except Exception as e:
     logger.error(f"Erreur démarrage watchdog: {e}")
 
 
+# =============================================================================
+# PROTECTION CSRF GLOBALE (constat É3 de AUDIT_2026-07-20.md)
+# Auparavant la validation CSRF était appliquée route par route ; 24 routes
+# mutatives l'avaient oubliée. On la centralise ici : toute requête modifiant
+# l'état doit présenter un jeton valide (champ de formulaire csrf_token, en-tête
+# X-CSRFToken, ou champ csrf_token d'un corps JSON). Le jeton est injecté
+# automatiquement côté client par le wrapper fetch de base.html.
+# =============================================================================
+from flask import request, jsonify
+from core.security import validate_csrf_token
+
+# Endpoints exemptés de CSRF (aucun pour l'instant). Utiliser le nom d'endpoint
+# Flask (blueprint.fonction). Réservé à d'éventuelles intégrations sans session.
+_CSRF_EXEMPT_ENDPOINTS = set()
+
+
+@app.before_request
+def _global_csrf_protection():
+    if request.method not in ('POST', 'PUT', 'DELETE', 'PATCH'):
+        return None
+    if request.endpoint in _CSRF_EXEMPT_ENDPOINTS:
+        return None
+
+    token = (request.form.get('csrf_token')
+             or request.headers.get('X-CSRFToken')
+             or request.headers.get('X-CSRF-Token'))
+    if not token and request.is_json:
+        token = (request.get_json(silent=True) or {}).get('csrf_token')
+
+    if validate_csrf_token(token):
+        return None
+
+    logger.warning(
+        f"CSRF refusé: {request.method} {request.path} "
+        f"(endpoint={request.endpoint}, ip={request.remote_addr})"
+    )
+    if (request.is_json
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or (request.path or '').startswith('/api/')):
+        return jsonify({'success': False, 'error': 'Token CSRF invalide ou manquant'}), 403
+    from flask import render_template as _rt
+    try:
+        return _rt('error.html', error_code=403,
+                   error_message="Token CSRF invalide ou manquant.",
+                   connected=False), 403
+    except Exception:
+        return "Token CSRF invalide ou manquant.", 403
+
+
 @app.after_request
 def after_request(response):
     if config.DEBUG:
