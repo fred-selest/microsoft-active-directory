@@ -10,7 +10,24 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.44.6 — Mai 2026
+**Dernière version :** v1.46.0 — Juillet 2026
+
+---
+
+## 🆕 Nouveautés v1.46.0 — Correctifs de sécurité
+
+### 🔴 Contrôle d'accès (RBAC) — faille critique corrigée
+- **Élévation de privilège corrigée** : la vérification des permissions accordait l'accès dès qu'un utilisateur détenait *une* permission quelconque, ce qui ouvrait de fait l'accès à **toutes** les routes d'administration — dont l'exécution de scripts PowerShell sur le contrôleur de domaine. Le contrôle se fait désormais par **inclusion** de la permission exacte.
+- **84 protections de routes** basculées d'alias larges (`admin`, `write`, `delete`) vers des **permissions granulaires** (`users:delete`, `system:execute_script`, `tools:laps`…).
+- **Nouvelles permissions dédiées** pour les actions à fort impact : `system:execute_script`, `system:update`, `system:configure_ldaps`, `tools:laps`, `tools:bitlocker`, `tools:unlock_accounts`, `admin:permissions`.
+- **Menu latéral** : les sections Outils et Administration s'affichent désormais selon les permissions réellement détenues.
+- ⚠️ **Migration** : certains utilisateurs vont légitimement perdre des accès qu'ils ne détenaient qu'à cause du défaut. Voir `MIGRATION_C1.md` et réattribuer les permissions dans **Administration → Permissions**.
+
+### 🔒 Hygiène du dépôt
+- **Données du domaine retirées du suivi git** : l'historique d'audit et le fichier de permissions n'étaient plus censés être versionnés mais l'étaient encore (règles `.gitignore` en notation Windows inopérante). Corrigé, avec un garde-fou d'intégration continue.
+
+### 🧪 Tests
+- Suite de non-régression du contrôle d'accès (`tests/test_permissions_c1.py`), vérifiée comme échouant sur le code vulnérable.
 
 ---
 
