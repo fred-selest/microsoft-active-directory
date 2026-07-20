@@ -106,6 +106,15 @@ jobs:
           cd dist && tar -czf ${PACKAGE_NAME}.tar.gz ${PACKAGE_NAME}
           echo "linux_tar=dist/${PACKAGE_NAME}.tar.gz" >> $GITHUB_OUTPUT
 
+      - name: Generate SHA256 checksums
+        id: checksums
+        run: |
+          cd dist
+          sha256sum *.zip *.tar.gz > SHA256SUMS.txt
+          echo "Checksums generes :"
+          cat SHA256SUMS.txt
+          echo "sums=dist/SHA256SUMS.txt" >> "$GITHUB_OUTPUT"
+
       - name: Create Release with assets
         uses: softprops/action-gh-release@v2
         with:
@@ -117,5 +126,6 @@ jobs:
           files: |
             ${{ steps.build_windows.outputs.windows_zip }}
             ${{ steps.build_linux.outputs.linux_tar }}
+            dist/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
