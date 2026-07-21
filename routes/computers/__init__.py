@@ -6,7 +6,7 @@ from ldap3 import SUBTREE, MODIFY_REPLACE
 from ldap3.core.exceptions import LDAPException
 
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
-                   require_connection, require_permission, config)
+                   require_connection, require_permission, config, paged_search)
 from core.security import escape_ldap_filter, validate_csrf_token
 from core.audit import log_action, ACTIONS
 
@@ -59,13 +59,16 @@ def list_computers():
         search_filter = '(objectClass=computer)'
 
     try:
-        conn.search(search_base, search_filter, SUBTREE,
-                   attributes=['cn', 'description', 'distinguishedName',
-                              'operatingSystem', 'lastLogon', 'userAccountControl',
-                              'dNSHostName', 'operatingSystemVersion'])
+        # Recherche paginée : AD plafonne une recherche simple à MaxPageSize
+        # (1000 par défaut) et tronque silencieusement au-delà. paged_search
+        # suit le cookie de paging pour récupérer TOUT le parc.
+        all_entries = paged_search(conn, search_base, search_filter,
+                                   attributes=['cn', 'description', 'distinguishedName',
+                                              'operatingSystem', 'lastLogon', 'userAccountControl',
+                                              'dNSHostName', 'operatingSystemVersion'])
 
         computer_list = []
-        for entry in conn.entries:
+        for entry in all_entries:
             uac = entry.userAccountControl.value if hasattr(entry, 'userAccountControl') and entry.userAccountControl else 4096
             is_disabled = bool(int(uac) & 2) if uac else False
             

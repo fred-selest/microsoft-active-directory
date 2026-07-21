@@ -563,3 +563,46 @@ def ldap_search_with_retry(conn, base_dn, search_filter, attributes=None,
                 return []
 
     return []
+
+
+# Control OID de la recherche paginée AD (paged results)
+PAGED_RESULTS_OID = '1.2.840.113556.1.4.319'
+
+
+def paged_search(conn, base_dn, search_filter, attributes=None, page_size=1000):
+    """
+    Recherche LDAP paginée récupérant TOUS les résultats.
+
+    Une recherche simple est plafonnée par AD à MaxPageSize (1000 par défaut) :
+    au-delà, le serveur tronque silencieusement le résultat. Passer un
+    `size_limit` côté client ne contourne pas cette limite. On suit donc le
+    cookie de paging jusqu'à épuisement pour ramener l'intégralité des objets.
+
+    Args:
+        conn: Connexion LDAP (ldap3)
+        base_dn: Base DN de la recherche
+        search_filter: Filtre LDAP
+        attributes: Liste des attributs à récupérer
+        page_size: Taille de page (≤ MaxPageSize du serveur)
+
+    Returns:
+        list: Toutes les entrées (objets Entry ldap3), tous pages confondues.
+    """
+    if attributes is None:
+        attributes = ['*']
+
+    all_entries = []
+    cookie = None
+    while True:
+        conn.search(base_dn, search_filter, SUBTREE,
+                   attributes=attributes,
+                   paged_size=page_size, paged_cookie=cookie)
+        all_entries.extend(conn.entries)
+        try:
+            cookie = conn.result['controls'][PAGED_RESULTS_OID]['value']['cookie']
+        except (KeyError, TypeError):
+            cookie = None
+        if not cookie:
+            break
+
+    return all_entries

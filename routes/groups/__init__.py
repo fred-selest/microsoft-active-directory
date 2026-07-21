@@ -8,7 +8,7 @@ from ldap3 import SUBTREE, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3.core.exceptions import LDAPException
 
 from routes.core import (get_ad_connection, decode_ldap_value, is_connected,
-                   require_connection, require_permission, config)
+                   require_connection, require_permission, config, paged_search)
 from core.security import escape_ldap_filter, validate_csrf_token
 from core.audit import log_action, ACTIONS
 
@@ -42,32 +42,27 @@ def list_groups():
 
     group_list = []
     try:
-        # 1. Recherche des groupes
-        conn.search(search_base, search_filter, SUBTREE,
+        # 1. Recherche des groupes (paginée : AD tronque à MaxPageSize=1000)
+        group_entries = paged_search(conn, search_base, search_filter,
                    attributes=['cn', 'description', 'distinguishedName', 'member', 'groupType'])
 
-        # 2. SAUVEGARDER les entrees AVANT toute autre recherche
-        # conn.search() ecrase conn.entries
-        group_entries = list(conn.entries)
-
-        # 3. Pre-compter pour les groupes speciaux (uses separate searches)
+        # 2. Pre-compter pour les groupes speciaux (recherches séparées, paginées
+        #    pour ne pas plafonner le compteur à 1000 au-delà de ce seuil)
         special_counts = {}
         try:
-            conn.search(base_dn, '(&(objectClass=computer)(objectCategory=person))', SUBTREE,
-                       attributes=['cn'], size_limit=5000)
-            special_counts['computers'] = len(conn.entries)
+            special_counts['computers'] = len(paged_search(conn, base_dn,
+                       '(&(objectClass=computer)(objectCategory=person))', attributes=['cn']))
         except Exception:
             special_counts['computers'] = 0
         try:
-            conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
-                       attributes=['cn'], size_limit=5000)
-            special_counts['users'] = len(conn.entries)
+            special_counts['users'] = len(paged_search(conn, base_dn,
+                       '(&(objectClass=user)(objectCategory=person))', attributes=['cn']))
         except Exception:
             special_counts['users'] = 0
         try:
             dc_ou = f'OU=Domain Controllers,{base_dn}'
-            conn.search(dc_ou, '(objectClass=computer)', SUBTREE, attributes=['cn'])
-            special_counts['dc'] = len(conn.entries)
+            special_counts['dc'] = len(paged_search(conn, dc_ou,
+                       '(objectClass=computer)', attributes=['cn']))
         except Exception:
             special_counts['dc'] = 0
 

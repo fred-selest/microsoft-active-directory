@@ -9,7 +9,7 @@ from datetime import datetime
 
 from . import users_bp
 from ..core import (get_ad_connection, decode_ldap_value, is_connected,
-                   require_connection, config)
+                   require_connection, config, paged_search)
 from core.security import escape_ldap_filter
 
 
@@ -55,15 +55,18 @@ def list_users():
         search_base = ou_filter
 
     try:
-        conn.search(search_base, search_filter, SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName',
-                              'displayName', 'userAccountControl', 'department', 'title',
-                              'lastLogonTimestamp', 'lastLogon', 'whenCreated', 'pwdLastSet'],
-                   size_limit=10000)
+        # Recherche paginée : AD plafonne une recherche simple à MaxPageSize
+        # (1000 par défaut) et tronque silencieusement au-delà — size_limit
+        # côté client ne contourne pas cette limite. paged_search suit le
+        # cookie de paging pour récupérer TOUS les utilisateurs.
+        all_entries = paged_search(conn, search_base, search_filter,
+                                   attributes=['cn', 'sAMAccountName', 'mail', 'distinguishedName',
+                                              'displayName', 'userAccountControl', 'department', 'title',
+                                              'lastLogonTimestamp', 'lastLogon', 'whenCreated', 'pwdLastSet'])
 
         user_list = []
         now = datetime.now()
-        for entry in conn.entries:
+        for entry in all_entries:
             entry_dn = str(entry.entry_dn).lower()
             # Exclure les utilisateurs système du conteneur Builtin et Users
             if 'cn=builtin' in entry_dn:
