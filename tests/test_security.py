@@ -60,6 +60,23 @@ def reset_rate_limits():
     security._cleanup_time = original_cleanup
 
 
+@pytest.fixture(autouse=True)
+def _app_request_context():
+    """
+    Pousse un contexte de requete Flask actif pour toute la duree des tests.
+
+    `@patch('core.security.request')` doit introspecter l'objet original
+    avant de le remplacer ; hors contexte de requete, `core.security.request`
+    (LocalProxy Werkzeug) leve RuntimeError des cette introspection, avant
+    meme que le test ne s'execute. Un contexte actif (memes des valeurs
+    factices) rend cette introspection possible.
+    """
+    os.environ.setdefault('SECRET_KEY', 'test-secret-key-for-unit-tests')
+    from app import app
+    with app.test_request_context('/'):
+        yield
+
+
 @pytest.fixture
 def flask_session_mock():
     """
@@ -74,7 +91,7 @@ def flask_request_mock():
     """
     Fixture qui mocke l'objet request Flask avec des valeurs par defaut.
     """
-    with patch('core.security.request') as mock_request:
+    with patch('core.security.request', new_callable=MagicMock) as mock_request:
         mock_request.remote_addr = '127.0.0.1'
         mock_request.is_secure = False
         mock_request.is_json = False
@@ -189,52 +206,57 @@ class TestSanitizeDnComponent:
         result = sanitize_dn_component('Users')
         assert result == 'Users'
 
-    def test_sanitize_removes_backslash(self):
-        """Le backslash est supprime."""
+    def test_sanitize_escapes_backslash(self):
+        """Le backslash est echappe, pas supprime."""
         from core.security import sanitize_dn_component
         result = sanitize_dn_component('user\\name')
-        assert '\\' not in result
-        assert result == 'username'
+        assert result == 'user\\\\name'
 
-    def test_sanitize_removes_comma(self):
-        """La virgule est supprimee."""
+    def test_sanitize_escapes_comma(self):
+        """
+        La virgule est echappee, pas supprimee : « O'Brien, John » doit
+        rester lisible au lieu de perdre silencieusement une partie du nom
+        (cf. M2, AUDIT_2026-07-20.md).
+        """
         from core.security import sanitize_dn_component
-        result = sanitize_dn_component('CN=John,OU=Users')
-        assert ',' not in result
+        result = sanitize_dn_component("O'Brien, John")
+        assert result == "O'Brien\\, John"
 
-    def test_sanitize_removes_plus(self):
-        """Le signe + est supprime."""
+    def test_sanitize_escapes_plus(self):
+        """Le signe + est echappe, pas supprime."""
         from core.security import sanitize_dn_component
         result = sanitize_dn_component('test+value')
-        assert '+' not in result
+        assert result == 'test\\+value'
 
-    def test_sanitize_removes_quotes(self):
-        """Les guillemets sont supprimes."""
+    def test_sanitize_escapes_quotes(self):
+        """Les guillemets sont echappes, pas supprimes."""
         from core.security import sanitize_dn_component
         result = sanitize_dn_component('"admin"')
-        assert '"' not in result
+        assert result == '\\"admin\\"'
 
-    def test_sanitize_removes_angle_brackets(self):
-        """Les symboles < et > sont supprimes."""
+    def test_sanitize_escapes_angle_brackets(self):
+        """Les symboles < et > sont echappes, pas supprimes."""
         from core.security import sanitize_dn_component
         result = sanitize_dn_component('<script>')
-        assert '<' not in result
-        assert '>' not in result
+        assert result == '\\<script\\>'
 
-    def test_sanitize_removes_semicolon(self):
-        """Le point-virgule est supprime."""
+    def test_sanitize_escapes_semicolon(self):
+        """Le point-virgule est echappe, pas supprime."""
         from core.security import sanitize_dn_component
         result = sanitize_dn_component('value;injection')
-        assert ';' not in result
+        assert result == 'value\\;injection'
 
-    def test_sanitize_removes_equals(self):
-        """Le signe = est supprime."""
+    def test_sanitize_escapes_equals(self):
+        """Le signe = est echappe, pas supprime."""
         from core.security import sanitize_dn_component
         result = sanitize_dn_component('CN=Users')
-        assert '=' not in result
+        assert result == 'CN\\=Users'
 
     def test_sanitize_removes_newlines(self):
-        """Les retours a la ligne sont supprimes."""
+        """
+        Les retours a la ligne sont retires (pas d'usage legitime dans un
+        composant DN, et non geres par l'echappement RFC 4514 de ldap3).
+        """
         from core.security import sanitize_dn_component
         result = sanitize_dn_component('line1\nline2\rline3')
         assert '\n' not in result
@@ -258,12 +280,16 @@ class TestSanitizeDnComponent:
         result = sanitize_dn_component(None)
         assert result is None
 
-    def test_sanitize_all_forbidden_chars(self):
-        """Tous les caracteres interdits sont supprimes simultanement."""
+    def test_sanitize_all_special_chars(self):
+        """
+        Tous les caracteres speciaux sont echappes simultanement (les
+        retours a la ligne restent retires).
+        """
         from core.security import sanitize_dn_component
-        forbidden = '\\,+"<>;=\n\r'
-        result = sanitize_dn_component(forbidden)
-        assert result == ''
+        special = '\\,+"<>;=\n\r'
+        result = sanitize_dn_component(special)
+        assert result == '\\\\\\,\\+\\"\\<\\>\\;\\='
+        assert '\n' not in result and '\r' not in result
 
 
 # =============================================================================
@@ -380,7 +406,7 @@ class TestRateLimiting:
 
     def test_cleanup_old_attempts(self, reset_rate_limits):
         """Les anciennes tentatives sont nettoyees apres 15 minutes."""
-        from core.security import record_attempt, _login_attempts, _cleanup_old_attempts
+        from core.security import record_attempt, _cleanup_old_attempts
 
         ip = '192.168.50.1'
         record_attempt(ip)
@@ -389,8 +415,11 @@ class TestRateLimiting:
         with patch('core.security.time.time', return_value=time.time() + 1000):
             _cleanup_old_attempts()
 
-        # La tentative ancienne doit etre supprimee
-        assert ip not in _login_attempts
+        # La tentative ancienne doit etre supprimee. _cleanup_old_attempts
+        # reassigne le dict module-level (`global _login_attempts = {...}`) :
+        # relire l'attribut sur le module plutot qu'une reference importee,
+        # qui resterait pointee sur l'ancien objet.
+        assert ip not in reset_rate_limits._login_attempts
 
     def test_rate_limit_custom_max_attempts(self, reset_rate_limits):
         """Le rate limiting respecte un maximum d'essais personnalise."""
@@ -417,7 +446,7 @@ class TestRateLimiting:
 class TestRateLimitDecorators:
     """Tests pour les decorateurs de rate limiting."""
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_rate_limit_decorator_allows_request(self, mock_request, reset_rate_limits):
         """Le decorateur rate_limit laisse passer les requetes sous la limite."""
         from core.security import rate_limit
@@ -433,7 +462,7 @@ class TestRateLimitDecorators:
         result = test_view()
         assert result == 'OK'
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_rate_limit_decorator_blocks_json(self, mock_request, reset_rate_limits):
         """Le decorateur retourne une reponse JSON 429 quand bloque."""
         from core.security import rate_limit, record_attempt
@@ -566,7 +595,7 @@ class TestPasswordValidation:
 class TestSecurityHeaders:
     """Tests pour l'ajout de headers de securite HTTP."""
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     @patch('core.security.os.environ', {'SESSION_COOKIE_SECURE': 'true'})
     def test_add_security_headers_basic(self, mock_request):
         """Les headers de securite standards sont ajoutes."""
@@ -586,7 +615,7 @@ class TestSecurityHeaders:
         assert 'Permissions-Policy' in result.headers
         assert 'Content-Security-Policy' in result.headers
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     @patch('core.security.os.environ', {'SESSION_COOKIE_SECURE': 'true'})
     def test_hsts_header_when_secure(self, mock_request):
         """Le header HSTS est ajoute quand la connexion est consideree secure."""
@@ -602,7 +631,7 @@ class TestSecurityHeaders:
         assert 'Strict-Transport-Security' in result.headers
         assert 'max-age=31536000' in result.headers['Strict-Transport-Security']
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     @patch('core.security.os.environ', {'SESSION_COOKIE_SECURE': 'false'})
     def test_no_hsts_when_not_secure(self, mock_request):
         """Le header HSTS n'est pas ajoute si la connexion n'est pas secure."""
@@ -618,7 +647,7 @@ class TestSecurityHeaders:
         # HSTS ne doit pas etre present si SESSION_COOKIE_SECURE=false et non secure
         assert 'Strict-Transport-Security' not in result.headers
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     @patch('core.security.os.environ', {'SESSION_COOKIE_SECURE': 'true'})
     def test_cache_control_for_sensitive_pages(self, mock_request):
         """Les pages sensibles ont des headers Cache-Control."""
@@ -638,7 +667,7 @@ class TestSecurityHeaders:
             assert result.headers['Cache-Control'] == 'no-store, no-cache, must-revalidate, max-age=0'
             assert result.headers['Pragma'] == 'no-cache'
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     @patch('core.security.os.environ', {'SESSION_COOKIE_SECURE': 'true'})
     def test_no_cache_control_for_normal_pages(self, mock_request):
         """Les pages normales n'ont pas de headers Cache-Control restrictifs."""
@@ -654,7 +683,7 @@ class TestSecurityHeaders:
         assert 'Cache-Control' not in result.headers
         assert 'Pragma' not in result.headers
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_permissions_policy_restricts_apis(self, mock_request):
         """Le header Permissions-Policy restreint les APIs navigateur."""
         from core.security import add_security_headers
@@ -671,7 +700,7 @@ class TestSecurityHeaders:
         assert 'microphone=()' in policy
         assert 'camera=()' in policy
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_content_security_policy(self, mock_request):
         """Le header CSP autorise self et CDN jsdelivr."""
         from core.security import add_security_headers
@@ -687,7 +716,7 @@ class TestSecurityHeaders:
         assert "default-src 'self'" in csp
         assert 'cdn.jsdelivr.net' in csp
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_response_is_returned(self, mock_request):
         """La fonction retourne l'objet response modifie."""
         from core.security import add_security_headers
@@ -869,7 +898,7 @@ class TestCSRF:
 class TestCSRFProtectDecorator:
     """Tests pour le decorateur csrf_protect."""
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_allows_get(self, mock_request, flask_session_mock):
         """Les requetes GET ne sont pas verifiees pour le CSRF."""
         from core.security import csrf_protect
@@ -882,7 +911,7 @@ class TestCSRFProtectDecorator:
         result = test_view()
         assert result == 'OK'
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_allows_valid_token(self, mock_request, flask_session_mock):
         """Une requete POST avec un token valide est acceptee."""
         from core.security import csrf_protect, generate_csrf_token
@@ -899,7 +928,7 @@ class TestCSRFProtectDecorator:
         result = test_view()
         assert result == 'OK'
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_rejects_invalid_token(self, mock_request, flask_session_mock):
         """Une requete POST avec un token invalide retourne 403."""
         from core.security import csrf_protect, generate_csrf_token
@@ -918,7 +947,7 @@ class TestCSRFProtectDecorator:
         assert response.get_json()['success'] is False
         assert 'CSRF' in response.get_json()['error']
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_rejects_missing_token(self, mock_request, flask_session_mock):
         """Une requete POST sans token retourne 403."""
         from core.security import csrf_protect, generate_csrf_token
@@ -935,7 +964,7 @@ class TestCSRFProtectDecorator:
         response, status_code = test_view()
         assert status_code == 403
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_accepts_header_token(self, mock_request, flask_session_mock):
         """Le token CSRF peut etre passe via le header X-CSRF-Token."""
         from core.security import csrf_protect, generate_csrf_token
@@ -953,7 +982,7 @@ class TestCSRFProtectDecorator:
         result = test_view()
         assert result == 'OK'
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_protects_put(self, mock_request, flask_session_mock):
         """Les requetes PUT sont protegees par CSRF."""
         from core.security import csrf_protect, generate_csrf_token
@@ -970,7 +999,7 @@ class TestCSRFProtectDecorator:
         response, status_code = test_view()
         assert status_code == 403
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_protects_delete(self, mock_request, flask_session_mock):
         """Les requetes DELETE sont protegees par CSRF."""
         from core.security import csrf_protect, generate_csrf_token
@@ -987,7 +1016,7 @@ class TestCSRFProtectDecorator:
         response, status_code = test_view()
         assert status_code == 403
 
-    @patch('core.security.request')
+    @patch('core.security.request', new_callable=MagicMock)
     def test_csrf_protect_protects_patch(self, mock_request, flask_session_mock):
         """Les requetes PATCH sont protegees par CSRF."""
         from core.security import csrf_protect, generate_csrf_token

@@ -257,7 +257,7 @@ class LogAnalyzer:
                         return datetime.strptime(ts, '%d/%m/%Y %H:%M:%S')
                     else:
                         return datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
-                except:
+                except Exception:
                     pass
         return None
     

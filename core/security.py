@@ -10,6 +10,7 @@ import threading
 import time
 from functools import wraps
 from flask import request, jsonify, session
+from ldap3.utils.dn import escape_rdn
 
 # === PROTECTION CONTRE INJECTION LDAP ===
 
@@ -62,19 +63,19 @@ def sanitize_css(value):
 
 def sanitize_dn_component(value):
     """
-    Nettoyer un composant DN pour eviter les injections.
+    Echapper un composant DN (RFC 4514) pour eviter les injections.
+
+    Echappe les caracteres speciaux (, + " \\ < > ; =) au lieu de les
+    supprimer : un caractere legitime dans un nom (ex. l'apostrophe et la
+    virgule de « O'Brien, John ») ne doit pas disparaitre silencieusement,
+    au risque de creer un compte sous un nom errone. Les retours a la ligne,
+    sans usage legitime dans un composant DN, restent retires.
     """
     if not value:
         return value
 
-    # Caracteres interdits dans les DNs
-    forbidden = ['\\', ',', '+', '"', '<', '>', ';', '=', '\n', '\r']
-    result = str(value)
-
-    for char in forbidden:
-        result = result.replace(char, '')
-
-    return result.strip()
+    result = str(value).strip().replace('\n', '').replace('\r', '')
+    return escape_rdn(result)
 
 
 # === RATE LIMITING ===

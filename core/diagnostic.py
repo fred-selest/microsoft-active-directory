@@ -268,14 +268,14 @@ def check_system_info():
                 ctypes.windll.kernel32.GetPhysicallyAvailableMemory(ctypes.byref(free_mem))
                 ram = f"{free_mem.value // (1024**2)} MB libres"
             DIAG_RESULTS['system_info']['memory'] = ram
-        except:
+        except Exception:
             DIAG_RESULTS['system_info']['memory'] = 'Non disponible'
         
         # Espace disque
         try:
             total, used, free = shutil.disk_usage('.')
             DIAG_RESULTS['system_info']['disk'] = f"{free // (1024**3)} Go libres"
-        except:
+        except Exception:
             DIAG_RESULTS['system_info']['disk'] = 'Non disponible'
             
         add_check('Informations système', True, 
@@ -294,7 +294,7 @@ def check_network_config():
         dns_servers = []
         try:
             dns_servers = socket.gethostbyname_ex(socket.gethostname())[2]
-        except:
+        except Exception:
             pass
         
         if dns_servers:
@@ -306,7 +306,7 @@ def check_network_config():
         try:
             socket.create_connection(('8.8.8.8', 53), timeout=2)
             add_check('Connectivité Internet', True, 'Accès Internet disponible')
-        except:
+        except Exception:
             add_warning('Connectivité Internet', 'Aucun accès Internet détecté')
         
         return True

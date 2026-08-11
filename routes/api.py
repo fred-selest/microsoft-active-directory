@@ -534,7 +534,7 @@ def api_error_logs():
                 lines = f.readlines()
                 errors = [line.strip() for line in lines if 'ERROR' in line or 'Exception' in line]
                 errors = errors[-100:]  # 100 dernières erreurs
-        except:
+        except Exception:
             errors = ['Impossible de lire les logs']
 
     return jsonify({'errors': errors, 'count': len(errors)})
@@ -1019,7 +1019,7 @@ def api_log_analysis_history():
                     'summary': report.get('summary', {}),
                     'actions_count': len(report.get('actions_taken', []))
                 })
-        except:
+        except Exception:
             pass
     
     return jsonify({

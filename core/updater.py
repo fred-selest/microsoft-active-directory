@@ -255,8 +255,11 @@ def update_dependencies(silent=False):
     if not req.exists():
         return True, "Pas de requirements.txt"
     try:
+        # Pas de --upgrade : requirements.txt epingle deja chaque version par
+        # ==, --upgrade n'apporte rien sur un requirements epingle et
+        # masquerait un depinglage futur (cf. E6, AUDIT_2026-07-20.md).
         result = subprocess.run(
-            [str(pip), "install", "-r", str(req), "--upgrade", "-q"],
+            [str(pip), "install", "-r", str(req), "-q"],
             capture_output=True, text=True, timeout=120
         )
         if result.returncode == 0:

@@ -73,7 +73,7 @@ def decode_ldap_value(value):
         for encoding in ['utf-8', 'latin-1', 'cp1252']:
             try:
                 return val.decode(encoding)
-            except:
+            except Exception:
                 continue
         return val.decode('utf-8', errors='replace')
     if isinstance(val, list):
@@ -158,7 +158,7 @@ def _extract_domain(server, username):
             full_hostname = socket.getfqdn(server)
             if '.' in full_hostname:
                 return full_hostname.split('.')[0].upper()
-        except:
+        except Exception:
             pass
     return None
 

@@ -146,76 +146,73 @@ class TestScriptsAPI:
         """Fixture pour le client de test Flask"""
         from app import app
         app.config['TESTING'] = True
-        app.config['WTF_CSRF_ENABLED'] = False
-        
-        with app.test_client() as client:
-            with client.session_transaction() as sess:
-                # Simuler une session authentifiée avec permissions admin
-                sess['ad_server'] = 'test-server'
-                sess['ad_base_dn'] = 'DC=test,DC=local'
-                sess['ad_username'] = 'admin'
-                sess['ad_permissions'] = ['admin:settings', 'admin:scripts']
-                sess['connected'] = True
-            yield client
-    
+
+        # require_permission() verifie les groupes de session via
+        # has_granular_permission() (mapping data/permissions.json), pas une
+        # cle 'ad_permissions' en session. On mocke la verification pour ne
+        # pas dependre du contenu de ce fichier.
+        with patch('routes.core.has_granular_permission', return_value=True):
+            with app.test_client() as client:
+                with client.session_transaction() as sess:
+                    # is_connected() exige ad_server/ad_username/ad_password ;
+                    # ad_password n'est pas dechiffre par ces routes, une
+                    # valeur factice suffit.
+                    sess['ad_server'] = 'test-server'
+                    sess['ad_base_dn'] = 'DC=test,DC=local'
+                    sess['ad_username'] = 'admin'
+                    sess['ad_password'] = 'dummy-password-marker'
+                    sess['user_groups'] = ['test-group']
+                    sess['connected'] = True
+                    sess['csrf_token'] = 'test-csrf-token'
+                yield client
+
     def test_api_list_scripts(self, client):
         """Test l'API de liste des scripts"""
         response = client.get('/api/scripts')
-        
-        # La route nécessite une connexion, donc 302 ou 403 si non connecté
-        # ou 200 si la session est correctement mockée
-        assert response.status_code in [200, 302, 403]
-        
-        if response.status_code == 200:
-            data = response.get_json()
-            assert data['success'] is True
-            assert 'scripts' in data
-            assert 'count' in data
-    
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'scripts' in data
+        assert 'count' in data
+
     def test_api_scripts_prerequisites(self, client):
         """Test l'API de vérification des prérequis"""
         response = client.get('/api/scripts/fix_md4.ps1/prerequisites')
-        
-        # Peut nécessiter authentification
-        assert response.status_code in [200, 302, 403, 404]
-        
+
+        assert response.status_code in [200, 404]
+
         if response.status_code == 200:
             data = response.get_json()
             assert data['success'] is True
             assert 'script' in data
             assert 'prerequisites' in data
-    
+
     def test_api_scripts_history(self, client):
         """Test l'API d'historique des scripts"""
         response = client.get('/api/scripts/history')
-        
-        assert response.status_code in [200, 302, 403]
-        
-        if response.status_code == 200:
-            data = response.get_json()
-            assert data['success'] is True
-            assert 'history' in data
-            assert 'count' in data
-    
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'history' in data
+        assert 'count' in data
+
     def test_api_execute_script_not_found(self, client):
         """Test l'exécution d'un script inexistant"""
-        response = client.post('/api/scripts/inexistant.ps1/execute', 
-                              json={})
-        
-        # 302 si non connecté (redirection vers login), 404 si script inconnu
-        assert response.status_code in [302, 404]
-        
-        if response.status_code == 404:
-            data = response.get_json()
-            assert data['success'] is False
-            assert 'error' in data
-    
+        response = client.post('/api/scripts/inexistant.ps1/execute',
+                              json={'csrf_token': 'test-csrf-token'})
+
+        assert response.status_code == 404
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'error' in data
+
     def test_api_download_script_not_found(self, client):
         """Test le téléchargement d'un script inexistant"""
         response = client.get('/api/scripts/inexistant.ps1/download')
-        
-        # 302 si non connecté, 404 si script inconnu
-        assert response.status_code in [302, 404]
+
+        assert response.status_code == 404
 
 
 class TestScriptExecution:

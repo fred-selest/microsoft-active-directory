@@ -20,7 +20,14 @@ data/permissions.json
 data/crypto_salt.bin
 data/backups/
 data/sessions/
+data/user_templates.json
 logs/
+
+# core/settings_manager.py resout son fichier via os.path.dirname(__file__),
+# donc core/data/ (et non data/) : meme risque que ci-dessus si non couvert
+# (core/data/settings.json et core/data/crypto_salt.bin ont deja fuite,
+# suivis par erreur avant l'ajout de cette regle).
+core/data/
 
 # Exceptions : documentation et exemples de configuration
 !logs/.gitkeep
@@ -58,6 +65,7 @@ $null
 # Documentation (uniquement README et fichiers essentiels)
 *.md
 !README.md
+!CHANGELOG.md
 !QWEN.md
 !*/README.md
 !scripts/SIGNATURE_GUIDE.md
@@ -75,7 +83,6 @@ MODULARITE.md
 PROPOSITIONS_AMELIORATIONS.md
 README_DOCUMENTATION.md
 SECURITY.md
-CHANGELOG.md
 
 # Backup directories
 backup_pre_update/

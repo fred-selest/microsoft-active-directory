@@ -59,6 +59,21 @@ jobs:
           python -c "from config import get_config; print('Config OK')"
           python -c "from core.security import escape_ldap_filter; print('Security OK')"
 
+      - name: Run test suite
+        env:
+          SECRET_KEY: test-secret-key-for-ci-only-not-for-production
+        run: |
+          # test_api_diagnostic.py et test_api_full.py sont des scripts
+          # `requests` qui visent un serveur deja demarre, et
+          # test_connections.py est un script de diagnostic autonome aux
+          # imports obsoletes (racine plutot que core/) : ce ne sont pas des
+          # tests pytest, on les exclut de la collecte.
+          pytest tests/ \
+            --ignore=tests/test_api_diagnostic.py \
+            --ignore=tests/test_api_full.py \
+            --ignore=tests/test_connections.py \
+            -v
+
   # ===========================================================================
   # Garde-fou : aucune donnee du domaine AD ne doit etre versionnee
   # Voir AUDIT_2026-07-20.md (constat C2) — ces fichiers ont deja fuite une
@@ -75,8 +90,12 @@ jobs:
       - name: Verifier qu'aucun fichier sensible n'est suivi par git
         run: |
           echo "Fichiers suivis correspondant aux motifs interdits :"
+          # core/settings_manager.py et core/session_crypto.py resolvent
+          # certains chemins via os.path.dirname(__file__) : core/data/
+          # a deja fuite (settings.json, crypto_salt.bin) sans que ce garde
+          # ne le couvre, faute de motif dedie. Voir aussi .gitignore.
           FOUND=$(git ls-files | grep -E \
-            '^(data/audit_history/|data/permissions\.json$|data/settings\.json$|data/crypto_salt\.bin$|data/backups/|logs/(?!\.gitkeep))' \
+            '^(data/audit_history/|data/permissions\.json$|data/settings\.json$|data/crypto_salt\.bin$|data/backups/|data/user_templates\.json$|core/data/|logs/(?!\.gitkeep))' \
             -P || true)
           if [ -n "$FOUND" ]; then
             echo "$FOUND"

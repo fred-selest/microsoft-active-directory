@@ -1,21 +1,32 @@
 """Routes diverses : modèles, favoris, API docs."""
-from flask import render_template, request, session
+from flask import render_template, request, session, redirect, url_for, flash
 from datetime import datetime
 import secrets
 import hashlib
 
 from . import tools_bp
 from ..core import require_connection, require_permission
+from core.user_templates import (
+    load_templates, create_template, update_template, delete_template,
+)
+
+MAX_FAVORITES = 200
+
+
+def _favorites_counts(favorites_list):
+    counts = {'user': 0, 'group': 0, 'computer': 0, 'ou': 0}
+    for fav in favorites_list:
+        t = fav.get('type')
+        if t in counts:
+            counts[t] += 1
+    return counts
 
 
 @tools_bp.route('/templates')
 @require_connection
 def user_templates():
     """Page des modèles utilisateurs."""
-    # Le stockage des modèles n'est pas encore implémenté côté backend :
-    # on passe un dict vide pour que la page affiche son état « aucun modèle »
-    # au lieu de planter (le template itère templates.items()).
-    return render_template('user_templates.html', templates={}, connected=True)
+    return render_template('user_templates.html', templates=load_templates(), connected=True)
 
 
 @tools_bp.route('/templates/create', methods=['GET', 'POST'])
@@ -23,6 +34,21 @@ def user_templates():
 @require_permission('admin:user_templates')
 def create_user_template():
     """Créer un modèle utilisateur."""
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            flash('Le nom du modèle est requis.', 'error')
+            return render_template('template_form.html', action='create', connected=True)
+
+        attributes = {
+            'department': request.form.get('department', '').strip(),
+            'title': request.form.get('title', '').strip(),
+            'description': request.form.get('user_description', '').strip(),
+        }
+        create_template(name, request.form.get('description', '').strip(), attributes)
+        flash('Modèle créé.', 'success')
+        return redirect(url_for('tools.user_templates'))
+
     return render_template('template_form.html', action='create', connected=True)
 
 
@@ -31,7 +57,30 @@ def create_user_template():
 @require_permission('admin:user_templates')
 def edit_user_template(template_id):
     """Éditer un modèle."""
-    return render_template('template_form.html', action='edit', template_id=template_id, connected=True)
+    templates = load_templates()
+    template = templates.get(template_id)
+    if not template:
+        flash('Modèle introuvable.', 'error')
+        return redirect(url_for('tools.user_templates'))
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            flash('Le nom du modèle est requis.', 'error')
+            return render_template('template_form.html', action='edit',
+                                   template_id=template_id, template=template, connected=True)
+
+        attributes = {
+            'department': request.form.get('department', '').strip(),
+            'title': request.form.get('title', '').strip(),
+            'description': request.form.get('user_description', '').strip(),
+        }
+        update_template(template_id, name, request.form.get('description', '').strip(), attributes)
+        flash('Modèle mis à jour.', 'success')
+        return redirect(url_for('tools.user_templates'))
+
+    return render_template('template_form.html', action='edit',
+                           template_id=template_id, template=template, connected=True)
 
 
 @tools_bp.route('/templates/<template_id>/delete', methods=['POST'])
@@ -39,36 +88,54 @@ def edit_user_template(template_id):
 @require_permission('admin:user_templates')
 def delete_user_template(template_id):
     """Supprimer un modèle utilisateur."""
-    # TODO: Implémenter la suppression côté backend
-    # Pour l'instant, redirection vers la liste des templates
-    return render_template('user_templates.html', templates={}, connected=True, message="Fonctionnalité en cours de développement.")
+    if delete_template(template_id):
+        flash('Modèle supprimé.', 'success')
+    else:
+        flash('Modèle introuvable.', 'error')
+    return redirect(url_for('tools.user_templates'))
 
 
 @tools_bp.route('/favorites')
 @require_connection
 def favorites():
     """Page des favoris."""
-    # Backend des favoris non encore implémenté : valeurs par défaut pour que
-    # la page rende son état vide au lieu de planter (counts.* non gardé).
     favorites_list = session.get('favorites', [])
-    counts = {'user': 0, 'group': 0, 'computer': 0, 'ou': 0}
-    for fav in favorites_list:
-        t = fav.get('type')
-        if t in counts:
-            counts[t] += 1
     return render_template('favorites_page.html', favorites=favorites_list,
-                           counts=counts, connected=True)
+                           counts=_favorites_counts(favorites_list), connected=True)
 
 
 @tools_bp.route('/favorites/toggle', methods=['POST'])
 @require_connection
 def toggle_favorite():
     """Ajouter/retirer un favori."""
-    # TODO: Implémenter la logique de favoris
-    # Pour l'instant, retour à la page favorites
-    return render_template('favorites_page.html', favorites=[],
-                           counts={'user': 0, 'group': 0, 'computer': 0, 'ou': 0},
-                           connected=True, message="Fonctionnalité en cours de développement.")
+    dn = request.form.get('dn', '').strip()
+    if not dn:
+        flash('Élément invalide.', 'error')
+        return redirect(url_for('tools.favorites'))
+
+    favorites_list = session.get('favorites', [])
+
+    if request.form.get('action') == 'remove':
+        favorites_list = [f for f in favorites_list if f.get('dn') != dn]
+    else:
+        fav_type = request.form.get('type', '').strip()
+        name = request.form.get('name', '').strip()
+        if not fav_type or not name:
+            flash('Élément invalide.', 'error')
+            return redirect(request.referrer or url_for('tools.favorites'))
+        if not any(f.get('dn') == dn for f in favorites_list):
+            if len(favorites_list) >= MAX_FAVORITES:
+                flash(f'Limite de {MAX_FAVORITES} favoris atteinte.', 'error')
+                return redirect(request.referrer or url_for('tools.favorites'))
+            favorites_list.append({
+                'dn': dn,
+                'type': fav_type,
+                'name': name,
+                'added': datetime.now().isoformat(),
+            })
+
+    session['favorites'] = favorites_list
+    return redirect(request.referrer or url_for('tools.favorites'))
 
 
 @tools_bp.route('/api-docs')
