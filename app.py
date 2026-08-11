@@ -220,6 +220,19 @@ def internal_error(error):
 @app.errorhandler(Exception)
 def handle_exception(error):
     from routes.core import is_connected
+    from werkzeug.exceptions import HTTPException
+
+    # Les HTTPException (403, 405, ...) portent deja leur propre code/reponse ;
+    # sans specialhandler dedie elles remontent ici via le catch-all Exception
+    # et ne doivent pas etre requalifiees en 500 (ex: methode non autorisee
+    # sur une route -> devait rester 405, pas un faux "erreur serveur").
+    if isinstance(error, HTTPException) and error.code != 500:
+        logger.warning(f"HTTP {error.code}: {session.get('ad_username', 'anonymous')} - {error.name}")
+        return render_template('error.html', error_code=error.code,
+                             error_message=error.name,
+                             error_details=error.description,
+                             connected=is_connected()), error.code
+
     logger.error(f"Unhandled Exception: {type(error).__name__}: {str(error)}", exc_info=True)
     if config.DEBUG:
         import traceback

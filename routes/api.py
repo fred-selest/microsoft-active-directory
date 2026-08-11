@@ -317,9 +317,9 @@ def api_password_audit_quick_fix():
 @require_connection
 def api_get_alerts():
     """API pour récupérer les alertes."""
-    from core.alerts import get_all_alerts
+    from core.alerts import get_alerts
     alert_type = request.args.get('type', 'all')
-    alerts = get_all_alerts(alert_type)
+    alerts = get_alerts(alert_type=None if alert_type == 'all' else alert_type)
     return jsonify({'alerts': alerts})
 
 
@@ -328,7 +328,7 @@ def api_get_alerts():
 def api_acknowledge_alert(alert_id):
     """API pour acquitter une alerte."""
     from core.alerts import acknowledge_alert
-    success = acknowledge_alert(alert_id)
+    success = acknowledge_alert(alert_id, session.get('ad_username', 'unknown'))
     if success:
         return jsonify({'success': True, 'message': 'Alerte acquittée'})
     return jsonify({'success': False, 'message': 'Alerte introuvable'}), 404
@@ -352,7 +352,15 @@ def api_check_alerts():
     from core.alerts import run_full_alert_check
     from core.audit import log_action, ACTIONS
 
-    results = run_full_alert_check()
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'error': error}), 500
+
+    try:
+        results = run_full_alert_check(conn, session.get('ad_base_dn', ''))
+    finally:
+        conn.unbind()
+
     log_action(ACTIONS['OTHER'], session.get('ad_username', 'system'),
               {'action': 'alert_check', 'results': results}, True)
 
@@ -472,6 +480,37 @@ def api_perform_update():
     return jsonify({'success': True, 'message': 'Mise à jour démarrée'})
 
 
+def _launch_service_watchdog(base_dir, log):
+    """
+    Filet de sécurité : lance un processus PowerShell détaché qui vérifie,
+    après un délai, que le service a bien redémarré — et le redémarre
+    explicitement sinon.
+
+    WinSW `restart!` (cf. _do_restart) peut échouer en interne sans lever
+    d'exception Python (Popen() réussit dès que winsw.exe a pu être lancé) ;
+    et comme il s'agit d'un arrêt volontaire, la règle <onfailure> du
+    service ne se déclenche pas pour le rattraper. Ce watchdog, détaché du
+    process courant, survit à l'arrêt du service et complète cette lacune.
+    """
+    import subprocess
+    import os
+
+    ps1 = os.path.join(base_dir, 'scripts', 'ensure_service_running.ps1')
+    if not os.path.exists(ps1):
+        return
+    try:
+        flags = (getattr(subprocess, 'DETACHED_PROCESS', 0)
+                 | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0))
+        subprocess.Popen(
+            ['powershell.exe', '-ExecutionPolicy', 'Bypass', '-File', ps1,
+             '-DelaySeconds', '45', '-ServiceName', 'ADWebInterface'],
+            creationflags=flags, close_fds=True, cwd=base_dir,
+        )
+        log.info("Watchdog de redémarrage lancé (ensure_service_running.ps1)")
+    except Exception as e:
+        log.warning(f"Impossible de lancer le watchdog de redémarrage: {e}")
+
+
 def _do_restart():
     """
     Redémarre le service applicatif après une mise à jour.
@@ -496,6 +535,9 @@ def _do_restart():
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     winsw_exe = os.path.join(base_dir, 'nssm', 'ADWebInterface.exe')
+
+    if sys.platform == 'win32':
+        _launch_service_watchdog(base_dir, log)
 
     if sys.platform == 'win32' and os.path.exists(winsw_exe):
         try:
@@ -545,20 +587,47 @@ def api_error_logs():
 @require_permission('admin:security_audit')
 def api_security_fix():
     """API pour appliquer des corrections de sécurité."""
-    from core.security_audit import apply_security_fix
+    from core.security_audit import (
+        fix_assign_manager, fix_delete_empty_groups,
+        fix_disable_unconstrained_delegation, fix_enable_password_expiry,
+        fix_disable_inactive_accounts,
+    )
     from core.audit import log_action, ACTIONS
 
     data = request.get_json() if request.is_json else request.form
     fix_type = data.get('fix_type', '')
-    params = data.get('params', {})
+    accounts = data.get('accounts', [])
+
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify({'success': False, 'error': error}), 500
+
+    base_dn = session.get('ad_base_dn', '')
 
     try:
-        result = apply_security_fix(fix_type, params)
+        if fix_type == 'assign_manager':
+            manager_dn = data.get('manager_dn', '')
+            if not manager_dn:
+                return jsonify({'success': False, 'error': 'DN du manager requis'}), 400
+            result = fix_assign_manager(conn, base_dn, accounts, manager_dn)
+        elif fix_type == 'delete_empty_groups':
+            result = fix_delete_empty_groups(conn, base_dn, accounts)
+        elif fix_type == 'disable_unconstrained_delegation':
+            result = fix_disable_unconstrained_delegation(conn, base_dn, accounts)
+        elif fix_type == 'enable_password_expiry':
+            result = fix_enable_password_expiry(conn, base_dn, accounts)
+        elif fix_type == 'disable_inactive_accounts':
+            result = fix_disable_inactive_accounts(conn, base_dn, accounts)
+        else:
+            return jsonify({'success': False, 'error': f'Type de correction inconnu: {fix_type}'}), 400
+
         log_action(ACTIONS['OTHER'], session.get('ad_username'),
                   {'action': 'security_fix', 'type': fix_type, 'result': result}, True)
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.unbind()
 
 
 # Correspondance protocole -> script de correction. FIXÉE CÔTÉ SERVEUR :
@@ -839,24 +908,25 @@ def api_execute_script(script_name):
 @require_permission('system:execute_script')
 def api_download_script(script_name):
     """API pour télécharger un script PowerShell."""
+    import io
     from core.scripts_manager import download_script, AVAILABLE_SCRIPTS
     from flask import send_file
-    
+
     if script_name not in AVAILABLE_SCRIPTS:
         return jsonify({
             'success': False,
             'error': f'Script inconnu: {script_name}'
         }), 404
-    
+
     script_content = download_script(script_name)
     if not script_content:
         return jsonify({
             'success': False,
             'error': 'Script introuvable'
         }), 404
-    
+
     return send_file(
-        script_content,
+        io.BytesIO(script_content),
         mimetype='text/plain',
         as_attachment=True,
         download_name=script_name

@@ -10,7 +10,22 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.50.0 — Août 2026
+**Dernière version :** v1.50.1 — Août 2026
+
+---
+
+## 🆕 Nouveautés v1.50.1 — Corrections critiques post-v1.50.0
+
+> ⚠️ **Si vous êtes en v1.50.0** : cette version corrige des pages et actions qui plantaient (OUs, activation/désactivation de compte, alertes, correctifs de sécurité, téléchargement de script, clés API) ainsi qu'un problème de fiabilité du redémarrage automatique après mise à jour. Mise à jour recommandée sans délai.
+
+- **OUs** : création, édition et suppression étaient cassées (redirection vers un endpoint inexistant).
+- **Comptes utilisateurs** : l'activation/désactivation plantait sur le chemin de succès.
+- **Alertes et correctifs de sécurité** (`/api/alerts`, `/api/security-fix`) : plusieurs actions plantaient (fonctions inexistantes ou arguments manquants).
+- **Téléchargement de script PowerShell, génération/révocation de clé API** : corrigés.
+- **Erreurs HTTP mal classées** : une mauvaise méthode HTTP retournait 500 au lieu de 405.
+- **Fiabilité du redémarrage post-mise à jour** : un filet de sécurité vérifie désormais que le service a réellement redémarré et le relance sinon.
+
+> ℹ️ Voir [`CHANGELOG.md`](CHANGELOG.md) pour le détail complet.
 
 ---
 

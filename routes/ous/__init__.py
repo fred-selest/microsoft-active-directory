@@ -153,7 +153,7 @@ def create_ou():
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('ous'))
+        return redirect(url_for('ous.list_ous'))
 
     base_dn = session.get('ad_base_dn', '')
 
@@ -191,7 +191,7 @@ def create_ou():
                 log_action('create_ou', session.get('ad_username'), {'dn': ou_dn}, True, request.remote_addr)
                 flash(f'OU {name} créée.', 'success')
                 conn.unbind()
-                return redirect(url_for('ous'))
+                return redirect(url_for('ous.list_ous'))
             else:
                 flash(f'Erreur: {conn.result["description"]}', 'error')
         except Exception as e:
@@ -213,7 +213,7 @@ def edit_ou(dn):
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('ous'))
+        return redirect(url_for('ous.list_ous'))
 
     base_dn = session.get('ad_base_dn', '')
     ou = None
@@ -224,7 +224,7 @@ def edit_ou(dn):
         if not conn.entries:
             flash('OU introuvable.', 'error')
             conn.unbind()
-            return redirect(url_for('ous'))
+            return redirect(url_for('ous.list_ous'))
         entry = conn.entries[0]
         ou = {
             'name': decode_ldap_value(entry.name),
@@ -234,7 +234,7 @@ def edit_ou(dn):
     except Exception as e:
         flash(f'Erreur: {str(e)}', 'error')
         conn.unbind()
-        return redirect(url_for('ous'))
+        return redirect(url_for('ous.list_ous'))
 
     if request.method == 'POST':
         if not validate_csrf_token(request.form.get('csrf_token')):
@@ -249,7 +249,7 @@ def edit_ou(dn):
                 log_action('edit_ou', session.get('ad_username'), {'dn': dn}, True, request.remote_addr)
                 flash('OU modifiée.', 'success')
                 conn.unbind()
-                return redirect(url_for('ous'))
+                return redirect(url_for('ous.list_ous'))
             else:
                 flash(f'Erreur: {conn.result["description"]}', 'error')
         except Exception as e:
@@ -270,12 +270,12 @@ def delete_ou(dn):
     """Supprimer une OU."""
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
-        return redirect(url_for('ous'))
+        return redirect(url_for('ous.list_ous'))
 
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
-        return redirect(url_for('ous'))
+        return redirect(url_for('ous.list_ous'))
 
     try:
         conn.delete(dn)
@@ -289,4 +289,4 @@ def delete_ou(dn):
     finally:
         conn.unbind()
 
-    return redirect(url_for('ous'))
+    return redirect(url_for('ous.list_ous'))

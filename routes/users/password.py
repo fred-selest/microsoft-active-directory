@@ -173,7 +173,6 @@ def toggle_user_status(dn):
             if pwd_last_set == 0 or pwd_last_set is None:
                 # Compte sans mot de passe valide - proposer de le réinitialiser
                 logger.warning(f"toggle_user_status: Compte {username} sans mot de passe valide")
-                from flask import url_for
                 flash(
                     f'<strong>Compte sans mot de passe valide</strong><br>'
                     f'Le compte {username} ne peut pas être activé sans mot de passe conforme.<br><br>'
@@ -210,7 +209,6 @@ def toggle_user_status(dn):
             
             # Ajouter une suggestion spécifique pour l'activation
             if action == 'enable' and (error_code == 53 or 'unwilling' in str(error_desc).lower()):
-                from flask import url_for
                 user_message += (
                     f'<br><br><strong>Solution rapide :</strong><br>'
                     f'<a href="{url_for("users.reset_password", dn=actual_dn)}" class="btn btn-sm btn-primary">Réinitialiser le mot de passe</a>'

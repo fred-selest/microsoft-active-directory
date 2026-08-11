@@ -21,6 +21,7 @@ data/crypto_salt.bin
 data/backups/
 data/sessions/
 data/user_templates.json
+data/alerts.json
 logs/
 
 # core/settings_manager.py resout son fichier via os.path.dirname(__file__),

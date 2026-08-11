@@ -4,6 +4,42 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.50.1] - 2026-08-11 — Corrections critiques post-v1.50.0
+
+Trouvés par un crawl exhaustif de toutes les pages et actions (GET + POST)
+contre un annuaire AD factice, en réaction à un incident production après
+la mise à jour vers la v1.50.0.
+
+### Corrections
+- **OUs cassées** : 9 occurrences de `url_for('ous')` (endpoint inexistant)
+  faisaient planter en 500 toute redirection d'erreur ou de succès du
+  blueprint OUs — création, édition, suppression étaient inutilisables.
+- **Activation/désactivation de compte cassée** : un import local de
+  `url_for` dans `toggle_user_status()` rendait la fonction locale à toute
+  la portée, provoquant un crash sur le chemin nominal (succès).
+- **`/api/alerts`** : appelait une fonction inexistante (`get_all_alerts`) ;
+  acquitter une alerte ou lancer une vérification plantait aussi (arguments
+  manquants).
+- **`/api/security-fix`** : importait une fonction inexistante au lieu de
+  distribuer vers les 5 correctifs de sécurité réellement disponibles.
+- **Téléchargement de script PowerShell** : plantait systématiquement
+  (bytes bruts passés à `send_file` au lieu d'un flux).
+- **Génération/révocation de clé API** : plantait au lieu de rediriger ; la
+  nouvelle clé n'était de toute façon jamais affichée — corrigé.
+- **`/_debug/all-pages` et `/_debug/test/<page>`** : plantaient (port HTTP
+  absent du Host, endpoints non qualifiés par blueprint).
+- **Erreurs HTTP mal classées** : toute exception HTTP sans gestionnaire
+  dédié (403, 405...) était requalifiée en 500 générique — une mauvaise
+  méthode HTTP retournait 500 au lieu de 405, par exemple.
+
+### Fiabilité du redémarrage post-mise à jour
+- Ajout d'un filet de sécurité (`scripts/ensure_service_running.ps1`) :
+  après une mise à jour, un processus détaché vérifie après 45s que le
+  service Windows a réellement redémarré et le relance explicitement
+  sinon. Le mécanisme existant (WinSW `restart!`) peut échouer en interne
+  sans lever d'exception Python, et comme il s'agit d'un arrêt volontaire,
+  la règle `<onfailure>` du service ne se déclenche pas pour le rattraper.
+
 ## [1.50.0] - 2026-08-11 — CI réelle, durcissement sécurité, favoris & modèles
 
 ### Sécurité
