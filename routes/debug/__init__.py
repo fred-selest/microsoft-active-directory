@@ -250,7 +250,7 @@ def debug_test_page(page_name):
 
     # Mapping des pages
     pages = {
-        'dashboard': 'dashboard',
+        'dashboard': 'main.dashboard',
         'users': 'users.list_users',
         'groups': 'groups.list_groups',
         'computers': 'computers.list_computers',
@@ -259,7 +259,7 @@ def debug_test_page(page_name):
         'bitlocker': 'tools.bitlocker_keys',
         'recycle-bin': 'tools.recycle_bin',
         'locked-accounts': 'tools.locked_accounts',
-        'audit': 'audit_logs',
+        'audit': 'main.audit_logs',
         'admin': 'admin.admin_page',
         'password-policy': 'tools.password_policy',
     }
@@ -302,7 +302,10 @@ def debug_all_pages():
     from flask import url_for
     import requests
     
-    base_url = f"http://localhost:{request.host.split(':')[1]}"
+    # request.host n'a pas toujours de port explicite (ex: "localhost" seul) :
+    # un split(':')[1] plantait alors en IndexError. host_url le calcule deja
+    # correctement (schema + host + port eventuel).
+    base_url = request.host_url.rstrip('/')
     
     pages = [
         ('/', 'Accueil'),

@@ -233,13 +233,11 @@ def generate_api_key_route():
         'last_used': None
         # raw_key N'est JAMAIS stocké - retourné une seule fois à l'utilisateur
     }
-    
-    # Afficher la clé une seule fois
-    return render_template('api_docs.html',
-                         api_docs={'version': '1.0', 'base_url': request.host_url},
-                         api_keys=session.get('api_keys', {}),
-                         new_key=raw_key,
-                         connected=True)
+
+    # Afficher la clé une seule fois, via le flash (le template api_docs.html
+    # ne rendait pas new_key de toute facon).
+    flash(f'Nouvelle clé API générée : {raw_key} (elle ne sera plus jamais affichée, copiez-la maintenant).', 'success')
+    return redirect(url_for('tools.api_documentation'))
 
 
 @tools_bp.route('/api-docs/revoke-key', methods=['POST'])
@@ -248,11 +246,11 @@ def generate_api_key_route():
 def revoke_api_key_route():
     """Révoquer une clé API."""
     key = request.form.get('key')
-    
+
     if 'api_keys' in session and key in session['api_keys']:
         del session['api_keys'][key]
-    
-    return render_template('api_docs.html',
-                         api_docs={'version': '1.0', 'base_url': request.host_url},
-                         api_keys=session.get('api_keys', {}),
-                         connected=True)
+        flash('Clé API révoquée.', 'success')
+    else:
+        flash('Clé API introuvable.', 'error')
+
+    return redirect(url_for('tools.api_documentation'))
