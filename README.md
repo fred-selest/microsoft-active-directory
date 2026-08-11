@@ -5,12 +5,33 @@
 [![Version](https://img.shields.io/github/v/release/fred-selest/microsoft-active-directory?label=Version&color=0078d4)](https://github.com/fred-selest/microsoft-active-directory/releases)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey.svg)](https://flask.palletsprojects.com/)
+[![Flask](https://img.shields.io/badge/Flask-3.1-lightgrey.svg)](https://flask.palletsprojects.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20Server-0078d4.svg)](https://www.microsoft.com/windows-server)
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.49.0 — Juillet 2026
+**Dernière version :** v1.50.0 — Août 2026
+
+---
+
+## 🆕 Nouveautés v1.50.0 — CI réelle, durcissement sécurité, favoris & modèles
+
+### 🔒 Sécurité
+- **Dépendances mises à jour** (cryptography, flask, Werkzeug, requests, waitress) : les versions figées depuis fin 2025 accusaient plusieurs CVE corrigées depuis.
+- **Échappement des composants DN corrigé** : les caractères spéciaux sont désormais échappés (RFC 4514) au lieu d'être supprimés — un nom comme « O'Brien, John » ne perd plus silencieusement sa virgule lors de la création d'un compte.
+- **Rate limiting derrière un reverse proxy** : nouvelle option `TRUSTED_PROXY_HOPS` pour que le rate limiting et les journaux utilisent la vraie IP cliente plutôt que celle du proxy. Désactivé par défaut.
+- **Bandeau d'avertissement** sur la page de connexion quand la validation du certificat LDAPS (`AD_TLS_VERIFY`) est désactivée.
+- **Fichiers sensibles retirés du suivi git** : `core/data/settings.json` et `core/data/crypto_salt.bin` étaient suivis sans être couverts par les garde-fous existants.
+
+### ✨ Fonctionnalités
+- **Favoris** : ajouter/retirer un utilisateur, groupe, ordinateur ou OU aux favoris fonctionne désormais réellement.
+- **Modèles utilisateur** : création, édition et suppression de modèles d'attributs par défaut sont maintenant persistées.
+
+### 🧹 Fiabilité / CI
+- La CI exécute désormais réellement la suite de tests automatisés (elle installait `pytest` sans jamais l'invoquer).
+- 22 `except:` nus remplacés par `except Exception:`, et plusieurs bugs latents corrigés (imports/variables manquants masqués par une gestion d'erreurs trop large).
+
+> ℹ️ Voir [`CHANGELOG.md`](CHANGELOG.md) pour le détail complet.
 
 ---
 
