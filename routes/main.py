@@ -11,7 +11,7 @@ from datetime import datetime
 from .core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, get_user_role_from_groups)
 from core.security import validate_csrf_token, check_rate_limit, record_attempt
-from core.session_crypto import encrypt_password
+from core.session_crypto import encrypt_password, decrypt_password
 from core.audit import log_action, ACTIONS
 from core.ad_detect import get_local_domain, detect_ad_config
 

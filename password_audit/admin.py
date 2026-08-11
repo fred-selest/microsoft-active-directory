@@ -13,7 +13,7 @@ def _clean_str(s):
     # Décoder les séquences d'échappement Unicode (ex: \xe9 → é)
     try:
         return s.encode('latin-1').decode('unicode_escape').encode('latin-1').decode('utf-8', errors='replace')
-    except:
+    except Exception:
         return s
 
 

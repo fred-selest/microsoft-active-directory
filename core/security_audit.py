@@ -463,7 +463,7 @@ def check_inactive_accounts(conn, base_dn):
                             'name': str(entry.sAMAccountName),
                             'days': days_inactive
                         })
-            except:
+            except Exception:
                 continue
         
         if inactive:

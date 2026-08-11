@@ -77,7 +77,7 @@ def detect_ldap_servers(domain: str) -> list:
                     ip = answer[4][0]
                     if ip not in servers:
                         servers.append(ip)
-            except:
+            except Exception:
                 continue
                 
     except Exception as e:
@@ -88,7 +88,7 @@ def detect_ldap_servers(domain: str) -> list:
         try:
             ip = socket.gethostbyname(domain)
             servers.append(ip)
-        except:
+        except Exception:
             pass
     
     return servers
@@ -187,7 +187,7 @@ def test_ldap_connection(server: str, port: int = 389, timeout: int = 2) -> bool
         result = sock.connect_ex((server, port))
         sock.close()
         return result == 0
-    except:
+    except Exception:
         return False
 
 

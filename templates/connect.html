@@ -6,6 +6,19 @@
 <div class="form-container">
     <h2>Connexion à Active Directory</h2>
 
+    {% if not config.AD_TLS_VERIFY %}
+    <div class="alert alert-warning" style="border-left: 4px solid #dc3545;">
+        <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">⚠️ Certificat du contrôleur de domaine non vérifié</h4>
+        <p style="margin:0; font-size:0.9rem;">
+            La connexion est chiffrée (LDAPS/STARTTLS) mais le certificat du serveur n'est pas validé :
+            un attaquant en position d'interception réseau pourrait présenter un certificat auto-signé
+            et intercepter vos identifiants. Définissez <code>AD_TLS_VERIFY=true</code>
+            (et éventuellement <code>AD_CA_BUNDLE</code>) dans <code>.env</code> si votre contrôleur de
+            domaine dispose d'un certificat de confiance.
+        </p>
+    </div>
+    {% endif %}
+
     {% if show_fix_ldaps %}
     <div class="alert alert-warning" style="border-left: 4px solid #dc3545;">
         <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">⚠️ Connexion bloquée par les restrictions de sécurité</h4>

@@ -103,7 +103,7 @@ def export_audit_to_csv(audit_result, filename='password_audit.csv'):
             else:
                 try:
                     pwd_date = datetime.strptime(str(pwd_last_set)[:19], '%Y-%m-%d %H:%M:%S')
-                except:
+                except Exception:
                     pwd_date = now
         else:
             pwd_date = datetime(2000, 1, 1)

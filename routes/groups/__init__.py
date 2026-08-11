@@ -182,6 +182,8 @@ def view_group(dn):
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('groups.list_groups'))
 
+    base_dn = session.get('ad_base_dn', '')
+
     try:
         # Recherche BASE sur le DN direct
         conn.search(dn, '(objectClass=*)', 'BASE',
@@ -379,7 +381,7 @@ def create_group():
                    attributes=['name', 'distinguishedName'])
         ou_list = [{'name': decode_ldap_value(e.name), 'dn': decode_ldap_value(e.entry_dn)}
                    for e in conn.entries]
-    except:
+    except Exception:
         ou_list = []
 
     if request.method == 'POST':

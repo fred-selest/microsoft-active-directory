@@ -49,6 +49,22 @@ from routes.admin_tools import admin_tools_bp
 app = Flask(__name__)
 config = get_config()
 
+# Derriere un reverse proxy de confiance (TRUSTED_PROXY_HOPS > 0), corriger
+# request.remote_addr / request.is_secure a partir de X-Forwarded-For et
+# X-Forwarded-Proto plutot que l'IP du proxy (cf. M6, AUDIT_2026-07-20.md :
+# sans ca, le rate limiting et les logs d'audit voient tous les clients
+# comme une seule IP partagee — celle du proxy).
+if config.TRUSTED_PROXY_HOPS > 0:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_for=config.TRUSTED_PROXY_HOPS,
+        x_proto=config.TRUSTED_PROXY_HOPS,
+        x_host=0,
+        x_port=0,
+        x_prefix=0,
+    )
+
 # Configuration Flask
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['DEBUG'] = config.DEBUG

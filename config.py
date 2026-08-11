@@ -57,6 +57,11 @@ class Config:
     AD_PORT = int(os.environ.get('AD_PORT', 389))
     AD_USE_SSL = os.environ.get('AD_USE_SSL', 'False').lower() == 'true'
     AD_BASE_DN = os.environ.get('AD_BASE_DN', '')
+    # Validation du certificat LDAPS/STARTTLS — miroir de routes/core.py:41.
+    # Expose au template de connexion pour avertir quand elle est desactivee
+    # (cf. C3, AUDIT_2026-07-20.md : defaut permissif conserve pour la
+    # compatibilite avec les DC a certificat auto-signe).
+    AD_TLS_VERIFY = os.environ.get('AD_TLS_VERIFY', 'false').lower() == 'true'
 
     # Configuration de session
     SESSION_TIMEOUT = int(os.environ.get('SESSION_TIMEOUT', 30))  # minutes
@@ -78,8 +83,18 @@ class Config:
     # Configuration HTTPS
     # Force la redirection HTTP -> HTTPS (recommandé en production)
     FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'false').lower() == 'true'
-    # Liste des proxys de confiance (pour X-Forwarded-Proto)
-    TRUSTED_PROXIES = os.environ.get('TRUSTED_PROXIES', '127.0.0.1,::1').split(',')
+    # Liste des proxys de confiance (pour X-Forwarded-Proto).
+    # Vide par defaut (pas de proxy de confiance) : la presence d'un reverse
+    # proxy doit etre declaree explicitement, pas supposee (cf. M6,
+    # AUDIT_2026-07-20.md — sans ca, ProxyFix ferait confiance par defaut a
+    # un en-tete X-Forwarded-For que n'importe quel client peut usurper).
+    TRUSTED_PROXIES = [p for p in os.environ.get('TRUSTED_PROXIES', '').split(',') if p.strip()]
+    # Nombre de sauts de proxy de confiance en amont (X-Forwarded-For /
+    # X-Forwarded-Proto). 0 = aucun proxy de confiance (defaut, comportement
+    # inchange). A positionner au nombre de reverse proxies reellement en
+    # amont (Authelia, IIS, nginx...) pour que le rate limiting et les logs
+    # utilisent la vraie IP cliente plutot que celle du proxy.
+    TRUSTED_PROXY_HOPS = len(TRUSTED_PROXIES) if TRUSTED_PROXIES else int(os.environ.get('TRUSTED_PROXY_HOPS', 0))
 
     # Pagination
     ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE', 25))

@@ -32,12 +32,12 @@ def _clean_name(name):
         # Décoder les séquences Unicode dans le CN
         try:
             return cn.encode('latin-1').decode('unicode_escape').encode('latin-1').decode('utf-8', errors='replace')
-        except:
+        except Exception:
             return cn
     # Décoder les caractères Unicode échappés
     try:
         return name.encode('latin-1').decode('unicode_escape').encode('latin-1').decode('utf-8', errors='replace')
-    except:
+    except Exception:
         return name
 
 

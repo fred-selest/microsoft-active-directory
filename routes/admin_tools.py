@@ -141,6 +141,9 @@ def _is_service_running():
     Methode 1: sc query
     Methode 2 (fallback): verifier si le process python venv tourne.
     """
+    import os
+    import subprocess
+
     # Methode 1: sc query
     try:
         result = subprocess.run(
@@ -179,6 +182,7 @@ def _fetch_github_releases(limit=5):
     """
     import urllib.request
     import json as json_mod
+    from datetime import datetime
 
     # Verifier le cache
     now = time.time()
@@ -348,7 +352,7 @@ def alerts_page():
                     uac = int(str(uac_attr.value))
                     if uac & 65536:  # DONT_EXPIRE_PASSWORD
                         continue
-                except:
+                except Exception:
                     pass
             
             if pwd_last_set_attr and pwd_last_set_attr.value:
@@ -360,7 +364,7 @@ def alerts_page():
                         days_since_change = (now - pwd_date).days
                         if days_since_change > 28 and days_since_change < 42:  # Expires in 14 days
                             alert_data['password_expiring'] += 1
-                except:
+                except Exception:
                     pass
 
         if alert_data['password_expiring'] > 0:

@@ -208,6 +208,6 @@ def edit_user(dn):
     try:
         ou_list = get_ous(conn, base_dn)
         conn.unbind()
-    except:
+    except Exception:
         conn.unbind()
     return render_template('edit_user.html', user=user, ous=ou_list, connected=is_connected())
