@@ -83,18 +83,28 @@ class Config:
     # Configuration HTTPS
     # Force la redirection HTTP -> HTTPS (recommandé en production)
     FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'false').lower() == 'true'
-    # Liste des proxys de confiance (pour X-Forwarded-Proto).
-    # Vide par defaut (pas de proxy de confiance) : la presence d'un reverse
-    # proxy doit etre declaree explicitement, pas supposee (cf. M6,
-    # AUDIT_2026-07-20.md — sans ca, ProxyFix ferait confiance par defaut a
-    # un en-tete X-Forwarded-For que n'importe quel client peut usurper).
+    # Liste indicative des adresses de proxys de confiance. Purement
+    # documentaire : elle ne pilote PAS ProxyFix (voir TRUSTED_PROXY_HOPS).
     TRUSTED_PROXIES = [p for p in os.environ.get('TRUSTED_PROXIES', '').split(',') if p.strip()]
-    # Nombre de sauts de proxy de confiance en amont (X-Forwarded-For /
-    # X-Forwarded-Proto). 0 = aucun proxy de confiance (defaut, comportement
-    # inchange). A positionner au nombre de reverse proxies reellement en
-    # amont (Authelia, IIS, nginx...) pour que le rate limiting et les logs
-    # utilisent la vraie IP cliente plutot que celle du proxy.
-    TRUSTED_PROXY_HOPS = len(TRUSTED_PROXIES) if TRUSTED_PROXIES else int(os.environ.get('TRUSTED_PROXY_HOPS', 0))
+
+    # Nombre de reverse proxies de confiance en amont (X-Forwarded-For /
+    # X-Forwarded-Proto). 0 = aucun (defaut sur, comportement inchange).
+    #
+    # Volontairement INDEPENDANT de TRUSTED_PROXIES : une liste d'adresses
+    # n'est pas un nombre de sauts. Un meme proxy peut y figurer sous
+    # plusieurs adresses (IPv4, IPv6, plage CIDR) ; en deduire le nombre de
+    # sauts ferait confiance a plus d'en-tetes X-Forwarded-For qu'il n'en
+    # existe reellement, ce qui permet a un client d'usurper son IP en les
+    # injectant lui-meme — l'inverse du but recherche (cf. M6,
+    # AUDIT_2026-07-20.md : fiabiliser le rate limiting par IP).
+    #
+    # Valeur invalide -> 0 (defaut sur) plutot qu'une ValueError qui
+    # empecherait l'application de demarrer.
+    try:
+        TRUSTED_PROXY_HOPS = max(0, int(os.environ.get('TRUSTED_PROXY_HOPS', '0')))
+    except ValueError:
+        print("[ATTENTION] TRUSTED_PROXY_HOPS invalide — ignoré (aucun proxy de confiance).")
+        TRUSTED_PROXY_HOPS = 0
 
     # Pagination
     ITEMS_PER_PAGE = int(os.environ.get('ITEMS_PER_PAGE', 25))

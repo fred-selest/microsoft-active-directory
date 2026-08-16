@@ -87,6 +87,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Le motif utilise une inspection negative (?!...) : syntaxe PCRE, donc
+      # `grep -P` SEUL. Combiner -E et -P fait repondre a grep
+      # « conflicting matchers specified » (code 2) ; avec le `|| true` qui
+      # suit, le job passait alors TOUJOURS au vert sans rien verifier.
+      # L'auto-test ci-dessous existe pour que cette panne silencieuse ne
+      # puisse pas se reproduire.
+      - name: Auto-test du garde-fou (doit detecter un chemin interdit)
+        run: |
+          PATTERN='^(data/audit_history/|data/permissions\.json$|data/settings\.json$|data/crypto_salt\.bin$|data/backups/|data/user_templates\.json$|core/data/|logs/(?!\.gitkeep))'
+          # Doit matcher un chemin interdit...
+          if ! printf 'core/data/settings.json\n' | grep -qP "$PATTERN"; then
+            echo "ECHEC : le garde-fou ne detecte plus les chemins interdits."
+            echo "Le motif ou l'invocation de grep est casse — corrigez-le avant de merger."
+            exit 1
+          fi
+          # ...et ne PAS matcher un chemin legitime.
+          if printf 'README.md\nlogs/.gitkeep\n' | grep -qP "$PATTERN"; then
+            echo "ECHEC : le garde-fou produit des faux positifs."
+            exit 1
+          fi
+          echo "Auto-test du garde-fou : OK"
+
       - name: Verifier qu'aucun fichier sensible n'est suivi par git
         run: |
           echo "Fichiers suivis correspondant aux motifs interdits :"
@@ -94,9 +116,9 @@ jobs:
           # certains chemins via os.path.dirname(__file__) : core/data/
           # a deja fuite (settings.json, crypto_salt.bin) sans que ce garde
           # ne le couvre, faute de motif dedie. Voir aussi .gitignore.
-          FOUND=$(git ls-files | grep -E \
+          FOUND=$(git ls-files | grep -P \
             '^(data/audit_history/|data/permissions\.json$|data/settings\.json$|data/crypto_salt\.bin$|data/backups/|data/user_templates\.json$|core/data/|logs/(?!\.gitkeep))' \
-            -P || true)
+            || true)
           if [ -n "$FOUND" ]; then
             echo "$FOUND"
             echo ""

@@ -10,7 +10,7 @@ import logging
 from . import users_bp
 from ..core import (get_ad_connection, is_connected, require_connection,
                    require_permission)
-from core.security import escape_ldap_filter, validate_csrf_token
+from core.security import escape_ldap_filter, sanitize_dn_component, validate_csrf_token
 from core.audit import log_action, ACTIONS
 from .validators import UserCreateRequest
 
@@ -85,9 +85,14 @@ def create_user():
                                    ous=ou_list, default_ou=default_ou,
                                    can_set_password=can_set_password, connected=is_connected())
 
-        # Construire le DN
+        # Construire le DN.
+        # Le CN doit être échappé (RFC 4514) AVANT d'être interpolé dans le
+        # DN : un nom légitime contenant une virgule ou « + » (« O'Brien,
+        # John ») produirait sinon un DN malformé — compte créé au mauvais
+        # endroit ou création en échec. Les attributs cn/displayName
+        # ci-dessous gardent la valeur littérale, non échappée.
         cn = f"{user_req.first_name} {user_req.last_name}".strip() or user_req.username
-        user_dn = f"CN={cn},{user_req.ou}"
+        user_dn = f"CN={sanitize_dn_component(cn)},{user_req.ou}"
 
         # Préparer les attributs
         domain = base_dn.replace('DC=', '').replace(',', '.') if base_dn else 'local'

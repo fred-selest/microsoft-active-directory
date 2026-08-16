@@ -14,7 +14,14 @@ from ldap3.utils.dn import escape_rdn
 
 # === PROTECTION CONTRE INJECTION LDAP ===
 
-# Caracteres speciaux LDAP a echapper
+# Caracteres speciaux LDAP a echapper (RFC 4515).
+#
+# NB : « / » n'est PAS requis par la RFC 4515 (constat M2 de
+# AUDIT_2026-07-20.md). Il est conserve volontairement — l'echapper reste
+# strictement equivalent cote serveur (\2f se decode en « / ») et le retirer
+# modifierait la forme des filtres deja verrouillee par les tests, sans
+# aucun gain de securite. Ce qui reste ouvert de M2, c'est le traitement des
+# octets non-ASCII, non couvert ici.
 LDAP_ESCAPE_CHARS = {
     '\\': r'\5c',
     '*': r'\2a',

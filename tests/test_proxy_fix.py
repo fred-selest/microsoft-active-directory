@@ -30,15 +30,37 @@ class TestTrustedProxyHopsDefault:
         assert config.Config.TRUSTED_PROXY_HOPS == 0
         assert config.Config.TRUSTED_PROXIES == []
 
-    def test_trusted_proxies_list_sets_hop_count(self, monkeypatch):
-        """TRUSTED_PROXIES definit le nombre de sauts via sa longueur."""
-        config = _reload_config(monkeypatch, TRUSTED_PROXIES='127.0.0.1,10.0.0.5')
-        assert config.Config.TRUSTED_PROXY_HOPS == 2
+    def test_trusted_proxies_list_does_not_set_hop_count(self, monkeypatch):
+        """
+        TRUSTED_PROXIES est purement documentaire et ne doit PAS piloter le
+        nombre de sauts : un meme proxy peut y figurer sous plusieurs
+        adresses (IPv4/IPv6/CIDR), et en deduire les sauts ferait confiance a
+        des X-Forwarded-For inexistants — usurpation d'IP possible.
+        """
+        config = _reload_config(monkeypatch, TRUSTED_PROXIES='127.0.0.1,::1,10.0.0.0/8')
+        assert config.Config.TRUSTED_PROXIES == ['127.0.0.1', '::1', '10.0.0.0/8']
+        assert config.Config.TRUSTED_PROXY_HOPS == 0
 
-    def test_explicit_hops_without_trusted_proxies(self, monkeypatch):
-        """TRUSTED_PROXY_HOPS seul (sans TRUSTED_PROXIES) est honore."""
+    def test_explicit_hops_is_the_only_switch(self, monkeypatch):
+        """TRUSTED_PROXY_HOPS seul active ProxyFix."""
         config = _reload_config(monkeypatch, TRUSTED_PROXY_HOPS='1')
         assert config.Config.TRUSTED_PROXY_HOPS == 1
+
+    def test_hops_wins_over_proxies_list_length(self, monkeypatch):
+        """Les deux variables renseignees : seul TRUSTED_PROXY_HOPS compte."""
+        config = _reload_config(monkeypatch,
+                                TRUSTED_PROXIES='127.0.0.1,::1,10.0.0.0/8',
+                                TRUSTED_PROXY_HOPS='1')
+        assert config.Config.TRUSTED_PROXY_HOPS == 1
+
+    def test_invalid_hops_falls_back_to_zero(self, monkeypatch):
+        """Une valeur non numerique ne doit pas empecher l'app de demarrer."""
+        config = _reload_config(monkeypatch, TRUSTED_PROXY_HOPS='oui')
+        assert config.Config.TRUSTED_PROXY_HOPS == 0
+
+    def test_negative_hops_clamped_to_zero(self, monkeypatch):
+        config = _reload_config(monkeypatch, TRUSTED_PROXY_HOPS='-3')
+        assert config.Config.TRUSTED_PROXY_HOPS == 0
 
 
 _CHECK_SCRIPT = textwrap.dedent("""
@@ -80,6 +102,10 @@ class TestProxyFixWiring:
         """app.wsgi_app est enveloppe par ProxyFix quand des sauts sont configures."""
         assert _wsgi_app_is_proxyfix({'TRUSTED_PROXY_HOPS': '1'}) is True
 
-    def test_enabled_when_trusted_proxies_configured(self):
-        """TRUSTED_PROXIES (liste) active aussi ProxyFix, via son nombre d'entrees."""
-        assert _wsgi_app_is_proxyfix({'TRUSTED_PROXIES': '127.0.0.1,10.0.0.5'}) is True
+    def test_trusted_proxies_alone_does_not_enable(self):
+        """
+        TRUSTED_PROXIES seul ne doit PAS activer ProxyFix : sans nombre de
+        sauts declare explicitement, on ne fait confiance a aucun
+        X-Forwarded-For (cf. TestTrustedProxyHopsDefault).
+        """
+        assert _wsgi_app_is_proxyfix({'TRUSTED_PROXIES': '127.0.0.1,10.0.0.5'}) is False

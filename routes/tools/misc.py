@@ -138,13 +138,17 @@ def toggle_favorite():
     return redirect(request.referrer or url_for('tools.favorites'))
 
 
-@tools_bp.route('/api-docs')
-@require_connection
-@require_permission('admin:api_keys')
-def api_documentation():
-    """Documentation de l'API."""
+def _build_api_docs_context():
+    """
+    Contexte complet attendu par api_docs.html.
+
+    Extrait en helper parce que la page doit aussi être rendue directement
+    par generate_api_key_route (pour afficher la clé brute une seule fois
+    sans la faire transiter par la session) : un contexte partiel y faisait
+    planter Jinja2 sur api_docs.authentication.
+    """
     from core.updater import get_current_version
-    
+
     # Liste complète des endpoints API
     api_endpoints = {
         # Health & System
@@ -190,7 +194,7 @@ def api_documentation():
     # Catalogue des permissions granulaires (le template affiche ce tableau)
     from core.granular_permissions import get_available_permissions
 
-    api_data = {
+    return {
         'version': get_current_version(),
         'base_url': request.host_url.rstrip('/') + '/api',
         'authentication': {
@@ -200,13 +204,16 @@ def api_documentation():
         'endpoints': api_endpoints,
         'permissions': get_available_permissions()
     }
-    
-    # Récupérer les clés API de la session
-    user_api_keys = session.get('api_keys', {})
-    
-    return render_template('api_docs.html', 
-                         api_docs=api_data, 
-                         api_keys=user_api_keys,
+
+
+@tools_bp.route('/api-docs')
+@require_connection
+@require_permission('admin:api_keys')
+def api_documentation():
+    """Documentation de l'API."""
+    return render_template('api_docs.html',
+                         api_docs=_build_api_docs_context(),
+                         api_keys=session.get('api_keys', {}),
                          connected=True)
 
 
@@ -234,10 +241,15 @@ def generate_api_key_route():
         # raw_key N'est JAMAIS stocké - retourné une seule fois à l'utilisateur
     }
 
-    # Afficher la clé une seule fois, via le flash (le template api_docs.html
-    # ne rendait pas new_key de toute facon).
-    flash(f'Nouvelle clé API générée : {raw_key} (elle ne sera plus jamais affichée, copiez-la maintenant).', 'success')
-    return redirect(url_for('tools.api_documentation'))
+    # La clé brute est rendue directement dans CETTE réponse, jamais via
+    # flash() : les sessions sont côté serveur (v1.49.0), donc un flash
+    # écrirait la clé en clair dans data/sessions/ — exactement ce que
+    # « raw_key N'est JAMAIS stocké » ci-dessus interdit.
+    return render_template('api_docs.html',
+                         api_docs=_build_api_docs_context(),
+                         api_keys=session.get('api_keys', {}),
+                         new_key=raw_key,
+                         connected=True)
 
 
 @tools_bp.route('/api-docs/revoke-key', methods=['POST'])

@@ -4,9 +4,13 @@ lors de la creation d'un compte AD).
 """
 
 import json
+import logging
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger('user_templates')
 
 TEMPLATES_FILE = Path(__file__).resolve().parent.parent / 'data' / 'user_templates.json'
 
@@ -22,15 +26,30 @@ def load_templates():
     try:
         with open(TEMPLATES_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as e:
+        # Ne pas retourner {} en silence : sans trace, une sauvegarde
+        # ulterieure ecraserait un fichier simplement illisible et ferait
+        # disparaitre tous les modeles sans que personne ne le sache.
+        logger.error(f"Modeles utilisateur illisibles ({TEMPLATES_FILE}): {e}")
         return {}
 
 
 def save_templates(templates):
-    """Sauvegarder l'ensemble des modeles dans le fichier JSON."""
+    """
+    Sauvegarder l'ensemble des modeles dans le fichier JSON.
+
+    Ecriture atomique (fichier temporaire + os.replace, meme approche que
+    core/updater.py) : une coupure en pleine ecriture laisserait sinon un
+    JSON tronque, que load_templates() interpreterait comme « aucun modele »
+    — perte silencieuse de la totalite des modeles.
+    """
     _ensure_data_dir()
-    with open(TEMPLATES_FILE, 'w', encoding='utf-8') as f:
+    tmp = TEMPLATES_FILE.with_suffix('.json.tmp')
+    with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(templates, f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, TEMPLATES_FILE)
 
 
 def create_template(name, description, attributes):
