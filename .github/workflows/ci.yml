@@ -136,6 +136,25 @@ jobs:
           fi
           echo "OK"
 
+      # Un gitlink (mode 160000) sans entree correspondante dans .gitmodules
+      # fait echouer `git submodule foreach` a chaque checkout
+      # (« No url found for submodule path », exit 128). C'est ce qui est
+      # arrive avec .claude/worktrees/ : un repertoire de worktree commite
+      # par inadvertance, qui polluait tous les runs CI.
+      - name: Aucun gitlink orphelin (worktree/sous-module commite par erreur)
+        run: |
+          ORPHANS=$(git ls-files -s | awk '$1=="160000" {print $4}')
+          if [ -n "$ORPHANS" ]; then
+            for path in $ORPHANS; do
+              if ! git config -f .gitmodules --get-regexp "submodule\..*\.path" 2>/dev/null | grep -qx ".* $path"; then
+                echo "ECHEC : gitlink orphelin (aucune entree .gitmodules) : $path"
+                echo "Retirez-le du suivi git :  git rm --cached $path"
+                exit 1
+              fi
+            done
+          fi
+          echo "Aucun gitlink orphelin — OK"
+
   # ===========================================================================
   # Security Scan
   # ===========================================================================
