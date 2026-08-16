@@ -7,6 +7,20 @@
     <h2>Documentation API</h2>
 </div>
 
+{# Cle brute affichee UNE SEULE FOIS, dans le corps de cette reponse.
+   Elle n'est ni journalisee, ni stockee en session (seul son hash l'est) :
+   un rechargement de page la fait disparaitre definitivement. #}
+{% if new_key %}
+<div class="alert alert-success" style="border-left: 4px solid #107c10;">
+    <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">Nouvelle cle API generee</h4>
+    <p style="margin:0 0 0.75rem 0; font-size:0.9rem;">
+        Copiez-la maintenant : elle ne sera <strong>plus jamais affichee</strong>.
+    </p>
+    <code style="display:block; padding:0.75rem; background:var(--bg-tertiary, #f3f3f3);
+                 border-radius:4px; word-break:break-all; user-select:all;">{{ new_key }}</code>
+</div>
+{% endif %}
+
 <div class="api-overview">
     <h3>Vue d'ensemble</h3>
     <p>Cette API REST permet d'automatiser la gestion d'Active Directory.</p>

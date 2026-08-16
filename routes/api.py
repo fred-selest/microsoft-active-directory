@@ -319,8 +319,12 @@ def api_get_alerts():
     """API pour récupérer les alertes."""
     from core.alerts import get_alerts
     alert_type = request.args.get('type', 'all')
-    alerts = get_alerts(alert_type=None if alert_type == 'all' else alert_type)
-    return jsonify({'alerts': alerts})
+    # limit explicite : get_alerts() plafonne a 50 par defaut, ce qui
+    # tronquerait silencieusement la liste renvoyee a l'UI.
+    limit = request.args.get('limit', 500, type=int)
+    alerts = get_alerts(limit=limit,
+                        alert_type=None if alert_type == 'all' else alert_type)
+    return jsonify({'alerts': alerts, 'count': len(alerts)})
 
 
 @api_bp.route('/alerts/<alert_id>/acknowledge', methods=['POST'])

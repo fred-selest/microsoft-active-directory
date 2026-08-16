@@ -10,7 +10,25 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.50.1 — Août 2026
+**Dernière version :** v1.50.2 — Août 2026
+
+---
+
+## 🆕 Nouveautés v1.50.2 — Revue de la v1.50 : garde-fou CI, clé API, ProxyFix
+
+Issue d'une revue critique complète des livraisons v1.50.0 et v1.50.1.
+
+### 🔒 Sécurité
+- **Le garde-fou d'intégration continue « aucun fichier sensible versionné » ne vérifiait rien** : sa commande combinait deux options `grep` mutuellement exclusives, l'erreur était avalée, et le contrôle passait toujours au vert *même avec des fichiers interdits versionnés*. En place depuis la v1.46.0, il n'a donc jamais protégé quoi que ce soit. Corrigé, et doublé d'un auto-test qui échoue si le contrôle cesse de détecter.
+- **Clé API : fin d'une fuite sur disque introduite en v1.50.1** — la clé brute transitait par un message flash, donc écrite en clair dans les fichiers de session serveur. Elle n'apparaît de nouveau que dans la réponse HTTP.
+- **`TRUSTED_PROXY_HOPS` découplé de `TRUSTED_PROXIES`** : le nombre de sauts était déduit du nombre d'adresses listées, ce qui pouvait faire confiance à plus d'en-têtes `X-Forwarded-For` qu'il n'en existe — et donc permettre à un client d'usurper son adresse IP.
+
+### 🐛 Corrections
+- **Création de compte avec une virgule dans le nom** (« O'Brien, John ») : le DN produit était rejeté comme invalide, la création échouait. C'est ici que se trouvait réellement le défaut d'échappement annoncé en v1.50.0.
+- **`/api/alerts`** tronquait silencieusement la liste à 50 alertes.
+- **Modèles utilisateur** : écriture atomique (une coupure en pleine sauvegarde pouvait faire perdre tous les modèles).
+
+> ℹ️ Cette version **rectifie aussi deux annonces inexactes** des notes de version précédentes (portée réelle de l'échappement DN en v1.50.0, cause réelle de l'incident de redémarrage en v1.50.1). Voir [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
@@ -33,7 +51,7 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ### 🔒 Sécurité
 - **Dépendances mises à jour** (cryptography, flask, Werkzeug, requests, waitress) : les versions figées depuis fin 2025 accusaient plusieurs CVE corrigées depuis.
-- **Échappement des composants DN corrigé** : les caractères spéciaux sont désormais échappés (RFC 4514) au lieu d'être supprimés — un nom comme « O'Brien, John » ne perd plus silencieusement sa virgule lors de la création d'un compte.
+- **Échappement des composants DN** : les caractères spéciaux sont échappés (RFC 4514) au lieu d'être supprimés. ⚠️ *Rectifié en v1.50.2 : la fonction concernée n'avait alors aucun appelant, ce changement était donc sans effet visible. Le défaut réel, sur la création de compte, est corrigé en v1.50.2.*
 - **Rate limiting derrière un reverse proxy** : nouvelle option `TRUSTED_PROXY_HOPS` pour que le rate limiting et les journaux utilisent la vraie IP cliente plutôt que celle du proxy. Désactivé par défaut.
 - **Bandeau d'avertissement** sur la page de connexion quand la validation du certificat LDAPS (`AD_TLS_VERIFY`) est désactivée.
 - **Fichiers sensibles retirés du suivi git** : `core/data/settings.json` et `core/data/crypto_salt.bin` étaient suivis sans être couverts par les garde-fous existants.

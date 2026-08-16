@@ -4,6 +4,58 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.50.2] - 2026-08-12 — Revue de la v1.50 : garde-fou CI, clé API, ProxyFix
+
+Issue d'une revue critique complète des livraisons v1.50.0 et v1.50.1.
+
+### Sécurité
+- **Le garde-fou d'intégration continue « aucun fichier sensible versionné »
+  ne vérifiait rien.** Sa commande combinait `grep -E` et `-P`, deux options
+  mutuellement exclusives : grep sortait en erreur, l'erreur était avalée, et
+  le contrôle passait systématiquement au vert **même avec des fichiers
+  interdits versionnés**. En place depuis la v1.46.0 en réponse à une fuite de
+  données de domaine, il n'a donc jamais rien protégé — ce qui explique
+  comment `core/data/settings.json` et `core/data/crypto_salt.bin` sont restés
+  versionnés jusqu'à la v1.50.0. Corrigé, et doublé d'un auto-test qui échoue
+  si le contrôle cesse de détecter un chemin interdit.
+- **Clé API : fin d'une fuite sur disque introduite en v1.50.1.** La clé brute
+  transitait par un message flash, or les sessions sont côté serveur depuis la
+  v1.49.0 : elle était donc écrite en clair dans `data/sessions/`. Elle est de
+  nouveau affichée uniquement dans le corps de la réponse, et disparaît au
+  rechargement de la page.
+- **`TRUSTED_PROXY_HOPS` découplé de `TRUSTED_PROXIES`.** Le nombre de sauts
+  était déduit du nombre d'adresses listées ; or un même proxy peut y figurer
+  sous plusieurs adresses (IPv4, IPv6, plage CIDR). Faire confiance à plus
+  d'en-têtes `X-Forwarded-For` qu'il n'en existe réellement permet à un client
+  d'usurper son adresse IP. Seule `TRUSTED_PROXY_HOPS` pilote désormais
+  ProxyFix ; une valeur invalide vaut 0 au lieu d'empêcher le démarrage.
+
+### Corrections
+- **Création de compte avec une virgule dans le nom.** C'est ici que se
+  trouvait réellement le défaut d'échappement de DN : `routes/users/create.py`
+  interpolait le CN brut dans le DN. Un nom comme « O'Brien, John » produisait
+  un DN rejeté comme invalide — la création échouait. Le CN est désormais
+  échappé (RFC 4514) dans le DN, tout en gardant sa valeur littérale dans les
+  attributs `cn`/`displayName`.
+- **`/api/alerts` tronquait la liste à 50 alertes** sans le signaler (limite
+  par défaut héritée). Limite explicite, paramétrable, et total renvoyé.
+- **Modèles utilisateur : écriture atomique.** Une coupure en pleine
+  sauvegarde laissait un JSON tronqué, silencieusement interprété comme
+  « aucun modèle » — perte de la totalité des modèles.
+
+### Rectifications des notes de version précédentes
+- **v1.50.0** annonçait l'échappement de DN comme corrigeant les créations de
+  comptes. En réalité, seule une fonction utilitaire **sans aucun appelant**
+  avait été corrigée : aucun comportement utilisateur ne changeait. Le défaut
+  réel est corrigé dans la présente version (voir ci-dessus).
+- **v1.50.1** présentait le filet de sécurité de redémarrage comme la réponse
+  à l'incident de production. L'incident est en fait entièrement expliqué par
+  la mise à jour depuis la **v1.45** : c'est le code de la v1.45 qui a piloté
+  la mise à jour, avec son mécanisme de redémarrage défectueux, corrigé
+  seulement à partir de la v1.46.1 — cas déjà documenté à l'époque. Ni la
+  v1.50.0 ni la mise à jour des dépendances n'y sont pour quelque chose. Le
+  filet de sécurité reste utile et est conservé.
+
 ## [1.50.1] - 2026-08-11 — Corrections critiques post-v1.50.0
 
 Trouvés par un crawl exhaustif de toutes les pages et actions (GET + POST)
@@ -47,10 +99,11 @@ la mise à jour vers la v1.50.0.
   waitress) : les versions figées depuis fin 2025 accusaient plusieurs CVE
   corrigées depuis. Suppression aussi du `--upgrade` de l'auto-updater, qui
   n'apportait rien sur un `requirements.txt` déjà épinglé.
-- **Échappement des composants DN corrigé** (`sanitize_dn_component`) :
-  les caractères spéciaux sont désormais échappés (RFC 4514) au lieu
-  d'être supprimés — un nom comme « O'Brien, John » ne perd plus
-  silencieusement sa virgule.
+- **Échappement des composants DN** (`sanitize_dn_component`) : les
+  caractères spéciaux sont échappés (RFC 4514) au lieu d'être supprimés.
+  ⚠️ *Rectifié en v1.50.2 : cette fonction n'avait alors aucun appelant,
+  ce changement n'avait donc aucun effet visible. Le défaut réel, dans la
+  création de compte, est corrigé en v1.50.2.*
 - **Rate limiting derrière un reverse proxy** : `ProxyFix` peut être activé
   explicitement (`TRUSTED_PROXY_HOPS`) pour que le rate limiting et les
   journaux utilisent la vraie IP cliente plutôt que celle du proxy.

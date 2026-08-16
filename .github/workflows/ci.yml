@@ -87,6 +87,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Le motif utilise une inspection negative (?!...) : syntaxe PCRE, donc
+      # `grep -P` SEUL. Combiner -E et -P fait repondre a grep
+      # « conflicting matchers specified » (code 2) ; avec le `|| true` qui
+      # suit, le job passait alors TOUJOURS au vert sans rien verifier.
+      # L'auto-test ci-dessous existe pour que cette panne silencieuse ne
+      # puisse pas se reproduire.
+      - name: Auto-test du garde-fou (doit detecter un chemin interdit)
+        run: |
+          PATTERN='^(data/audit_history/|data/permissions\.json$|data/settings\.json$|data/crypto_salt\.bin$|data/backups/|data/user_templates\.json$|core/data/|logs/(?!\.gitkeep))'
+          # Doit matcher un chemin interdit...
+          if ! printf 'core/data/settings.json\n' | grep -qP "$PATTERN"; then
+            echo "ECHEC : le garde-fou ne detecte plus les chemins interdits."
+            echo "Le motif ou l'invocation de grep est casse — corrigez-le avant de merger."
+            exit 1
+          fi
+          # ...et ne PAS matcher un chemin legitime.
+          if printf 'README.md\nlogs/.gitkeep\n' | grep -qP "$PATTERN"; then
+            echo "ECHEC : le garde-fou produit des faux positifs."
+            exit 1
+          fi
+          echo "Auto-test du garde-fou : OK"
+
       - name: Verifier qu'aucun fichier sensible n'est suivi par git
         run: |
           echo "Fichiers suivis correspondant aux motifs interdits :"
@@ -94,9 +116,9 @@ jobs:
           # certains chemins via os.path.dirname(__file__) : core/data/
           # a deja fuite (settings.json, crypto_salt.bin) sans que ce garde
           # ne le couvre, faute de motif dedie. Voir aussi .gitignore.
-          FOUND=$(git ls-files | grep -E \
+          FOUND=$(git ls-files | grep -P \
             '^(data/audit_history/|data/permissions\.json$|data/settings\.json$|data/crypto_salt\.bin$|data/backups/|data/user_templates\.json$|core/data/|logs/(?!\.gitkeep))' \
-            -P || true)
+            || true)
           if [ -n "$FOUND" ]; then
             echo "$FOUND"
             echo ""
@@ -113,6 +135,48 @@ jobs:
             exit 1
           fi
           echo "OK"
+
+      # Un fichier SUIVI que .gitignore declare ignore : le depot et sa
+      # configuration se contredisent. Une regle .gitignore ne s'applique pas
+      # a un fichier deja suivi, donc la regle ne protege rien et laisse
+      # croire l'inverse — c'est ce qui a laisse core/data/settings.json etre
+      # versionne malgre sa regle, puis le gitlink .claude/worktrees/.
+      # `--no-index` est indispensable : sans lui, check-ignore ecarte
+      # justement les fichiers suivis et ne verrait donc rien.
+      # Les lignes ':N:!' sont les exceptions volontaires (!README.md, ...).
+      - name: Aucun fichier suivi contredit par .gitignore
+        run: |
+          CONFLICTS=$(git ls-files \
+            | git check-ignore --no-index --stdin --verbose 2>/dev/null \
+            | grep -v ':[0-9]*:!' || true)
+          if [ -n "$CONFLICTS" ]; then
+            echo "$CONFLICTS"
+            echo ""
+            echo "ECHEC : ces fichiers sont suivis alors qu'une regle .gitignore les declare ignores."
+            echo "Soit ils doivent rester versionnes -> retirez la regle .gitignore,"
+            echo "soit ils ne doivent plus l'etre    -> git rm --cached <fichier>."
+            exit 1
+          fi
+          echo "Depot et .gitignore coherents — OK"
+
+      # Un gitlink (mode 160000) sans entree correspondante dans .gitmodules
+      # fait echouer `git submodule foreach` a chaque checkout
+      # (« No url found for submodule path », exit 128). C'est ce qui est
+      # arrive avec .claude/worktrees/ : un repertoire de worktree commite
+      # par inadvertance, qui polluait tous les runs CI.
+      - name: Aucun gitlink orphelin (worktree/sous-module commite par erreur)
+        run: |
+          ORPHANS=$(git ls-files -s | awk '$1=="160000" {print $4}')
+          if [ -n "$ORPHANS" ]; then
+            for path in $ORPHANS; do
+              if ! git config -f .gitmodules --get-regexp "submodule\..*\.path" 2>/dev/null | grep -qx ".* $path"; then
+                echo "ECHEC : gitlink orphelin (aucune entree .gitmodules) : $path"
+                echo "Retirez-le du suivi git :  git rm --cached $path"
+                exit 1
+              fi
+            done
+          fi
+          echo "Aucun gitlink orphelin — OK"
 
   # ===========================================================================
   # Security Scan
