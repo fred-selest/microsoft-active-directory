@@ -22,7 +22,10 @@ data/backups/
 data/sessions/
 data/user_templates.json
 data/alerts.json
-logs/
+# 'logs/*' et non 'logs/' : git ne sait pas re-inclure un fichier situe dans
+# un repertoire exclu, l'exception '!logs/.gitkeep' plus bas etait donc
+# inoperante (logs/.gitkeep etait suivi tout en etant declare ignore).
+logs/*
 
 # core/settings_manager.py resout son fichier via os.path.dirname(__file__),
 # donc core/data/ (et non data/) : meme risque que ci-dessus si non couvert
@@ -49,11 +52,19 @@ core/data/
 Thumbs.db
 .DS_Store
 
-# Worktrees
+# Worktrees (repertoires de travail temporaires — un gitlink orphelin y a
+# deja ete commite par erreur, cf. controle CI dedie)
 .claude/worktrees/
 
-# Qwen Code settings
-.qwen/settings.json
+# =============================================================================
+# CONFIGURATIONS D'OUTILS — VOLONTAIREMENT VERSIONNEES
+# =============================================================================
+# .claude/settings*.json et .qwen/ sont partages avec l'equipe : NE PAS les
+# ajouter ici. Ils etaient auparavant declares ignores tout en etant suivis,
+# ce qui ne masquait rien (une regle .gitignore ne s'applique pas a un
+# fichier deja suivi) et faisait diverger le depot de sa configuration.
+# Pour reellement cesser de versionner l'un d'eux, il faut d'abord
+# `git rm --cached <fichier>` PUIS ajouter la regle ici.
 
 # WinSW/NSSM Logs
 nssm/*.log
@@ -72,6 +83,10 @@ $null
 !scripts/SIGNATURE_GUIDE.md
 !AUDIT_*.md
 !MIGRATION_*.md
+# Definitions d'agents Qwen : versionnees (voir « CONFIGURATIONS D'OUTILS »
+# plus haut). Exception necessaire car le '*.md' global ci-dessus les
+# capturait.
+!.qwen/agents/*.md
 
 # Ancienne documentation (obsolète)
 DEBUG_GUIDE.md
@@ -95,9 +110,7 @@ scripts/*.cer
 # Fichiers de travail locaux
 # NB: utiliser des slashes '/' — git n'interprete pas '\' comme separateur,
 # les anciennes entrees en 'data\fichier.json' ne matchaient jamais.
-.claude/settings.json
-.claude/settings.local.json
-core/data/settings.json
+# (core/data/settings.json retire : deja couvert par 'core/data/' plus haut.)
 data/update_manifest.json
 routes/tools/*.dat
 routes/tools/test_write.txt

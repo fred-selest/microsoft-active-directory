@@ -136,6 +136,29 @@ jobs:
           fi
           echo "OK"
 
+      # Un fichier SUIVI que .gitignore declare ignore : le depot et sa
+      # configuration se contredisent. Une regle .gitignore ne s'applique pas
+      # a un fichier deja suivi, donc la regle ne protege rien et laisse
+      # croire l'inverse — c'est ce qui a laisse core/data/settings.json etre
+      # versionne malgre sa regle, puis le gitlink .claude/worktrees/.
+      # `--no-index` est indispensable : sans lui, check-ignore ecarte
+      # justement les fichiers suivis et ne verrait donc rien.
+      # Les lignes ':N:!' sont les exceptions volontaires (!README.md, ...).
+      - name: Aucun fichier suivi contredit par .gitignore
+        run: |
+          CONFLICTS=$(git ls-files \
+            | git check-ignore --no-index --stdin --verbose 2>/dev/null \
+            | grep -v ':[0-9]*:!' || true)
+          if [ -n "$CONFLICTS" ]; then
+            echo "$CONFLICTS"
+            echo ""
+            echo "ECHEC : ces fichiers sont suivis alors qu'une regle .gitignore les declare ignores."
+            echo "Soit ils doivent rester versionnes -> retirez la regle .gitignore,"
+            echo "soit ils ne doivent plus l'etre    -> git rm --cached <fichier>."
+            exit 1
+          fi
+          echo "Depot et .gitignore coherents — OK"
+
       # Un gitlink (mode 160000) sans entree correspondante dans .gitmodules
       # fait echouer `git submodule foreach` a chaque checkout
       # (« No url found for submodule path », exit 128). C'est ce qui est
