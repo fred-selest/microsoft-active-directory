@@ -110,3 +110,25 @@ def test_aucun_template_orphelin():
             continue
         orphelins.append(name)
     assert orphelins == []
+
+
+def test_notes_de_version_sans_balise_html():
+    """
+    auto-tag.yml publie la section du CHANGELOG de la version courante comme
+    notes de release GitHub. Les serveurs encore en version < 1.51.0 affichent
+    ces notes SANS echappement sur /update : un texte comme « <style> » y
+    ouvrait une vraie balise, rendait toute la suite de la page inerte, et
+    le bouton de mise a jour inutilisable — alors que c'est justement le
+    moyen de recevoir le correctif. Aucune balise dans les notes publiees.
+    """
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    version = (root / 'VERSION').read_text(encoding='utf-8').strip()
+    changelog = (root / 'CHANGELOG.md').read_text(encoding='utf-8')
+    m = re.search(r'^## \[' + re.escape(version) + r'\].*?(?=^## \[|\Z)', changelog, re.S | re.M)
+    assert m, f"Section [{version}] absente du CHANGELOG"
+    balises = re.findall(r'<[A-Za-z!/][^>\n]*>?', m.group(0))
+    assert balises == [], (
+        f"Balises HTML dans les notes de la v{version} : {balises}. "
+        "Les decrire sans chevrons (ex. « balise style »).")

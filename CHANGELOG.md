@@ -52,7 +52,7 @@ annuaire AD simulé.
   `distinguishedName` avec le contrôle « Show Deleted »). Une erreur LDAP
   pendant la restauration ne provoque plus d'erreur 500.
 - **Corbeille** : les ordinateurs supprimés apparaissaient comme
-  « Utilisateur », et les noms gardaient le suffixe technique `DEL:<guid>`.
+  « Utilisateur », et les noms gardaient le suffixe technique `DEL:guid`.
 
 ## [1.51.1] - 2026-09-22 — Aide clavier, nettoyage des CSS
 
@@ -102,8 +102,8 @@ annuaire AD simulé.
 ### Corrections
 - **Page Mise à jour inutilisable depuis la publication de la v1.50.3.**
   Les notes de version GitHub étaient insérées sans échappement : la mention
-  littérale « `<style>` » dans les notes de la v1.50.3 ouvrait une vraie
-  balise, et toute la suite de la page devenait du CSS — scripts compris,
+  littérale d'une balise « style » dans les notes de la v1.50.3 ouvrait une
+  vraie balise, et toute la suite de la page devenait du CSS — scripts compris,
   dont le bouton de mise à jour. Les notes sont maintenant affichées comme
   du texte. Cela ferme aussi une injection HTML possible depuis le contenu
   d'une release.
@@ -196,7 +196,7 @@ version, messages flash.
   en une seule passe, contournable par imbrication
   (`javajavascript:script:` redevenait `javascript:`). Suppression répétée
   jusqu'à stabilité. Le caractère `>` (sélecteur enfant CSS, sans risque
-  dans un bloc `<style>`) n'est plus retiré à tort.
+  dans un bloc de style) n'est plus retiré à tort.
 
 ### Journalisation
 - Refus de permission journalisés en `debug` et non plus en `info` (liste
