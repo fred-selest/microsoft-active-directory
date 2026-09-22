@@ -10,9 +10,13 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.51.2 — Septembre 2026
+**Dernière version :** v1.51.3 — Septembre 2026
 
 ---
+
+## 🆕 Nouveautés v1.51.3 — Traversée de répertoire
+
+> ⚠️ **Mise à jour de sécurité** : l'historique des audits de mots de passe permettait de lire, et sous Windows de supprimer, n'importe quel fichier `.json` de l'application (réglages, permissions) via un identifiant forgé.
 
 ## 🆕 Nouveautés v1.51.2 — Sécurité LAPS, déverrouillage, corbeille
 

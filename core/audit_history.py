@@ -3,12 +3,34 @@ Historique des Audits - Stockage et récupération des audits précédents
 """
 import json
 import os
+import re
 from datetime import datetime
 from pathlib import Path
+
+from core.path_security import is_safe_path
 
 # Répertoire de stockage
 HISTORY_DIR = Path('data/audit_history')
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+# Format des identifiants générés par save_audit (horodatage).
+AUDIT_ID_RE = re.compile(r'^\d{8}_\d{6}$')
+
+
+def _audit_path(audit_id):
+    """
+    Chemin du fichier d'un audit, ou None si l'identifiant est invalide.
+
+    L'identifiant vient de l'URL (suppression) ou de paramètres de requête
+    (comparaison). Interpolé tel quel dans le chemin, « ../../core/data/
+    settings » (ou « ..\\..\\… » sous Windows, où la barre oblique inverse
+    est aussi un séparateur) lisait ou supprimait n'importe quel fichier
+    .json de l'application. Seul le format généré est accepté.
+    """
+    if not isinstance(audit_id, str) or not AUDIT_ID_RE.match(audit_id):
+        return None
+    path = HISTORY_DIR / f'{audit_id}.json'
+    return path if is_safe_path(HISTORY_DIR, path) else None
 
 
 def save_audit(audit_result, domain_name='Unknown'):
@@ -127,9 +149,9 @@ def get_audit_by_id(audit_id):
     Returns:
         dict: Données de l'audit ou None si non trouvé
     """
-    filepath = HISTORY_DIR / f'{audit_id}.json'
-    
-    if not filepath.exists():
+    filepath = _audit_path(audit_id)
+
+    if filepath is None or not filepath.exists():
         return None
     
     try:
@@ -234,9 +256,9 @@ def delete_audit(audit_id):
     Returns:
         bool: True si supprimé, False sinon
     """
-    filepath = HISTORY_DIR / f'{audit_id}.json'
-    
-    if filepath.exists():
+    filepath = _audit_path(audit_id)
+
+    if filepath is not None and filepath.exists():
         try:
             filepath.unlink()
             return True
