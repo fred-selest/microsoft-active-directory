@@ -102,18 +102,21 @@ def test_toutes_les_balises_script_ont_le_nonce():
     assert bad == []
 
 
-def test_extra_js_jamais_imbrique():
+def test_extra_js_et_extra_css_jamais_imbriques():
     """
     {% block extra_js %} imbrique dans {% block content %} etait rendu deux
     fois (contenu + emplacement de base.html) : scripts executes en double,
     et « Identifier already declared » sur group_details (const redeclare).
+    Meme chose pour extra_css : feuille dupliquee dans le <body>, qui
+    reprenait la priorite sur les styles de base.html et de la barre
+    superieure.
     """
     bad = []
     for p in (ROOT / 'templates').rglob('*.html'):
         stack = []
         for m in re.finditer(r"{%-?\s*(?:block\s+(\w+)|endblock)\b", p.read_text(encoding='utf-8')):
             if m.group(1):
-                if m.group(1) == 'extra_js' and stack:
+                if m.group(1) in ('extra_js', 'extra_css') and stack:
                     bad.append(f"{p.relative_to(ROOT)}: dans {stack}")
                 stack.append(m.group(1))
             elif stack:

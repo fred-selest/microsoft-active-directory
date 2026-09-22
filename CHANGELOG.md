@@ -44,6 +44,14 @@ Historique complet : `git log`. Détails et captures d'écran : `README.md`.
   était imbriqué dans le contenu et donc rendu deux fois. Sur le détail d'un
   groupe, cela provoquait une erreur JavaScript (recherche de membres
   inopérante).
+- **Feuilles de style dupliquées** sur 11 pages (Connexion, Journal d'audit,
+  Corbeille, Sauvegardes, Modèles, Nouveau groupe, Expirations, Favoris,
+  Documentation API, Réinitialisation du mot de passe, Détail d'une
+  sauvegarde) : même défaut d'imbrication, pour le bloc CSS. Rendu vérifié
+  identique dans Chromium, sauf sur la page de réinitialisation du mot de
+  passe : sa classe `.user-info` entrait en collision avec celle de la barre
+  supérieure, dont le badge utilisateur prenait le fond bleu de l'encadré de
+  la page. Classe renommée.
 - Tableau de bord debug : polices Google retirées (déjà bloquées par la CSP).
 
 ### Vérification
