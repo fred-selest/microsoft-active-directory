@@ -74,7 +74,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 function toggleKey(index) {
     const hidden = document.getElementById('key-' + index);
     const visible = document.getElementById('key-clear-' + index);

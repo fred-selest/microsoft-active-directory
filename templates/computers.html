@@ -318,7 +318,7 @@ body.dark-mode .detail-row strong {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 /**
  * Afficher les détails d'un ordinateur dans un modal
  */

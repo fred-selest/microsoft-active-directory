@@ -346,6 +346,64 @@ def get_password_requirements():
     }
 
 
+# === CONTENT SECURITY POLICY (constat M9) ===
+#
+# Politique stricte : seuls les scripts servis par l'application ('self') ou
+# portant le nonce de la requête s'exécutent. Un script injecté (XSS via
+# innerHTML, attribut on*=…) est bloqué par le navigateur. En présence d'un
+# nonce, 'unsafe-inline' est ignoré : les gestionnaires on*="…" ne
+# fonctionnent plus, d'où la délégation d'événements de static/js/actions.js.
+#
+# CSP_MODE :
+#   strict      — politique stricte appliquée ;
+#   report-only — ancienne politique appliquée, stricte en Report-Only avec
+#                 remontée des violations vers /csp-report (défaut, le temps
+#                 de convertir les gestionnaires on*="…") ;
+#   legacy      — ancienne politique ('unsafe-inline'), échappatoire.
+
+_CSP_MODES = ('strict', 'report-only', 'legacy')
+
+
+def get_csp_mode():
+    mode = os.environ.get('CSP_MODE', 'report-only').strip().lower()
+    return mode if mode in _CSP_MODES else 'report-only'
+
+
+def get_csp_nonce():
+    """Nonce CSP de la requête courante (généré à la première demande)."""
+    from flask import g
+    nonce = getattr(g, '_csp_nonce', None)
+    if nonce is None:
+        import secrets
+        nonce = g._csp_nonce = secrets.token_urlsafe(18)
+    return nonce
+
+
+def build_csp(strict=True, report_uri=None):
+    """Construire l'en-tête Content-Security-Policy."""
+    if strict:
+        script_src = f"script-src 'self' 'nonce-{get_csp_nonce()}'"
+    else:
+        script_src = "script-src 'self' 'unsafe-inline'"
+    directives = [
+        "default-src 'self'",
+        script_src,
+        # Les attributs style="…" restent très nombreux : 'unsafe-inline' est
+        # conservé pour les styles (risque bien moindre que pour les scripts).
+        "style-src 'self' 'unsafe-inline'",
+        "connect-src 'self'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'self'",
+    ]
+    if report_uri:
+        directives.append(f"report-uri {report_uri}")
+    return '; '.join(directives)
+
+
 # === HEADERS DE SECURITE ===
 
 def add_security_headers(response):
@@ -391,16 +449,16 @@ def add_security_headers(response):
         'gyroscope=()'
     )
 
-    # Content Security Policy
-    response.headers['Content-Security-Policy'] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        "connect-src 'self' https://cdn.jsdelivr.net; "
-        "img-src 'self' data:; "
-        "font-src 'self'; "
-        "frame-ancestors 'self'"
-    )
+    # Content Security Policy (constat M9) — voir build_csp()
+    mode = get_csp_mode()
+    if mode == 'strict':
+        response.headers['Content-Security-Policy'] = build_csp(strict=True)
+    elif mode == 'report-only':
+        response.headers['Content-Security-Policy'] = build_csp(strict=False)
+        response.headers['Content-Security-Policy-Report-Only'] = build_csp(
+            strict=True, report_uri='/csp-report')
+    else:  # legacy
+        response.headers['Content-Security-Policy'] = build_csp(strict=False)
 
     # Cache control pour les pages sensibles
     if request.endpoint in ['connect', 'dashboard', 'users', 'groups']:

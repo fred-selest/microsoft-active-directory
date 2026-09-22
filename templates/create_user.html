@@ -167,7 +167,7 @@ body.dark-mode .ldaps-manual-config summary {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
     // ── Afficher/masquer mot de passe ────────────────────────────────────────
     document.getElementById('togglePwd').addEventListener('click', function () {

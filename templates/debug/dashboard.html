@@ -3,10 +3,9 @@
 {% block title %}🔍 Debug Dashboard - AD Web Interface{% endblock %}
 
 {% block extra_css %}
-<!-- Google Fonts - Inter -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{# Polices Google retirées : bloquées par la CSP (font-src/style-src 'self'),
+   et le contrôleur de domaine n'a souvent pas d'accès Internet. Les piles de
+   polices déclarées plus bas retombent sur les polices système. #}
 {% endblock %}
 
 {% block content %}
@@ -1003,7 +1002,7 @@ body.dark-mode .test-btn.error {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Test une page spécifique
 async function testPage(pageId) {
     const btn = document.getElementById(`test-btn-${pageId}`);

@@ -616,7 +616,7 @@ body.dark-mode .disabled-features-list li {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 /**
  * Afficher un message toast
  */

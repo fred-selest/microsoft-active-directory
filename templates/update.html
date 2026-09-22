@@ -640,7 +640,7 @@ body.dark-mode .sync-output { background: var(--dark-bg-primary, #1a1a2e); color
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 var _reloadInterval = null;
 var _cancelReload = false;
 

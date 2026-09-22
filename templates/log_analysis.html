@@ -181,7 +181,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 let currentReport = null;
 
 // Charger les données au démarrage

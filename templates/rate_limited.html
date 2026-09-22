@@ -288,7 +288,7 @@ body.dark-mode .login-help ul {
 }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Compte à rebours
 let seconds = {{ retry_after }};
 const countdownEl = document.getElementById('seconds');

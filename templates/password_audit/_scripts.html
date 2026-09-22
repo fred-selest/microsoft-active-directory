@@ -3,7 +3,7 @@
     Usage: {% include 'password_audit/_scripts.html' %}
 #}
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 /**
  * Lancer l'audit des mots de passe
  */

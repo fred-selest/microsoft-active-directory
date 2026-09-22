@@ -447,7 +447,7 @@ body.dark-mode .filter-group .form-control {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
     const userSearchInput = document.querySelector('input[name="search"]');
     if (userSearchInput) {

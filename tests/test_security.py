@@ -702,7 +702,8 @@ class TestSecurityHeaders:
 
     @patch('core.security.request', new_callable=MagicMock)
     def test_content_security_policy(self, mock_request):
-        """Le header CSP autorise self et CDN jsdelivr."""
+        """Le header CSP n'autorise que self : chart.js est servi localement (M9)."""
+        from flask import Flask
         from core.security import add_security_headers
         mock_request.is_secure = False
         mock_request.endpoint = 'main.index'
@@ -710,11 +711,12 @@ class TestSecurityHeaders:
         response = MagicMock()
         response.headers = {}
 
-        result = add_security_headers(response)
+        with Flask(__name__).app_context():
+            result = add_security_headers(response)
 
         csp = result.headers['Content-Security-Policy']
         assert "default-src 'self'" in csp
-        assert 'cdn.jsdelivr.net' in csp
+        assert 'cdn.jsdelivr.net' not in csp
 
     @patch('core.security.request', new_callable=MagicMock)
     def test_response_is_returned(self, mock_request):

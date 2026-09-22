@@ -172,7 +172,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Recherche AJAX de groupes pour l'ajout
 var grpSearch = document.getElementById('group_search');
 var grpHidden = document.getElementById('group_dn_hidden');

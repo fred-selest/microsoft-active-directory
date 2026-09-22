@@ -9,7 +9,7 @@ import logging
 from flask import current_app, session
 
 from config import get_config
-from core.security import generate_csrf_token
+from core.security import generate_csrf_token, get_csp_nonce
 from core.translations import Translator
 from core.alerts import get_alert_counts
 from core.features import is_feature_enabled
@@ -142,6 +142,7 @@ def inject_globals():
         'dark_mode': session.get('dark_mode', False),
         'config': config,
         'csrf_token': generate_csrf_token,
+        'csp_nonce': get_csp_nonce,
         't': translator,
         'current_lang': lang,
         'alert_counts': alert_counts,

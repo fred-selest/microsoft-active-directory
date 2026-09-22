@@ -397,7 +397,7 @@ body.dark-mode .help-text code {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 function togglePassword(index) {
     const hidden = document.getElementById('pwd-' + index);
     const visible = document.getElementById('pwd-clear-' + index);

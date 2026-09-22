@@ -162,7 +162,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Recherche AJAX d'utilisateurs
 const memberSearch = document.getElementById('member_search');
 const suggestions = document.getElementById('member-suggestions');

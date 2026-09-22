@@ -209,7 +209,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 const allPermissions = {{ permissions|tojson }};
 
 const SUBJECT_CONFIG = {
