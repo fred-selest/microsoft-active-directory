@@ -37,7 +37,7 @@
 
     <!-- Liste des erreurs -->
     <div class="error-list card fade-in">
-        <h3>Erreurs Récentes</h3>
+        <h3>Erreurs des 7 derniers jours</h3>
         <div id="errors-container">
             <div class="loading">Chargement des erreurs...</div>
         </div>
@@ -147,6 +147,12 @@
     padding: 3rem;
     color: #28a745;
 }
+.older-errors {
+    text-align: center;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
 
 /* Dark mode */
 body.dark-mode .stat-card {
@@ -172,6 +178,7 @@ body.dark-mode .error-file {
 
 <script nonce="{{ csp_nonce() }}">
 let allErrors = [];
+var errorsMeta = {};
 
 /**
  * Charger les erreurs
@@ -188,11 +195,12 @@ async function loadErrors() {
             }
             return e;
         });
+        errorsMeta = data;
         displayErrors(allErrors);
         updateStats(allErrors);
     } catch (error) {
         document.getElementById('errors-container').innerHTML =
-            '<div class="error-item error">Erreur de chargement: ' + error.message + '</div>';
+            '<div class="error-item error">Erreur de chargement: ' + escapeHtml(error.message) + '</div>';
     }
 }
 
@@ -202,8 +210,17 @@ async function loadErrors() {
 function displayErrors(errors) {
     const container = document.getElementById('errors-container');
     
+    // Erreurs plus anciennes que la fenêtre : signalées, mais pas listées.
+    var older = '';
+    if (errorsMeta.older_count) {
+        older = '<div class="older-errors">' + errorsMeta.older_count +
+            ' erreur(s) plus ancienne(s), la dernière le ' + escapeHtml(errorsMeta.last_older || '?') +
+            ' — voir logs\\server.log sur le serveur.</div>';
+    }
+
     if (!errors || errors.length === 0) {
-        container.innerHTML = '<div class="no-errors">✅ Aucune erreur récente détectée</div>';
+        container.innerHTML = '<div class="no-errors">✅ Aucune erreur ces ' +
+            (errorsMeta.days || 7) + ' derniers jours</div>' + older;
         return;
     }
     
@@ -221,7 +238,7 @@ function displayErrors(errors) {
                 <div class="error-line">${escapeHtml(line)}</div>
             </div>
         `;
-    }).join('');
+    }).join('') + older;
 }
 
 /**

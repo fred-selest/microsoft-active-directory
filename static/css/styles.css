@@ -930,7 +930,10 @@ textarea.form-control {
 @media (min-width: 1024px) {
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(6, 1fr);
+        /* Colonnes adaptées à la place réelle (barre latérale déduite) : six
+           colonnes fixes rendaient les cartes plus étroites que leur contenu
+           entre 1024 et ~1500 px, d'où un ascenseur horizontal. */
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
         gap: var(--spacing-md);
         margin-bottom: var(--spacing-xl);
     }
@@ -1468,6 +1471,15 @@ body.dark-mode .form-text {
 body.dark-mode .form-section h3 {
     color: var(--primary-light);
     border-color: var(--primary);
+}
+
+/* Tableau de bord — boutons « Accès rapide » : autoriser le retour à la ligne
+   pour qu'ils tiennent dans leur carte quelle que soit la largeur d'écran. */
+.quick-access-grid .btn {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    justify-content: center;
 }
 
 /* ==========================================================================

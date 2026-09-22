@@ -4,6 +4,43 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.51.4] - 2026-09-22 — Ordinateurs manquants, pages non protégées, tableau de bord
+
+Suite à des retours d'utilisation sur un contrôleur de domaine en production.
+
+### Sécurité
+- **Journal d'erreurs et diagnostic accessibles sans connexion.** Les pages
+  « Journal des erreurs » et l'API de diagnostic répondaient à n'importe qui
+  sur le réseau, sans session : lecture des dernières erreurs du serveur
+  (noms d'utilisateurs, DN) et de la configuration (chemins, versions,
+  paramètres TLS). Elles exigent désormais une connexion et la permission
+  correspondante (analyse des logs, diagnostic). La page Diagnostic, qui
+  n'exigeait qu'une connexion, demande aussi sa permission.
+
+### Corrections
+- **Ordinateurs manquants dans la liste.** La page Ordinateurs n'affichait
+  que les 25 premiers ordinateurs : la pagination était calculée mais aucun
+  lien vers les pages suivantes n'était affiché, et le compteur indiquait
+  « 25 ordinateur(s) » au lieu du total réel. Total et navigation entre les
+  pages ajoutés.
+- **Pagination des utilisateurs et des groupes** : changer de page faisait
+  perdre le filtre par OU ou par statut (utilisateurs), et une recherche
+  contenant « & » ou « # » était tronquée (groupes). Pagination commune aux
+  trois listes, qui conserve tous les filtres ; un numéro de page hors
+  limites ramène à la première ou à la dernière page.
+- **Tableau de bord** : affichage tronqué avec ascenseur horizontal (boutons
+  « Accès rapide » et cartes statistiques plus larges que la place
+  disponible, selon la largeur d'écran). Vérifié de 390 à 1920 pixels.
+- **Score de sécurité** : « Aucun audit réalisé » s'affichait alors que des
+  audits existaient, dès que le dernier score valait 0/100 — le pire
+  résultat possible était pris pour une absence d'audit. La tendance
+  (amélioration, dégradation) est aussi calculée au lieu d'être figée sur
+  « stable ».
+- **Journal des erreurs** : la liste « Erreurs récentes » montrait les
+  dernières erreurs jamais enregistrées, même vieilles de plusieurs mois.
+  Elle se limite aux 7 derniers jours et indique combien d'erreurs plus
+  anciennes existent, avec la date de la dernière.
+
 ## [1.51.3] - 2026-09-22 — Traversée de répertoire (historique d'audit, rapports)
 
 Trouvé en envoyant à chaque route des entrées inattendues (identifiants

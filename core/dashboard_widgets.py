@@ -58,6 +58,10 @@ def get_dashboard_widgets():
             'warning_count': 0
         }
         
+        # La tendance du widget « Score » était figée à « stable » : reprendre
+        # celle calculée sur l'historique (5 derniers audits vs 5 précédents).
+        widgets['score_evolution']['trend'] = stats.get('trend', 'stable')
+
         # Compter critiques et warnings depuis les alertes
         if widgets['alerts']:
             widgets['quick_stats']['critical_count'] = len([a for a in widgets['alerts'] if a.get('severity') == 'critical'])
