@@ -30,7 +30,9 @@
     <div class="card fade-in">
         <h3 style="margin-top: 0; color: var(--text-primary);">📊 Score de Sécurité</h3>
         <div style="text-align: center; padding: 1rem;">
-            {% if widgets.score_evolution.current > 0 %}
+            {# Test sur la présence d'un audit, pas sur le score : un score de 0/100
+               est un vrai résultat (le pire), pas une absence d'audit. #}
+            {% if widgets.score_evolution.last_audit %}
             <div style="font-size: 3rem; font-weight: bold; color: {% if widgets.score_evolution.current >= 80 %}#28a745{% elif widgets.score_evolution.current >= 60 %}#ffc107{% else %}#dc3545{% endif %};">
                 {{ widgets.score_evolution.current }}
             </div>
@@ -104,7 +106,9 @@
     <!-- Widget Accès Rapide -->
     <div class="card fade-in">
         <h3 style="margin-top: 0; color: var(--text-primary);">⚡ Accès Rapide</h3>
-        <div style="padding: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+        {# minmax(0, 1fr) + retour à la ligne : le texte des boutons imposait une
+           largeur minimale qui faisait déborder la carte (ascenseur horizontal). #}
+        <div class="quick-access-grid" style="padding: 1rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem;">
             <a href="{{ url_for('users.create_user') }}" class="btn btn-sm btn-primary">
                 👤 Nouvel utilisateur
             </a>

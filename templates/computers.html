@@ -154,7 +154,9 @@
     </table>
 </div>
 
-<p class="results-count">{{ computers|length }} ordinateur(s) trouve(s)</p>
+<p class="results-count">{{ total }} ordinateur(s) trouvé(s){% if total_pages > 1 %} — page {{ page }}/{{ total_pages }}{% endif %}</p>
+
+{% include 'partials/_pagination.html' %}
 
 <!-- Modal pour voir les détails -->
 <div id="computerModal" class="modal" style="display: none;">

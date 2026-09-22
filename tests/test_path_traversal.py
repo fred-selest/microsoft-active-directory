@@ -67,3 +67,34 @@ def test_suppression_audit_identifiant_long_sans_500(client):
     r = client.post('/tools/password-audit/history/' + 'x' * 400 + '/delete',
                     data={'csrf_token': 't' * 64})
     assert r.status_code == 302
+
+
+# --- Pages de diagnostic et journal d'erreurs : authentification -----------
+
+@pytest.mark.parametrize('url', ['/errors', '/api/diagnostic', '/diagnostic', '/api/errors'])
+def test_pages_de_diagnostic_protegees(url):
+    """
+    /errors et /api/diagnostic repondaient 200 sans aucune session :
+    n'importe qui sur le reseau lisait le journal d'erreurs (utilisateurs,
+    DN) et la configuration du serveur (chemins, versions, TLS).
+    """
+    from app import app
+    app.config['TESTING'] = True
+    r = app.test_client().get(url)
+    assert r.status_code in (302, 401), (url, r.status_code)
+
+
+def test_erreurs_limitees_a_la_fenetre(client, tmp_path, monkeypatch):
+    from datetime import datetime, timedelta
+    logs = tmp_path / 'logs'
+    logs.mkdir()
+    vieux = (datetime.now() - timedelta(days=160)).strftime('%Y-%m-%d %H:%M:%S')
+    recent = (datetime.now() - timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
+    (logs / 'server.log').write_text(
+        f'{vieux},1 ERROR ad_connection: ancienne\n'
+        f'{recent},1 INFO app: rien\n'
+        f'{recent},2 ERROR app: recente\n', encoding='utf-8')
+    monkeypatch.chdir(tmp_path)
+    data = client.get('/api/errors').get_json()
+    assert data['count'] == 1 and 'recente' in data['errors'][0]
+    assert data['older_count'] == 1 and data['last_older'] == vieux

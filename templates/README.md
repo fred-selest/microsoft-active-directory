@@ -70,7 +70,8 @@ templates/
 ├── partials/                 # Composants inclus par base.html
 │   ├── _topbar.html          # Barre supérieure
 │   ├── _sidebar.html         # Barre latérale (menus configurables)
-│   └── _flash.html           # Messages flash
+│   ├── _flash.html           # Messages flash
+│   └── _pagination.html      # Pagination des listes (conserve les filtres)
 │
 ├── password_audit/           # Sections incluses par password_audit.html
 │   ├── _intro.html, _progress.html, _dashboard.html, _styles.html, _scripts.html

@@ -93,20 +93,7 @@
 
 <p class="results-count">{{ total }} groupe(s) — Page {{ page }}/{{ total_pages }}</p>
 
-{% if total_pages > 1 %}
-<div class="pagination">
-    {% if page > 1 %}
-    <a href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="btn btn-sm btn-secondary">← Précédent</a>
-    {% endif %}
-    {% for p in range(1, total_pages + 1) %}
-    <a href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}"
-       class="btn btn-sm {% if p == page %}btn-primary{% else %}btn-secondary{% endif %}">{{ p }}</a>
-    {% endfor %}
-    {% if page < total_pages %}
-    <a href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if filter %}&filter={{ filter }}{% endif %}" class="btn btn-sm btn-secondary">Suivant →</a>
-    {% endif %}
-</div>
-{% endif %}
+{% include 'partials/_pagination.html' %}
 {% endblock %}
 
 {% block extra_css %}

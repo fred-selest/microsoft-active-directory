@@ -162,6 +162,7 @@ def list_groups():
     # Pagination
     total = len(group_list)
     total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(max(page, 1), total_pages)  # ?page=0 ou au-delà de la fin
     start = (page - 1) * per_page
     paginated = group_list[start:start + per_page]
 

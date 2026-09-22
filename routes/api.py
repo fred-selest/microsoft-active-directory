@@ -78,6 +78,8 @@ def api_system_info():
 
 
 @api_bp.route('/diagnostic')
+@require_connection
+@require_permission('admin:diagnostic')
 def api_diagnostic():
     """API de diagnostic automatique."""
     from core.diagnostic import run_full_diagnostic
@@ -571,19 +573,45 @@ def api_error_logs():
     import os
     from pathlib import Path
 
+    import re
+    from datetime import datetime, timedelta
+
+    # « Erreurs récentes » affichait les 100 dernières erreurs jamais
+    # journalisées, quel que soit leur âge : un serveur sans incident depuis des
+    # mois montrait encore de vieilles erreurs comme si elles étaient actuelles.
+    # On ne garde que la fenêtre demandée, et on signale ce qui est plus ancien.
+    days = request.args.get('days', 7, type=int)
+    days = min(max(days or 7, 1), 365)
+    limite = datetime.now() - timedelta(days=days)
+    horodatage = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})')
+
     error_log_path = Path('logs/server.log')
-    errors = []
+    errors, older_count, last_older = [], 0, None
 
     if error_log_path.exists():
         try:
             with open(error_log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                lines = f.readlines()
-                errors = [line.strip() for line in lines if 'ERROR' in line or 'Exception' in line]
-                errors = errors[-100:]  # 100 dernières erreurs
+                for line in f:
+                    if 'ERROR' not in line and 'Exception' not in line:
+                        continue
+                    line = line.strip()
+                    m = horodatage.match(line)
+                    if m:
+                        try:
+                            quand = datetime.strptime(m.group(1), '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            quand = None
+                        if quand is not None and quand < limite:
+                            older_count += 1
+                            last_older = m.group(1)
+                            continue
+                    errors.append(line)
+            errors = errors[-100:]  # 100 dernières erreurs de la fenêtre
         except Exception:
             errors = ['Impossible de lire les logs']
 
-    return jsonify({'errors': errors, 'count': len(errors)})
+    return jsonify({'errors': errors, 'count': len(errors), 'days': days,
+                    'older_count': older_count, 'last_older': last_older})
 
 
 @api_bp.route('/security-fix', methods=['POST'])

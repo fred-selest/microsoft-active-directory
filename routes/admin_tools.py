@@ -227,6 +227,7 @@ def _fetch_github_releases(limit=5):
 
 @admin_tools_bp.route('/diagnostic')
 @require_connection
+@require_permission('admin:diagnostic')
 def diagnostic_page():
     """Page de diagnostic et dépannage."""
     return render_template('diagnostic.html', connected=True)
@@ -449,6 +450,8 @@ def alerts_page():
 
 
 @admin_tools_bp.route('/errors')
+@require_connection
+@require_permission('admin:log_analysis')
 def error_logs():
     """Page des logs d'erreurs."""
     import os

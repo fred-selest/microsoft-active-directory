@@ -10,9 +10,16 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.51.3 — Septembre 2026
+**Dernière version :** v1.51.4 — Septembre 2026
 
 ---
+
+## 🆕 Nouveautés v1.51.4 — Ordinateurs manquants, pages non protégées, tableau de bord
+
+- **Ordinateurs** : la liste s'arrêtait aux 25 premiers, sans lien vers les pages suivantes. Pagination ajoutée ; filtres conservés d'une page à l'autre sur les listes Utilisateurs, Groupes et Ordinateurs.
+- ⚠️ **Sécurité** : le journal d'erreurs et l'API de diagnostic étaient lisibles sans connexion.
+- **Tableau de bord** : plus d'affichage tronqué ; le score de sécurité s'affiche même à 0/100.
+- **Journal des erreurs** : limité aux 7 derniers jours (les anciennes erreurs sont signalées à part).
 
 ## 🆕 Nouveautés v1.51.3 — Traversée de répertoire
 
