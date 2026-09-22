@@ -1471,5 +1471,35 @@ body.dark-mode .form-section h3 {
 }
 
 /* ==========================================================================
+   AIDE CLAVIER (touche « ? », static/js/main.js)
+   La classe .modal n'est stylée que page par page : sans ces règles, l'aide
+   s'affichait comme un bloc ordinaire en bas de page sur les pages qui n'en
+   définissent pas (tableau de bord…). Sélecteur par identifiant pour ne pas
+   interférer avec les modales propres à chaque page.
+   ========================================================================== */
+#keyboard-help-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.5);
+}
+#keyboard-help-modal .modal-content {
+    width: 100%;
+    max-width: 420px;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-lg);
+}
+#keyboard-help-modal td {
+    padding: 0.35rem 0.5rem;
+}
+
+/* ==========================================================================
    FIN DU CSS
    ========================================================================== */

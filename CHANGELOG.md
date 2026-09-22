@@ -4,6 +4,24 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.51.1] - 2026-09-22 — Aide clavier, nettoyage des CSS
+
+### Corrections
+- **Aide des raccourcis clavier (touche « ? ») affichée en bas de page** au
+  lieu d'une fenêtre en surimpression, sur toutes les pages qui ne stylent
+  pas elles-mêmes les modales (tableau de bord notamment) : il fallait
+  faire défiler toute la page pour la voir et la fermer. Style dédié
+  ajouté ; les modales propres à chaque page ne sont pas modifiées.
+  Vérifié dans Chromium en mode clair et sombre, fermeture par le bouton
+  et par Échap.
+
+### Nettoyage
+- **`static/css/old/` supprimé** (4 feuilles de style, 72 Ko) : aucune page
+  ni aucun script ne les chargeait.
+- **`static/README.md`** : arborescence, manifeste PWA, service worker et
+  icônes décrits d'après les fichiers réels (il documentait des icônes PNG
+  et un service worker « cache first » qui n'existent pas).
+
 ## [1.51.0] - 2026-09-22 — Content-Security-Policy stricte
 
 ### Sécurité

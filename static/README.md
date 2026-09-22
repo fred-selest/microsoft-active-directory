@@ -15,17 +15,19 @@ Le répertoire `static/` contient toutes les **ressources statiques** servies pa
 ```
 static/
 ├── css/
-│   ├── styles.css              # Feuille de style principale
-│   └── old/                    # Anciens CSS (dépréciés)
+│   └── styles.css              # Feuille de style principale (unique)
 │
 ├── js/
+│   ├── actions.js              # Délégation d'événements (CSP stricte)
 │   ├── main.js                 # JavaScript principal
-│   └── display-debugger.js     # Outil de débogage d'affichage
+│   └── display-debugger.js     # Outil de débogage d'affichage (DEBUG)
 │
-├── icons/                      # Icônes de l'application
-│   ├── icon-192.png            # Icône PWA 192x192
-│   ├── icon-512.png            # Icône PWA 512x512
-│   └── ...                     # Autres icônes
+├── vendor/                     # Bibliothèques tierces servies localement
+│   ├── chart.umd.js            # Chart.js 4.4.4
+│   └── chart.js.LICENSE.md     # Licence MIT
+│
+├── icons/
+│   └── icon.svg                # Icône de l'application (favicon, PWA)
 │
 ├── manifest.webmanifest        # Manifeste PWA
 └── sw.js                       # Service Worker PWA
@@ -235,80 +237,31 @@ DisplayDebugger.disable();
 
 ### `manifest.webmanifest`
 
-Fichier de manifeste pour l'installation en tant qu'application native.
-
-```json
-{
-  "name": "AD Web Interface",
-  "short_name": "AD Web",
-  "description": "Interface Web pour Active Directory",
-  "start_url": "/dashboard",
-  "display": "standalone",
-  "background_color": "#f5f5f5",
-  "theme_color": "#0078d4",
-  "icons": [
-    {
-      "src": "/static/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/static/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
-```
+Manifeste d'installation : nom « AD Web Interface », `start_url` `/`,
+affichage `standalone`, couleur de thème `#0078d4`, et une seule icône
+vectorielle (`/static/icons/icon.svg`, `sizes: any`) valable pour toutes les
+tailles.
 
 ### `sw.js` — Service Worker
 
-Le service worker permet :
-- La mise en cache des ressources
-- Le fonctionnement hors ligne (limité)
-- Les notifications push (futur)
-
-```javascript
-// sw.js
-const CACHE_NAME = 'ad-web-v1';
-
-self.addEventListener('install', event => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => {
-            return cache.addAll([
-                '/',
-                '/static/css/styles.css',
-                '/static/js/main.js',
-                '/dashboard'
-            ]);
-        })
-    );
-});
-
-self.addEventListener('fetch', event => {
-    event.respondWith(
-        caches.match(event.request).then(response => {
-            return response || fetch(event.request);
-        })
-    );
-});
-```
+- **Stratégie « network first »** : la requête part toujours vers le serveur ;
+  le cache ne sert qu'en cas d'erreur réseau.
+- **Seuls les fichiers `/static/` sont mis en cache** au fil de l'eau (plus
+  `/`, `styles.css`, `main.js` et l'icône à l'installation). Les pages
+  dynamiques ne sont pas conservées, et les requêtes non-GET ou vers `/api/`
+  ne passent jamais par le cache.
+- `CACHE_NAME` est versionné : changer sa valeur purge les anciens caches à
+  l'activation.
+- Un gestionnaire de notifications push est présent mais n'est alimenté par
+  aucun envoi côté serveur à ce jour.
 
 ---
 
 ## 🖼️ Icônes
 
-Le répertoire `icons/` contient les icônes pour :
-
-- **PWA** : Installation sur mobile/desktop
-- **Favicon** : Onglet navigateur
-- **Apple Touch Icon** : iOS
-
-**Formats requis :**
-- `icon-192.png` — Android, PWA
-- `icon-512.png` — Android, PWA
-- `favicon.ico` — Navigateurs desktop
-- `apple-touch-icon.png` — iOS
+`icons/icon.svg` est l'unique icône : favicon, icône « Apple touch » et
+icône PWA (déclarée dans `base.html` et `manifest.webmanifest`). Le format
+vectoriel évite de maintenir des déclinaisons PNG par taille.
 
 ---
 
