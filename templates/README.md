@@ -14,108 +14,76 @@ Le répertoire `templates/` contient tous les **templates HTML** utilisant le mo
 
 ```
 templates/
-├── base.html                 # Layout principal (navbar, sidebar, footer)
+├── base.html                 # Layout principal (topbar, sidebar, messages flash)
 ├── index.html                # Page d'accueil (landing page)
 ├── connect.html              # Formulaire de connexion AD
+├── change_password.html      # Changement d'un mot de passe expiré
+├── login_success.html        # Page après connexion
+├── logged_out.html           # Page après déconnexion
 ├── dashboard.html            # Tableau de bord
-├── error.html                # Page d'erreur générique
-├── 404.html                  # Erreur 404
-├── 500.html                  # Erreur 500
+├── error.html                # Page d'erreur générique (404, 403, 500…)
+├── feature_disabled.html     # Fonctionnalité désactivée
+├── rate_limited.html         # Rate limiting
 │
 ├── users.html                # Liste des utilisateurs
 ├── create_user.html          # Création utilisateur
 ├── edit_user.html            # Édition utilisateur
 ├── reset_password.html       # Réinitialisation MDP
-├── user_form.html            # Formulaire utilisateur générique
 ├── user_templates.html       # Modèles de création
-├── import_users.html         # Import en masse
-├── duplicate_user.html       # Duplication utilisateur
-├── compare_users.html        # Comparaison utilisateurs
-├── compare_users_form.html   # Formulaire comparaison
+├── template_form.html        # Formulaire de modèle utilisateur
+├── favorites_page.html       # Favoris
 │
 ├── groups.html               # Liste des groupes
 ├── group_details.html        # Détails d'un groupe
 ├── group_form.html           # Formulaire groupe
 ├── create_group.html         # Création groupe
-├── nested_groups.html        # Groupes imbriqués
 │
 ├── computers.html            # Liste des ordinateurs
-├── laps.html                 # Dashboard LAPS
-├── laps_create_admin.html    # Création admin LAPS
-├── laps_gpo.html             # Configuration GPO LAPS
-├── laps_install.html         # Installation LAPS
-├── laps_extend_schema.html   # Extension schéma LAPS
-├── laps_read_permissions.html # Permissions lecture LAPS
-├── laps_computer_permissions.html # Permissions par ordinateur
-│
+├── laps.html                 # Mots de passe LAPS
 ├── bitlocker.html            # Clés BitLocker
 │
 ├── ous.html                  # Liste des OUs
 ├── ou_form.html              # Formulaire OU
-├── tree.html                 # Arborescence AD
 │
-├── tools/                    # Outils divers
-│   ├── accounts.py           # Comptes bloqués/expirés
-│   ├── backups.py            # Sauvegardes
-│   └── ...
-│
-├── admin.html                # Administration
-├── settings.html             # Paramètres
-├── permissions.html          # Permissions granulaires
-├── theme_designer.html       # Créateur de thème
-│
-├── audit.html                # Logs d'audit
-├── audit_history.html        # Historique complet
-├── password_audit.html       # Audit mots de passe
+├── locked_accounts.html      # Comptes verrouillés
+├── expiring_accounts.html    # Comptes expirés
+├── recycle_bin.html          # Corbeille AD
+├── password_policy.html      # Politique MDP
+├── password_audit.html       # Audit mots de passe (assemble password_audit/)
 ├── password_audit_history.html # Historique audit MDP
 ├── password_auditor_report.html # Rapport audit
-├── password_policy.html      # Politique MDP
 │
+├── admin.html                # Administration (paramètres, menu, thème)
+├── permissions.html          # Permissions granulaires
+├── audit.html                # Logs d'audit
 ├── alerts.html               # Alertes AD
-├── alerts_page.html          # Page complète alertes
-├── expiring_accounts.html    # Comptes expirés
-├── locked_accounts.html      # Comptes verrouillés
-├── recycle_bin.html          # Corbeille AD
-│
-├── diagnostic.html           # Diagnostic réseau/LDAP
 ├── security_audit.html       # Audit de sécurité
-│
+├── diagnostic.html           # Diagnostic réseau/LDAP
+├── errors.html               # Erreurs récentes de l'application
+├── log_analysis.html         # Analyse automatique des logs
+├── scripts.html              # Scripts PowerShell
 ├── backups.html              # Liste des sauvegardes
 ├── backup_detail.html        # Détail sauvegarde
-│
-├── search.html               # Recherche globale
-├── global_search.html        # Formulaire recherche
-├── advanced_search.html      # Recherche avancée
-│
-├── login_history.html        # Historique connexions
-├── login_success.html        # Page après connexion
-├── logged_out.html           # Page après déconnexion
-│
-├── favorites_page.html       # Favoris
-├── bulk_operations.html      # Opérations en masse
-│
-├── reports.html              # Rapports
-├── maintenance.html          # Maintenance
-├── history.html              # Historique actions
-│
+├── update.html               # Page de mise à jour
 ├── api_docs.html             # Documentation API
 │
-├── feature_disabled.html     # Fonctionnalité désactivée
-├── rate_limited.html         # Rate limiting
+├── partials/                 # Composants inclus par base.html
+│   ├── _topbar.html          # Barre supérieure
+│   ├── _sidebar.html         # Barre latérale (menus configurables)
+│   └── _flash.html           # Messages flash
 │
-├── update.html               # Page de mise à jour
+├── password_audit/           # Sections incluses par password_audit.html
+│   ├── _intro.html, _progress.html, _dashboard.html, _styles.html, _scripts.html
+│   └── _weak_accounts.html, _admin_accounts.html, _service_accounts.html,
+│       _old_passwords.html, _security.html
 │
-├── partials/                 # Composants réutilisables
-│   ├── _navbar.html          # Barre de navigation
-│   ├── _sidebar.html         # Barre latérale
-│   ├── _footer.html          # Pied de page
-│   ├── _alerts.html          # Flash messages
-│   ├── _pagination.html      # Pagination
-│   └── ...
-│
-└── debug/                    # Templates de debug
+└── debug/                    # Templates de debug (FLASK_ENV=development)
     └── dashboard.html        # Dashboard debug
 ```
+
+> Cette arborescence reflète les fichiers réellement présents. Un test
+> (`tests/test_qa_pages.py`) vérifie que chaque template est bien rendu ou
+> inclus quelque part : un template orphelin fait échouer la CI.
 
 ---
 
@@ -140,8 +108,8 @@ Tous les templates étendent `base.html` qui fournit :
     <!-- Favicon, PWA manifest, etc. -->
 </head>
 <body class="{% if dark_mode %}dark-mode{% endif %}">
-    <!-- Navbar -->
-    {% include 'partials/_navbar.html' %}
+    <!-- Barre supérieure -->
+    {% include 'partials/_topbar.html' %}
     
     <!-- Sidebar -->
     {% include 'partials/_sidebar.html' %}
@@ -149,7 +117,7 @@ Tous les templates étendent `base.html` qui fournit :
     <!-- Contenu principal -->
     <main class="content">
         <!-- Flash messages -->
-        {% include 'partials/_alerts.html' %}
+        {% include 'partials/_flash.html' %}
         
         {% block content %}{% endblock %}
     </main>
@@ -319,7 +287,7 @@ Le fichier `static/css/styles.css` fournit ces classes utilitaires :
 
 ## 📋 Flash Messages
 
-Les messages flash sont affichés via `partials/_alerts.html` :
+Les messages flash sont affichés via `partials/_flash.html` :
 
 ```python
 # Dans une route Python
@@ -342,20 +310,14 @@ flash('Information utile', 'info')
 Le répertoire `partials/` contient des fragments HTML inclus dans les pages :
 
 ```html
-<!-- Navbar -->
-{% include 'partials/_navbar.html' %}
+<!-- Barre supérieure -->
+{% include 'partials/_topbar.html' %}
 
-<!-- Sidebar -->
+<!-- Barre latérale -->
 {% include 'partials/_sidebar.html' %}
 
-<!-- Footer -->
-{% include 'partials/_footer.html' %}
-
-<!-- Alertes -->
-{% include 'partials/_alerts.html' %}
-
-<!-- Pagination -->
-{% include 'partials/_pagination.html' %}
+<!-- Messages flash -->
+{% include 'partials/_flash.html' %}
 ```
 
 ---

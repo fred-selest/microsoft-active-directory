@@ -4,6 +4,29 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.50.4] - 2026-09-22 — Nettoyage des templates
+
+### Nettoyage
+- **24 templates jamais affichés supprimés.** Aucune route ne les rendait et
+  aucun autre template ne les incluait : `404.html`, `500.html` (les erreurs
+  passent par `error.html`), `advanced_search.html`, `alerts_page.html`,
+  `bulk_operations.html`, `compare_users.html`, `compare_users_form.html`,
+  `duplicate_user.html`, `global_search.html`, `history.html`,
+  `import_users.html`, `laps_computer_permissions.html`,
+  `laps_create_admin.html`, `laps_dashboard.html`, `laps_extend_schema.html`,
+  `laps_gpo.html`, `laps_install.html`, `laps_read_permissions.html`,
+  `login_history.html`, `maintenance.html`, `nested_groups.html`,
+  `search.html`, `tree.html`, `user_form.html`. Plusieurs contenaient des
+  liens vers des routes inexistantes (`laps_management.*`,
+  `users.global_search`, `api_acknowledge_alert`…) qui auraient provoqué une
+  erreur 500 si quelqu'un les avait branchés tels quels. Aucun changement
+  visible : aucune page de l'application ne les utilisait.
+- **Nouveau test** : tout template doit être rendu par une route ou inclus
+  par un autre template, sinon la CI échoue.
+- **`templates/README.md` réécrit** d'après les fichiers réels : il
+  documentait une trentaine de templates inexistants (dont des partials
+  `_navbar`, `_footer`, `_pagination`) et en omettait 18.
+
 ## [1.50.3] - 2026-09-22 — Mot de passe expiré, menu, configuration par défaut
 
 ### Corrections

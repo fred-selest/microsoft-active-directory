@@ -80,3 +80,33 @@ def test_tous_les_url_for_litteraux_resolvent():
             if m.group(1) != 'static' and m.group(1) not in app.view_functions:
                 bad.append(f"{f.relative_to(root)}: {m.group(1)}")
     assert bad == []
+
+
+def test_aucun_template_orphelin():
+    """
+    Chaque template doit etre rendu (render_template) ou inclus/etendu par un
+    autre template. 24 templates morts ont ete supprimes en v1.50.4 : ils
+    contenaient des url_for() vers des routes inexistantes, invisibles tant
+    que personne ne les rendait.
+    """
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    tpl_dir = root / 'templates'
+    sources = [p.read_text(encoding='utf-8', errors='ignore')
+               for p in list((root / 'routes').rglob('*.py'))
+               + list((root / 'core').rglob('*.py'))
+               + list((root / 'password_audit').rglob('*.py'))
+               + [root / 'app.py']]
+    templates = {p.relative_to(tpl_dir).as_posix(): p for p in tpl_dir.rglob('*.html')}
+    tpl_sources = {name: p.read_text(encoding='utf-8', errors='ignore')
+                   for name, p in templates.items()}
+    orphelins = []
+    for name in templates:
+        pat = re.compile(r"['\"]" + re.escape(name) + r"['\"]")
+        if any(pat.search(s) for s in sources):
+            continue
+        if any(pat.search(s) for other, s in tpl_sources.items() if other != name):
+            continue
+        orphelins.append(name)
+    assert orphelins == []

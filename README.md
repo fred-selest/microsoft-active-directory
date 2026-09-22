@@ -10,9 +10,15 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.50.3 — Septembre 2026
+**Dernière version :** v1.50.4 — Septembre 2026
 
 ---
+
+## 🆕 Nouveautés v1.50.4 — Nettoyage des templates
+
+- 24 templates jamais affichés supprimés (aucune route ne les utilisait ; plusieurs contenaient des liens cassés). Aucun changement visible.
+- Un test fait désormais échouer la CI si un template devient orphelin.
+- Documentation des templates (`templates/README.md`) remise en accord avec les fichiers réels.
 
 ## 🆕 Nouveautés v1.50.3 — Mot de passe expiré, menu, configuration par défaut
 
