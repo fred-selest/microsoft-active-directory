@@ -12,7 +12,7 @@ Interface. Elle est exécutée par la CI (`.github/workflows/ci.yml`, job
 
 **Framework :** `pytest`
 
-Ce fichier décrit les fichiers **réellement présents** dans `tests/` (17
+Ce fichier décrit les fichiers **réellement présents** dans `tests/` (16
 fichiers). Les versions précédentes de ce document faisaient référence à des
 dizaines de fichiers (`test_users.py`, `test_groups.py`, `test_mobile.py`,
 `test_page_structure.py`…) qui n'ont jamais existé dans ce dépôt : ce
