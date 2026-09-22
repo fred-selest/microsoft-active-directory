@@ -4,7 +4,9 @@ Extrait de app.py pour alléger le fichier principal.
 """
 import time
 
-from flask import session
+import logging
+
+from flask import current_app, session
 
 from config import get_config
 from core.security import generate_csrf_token
@@ -14,9 +16,23 @@ from core.features import is_feature_enabled
 from routes.core import get_ad_connection
 
 config = get_config()
+logger = logging.getLogger(__name__)
 
 # Cache léger pour éviter de requêter GitHub à chaque requête (TTL 5 min)
 _update_cache = {'last_check': 0, 'result': None}
+
+
+def _routable(items):
+    """Écarter les entrées de menu dont l'endpoint n'est pas enregistré."""
+    kept = []
+    for item in items:
+        endpoint = item.get('endpoint')
+        if endpoint in current_app.view_functions:
+            kept.append(item)
+        else:
+            logger.warning(f"Entrée de menu ignorée : endpoint inconnu {endpoint!r} "
+                           f"(id={item.get('id')!r})")
+    return kept
 
 
 def inject_globals():
@@ -42,6 +58,16 @@ def inject_globals():
         dropdown_items = get_dropdown_items()
     except Exception:
         settings, menu_items, tool_items, admin_items, dropdown_items = {}, [], [], [], {}
+
+    # Les entrées de menu viennent de settings.json, modifiable depuis /admin :
+    # un endpoint inexistant (entrée « Recherche » → global_search, ou endpoint
+    # renommé depuis une ancienne version) faisait lever url_for() dans la
+    # barre latérale — donc 500 sur TOUTES les pages, y compris la page
+    # d'erreur et /admin qui aurait permis de corriger le réglage.
+    menu_items, tool_items, admin_items = (
+        _routable(menu_items), _routable(tool_items), _routable(admin_items))
+    if isinstance(dropdown_items, list):
+        dropdown_items = _routable(dropdown_items)
 
     def check_user_permission(permission):
         """

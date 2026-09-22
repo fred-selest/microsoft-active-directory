@@ -46,3 +46,37 @@ def test_history_fetch_urls_prefixees_tools():
     # et les bonnes formes sont bien presentes
     assert '/tools/api/password-audit/alerts-summary' in html
     assert '/tools/api/password-audit/history' in html
+
+
+# --- Menu : un endpoint inconnu ne doit pas faire tomber toutes les pages ---
+
+def test_menu_endpoint_inconnu_ignore(monkeypatch):
+    """
+    L'entree « Recherche » (endpoint global_search, inexistant) activee depuis
+    /admin faisait lever url_for() dans la barre laterale : 500 sur toutes les
+    pages, page d'erreur comprise.
+    """
+    import core.settings_manager as sm
+    from app import app
+    orig = sm.get_menu_items
+    monkeypatch.setattr(sm, 'get_menu_items', lambda: orig() + [
+        {'id': 'search', 'label': 'Recherche', 'endpoint': 'global_search',
+         'icon': 'x', 'enabled': True, 'order': 6}])
+    r = app.test_client().get('/connect')
+    assert r.status_code == 200
+    assert b'Recherche' not in r.data
+
+
+def test_tous_les_url_for_litteraux_resolvent():
+    """Chaque url_for('...') litteral des routes doit viser un endpoint existant."""
+    import re
+    from pathlib import Path
+    from app import app
+    root = Path(__file__).resolve().parent.parent
+    bad = []
+    for f in list((root / 'routes').rglob('*.py')) + list((root / 'core').rglob('*.py')):
+        src = f.read_text(encoding='utf-8', errors='ignore')
+        for m in re.finditer(r"url_for\(\s*['\"]([\w.]+)['\"]", src):
+            if m.group(1) != 'static' and m.group(1) not in app.view_functions:
+                bad.append(f"{f.relative_to(root)}: {m.group(1)}")
+    assert bad == []

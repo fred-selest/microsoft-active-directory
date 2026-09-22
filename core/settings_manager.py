@@ -36,7 +36,6 @@ DEFAULT_SETTINGS = {
             {'id': 'groups',     'label': 'Groupes',         'endpoint': 'groups.list_groups',       'icon': '👨‍👩‍👧‍👦', 'enabled': True,  'order': 3},
             {'id': 'computers',  'label': 'Ordinateurs',     'endpoint': 'computers.list_computers', 'icon': '💻', 'enabled': True,  'order': 4},
             {'id': 'ous',        'label': "Unités d'org.",   'endpoint': 'ous.list_ous',                      'icon': '📁', 'enabled': True,  'order': 5},
-            {'id': 'search',     'label': 'Recherche',       'endpoint': 'global_search',            'icon': '🔎', 'enabled': False, 'order': 6},
         ],
         # Section "Outils" — visible par les admins uniquement
         'tool_items': [
