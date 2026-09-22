@@ -10,9 +10,18 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.50.2 — Août 2026
+**Dernière version :** v1.50.3 — Septembre 2026
 
 ---
+
+## 🆕 Nouveautés v1.50.3 — Mot de passe expiré, menu, configuration par défaut
+
+- **Mot de passe expiré** : la page de changement proposée à la connexion fonctionne enfin (elle était inatteignable, puis plantait). Le changement passe par l'API Windows `NetUserChangePassword` et respecte la stratégie de mot de passe du domaine.
+- **Menu** : activer l'entrée « Recherche » dans l'administration du menu faisait planter toutes les pages. Les entrées invalides sont désormais ignorées.
+- **Mode production par défaut** : sans `FLASK_ENV`, l'application ne démarre plus en mode debug. ⚠️ En développement avec `python app.py`, définir `FLASK_ENV=development`.
+- Filtre anti-XSS du CSS personnalisé renforcé ; logs moins bruyants (404, refus de permission).
+
+Détails : [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 🆕 Nouveautés v1.50.2 — Revue de la v1.50 : garde-fou CI, clé API, ProxyFix
 

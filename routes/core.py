@@ -7,6 +7,7 @@ Gestion des autorisations granulaires par groupe AD.
 import _openssl_init
 
 import os
+import re
 import ssl
 from functools import wraps
 from flask import session, redirect, url_for, flash, g, current_app, request, jsonify
@@ -190,10 +191,20 @@ def _is_invalid_credentials_error(error_msg):
     return 'invalidcredentials' in msg or 'error 49' in msg or '80090308' in msg
 
 
+# Sous-codes « data » d'un bind AD refusé (LDAP 49) signifiant que le mot de
+# passe est correct mais doit être changé :
+#   532 = mot de passe expiré, 773 = changement exigé à la prochaine ouverture
+#   de session (pwdLastSet = 0).
+# On exige le préfixe « data » : un simple '773' in msg matchait aussi un
+# identifiant DSID-0C09xxxx quelconque, et 532 n'était pas détecté du tout.
+_PWD_EXPIRED_DATA_RE = re.compile(r'\bdata\s+(532|773)\b', re.IGNORECASE)
+
+
 def _is_password_expired_error(error_msg):
-    """Vérifier si l'erreur indique un mot de passe expiré (LDAP 49 / data 773)."""
+    """Vérifier si l'erreur indique un mot de passe expiré (LDAP 49 / data 532 ou 773)."""
     msg = str(error_msg)
-    return '773' in msg or 'password expired' in msg.lower() or 'pwd_expired' in msg.lower()
+    return (bool(_PWD_EXPIRED_DATA_RE.search(msg))
+            or 'password expired' in msg.lower() or 'pwd_expired' in msg.lower())
 
 
 def _is_channel_binding_error(error_msg):
@@ -269,11 +280,8 @@ def _try_connection(server, username, password):
                     result_desc = (conn.result.get('description')
                                    or conn.result.get('message')
                                    or f"code {result_code}")
-                    # Vérifier le code data hex (773 = password expired)
-                    msg = conn.result.get('message', '')
-                    if '773' in msg or 'pwd_expired' in msg.lower():
-                        return None, "PASSWORD_EXPIRED"
-                    if result_code == 49 and ('773' in msg or 'data 773' in msg.lower()):
+                    # Sous-code « data » (532/773 = mot de passe à changer)
+                    if _is_password_expired_error(conn.result.get('message', '')):
                         return None, "PASSWORD_EXPIRED"
                 else:
                     result_desc = 'bind failed'
@@ -426,8 +434,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                 # Bind échoué — capturer le code LDAP détaillé
                 if conn.result:
                     msg = conn.result.get('message', '')
-                    result_code = conn.result.get('result', 0)
-                    if '773' in msg or (result_code == 49 and '773' in msg):
+                    if _is_password_expired_error(msg):
                         return None, "PASSWORD_EXPIRED"
                     if _is_invalid_credentials_error(msg):
                         return None, "Identifiants incorrects"
@@ -444,6 +451,13 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
     if conn:
         logger.info(f"Connexion réussie (méthode automatique): {server}")
         return conn, None
+
+    # Sentinelle transmise telle quelle : connect() s'en sert pour rediriger
+    # vers la page de changement de mot de passe. L'enrober dans le message
+    # générique ci-dessous rendait cette page inatteignable par le chemin
+    # par défaut (port 389, sans SSL).
+    if errors == "PASSWORD_EXPIRED":
+        return None, errors
 
     hint = " [MD4: executez fix_md4.ps1 pour activer le support NTLM]" if _is_md4_error(errors) else ""
     logger.error(f"Connexion échouée: {errors[:200]}")

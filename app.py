@@ -204,7 +204,9 @@ def after_request(response):
 @app.errorhandler(404)
 def not_found_error(error):
     from routes.core import is_connected
-    logger.error(f"404 Error: {session.get('ad_username', 'anonymous')}")
+    # Niveau warning (constat F7) : les 404 (scans, liens obsolètes) en ERROR
+    # noyaient les vraies erreurs dans l'analyseur de logs automatique.
+    logger.warning(f"404 {request.path}: {session.get('ad_username', 'anonymous')}")
     return render_template('error.html', error_code=404, error_message="Page non trouvée",
                          error_details=str(error), connected=is_connected()), 404
 

@@ -28,7 +28,7 @@ def require_admin(f):
         user_role = session.get('user_role', config.DEFAULT_ROLE)
         if user_role != 'admin':
             flash('Accès réservé aux administrateurs.', 'error')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('main.dashboard'))
         
         return f(*args, **kwargs)
     return decorated

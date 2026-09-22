@@ -12,7 +12,7 @@ Interface. Elle est exécutée par la CI (`.github/workflows/ci.yml`, job
 
 **Framework :** `pytest`
 
-Ce fichier décrit les fichiers **réellement présents** dans `tests/` (13
+Ce fichier décrit les fichiers **réellement présents** dans `tests/` (16
 fichiers). Les versions précédentes de ce document faisaient référence à des
 dizaines de fichiers (`test_users.py`, `test_groups.py`, `test_mobile.py`,
 `test_page_structure.py`…) qui n'ont jamais existé dans ce dépôt : ce
@@ -34,6 +34,10 @@ document les remplace.
 | `test_fix_protocol.py` | Route `/api/fix-protocol` (durcissement des protocoles hérités) |
 | `test_hardening_147.py` | Durcissements v1.47.0 (validation TLS opt-in, etc.) |
 | `test_permissions_c1.py` | Non-régression du contrôle d'accès granulaire (constat C1) |
+| `test_proxy_fix.py` | Câblage ProxyFix (constat M6) : aucune confiance implicite dans `X-Forwarded-For` |
+| `test_dn_escaping_create_user.py` | Échappement RFC 4514 du CN dans le DN de création de compte ; écriture atomique des modèles |
+| `test_favorites_templates.py` | Favoris et modèles utilisateur (`routes/tools/misc.py`) |
+| `test_expired_password.py` | Parcours « mot de passe expiré » : détection 532/773, page de changement, `NetUserChangePassword` |
 | `test_qa_pages.py` | Non-régression du passage QA des pages (crashes 500, interactivité) |
 
 Ces fichiers utilisent `unittest`/`pytest` (classes `TestCase`-like, fixtures
