@@ -12,11 +12,11 @@
 
     {% if accounts %}
     <div class="bulk-actions">
-        <button type="submit" class="btn btn-success" onclick="return confirm('Deverrouiller les comptes selectionnes?');">
+        <button type="submit" class="btn btn-success" data-confirm="Deverrouiller les comptes selectionnes?">
             Deverrouiller la selection
         </button>
-        <button type="button" class="btn btn-secondary" onclick="selectAll()">Tout selectionner</button>
-        <button type="button" class="btn btn-secondary" onclick="deselectAll()">Tout deselectionner</button>
+        <button type="button" class="btn btn-secondary" data-onclick="selectAll">Tout selectionner</button>
+        <button type="button" class="btn btn-secondary" data-onclick="deselectAll">Tout deselectionner</button>
     </div>
     {% endif %}
 
@@ -24,7 +24,7 @@
         <table class="data-table sortable">
             <thead>
                 <tr>
-                    <th data-no-sort><input type="checkbox" id="selectAllCheckbox" onclick="toggleAll(this)"></th>
+                    <th data-no-sort><input type="checkbox" id="selectAllCheckbox" data-onclick="toggleAll" data-args='{{ ['$el']|tojson }}'></th>
                     <th>Nom complet</th>
                     <th>Identifiant</th>
                     <th>Email</th>
@@ -57,6 +57,8 @@
 
 <p class="results-count">{{ accounts|length }} compte(s) verrouille(s)</p>
 
+{% endblock %}
+
 {% block extra_css %}
 <style>
 .bulk-actions {
@@ -68,7 +70,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 function toggleAll(checkbox) {
     const checkboxes = document.querySelectorAll('.account-checkbox');
     checkboxes.forEach(cb => cb.checked = checkbox.checked);
@@ -84,7 +86,6 @@ function deselectAll() {
     document.getElementById('selectAllCheckbox').checked = false;
 }
 </script>
-{% endblock %}
 {% endblock %}
 
 

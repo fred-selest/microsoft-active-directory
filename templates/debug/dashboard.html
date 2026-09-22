@@ -3,10 +3,9 @@
 {% block title %}🔍 Debug Dashboard - AD Web Interface{% endblock %}
 
 {% block extra_css %}
-<!-- Google Fonts - Inter -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{# Polices Google retirées : bloquées par la CSP (font-src/style-src 'self'),
+   et le contrôleur de domaine n'a souvent pas d'accès Internet. Les piles de
+   polices déclarées plus bas retombent sur les polices système. #}
 {% endblock %}
 
 {% block content %}
@@ -204,7 +203,7 @@
                 <div class="card-header">
                     <span class="card-icon">🧪</span>
                     <h3>Test des Pages</h3>
-                    <button class="btn-test-all" onclick="testAllPages()">
+                    <button class="btn-test-all" data-onclick="testAllPages">
                         <span>🔄</span> Tout tester
                     </button>
                 </div>
@@ -226,7 +225,7 @@
                         ] %}
                         
                         {% for page_id, page_name, icon in pages %}
-                        <button class="test-btn" onclick="testPage('{{ page_id }}')" id="test-btn-{{ page_id }}">
+                        <button class="test-btn" data-onclick="testPage" data-args='{{ [page_id]|tojson }}' id="test-btn-{{ page_id }}">
                             <span class="test-icon">{{ icon }}</span>
                             <span class="test-label">{{ page_name }}</span>
                             <span class="test-status" id="test-status-{{ page_id }}">⏳</span>
@@ -270,7 +269,7 @@
                 <div class="card-header">
                     <span class="card-icon">📊</span>
                     <h3>Debug Data (JSON)</h3>
-                    <button class="btn-copy" onclick="copyDebugData()">
+                    <button class="btn-copy" data-onclick="copyDebugData">
                         <span>📋</span> Copier
                     </button>
                 </div>
@@ -1003,7 +1002,7 @@ body.dark-mode .test-btn.error {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Test une page spécifique
 async function testPage(pageId) {
     const btn = document.getElementById(`test-btn-${pageId}`);

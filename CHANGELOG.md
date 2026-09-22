@@ -4,6 +4,86 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.51.0] - 2026-09-22 — Content-Security-Policy stricte
+
+### Sécurité
+- **CSP stricte pour les scripts** (constat M9 de l'audit). La politique
+  autorisait `'unsafe-inline'` : n'importe quel script injecté dans une page
+  (via un `innerHTML`, un attribut `onclick`…) pouvait s'exécuter, ce qui
+  rendait la CSP quasi inutile contre le XSS. Désormais, seuls les scripts
+  de l'application et ceux portant le **nonce** de la requête (renouvelé à
+  chaque page) s'exécutent. S'y ajoutent `object-src 'none'`,
+  `base-uri 'self'` et `form-action 'self'`.
+- **Plus aucune ressource externe** : chart.js (4.4.4, fichier vérifié
+  identique au paquet npm officiel) est servi depuis `static/vendor/`. Les
+  graphiques ne dépendent plus d'un accès Internet depuis le contrôleur de
+  domaine.
+- **Fin d'injections possibles dans les attributs `onclick`.** Des appels
+  comme `onclick="showMoveModal('{{ user.dn }}')"` étaient vulnérables : dans
+  un attribut HTML, le navigateur décode `&#39;` en apostrophe **avant**
+  d'exécuter le JavaScript, si bien qu'un nom ou un DN contenant une
+  apostrophe pouvait injecter du code. Les 114 gestionnaires `on*="…"` sont
+  remplacés par une délégation d'événements (`static/js/actions.js`) dont
+  les arguments passent en JSON échappé.
+- **Nouveau réglage `CSP_MODE`** : `strict` (défaut), `report-only`
+  (ancienne politique appliquée, violations de la politique stricte
+  journalisées sous « CSP violation ») ou `legacy` (échappatoire). Si une
+  page ne réagit plus à un clic, passer temporairement en `report-only` et
+  signaler la page concernée.
+
+### Corrections
+- **Page Mise à jour inutilisable depuis la publication de la v1.50.3.**
+  Les notes de version GitHub étaient insérées sans échappement : la mention
+  littérale « `<style>` » dans les notes de la v1.50.3 ouvrait une vraie
+  balise, et toute la suite de la page devenait du CSS — scripts compris,
+  dont le bouton de mise à jour. Les notes sont maintenant affichées comme
+  du texte. Cela ferme aussi une injection HTML possible depuis le contenu
+  d'une release.
+- **Scripts exécutés deux fois** sur les pages Utilisateurs, Ordinateurs,
+  BitLocker, Comptes verrouillés et Détail d'un groupe : le bloc de script
+  était imbriqué dans le contenu et donc rendu deux fois. Sur le détail d'un
+  groupe, cela provoquait une erreur JavaScript (recherche de membres
+  inopérante).
+- **Feuilles de style dupliquées** sur 11 pages (Connexion, Journal d'audit,
+  Corbeille, Sauvegardes, Modèles, Nouveau groupe, Expirations, Favoris,
+  Documentation API, Réinitialisation du mot de passe, Détail d'une
+  sauvegarde) : même défaut d'imbrication, pour le bloc CSS. Rendu vérifié
+  identique dans Chromium, sauf sur la page de réinitialisation du mot de
+  passe : sa classe `.user-info` entrait en collision avec celle de la barre
+  supérieure, dont le badge utilisateur prenait le fond bleu de l'encadré de
+  la page. Classe renommée.
+- Tableau de bord debug : polices Google retirées (déjà bloquées par la CSP).
+
+### Vérification
+Crawl de toutes les pages dans Chromium avec la CSP stricte, sur un
+annuaire AD simulé : aucune violation, aucune erreur JavaScript. Parcours
+cliqués : modales, confirmations de suppression, sélection multiple,
+onglets, filtres, boutons générés dynamiquement, panneau des notes de
+version, messages flash.
+
+## [1.50.4] - 2026-09-22 — Nettoyage des templates
+
+### Nettoyage
+- **24 templates jamais affichés supprimés.** Aucune route ne les rendait et
+  aucun autre template ne les incluait : `404.html`, `500.html` (les erreurs
+  passent par `error.html`), `advanced_search.html`, `alerts_page.html`,
+  `bulk_operations.html`, `compare_users.html`, `compare_users_form.html`,
+  `duplicate_user.html`, `global_search.html`, `history.html`,
+  `import_users.html`, `laps_computer_permissions.html`,
+  `laps_create_admin.html`, `laps_dashboard.html`, `laps_extend_schema.html`,
+  `laps_gpo.html`, `laps_install.html`, `laps_read_permissions.html`,
+  `login_history.html`, `maintenance.html`, `nested_groups.html`,
+  `search.html`, `tree.html`, `user_form.html`. Plusieurs contenaient des
+  liens vers des routes inexistantes (`laps_management.*`,
+  `users.global_search`, `api_acknowledge_alert`…) qui auraient provoqué une
+  erreur 500 si quelqu'un les avait branchés tels quels. Aucun changement
+  visible : aucune page de l'application ne les utilisait.
+- **Nouveau test** : tout template doit être rendu par une route ou inclus
+  par un autre template, sinon la CI échoue.
+- **`templates/README.md` réécrit** d'après les fichiers réels : il
+  documentait une trentaine de templates inexistants (dont des partials
+  `_navbar`, `_footer`, `_pagination`) et en omettait 18.
+
 ## [1.50.3] - 2026-09-22 — Mot de passe expiré, menu, configuration par défaut
 
 ### Corrections

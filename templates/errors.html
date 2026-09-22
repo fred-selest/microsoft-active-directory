@@ -6,10 +6,10 @@
 <div class="page-header fade-in">
     <h2>📋 Journal des Erreurs</h2>
     <div class="page-actions">
-        <button class="btn btn-primary" onclick="refreshErrors()">
+        <button class="btn btn-primary" data-onclick="refreshErrors">
             🔄 Actualiser
         </button>
-        <button class="btn btn-secondary" onclick="exportErrors()">
+        <button class="btn btn-secondary" data-onclick="exportErrors">
             📥 Exporter
         </button>
         <a href="{{ url_for('admin_tools.diagnostic_page') }}" class="btn btn-secondary">
@@ -170,7 +170,7 @@ body.dark-mode .error-file {
 }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 let allErrors = [];
 
 /**

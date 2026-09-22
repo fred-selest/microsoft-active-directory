@@ -243,8 +243,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/chart.umd.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 // Graphique des utilisateurs
 const usersCtx = document.getElementById('usersChart').getContext('2d');
 new Chart(usersCtx, {

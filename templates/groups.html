@@ -15,7 +15,7 @@
                    value="{{ search }}" class="form-control">
         </div>
         <div class="form-group">
-            <select name="filter" class="form-control" onchange="this.form.submit()">
+            <select name="filter" class="form-control" data-onchange="submitParentForm">
                 <option value="">Tous les groupes</option>
                 <option value="security" {% if filter == 'security' %}selected{% endif %}>Groupes de securite</option>
                 <option value="distribution" {% if filter == 'distribution' %}selected{% endif %}>Groupes de distribution</option>
@@ -76,7 +76,7 @@
                     <a href="{{ url_for('groups.view_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Membres</a>
                     <a href="{{ url_for('groups.edit_group', dn=group.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     <form method="post" action="{{ url_for('groups.delete_group', dn=group.dn) }}"
-                          style="display: inline;" onsubmit="return confirm('Supprimer ce groupe ?');">
+                          style="display: inline;" data-confirm="Supprimer ce groupe ?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
                     </form>

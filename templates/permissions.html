@@ -6,10 +6,10 @@
 <div class="page-header fade-in">
     <h2>🔐 Permissions Granulaires par Groupe AD</h2>
     <div class="page-actions">
-        <button class="btn btn-primary" onclick="showAddGroupModal()">
+        <button class="btn btn-primary" data-onclick="showAddGroupModal">
             ➕ Ajouter un groupe
         </button>
-        <button class="btn btn-secondary" onclick="location.reload()">
+        <button class="btn btn-secondary" data-onclick="reload">
             🔄 Actualiser
         </button>
     </div>
@@ -78,7 +78,7 @@
                     </td>
                     <td>{{ group_data.description or '-' }}</td>
                     <td>
-                        <span class="badge badge-success" style="cursor: pointer;" onclick="showPermissionsDetail('{{ group_name }}')">
+                        <span class="badge badge-success" style="cursor: pointer;" data-onclick="showPermissionsDetail" data-args='{{ [group_name]|tojson }}'>
                             🔢 {{ group_data.permissions|length }} permissions
                         </span>
                     </td>
@@ -90,11 +90,11 @@
                         {% endif %}
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-secondary" onclick="editGroup('{{ group_name }}')">
+                        <button class="btn btn-sm btn-secondary" data-onclick="editGroup" data-args='{{ [group_name]|tojson }}'>
                             ✏️ Modifier
                         </button>
                         {% if group_data.custom %}
-                        <button class="btn btn-sm btn-danger" onclick="deleteGroup('{{ group_name }}')">
+                        <button class="btn btn-sm btn-danger" data-onclick="deleteGroup" data-args='{{ [group_name]|tojson }}'>
                             🗑️ Supprimer
                         </button>
                         {% endif %}
@@ -116,12 +116,12 @@
     <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
         <h3 id="modal-title">➕ Ajouter un groupe</h3>
         
-        <form id="group-form" onsubmit="saveGroup(event)">
+        <form id="group-form" data-onsubmit="saveGroup" data-args='{{ ['$event']|tojson }}'>
             <input type="hidden" id="edit-group-name" value="">
             
             <div style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Type de sujet :</label>
-                <select id="subject_type" name="subject_type" onchange="updateSubjectLabel()"
+                <select id="subject_type" name="subject_type" data-onchange="updateSubjectLabel"
                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);">
                     <option value="group">👥 Groupe AD</option>
                     <option value="user">👤 Utilisateur AD</option>
@@ -134,7 +134,7 @@
                 <input type="text" id="group-name" required autocomplete="off"
                        placeholder="ex: IT Support"
                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary);"
-                       oninput="debouncedSearch(this.value)">
+                       data-oninput="debouncedSearch" data-args='{{ ['$value']|tojson }}'>
                 <div id="autocomplete-list" style="display:none; position:absolute; z-index:2000; left:0; right:0;
                      background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px;
                      max-height: 200px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.3);"></div>
@@ -188,7 +188,7 @@
             </div>
             
             <div class="modal-actions" style="text-align: right;">
-                <button type="button" class="btn btn-secondary" onclick="closeGroupModal()">Annuler</button>
+                <button type="button" class="btn btn-secondary" data-onclick="closeGroupModal">Annuler</button>
                 <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
             </div>
         </form>
@@ -201,7 +201,7 @@
         <h3 id="perm-modal-title">📋 Permissions du groupe</h3>
         <div id="permissions-list" style="max-height: 400px; overflow-y: auto;"></div>
         <div class="modal-actions" style="margin-top: 1.5rem; text-align: right;">
-            <button class="btn btn-secondary" onclick="closePermissionsModal()">Fermer</button>
+            <button class="btn btn-secondary" data-onclick="closePermissionsModal">Fermer</button>
         </div>
     </div>
 </div>
@@ -209,7 +209,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 const allPermissions = {{ permissions|tojson }};
 
 const SUBJECT_CONFIG = {

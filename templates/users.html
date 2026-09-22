@@ -63,7 +63,7 @@
     <table class="data-table sortable">
         <thead>
             <tr>
-                <th><input type="checkbox" id="select-all-users" onchange="toggleAllUsers(this)"></th>
+                <th><input type="checkbox" id="select-all-users" data-onchange="toggleAllUsers" data-args='{{ ['$el']|tojson }}'></th>
                 <th>Nom d'affichage</th>
                 <th>Identifiant</th>
                 <th class="hide-mobile col-email">Email</th>
@@ -137,14 +137,14 @@
                         </form>
                         <button type="button" class="btn btn-sm {{ 'btn-success' if user.disabled else 'btn-warning' }}"
                                 title="{{ 'Activer' if user.disabled else 'Désactiver' }}"
-                                onclick="document.getElementById('toggle-form-{{ loop.index }}').submit();">
+                                data-onclick="submitForm" data-args='{{ ["toggle-form-" ~ loop.index]|tojson }}'>
                             {{ '✅' if user.disabled else '⏸️' }}
                         </button>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ user.dn|replace("'", "\\'") }}', '{{ (user.displayName or user.cn)|replace("'", "\\'") }}')" title="Déplacer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-onclick="showMoveModal" data-args='{{ [user.dn, user.displayName or user.cn]|tojson }}' title="Déplacer">
                             📍
                         </button>
                         <form method="post" action="{{ url_for('users.delete_user', dn=user.dn) }}"
-                              style="display: inline;" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                              style="display: inline;" data-confirm="Supprimer cet utilisateur ?">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
                                 🗑️
@@ -209,11 +209,13 @@
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Deplacer</button>
-                <button type="button" class="btn btn-secondary" onclick="closeMoveModal()">Annuler</button>
+                <button type="button" class="btn btn-secondary" data-onclick="closeMoveModal">Annuler</button>
             </div>
         </form>
     </div>
 </div>
+
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -447,7 +449,7 @@ body.dark-mode .filter-group .form-control {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
     const userSearchInput = document.querySelector('input[name="search"]');
     if (userSearchInput) {
@@ -562,7 +564,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-{% endblock %}
 {% endblock %}
 
 

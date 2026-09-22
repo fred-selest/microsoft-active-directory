@@ -46,7 +46,7 @@
         </div>
 
         <div class="rate-limit-actions">
-            <button onclick="history.back()" class="btn btn-secondary btn-lg">
+            <button data-onclick="back" class="btn btn-secondary btn-lg">
                 ← Page précédente
             </button>
             <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg">
@@ -288,7 +288,7 @@ body.dark-mode .login-help ul {
 }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Compte à rebours
 let seconds = {{ retry_after }};
 const countdownEl = document.getElementById('seconds');

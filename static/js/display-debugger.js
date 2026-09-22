@@ -129,11 +129,11 @@
             <span class="debug-value" id="dd-elements">--</span>
         </div>
         
-        <button onclick="document.getElementById('dd-grid').style.display = document.getElementById('dd-grid').style.display === 'block' ? 'none' : 'block'">
+        <button data-onclick="toggleDisplay" data-args='["dd-grid"]'>
             Toggle Grid Overlay
         </button>
         
-        <button onclick="document.getElementById('display-debugger').remove()">
+        <button data-onclick="removeElement" data-args='["display-debugger"]'>
             Fermer
         </button>
         

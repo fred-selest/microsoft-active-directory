@@ -153,9 +153,38 @@ except Exception as e:
 from flask import request, jsonify
 from core.security import validate_csrf_token
 
-# Endpoints exemptés de CSRF (aucun pour l'instant). Utiliser le nom d'endpoint
-# Flask (blueprint.fonction). Réservé à d'éventuelles intégrations sans session.
-_CSRF_EXEMPT_ENDPOINTS = set()
+# Endpoints exemptés de CSRF. Utiliser le nom d'endpoint Flask
+# (blueprint.fonction). csp_report : les rapports de violation CSP sont émis
+# par le navigateur lui-même, sans jeton possible ; la route ne modifie aucun
+# état (elle journalise seulement).
+_CSRF_EXEMPT_ENDPOINTS = {'csp_report'}
+
+# Journalisation des violations CSP, bornée pour qu'un client ne puisse pas
+# inonder les logs : au plus _CSP_REPORT_MAX rapports par minute.
+_CSP_REPORT_MAX = 30
+_csp_report_window = {'start': 0.0, 'count': 0}
+
+
+@app.route('/csp-report', methods=['POST'])
+def csp_report():
+    import time as _time
+    now = _time.time()
+    if now - _csp_report_window['start'] > 60:
+        _csp_report_window['start'], _csp_report_window['count'] = now, 0
+    _csp_report_window['count'] += 1
+    if _csp_report_window['count'] <= _CSP_REPORT_MAX:
+        raw = request.get_data(cache=False)[:4096]
+        try:
+            import json as _json
+            report = _json.loads(raw).get('csp-report', {})
+            logger.warning(
+                "CSP violation: %s bloque sur %s (source %s:%s)",
+                report.get('violated-directive') or report.get('effective-directive'),
+                report.get('document-uri'),
+                report.get('source-file', '-'), report.get('line-number', '-'))
+        except Exception:
+            logger.warning("CSP violation (rapport illisible): %r", raw[:200])
+    return '', 204
 
 
 @app.before_request

@@ -7,7 +7,7 @@
     <h2>📁 Unités d'Organisation</h2>
     <div class="page-header-actions">
         <a href="{{ url_for('ous.create_ou') }}" class="btn btn-primary">+ Nouvelle OU</a>
-        <button class="btn btn-secondary" onclick="exportOUs()">📄 Export CSV</button>
+        <button class="btn btn-secondary" data-onclick="exportOUs">📄 Export CSV</button>
     </div>
 </div>
 
@@ -47,9 +47,9 @@
 <div class="search-filters" style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
     <input type="text" id="ou-search" placeholder="🔍 Rechercher une OU..." 
            style="flex: 1; min-width: 200px; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem;"
-           onkeyup="filterOUs()">
+           data-onkeyup="filterOUs">
     
-    <select id="ou-type-filter" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem;" onchange="filterOUs()">
+    <select id="ou-type-filter" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem;" data-onchange="filterOUs">
         <option value="all">Tous les types</option>
         <option value="with-users">Avec utilisateurs</option>
         <option value="with-groups">Avec groupes</option>
@@ -60,8 +60,8 @@
 </div>
 
 <div class="tabs">
-    <button class="tab-btn active" onclick="showTab('list')">📋 Liste</button>
-    <button class="tab-btn" onclick="showTab('tree')">🌳 Arborescence</button>
+    <button class="tab-btn active" data-onclick="showTab" data-args='{{ ['list']|tojson }}'>📋 Liste</button>
+    <button class="tab-btn" data-onclick="showTab" data-args='{{ ['tree']|tojson }}'>🌳 Arborescence</button>
 </div>
 
 <div id="tab-list" class="tab-content active">
@@ -104,7 +104,7 @@
                     <td class="actions-cell">
                         <a href="{{ url_for('ous.edit_ou', dn=ou.dn) }}" class="btn btn-sm btn-secondary" title="Modifier">✏️</a>
                         <form method="post" action="{{ url_for('ous.delete_ou', dn=ou.dn) }}" style="display:inline;"
-                              onsubmit="return confirmDeleteOU('{{ ou.name }}', {{ ou.total_objects }}, {{ ou.sub_ous_count }});">
+                              data-onsubmit="confirmDeleteOU" data-args='{{ [ou.name, ou.total_objects, ou.sub_ous_count]|tojson }}'>
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">🗑️</button>
                         </form>
@@ -291,7 +291,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');

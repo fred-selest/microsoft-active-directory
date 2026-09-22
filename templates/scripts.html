@@ -6,10 +6,10 @@
 <div class="page-header fade-in">
     <h2>🛠️ Gestion des Scripts PowerShell</h2>
     <div class="page-header-actions">
-        <button class="btn btn-secondary" onclick="loadScriptsHistory()">
+        <button class="btn btn-secondary" data-onclick="loadScriptsHistory">
             📜 Historique
         </button>
-        <button class="btn btn-primary" onclick="location.reload()">
+        <button class="btn btn-primary" data-onclick="reload">
             🔄 Rafraîchir
         </button>
     </div>
@@ -29,11 +29,11 @@
     <div class="card-body">
         <h5 class="card-title">📂 Filtrer par catégorie</h5>
         <div class="btn-group" role="group">
-            <button class="btn btn-outline-primary active" onclick="filterScripts('all')">Tous</button>
-            <button class="btn btn-outline-primary" onclick="filterScripts('system')">Système</button>
-            <button class="btn btn-outline-primary" onclick="filterScripts('security')">Sécurité</button>
-            <button class="btn btn-outline-primary" onclick="filterScripts('installation')">Installation</button>
-            <button class="btn btn-outline-primary" onclick="filterScripts('features')">Fonctionnalités</button>
+            <button class="btn btn-outline-primary active" data-onclick="filterScripts" data-args='{{ ['all']|tojson }}'>Tous</button>
+            <button class="btn btn-outline-primary" data-onclick="filterScripts" data-args='{{ ['system']|tojson }}'>Système</button>
+            <button class="btn btn-outline-primary" data-onclick="filterScripts" data-args='{{ ['security']|tojson }}'>Sécurité</button>
+            <button class="btn btn-outline-primary" data-onclick="filterScripts" data-args='{{ ['installation']|tojson }}'>Installation</button>
+            <button class="btn btn-outline-primary" data-onclick="filterScripts" data-args='{{ ['features']|tojson }}'>Fonctionnalités</button>
         </div>
     </div>
 </div>
@@ -103,7 +103,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <button type="button" id="confirm-execute-btn" class="btn btn-primary" onclick="confirmExecute()">
+                <button type="button" id="confirm-execute-btn" class="btn btn-primary" data-onclick="confirmExecute">
                     ▶️ Exécuter
                 </button>
             </div>
@@ -124,7 +124,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <button type="button" class="btn btn-primary" onclick="downloadCurrentScript()">
+                <button type="button" class="btn btn-primary" data-onclick="downloadCurrentScript">
                     📥 Télécharger
                 </button>
             </div>
@@ -147,7 +147,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <button type="button" class="btn btn-danger" onclick="clearHistory()">
+                <button type="button" class="btn btn-danger" data-onclick="clearHistory">
                     🗑️ Vider l'historique
                 </button>
             </div>
@@ -285,7 +285,7 @@
 }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 let currentScripts = [];
 let currentScript = null;
 let currentCategory = 'all';
@@ -354,13 +354,13 @@ function displayScripts(scripts) {
                 ${script.exists ? '<span class="script-meta-item">✅ Disponible</span>' : '<span class="script-meta-item text-danger">❌ Manquant</span>'}
             </div>
             <div class="script-actions">
-                <button class="btn btn-primary" onclick="showExecuteModal('${script.name}')" ${!script.exists ? 'disabled' : ''}>
+                <button class="btn btn-primary" data-onclick="showExecuteModal" data-args="${actionArgs(script.name)}" ${!script.exists ? 'disabled' : ''}>
                     ▶️ Exécuter
                 </button>
-                <button class="btn btn-secondary" onclick="showViewModal('${script.name}')" ${!script.exists ? 'disabled' : ''}>
+                <button class="btn btn-secondary" data-onclick="showViewModal" data-args="${actionArgs(script.name)}" ${!script.exists ? 'disabled' : ''}>
                     👁️ Voir
                 </button>
-                <button class="btn btn-outline-primary" onclick="downloadScript('${script.name}')" ${!script.exists ? 'disabled' : ''}>
+                <button class="btn btn-outline-primary" data-onclick="downloadScript" data-args="${actionArgs(script.name)}" ${!script.exists ? 'disabled' : ''}>
                     📥 Télécharger
                 </button>
             </div>

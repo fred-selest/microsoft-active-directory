@@ -352,12 +352,18 @@ background: var(--bg-primary);
 ### 3. Chargement des Scripts
 
 ```html
-<!-- En bas de page, avant </body> -->
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<!-- En bas de page, avant </body> — le nonce est obligatoire (CSP stricte) -->
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/main.js') }}"></script>
 
 <!-- Avec module ES6 -->
-<script type="module" src="{{ url_for('static', filename='js/module.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" type="module" src="{{ url_for('static', filename='js/module.js') }}"></script>
 ```
+
+- `js/actions.js` : délégation d'événements (`data-onclick`, `data-confirm`…)
+  qui remplace les attributs `on*="…"` bloqués par la CSP. Voir
+  `templates/README.md`, règle 5.
+- `vendor/` : bibliothèques tierces servies localement (chart.js 4.4.4,
+  licence MIT dans `vendor/chart.js.LICENSE.md`). Aucune dépendance CDN.
 
 ### 4. Cache Busting
 
