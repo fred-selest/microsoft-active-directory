@@ -188,7 +188,7 @@ def change_expired_password():
         flash('Session invalide. Reconnectez-vous.', 'error')
         return redirect(url_for('main.connect'))
 
-    # Decrypter le mot de passe pour la connexion LDAPS requise
+    # Ancien mot de passe (chiffre en session), requis par NetUserChangePassword
     try:
         password = decrypt_password(encrypted_pw)
     except ValueError:
@@ -207,63 +207,34 @@ def change_expired_password():
             flash('Les mots de passe ne correspondent pas.', 'error')
             return render_template('change_password.html', username=username, server=server)
 
-        # Validation complexite
+        # Validation complexite (la strategie du domaine reste l'autorite finale)
         if len(new_pw) < 8:
             flash('Le mot de passe doit contenir au moins 8 caracteres.', 'error')
             return render_template('change_password.html', username=username, server=server)
 
-        # Connexion LDAPS requise pour modifier unicodePwd
-        from ldap3 import MODIFY_REPLACE, NTLM, Server, Connection, ALL
-        from routes.core import _get_ntlm_user
+        # Pas de LDAP ici : AD refuse tout bind avec un mot de passe expire
+        # (data 532/773). L'ancienne implementation se liait quand meme avec
+        # ces identifiants — echec systematique — puis forcait pwdLastSet=0,
+        # ce qui re-expirait aussitot le mot de passe qu'on venait de changer.
+        # Voir core/password_change.py.
+        from core.password_change import change_expired_password as _change_pw
+        from routes.core import _extract_username
 
-        conn = None
-        try:
-            ntlm_user = _get_ntlm_user(server, username)
-            srv = Server(server, port=636, use_ssl=True, get_info=ALL)
-            conn = Connection(srv, user=ntlm_user, password=password, authentication=NTLM, auto_bind=True)
+        ok, err = _change_pw(server, _extract_username(username), password, new_pw)
+        ip = request.remote_addr
+        if not ok:
+            log_action(ACTIONS['LOGIN'], username,
+                       {'event': 'expired_password_change', 'error': err}, False, ip)
+            flash(err, 'error')
+            return render_template('change_password.html', username=username, server=server)
 
-            # Rechercher le DN utilisateur depuis base_dn
-            base_dn = session.get('ad_base_dn', '')
-            sam_filter = username.split('\\')[-1] if '\\' in username else username
-            search_filter = f'(sAMAccountName={sam_filter})'
-            conn.search(base_dn, search_filter, SUBTREE, attributes=['distinguishedName'])
-
-            if not conn.entries:
-                flash('Utilisateur introuvable dans AD.', 'error')
-                return render_template('change_password.html', username=username, server=server)
-
-            user_dn = str(conn.entries[0].entry_dn)
-
-            # Modifier unicodePwd
-            unicode_pwd = f'"{new_pw}"'.encode('utf-16-le')
-            conn.modify(user_dn, {
-                'unicodePwd': [(MODIFY_REPLACE, [unicode_pwd])]
-            })
-
-            if conn.result.get('result') != 0:
-                flash(f'Erreur: {conn.result.get("description", "inconnue")}', 'error')
-                return render_template('change_password.html', username=username, server=server)
-
-            # Forcer le changement au prochain login
-            conn.modify(user_dn, {
-                'pwdLastSet': [(MODIFY_REPLACE, [0])]
-            })
-
-            flash('Mot de passe modifie avec succes. Connectez-vous.', 'success')
-            # Nettoyer la session
-            for key in ['_pwd_expired_user', '_pwd_expired_server', '_pwd_expired_password']:
-                session.pop(key, None)
-            return redirect(url_for('main.connect'))
-
-        except Exception as e:
-            err = str(e)
-            if 'strongerAuthRequired' in err or '10054' in err:
-                flash('LDAPS requis mais non disponible. Activez LDAPS sur le DC ou contactez l\'administrateur.', 'error')
-            else:
-                flash(f'Erreur: {err}', 'error')
-        finally:
-            if conn and conn.bound:
-                conn.unbind()
+        log_action(ACTIONS['LOGIN'], username,
+                   {'event': 'expired_password_change'}, True, ip)
+        for key in ['_pwd_expired_user', '_pwd_expired_server', '_pwd_expired_password']:
+            session.pop(key, None)
+        flash('Mot de passe modifie avec succes. Connectez-vous avec le nouveau mot de passe.',
+              'success')
+        return redirect(url_for('main.connect'))
 
     return render_template('change_password.html', username=username, server=server)
 
