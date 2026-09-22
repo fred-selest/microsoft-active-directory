@@ -4,6 +4,25 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.51.3] - 2026-09-22 — Traversée de répertoire (historique d'audit, rapports)
+
+Trouvé en envoyant à chaque route des entrées inattendues (identifiants
+longs ou mal formés, paramètres non numériques, corps invalides).
+
+### Sécurité
+- **Lecture et suppression de fichiers hors de l'historique d'audit.**
+  L'identifiant d'un audit mot de passe servait directement de nom de
+  fichier. Via la comparaison d'audits (paramètres `audit_1`/`audit_2`),
+  une valeur comme `../../core/data/settings` faisait lire n'importe quel
+  fichier `.json` de l'application ; via la suppression d'un audit, sous
+  Windows, `..\..\…` permettait d'en **supprimer** un (réglages,
+  permissions…). Accessible à toute personne disposant de la permission
+  d'audit des mots de passe. Seuls les identifiants au format généré
+  (`AAAAMMJJ_HHMMSS`) sont désormais acceptés, avec un contrôle de chemin
+  en plus.
+- Même validation pour les rapports d'analyse des logs, dont un
+  identifiant trop long provoquait aussi une erreur 500.
+
 ## [1.51.2] - 2026-09-22 — Injection PowerShell (LAPS), déverrouillage, corbeille
 
 Trouvés en exécutant toutes les actions (POST) de l'application contre un

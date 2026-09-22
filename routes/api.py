@@ -1111,10 +1111,18 @@ def api_log_analysis_report(report_id):
     from pathlib import Path
     import json
     
+    import re
+    from core.path_security import is_safe_path
+
     reports_dir = Path('logs')
+    # Identifiant = horodatage généré par LogAnalyzer (AAAAMMJJ_HHMMSS). Tout
+    # autre format est refusé avant de construire un chemin (traversée de
+    # répertoire, et nom trop long qui faisait lever une erreur 500).
+    if not re.match(r'^\d{8}_\d{6}$', report_id):
+        return jsonify({'status': 'error', 'error': 'Identifiant de rapport invalide'}), 400
     report_file = reports_dir / f'analysis_{report_id}.json'
-    
-    if not report_file.exists():
+
+    if not is_safe_path(reports_dir, report_file) or not report_file.exists():
         return jsonify({
             'status': 'error',
             'error': 'Rapport introuvable'
