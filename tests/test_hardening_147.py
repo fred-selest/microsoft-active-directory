@@ -59,9 +59,22 @@ def test_is_safe_path_rejette_traversal(tmp_path):
 
 def test_sanitize_css_neutralise_la_sortie_de_balise():
     out = security.sanitize_css('</style><script>alert(1)</script>body{color:red}')
-    assert '<' not in out and '>' not in out
+    # Seul « < » peut ouvrir la sequence « </ » qui ferme le bloc <style>
+    assert '<' not in out
     assert 'script' in out          # le texte reste, inerte
     assert 'body{color:red}' in out  # le CSS legitime est preserve
+
+
+def test_sanitize_css_preserve_le_combinateur_enfant():
+    assert security.sanitize_css('ul > li{margin:0}') == 'ul > li{margin:0}'
+
+
+def test_sanitize_css_motif_imbrique():
+    # Une suppression en une seule passe reconstituait « javascript: »
+    out = security.sanitize_css('a{b:url(javajavascript:script:alert(1))}').lower()
+    assert 'javascript:' not in out
+    out = security.sanitize_css('a{w:expexpression(ression(1)}').lower()
+    assert 'expression(' not in out
 
 
 def test_sanitize_css_retire_vecteurs_herites():
@@ -97,3 +110,16 @@ def test_tls_opt_in_active_la_verification(monkeypatch):
     # nettoyage : recharger en mode défaut pour ne pas polluer les autres tests
     monkeypatch.delenv('AD_TLS_VERIFY', raising=False)
     importlib.reload(core)
+
+
+# --- F1 : configuration par defaut sure ------------------------------------
+
+def test_config_par_defaut_production(monkeypatch):
+    import config as cfg
+    monkeypatch.delenv('FLASK_ENV', raising=False)
+    assert cfg.get_config() is cfg.ProductionConfig
+    assert cfg.get_config().DEBUG is False
+    monkeypatch.setenv('FLASK_ENV', 'inconnu')
+    assert cfg.get_config() is cfg.ProductionConfig
+    monkeypatch.setenv('FLASK_ENV', 'development')
+    assert cfg.get_config() is cfg.DevelopmentConfig

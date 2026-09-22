@@ -53,18 +53,24 @@ def sanitize_css(value):
 
     Le réglage custom_css est rendu tel quel dans <style> (templates/base.html).
     Une valeur contenant « </style><script>… » s'échapperait du bloc et
-    s'exécuterait (XSS stocké). Le CSS légitime n'a jamais besoin de « < » ni
-    « > » : les retirer suffit à empêcher toute fermeture de balise. On neutralise
-    aussi quelques vecteurs CSS hérités (expression(), javascript:).
+    s'exécuterait (XSS stocké). Dans un élément <style> (texte brut), seule une
+    séquence « </ » peut fermer le bloc : retirer « < » suffit. « > » est
+    conservé, c'est le combinateur enfant du CSS légitime (« ul > li »).
+    On neutralise aussi quelques vecteurs CSS hérités (expression(), javascript:).
     """
     if not value:
         return ''
     result = str(value)
     # Empêche toute sortie du bloc <style> (</style>, <script>, etc.)
-    result = result.replace('<', '').replace('>', '')
-    # Vecteurs CSS hérités (anciens IE / url(javascript:...))
-    for bad in ('javascript:', 'expression(', 'behavior:', 'vbscript:'):
-        result = re.sub(re.escape(bad), '', result, flags=re.IGNORECASE)
+    result = result.replace('<', '')
+    # Vecteurs CSS hérités (anciens IE / url(javascript:...)). Suppression
+    # répétée jusqu'à stabilité : une passe unique laissait passer un motif
+    # imbriqué (« javajavascript:script: » redevenait « javascript: »).
+    pattern = re.compile(r'javascript:|expression\(|behavior:|vbscript:', re.IGNORECASE)
+    previous = None
+    while previous != result:
+        previous = result
+        result = pattern.sub('', result)
     return result
 
 

@@ -290,7 +290,9 @@ def has_permission(user_groups, required_permission, username=None, user_dn=None
         )
         return True
 
-    logger.info(
+    # debug et non info (constat F6) : émis à chaque contrôle refusé, avec
+    # la liste des groupes AD de l'utilisateur — volumineux et sensible.
+    logger.debug(
         f"Permission '{required_permission}' refusée à {username} "
         f"(groupes={user_groups})"
     )

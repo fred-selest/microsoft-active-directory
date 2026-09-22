@@ -204,11 +204,16 @@ config = {
     'development': DevelopmentConfig,
     'production': ProductionConfig,
     'testing': TestConfig,
-    'default': DevelopmentConfig
+    # Défaut sûr (constat F1 de AUDIT_2026-07-20.md) : le service Windows
+    # (nssm/*.xml) ne définit pas FLASK_ENV ; si .env l'omettait, l'application
+    # démarrait en DEBUG — traces d'exception exposées et blueprint /_debug
+    # actif. Le mode développement doit désormais être demandé explicitement
+    # (FLASK_ENV=development, ou `python manage.py` sans --prod).
+    'default': ProductionConfig
 }
 
 
 def get_config():
     """Obtenir la configuration basée sur l'environnement."""
-    env = os.environ.get('FLASK_ENV', 'development')
+    env = os.environ.get('FLASK_ENV', 'production')
     return config.get(env, config['default'])
