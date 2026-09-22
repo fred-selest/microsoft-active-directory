@@ -10,9 +10,17 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.50.4 — Septembre 2026
+**Dernière version :** v1.51.0 — Septembre 2026
 
 ---
+
+## 🆕 Nouveautés v1.51.0 — Content-Security-Policy stricte
+
+- **Protection renforcée contre le XSS** : seuls les scripts de l'application s'exécutent désormais dans le navigateur (CSP avec nonce, sans `'unsafe-inline'`).
+- **Plus aucune dépendance Internet** côté navigateur : chart.js est servi localement.
+- **Page Mise à jour réparée** : depuis la publication de la v1.50.3, ses notes de version cassaient la page (bouton de mise à jour inopérant).
+- Scripts exécutés en double sur cinq pages corrigés (dont une erreur sur le détail d'un groupe).
+- Nouveau réglage `CSP_MODE` (`strict` par défaut, `report-only`, `legacy`) — voir `.env.example`. ⚠️ Si un bouton ne réagit plus, passer en `CSP_MODE=report-only` et signaler la page.
 
 ## 🆕 Nouveautés v1.50.4 — Nettoyage des templates
 

@@ -6,10 +6,10 @@
 <div class="page-header fade-in">
     <h2>📊 Analyse Automatique des Logs</h2>
     <div class="page-header-actions">
-        <button class="btn btn-primary" onclick="runAnalysis()">
+        <button class="btn btn-primary" data-onclick="runAnalysis">
             🔍 Lancer l'analyse
         </button>
-        <button class="btn btn-secondary" onclick="refreshResults()">
+        <button class="btn btn-secondary" data-onclick="refreshResults">
             🔄 Actualiser
         </button>
     </div>
@@ -78,8 +78,8 @@
         <h3>📊 Détails du Rapport</h3>
         <div id="report-details-content"></div>
         <div class="modal-actions" style="margin-top: 1.5rem; text-align: right;">
-            <button class="btn btn-secondary" onclick="closeReportModal()">Fermer</button>
-            <button class="btn btn-primary" onclick="executeAutoFixes()">
+            <button class="btn btn-secondary" data-onclick="closeReportModal">Fermer</button>
+            <button class="btn btn-primary" data-onclick="executeAutoFixes">
                 ⚡ Exécuter corrections auto
             </button>
         </div>
@@ -309,7 +309,7 @@ function loadHistory() {
                         <td>${report.summary.medium}</td>
                         <td>${report.actions_taken ? report.actions_taken.length : 0}</td>
                         <td>
-                            <button class="btn btn-sm btn-secondary" onclick="viewReport('${report.id}')">
+                            <button class="btn btn-sm btn-secondary" data-onclick="viewReport" data-args="${actionArgs(report.id)}">
                                 👁️ Voir
                             </button>
                         </td>

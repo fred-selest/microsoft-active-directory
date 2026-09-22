@@ -24,7 +24,7 @@
         <form method="post" action="{{ url_for('tools.configure_ldaps') }}" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-warning btn-lg"
-                    onclick="return confirm('Configurer LDAPS automatiquement ?\n\nCette action va :\n- Détecter le certificat SSL du serveur\n- Configurer le mapping NTDS\n- Redémarrer le service AD DS\n- Activer le port 636 (LDAPS)\n\nAprès configuration, vous devrez vous reconnecter avec le port 636 et SSL activé.');">
+                    data-confirm="Configurer LDAPS automatiquement ?&#10;&#10;Cette action va :&#10;- Détecter le certificat SSL du serveur&#10;- Configurer le mapping NTDS&#10;- Redémarrer le service AD DS&#10;- Activer le port 636 (LDAPS)&#10;&#10;Après configuration, vous devrez vous reconnecter avec le port 636 et SSL activé.">
                 🔧 Activer LDAPS automatiquement
             </button>
         </form>

@@ -113,6 +113,8 @@
         <p>{{ site_settings.footer or 'Active Directory Web Interface - Compatible Windows &amp; Linux' }}</p>
     </footer>
 
+    {# Délégation d'événements : remplace les attributs on*="…" bloqués par la CSP #}
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/actions.js') }}?v={{ app_version }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/main.js') }}?v={{ app_version }}"></script>
     
     <!-- Enregistrement du Service Worker pour PWA -->

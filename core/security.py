@@ -355,18 +355,17 @@ def get_password_requirements():
 # fonctionnent plus, d'où la délégation d'événements de static/js/actions.js.
 #
 # CSP_MODE :
-#   strict      — politique stricte appliquée ;
+#   strict      — politique stricte appliquée (défaut) ;
 #   report-only — ancienne politique appliquée, stricte en Report-Only avec
-#                 remontée des violations vers /csp-report (défaut, le temps
-#                 de convertir les gestionnaires on*="…") ;
+#                 remontée des violations vers /csp-report (diagnostic) ;
 #   legacy      — ancienne politique ('unsafe-inline'), échappatoire.
 
 _CSP_MODES = ('strict', 'report-only', 'legacy')
 
 
 def get_csp_mode():
-    mode = os.environ.get('CSP_MODE', 'report-only').strip().lower()
-    return mode if mode in _CSP_MODES else 'report-only'
+    mode = os.environ.get('CSP_MODE', 'strict').strip().lower()
+    return mode if mode in _CSP_MODES else 'strict'
 
 
 def get_csp_nonce():

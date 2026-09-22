@@ -21,7 +21,7 @@
     <div class="laps-config-actions">
         <form method="post" action="{{ url_for('tools.configure_laps') }}" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-primary btn-lg" onclick="return confirm('Configurer Windows LAPS sur ce domaine ?\n\nCette action va :\n- Créer une GPO Windows LAPS\n- Configurer les paramètres par défaut\n- Activer LAPS pour tous les ordinateurs');">
+            <button type="submit" class="btn btn-primary btn-lg" data-confirm="Configurer Windows LAPS sur ce domaine ?&#10;&#10;Cette action va :&#10;- Créer une GPO Windows LAPS&#10;- Configurer les paramètres par défaut&#10;- Activer LAPS pour tous les ordinateurs">
                 🔧 Configurer Windows LAPS automatiquement
             </button>
         </form>
@@ -182,13 +182,13 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
                     <div class="password-field">
                         <code class="password-hidden" id="pwd-{{ loop.index }}">********</code>
                         <code class="password-visible" id="pwd-clear-{{ loop.index }}" style="display: none;">{{ computer.laps_password }}</code>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="togglePassword({{ loop.index }})">Afficher</button>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyPassword('{{ computer.laps_password }}')">Copier</button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-onclick="togglePassword" data-args='{{ [loop.index]|tojson }}'>Afficher</button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-onclick="copyPassword" data-args='{{ [computer.laps_password]|tojson }}'>Copier</button>
                     </div>
                 </td>
                 <td>{{ computer.laps_expiration }}</td>
                 <td class="actions">
-                    <form method="post" action="{{ url_for('tools.laps_force_refresh', computer_dn=computer.dn) }}" style="display: inline;" onsubmit="return confirm('Forcer la mise a jour LAPS sur {{ computer.cn }} ?');">
+                    <form method="post" action="{{ url_for('tools.laps_force_refresh', computer_dn=computer.dn) }}" style="display: inline;" data-confirm="Forcer la mise a jour LAPS sur {{ computer.cn }} ?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="computer_name" value="{{ computer.cn }}">
                         <button type="submit" class="btn btn-sm btn-primary" title="Forcer la mise a jour LAPS">🔄 Rafraichir</button>
@@ -207,7 +207,7 @@ New-GPLink -Name "Windows LAPS" -Target "DC=SELEST,DC=local"</code></pre>
                             <form method="post" action="{{ url_for('tools.configure_laps') }}" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-primary btn-lg"
-                                    onclick="return confirm('Créer/mettre à jour la GPO Windows LAPS sur ce domaine ?');">
+                                    data-confirm="Créer/mettre à jour la GPO Windows LAPS sur ce domaine ?">
                                     🔧 Configurer la GPO Windows LAPS
                                 </button>
                             </form>

@@ -39,8 +39,8 @@
                     <div class="key-field">
                         <code class="key-hidden" id="key-{{ loop.index }}">********************************</code>
                         <code class="key-visible" id="key-clear-{{ loop.index }}" style="display: none;">{{ key.recovery_password }}</code>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleKey({{ loop.index }})">Afficher</button>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="copyKey('{{ key.recovery_password }}')">Copier</button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-onclick="toggleKey" data-args='{{ [loop.index]|tojson }}'>Afficher</button>
+                        <button type="button" class="btn btn-sm btn-secondary" data-onclick="copyKey" data-args='{{ [key.recovery_password]|tojson }}'>Copier</button>
                     </div>
                 </td>
                 <td>{{ key.whenCreated }}</td>
@@ -55,6 +55,8 @@
 </div>
 
 <p class="results-count">{{ keys|length }} cle(s) trouvee(s)</p>
+
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -93,7 +95,6 @@ function copyKey(key) {
     });
 }
 </script>
-{% endblock %}
 {% endblock %}
 
 

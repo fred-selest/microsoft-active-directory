@@ -6,7 +6,7 @@
 <div class="audit-section card fade-in" id="admin-accounts-section" style="display: none;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h3 style="margin: 0;">👑 Comptes Administrateurs à Risque</h3>
-        <button class="btn btn-success" onclick="showQuickFixModal('enable_password_expiry_admin')" id="btn-quick-fix-admin" style="display: none;">
+        <button class="btn btn-success" data-onclick="showQuickFixModal" data-args='{{ ['enable_password_expiry_admin']|tojson }}' id="btn-quick-fix-admin" style="display: none;">
             🔧 Correction Rapide
         </button>
     </div>
@@ -19,7 +19,7 @@
             <thead>
                 <tr>
                     <th>
-                        <input type="checkbox" id="select-all-admin" onchange="toggleSelectAll('admin')" style="margin-right: 0.5rem;">
+                        <input type="checkbox" id="select-all-admin" data-onchange="toggleSelectAll" data-args='{{ ['admin']|tojson }}' style="margin-right: 0.5rem;">
                         Sélection
                     </th>
                     <th>Utilisateur</th>
@@ -39,7 +39,7 @@
     </div>
     <div id="admin-actions-bar" style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; display: none;">
         <span id="admin-selected-count" style="font-weight: bold; margin-right: 1rem;">0 compte(s) sélectionné(s)</span>
-        <button class="btn btn-success btn-sm" onclick="applySelectedFix('enable_password_expiry_admin')">
+        <button class="btn btn-success btn-sm" data-onclick="applySelectedFix" data-args='{{ ['enable_password_expiry_admin']|tojson }}'>
             🔧 Appliquer aux sélectionnés
         </button>
     </div>

@@ -157,11 +157,14 @@ Tous les templates étendent `base.html` qui fournit :
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce() }}">
     // Script spécifique
 </script>
 {% endblock %}
 ```
+
+> Toute balise `<script>` doit porter `nonce="{{ csp_nonce() }}"` : sans lui,
+> la Content-Security-Policy stricte bloque le script (voir règle 5).
 
 ---
 
@@ -418,6 +421,38 @@ return render_template('error.html',
 <!-- ✅ PRÉFÉRER -->
 <a href="{{ url_for('users.create_user') }}">Créer</a>
 ```
+
+### 5. Content-Security-Policy stricte : jamais de `on*="…"`
+
+La CSP (`CSP_MODE=strict` par défaut) n'autorise que les scripts de
+l'application et ceux portant le nonce de la requête. Les attributs
+`onclick`, `onchange`, `onsubmit`… sont **bloqués par le navigateur**. On
+utilise la délégation de `static/js/actions.js` :
+
+```html
+<!-- ❌ FAUX (bloqué, et injectable : &#39; redevient ' avant l'exécution) -->
+<button onclick="showMoveModal('{{ user.dn }}')">
+<form onsubmit="return confirm('Supprimer ?');">
+
+<!-- ✅ CORRECT -->
+<button data-onclick="showMoveModal" data-args='{{ [user.dn]|tojson }}'>
+<form data-confirm="Supprimer ?">
+<input data-onchange="toggleAll" data-args='["$el"]'>   <!-- $el = this -->
+```
+
+- `data-on<click|change|input|keyup|submit>` : nom d'une fonction **globale**
+  (déclarée avec `function f()` au niveau du script, pas `const f = …`) ou
+  d'une action intégrée (`reload`, `back`, `removeParent`, `submitForm`…).
+- `data-args` : **toujours** via `|tojson`, dans un attribut entre apostrophes.
+  Dans du HTML construit en JS : `data-args="${actionArgs(a, b)}"`.
+- `data-confirm="…"` : confirmation avant un clic ou une soumission.
+- `data-stop-propagation` : remplace `onclick="event.stopPropagation()"`.
+- Pas de ressource externe (CDN, polices Google) : bloquée par la CSP, et le
+  contrôleur de domaine est souvent sans accès Internet. Les bibliothèques
+  vont dans `static/vendor/`.
+
+Les tests `tests/test_csp.py` font échouer la CI en cas d'attribut `on*=`,
+de `<script>` sans nonce ou de ressource externe.
 
 ---
 

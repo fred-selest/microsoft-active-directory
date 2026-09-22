@@ -29,8 +29,8 @@ def _script_src(csp):
     return next(d for d in csp.split('; ') if d.startswith('script-src'))
 
 
-def test_mode_strict(client, monkeypatch):
-    monkeypatch.setenv('CSP_MODE', 'strict')
+def test_strict_par_defaut(client, monkeypatch):
+    monkeypatch.delenv('CSP_MODE', raising=False)
     r = client.get('/connect')
     csp = r.headers['Content-Security-Policy']
     src = _script_src(csp)
@@ -73,7 +73,7 @@ def test_mode_legacy_et_valeur_invalide(client, monkeypatch):
     assert 'Content-Security-Policy-Report-Only' not in r.headers
     monkeypatch.setenv('CSP_MODE', 'n-importe-quoi')
     r = client.get('/connect')
-    assert 'Content-Security-Policy-Report-Only' in r.headers
+    assert "'unsafe-inline'" not in _script_src(r.headers['Content-Security-Policy'])
 
 
 def test_csp_report_sans_csrf(client):
@@ -100,3 +100,59 @@ def test_toutes_les_balises_script_ont_le_nonce():
             if 'nonce="{{ csp_nonce() }}"' not in tag:
                 bad.append(f"{p.relative_to(ROOT)}: {tag}")
     assert bad == []
+
+
+def test_extra_js_jamais_imbrique():
+    """
+    {% block extra_js %} imbrique dans {% block content %} etait rendu deux
+    fois (contenu + emplacement de base.html) : scripts executes en double,
+    et « Identifier already declared » sur group_details (const redeclare).
+    """
+    bad = []
+    for p in (ROOT / 'templates').rglob('*.html'):
+        stack = []
+        for m in re.finditer(r"{%-?\s*(?:block\s+(\w+)|endblock)\b", p.read_text(encoding='utf-8')):
+            if m.group(1):
+                if m.group(1) == 'extra_js' and stack:
+                    bad.append(f"{p.relative_to(ROOT)}: dans {stack}")
+                stack.append(m.group(1))
+            elif stack:
+                stack.pop()
+    assert bad == []
+
+
+def test_aucun_gestionnaire_inline():
+    """Les attributs on*="…" sont bloques par la CSP stricte : data-on* a la place."""
+    # Attribut HTML uniquement (espace avant, guillemet apres) : une
+    # affectation JS « el.onclick = function… » reste autorisee par la CSP.
+    pat = re.compile(r'\son(click|change|submit|input|keyup|keydown|load|error|'
+                     r'focus|blur|mouseover|mouseout)\s*=\s*["\']', re.I)
+    bad = []
+    files = list((ROOT / 'templates').rglob('*.html')) + list((ROOT / 'static' / 'js').glob('*.js'))
+    for p in files:
+        if p.name == 'actions.js':
+            continue
+        for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+            if pat.search(line):
+                bad.append(f"{p.relative_to(ROOT)}:{i}: {line.strip()[:100]}")
+    assert bad == []
+
+
+def test_notes_de_version_echappees(client, monkeypatch):
+    """
+    Les notes GitHub (Markdown brut) etaient rendues avec |safe : la mention
+    litterale « `<style>` » des notes v1.50.3 ouvrait une vraie balise et
+    transformait toute la suite de /update en CSS (scripts inoperants).
+    """
+    import routes.admin_tools as at
+    monkeypatch.setattr(at, '_fetch_github_releases', lambda *a, **k: [{
+        'version': '9.9.9', 'tag': 'v9.9.9', 'date': '01/01/2026',
+        'notes': 'dans un bloc `<style>` puis <script>alert(1)</script>'}])
+    from core.session_crypto import encrypt_password
+    with client.session_transaction() as sess:
+        sess.update(ad_server='dc', ad_username='u', ad_password=encrypt_password('p'),
+                    user_role='admin', user_groups=['Domain Admins'])
+    r = client.get('/update')
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200
+    assert '&lt;style&gt;' in html and '<script>alert(1)' not in html

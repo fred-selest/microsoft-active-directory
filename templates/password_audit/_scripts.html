@@ -271,14 +271,14 @@ function displayWeakAccounts(accounts) {
     tbody.innerHTML = accounts.map((acc, index) => `
         <tr>
             <td>
-                <input type="checkbox" class="account-checkbox" data-type="weak" data-dn="${escapeHtml(acc.dn)}" data-username="${escapeHtml(acc.username)}" onchange="updateSelectedCount('weak')">
+                <input type="checkbox" class="account-checkbox" data-type="weak" data-dn="${escapeHtml(acc.dn)}" data-username="${escapeHtml(acc.username)}" data-onchange="updateSelectedCount" data-args='{{ ['weak']|tojson }}'>
             </td>
             <td><strong>${escapeHtml(acc.username)}</strong></td>
             <td>${escapeHtml(acc.display_name || '-')}</td>
             <td>${escapeHtml(acc.issue)}</td>
             <td><span class="badge-severity ${acc.severity}">${translateSeverity(acc.severity)}</span></td>
             <td>
-                <button class="btn btn-sm btn-primary btn-action" onclick="forcePasswordChange('${escapeHtml(acc.dn)}')">
+                <button class="btn btn-sm btn-primary btn-action" data-onclick="forcePasswordChange" data-args="${actionArgs(acc.dn)}">
                     Forcer changement
                 </button>
             </td>
@@ -338,7 +338,7 @@ function displayAdminAccounts(accounts) {
     tbody.innerHTML = realAccounts.map(acc => `
         <tr>
             <td>
-                <input type="checkbox" class="account-checkbox" data-type="admin" data-dn="${escapeHtml(acc.dn)}" data-username="${escapeHtml(acc.username)}" onchange="updateSelectedCount('admin')">
+                <input type="checkbox" class="account-checkbox" data-type="admin" data-dn="${escapeHtml(acc.dn)}" data-username="${escapeHtml(acc.username)}" data-onchange="updateSelectedCount" data-args='{{ ['admin']|tojson }}'>
             </td>
             <td><strong>${escapeHtml(acc.username)}</strong></td>
             <td>${escapeHtml(acc.display_name || '-')}</td>
@@ -454,7 +454,7 @@ function displayProtocolIssues(protocols) {
                 </div>
                 ${proto.fix_available === true ? `
                 <button class="btn btn-sm btn-${proto.severity === 'critical' ? 'danger' : proto.severity === 'high' ? 'warning' : 'secondary'}"
-                        onclick="fixProtocol('${proto.type}', '${proto.item}', '${proto.fix_script}')">
+                        data-onclick="fixProtocol" data-args="${actionArgs(proto.type, proto.item, proto.fix_script)}">
                     🔧 Appliquer la correction
                 </button>
                 ` : ''}
@@ -700,8 +700,8 @@ function showQuickFixModal(fixType, accounts = null) {
                 <strong>${warning}</strong>
             </div>
             <div style="text-align: right; margin-top: 1.5rem;">
-                <button class="btn btn-secondary" onclick="closeQuickFixModal()">Annuler</button>
-                <button class="btn btn-success" onclick="applyQuickFix('${fixType}')">✅ Appliquer la correction</button>
+                <button class="btn btn-secondary" data-onclick="closeQuickFixModal">Annuler</button>
+                <button class="btn btn-success" data-onclick="applyQuickFix" data-args="${actionArgs(fixType)}">✅ Appliquer la correction</button>
             </div>
         </div>
     `;

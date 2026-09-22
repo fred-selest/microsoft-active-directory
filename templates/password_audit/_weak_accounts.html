@@ -6,7 +6,7 @@
 <div class="audit-section card fade-in">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h3 style="margin: 0;">🚨 Comptes avec Mots de Passe Faibles</h3>
-        <button class="btn btn-success" onclick="showQuickFixModal('force_password_change')" id="btn-quick-fix-password" style="display: none;">
+        <button class="btn btn-success" data-onclick="showQuickFixModal" data-args='{{ ['force_password_change']|tojson }}' id="btn-quick-fix-password" style="display: none;">
             🔧 Correction Rapide
         </button>
     </div>
@@ -16,7 +16,7 @@
             <thead>
                 <tr>
                     <th>
-                        <input type="checkbox" id="select-all-weak" onchange="toggleSelectAll('weak')" style="margin-right: 0.5rem;">
+                        <input type="checkbox" id="select-all-weak" data-onchange="toggleSelectAll" data-args='{{ ['weak']|tojson }}' style="margin-right: 0.5rem;">
                         Sélection
                     </th>
                     <th>Utilisateur</th>
@@ -35,7 +35,7 @@
     </div>
     <div id="weak-actions-bar" style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; display: none;">
         <span id="weak-selected-count" style="font-weight: bold; margin-right: 1rem;">0 compte(s) sélectionné(s)</span>
-        <button class="btn btn-success btn-sm" onclick="applySelectedFix('force_password_change')">
+        <button class="btn btn-success btn-sm" data-onclick="applySelectedFix" data-args='{{ ['force_password_change']|tojson }}'>
             🔧 Appliquer aux sélectionnés
         </button>
     </div>

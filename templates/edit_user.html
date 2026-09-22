@@ -120,7 +120,7 @@
                 <tr>
                     <td>{{ grp.cn }}</td>
                     <td>
-                        <form method="post" style="display: inline;" onsubmit="return confirm('Retirer {{ user.sAMAccountName }} de ce groupe ?');">
+                        <form method="post" style="display: inline;" data-confirm="Retirer {{ user.sAMAccountName }} de ce groupe ?">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="action" value="remove_group">
                             <input type="hidden" name="group_dn" value="{{ grp.dn }}">

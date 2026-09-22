@@ -203,7 +203,7 @@
                 <div class="card-header">
                     <span class="card-icon">🧪</span>
                     <h3>Test des Pages</h3>
-                    <button class="btn-test-all" onclick="testAllPages()">
+                    <button class="btn-test-all" data-onclick="testAllPages">
                         <span>🔄</span> Tout tester
                     </button>
                 </div>
@@ -225,7 +225,7 @@
                         ] %}
                         
                         {% for page_id, page_name, icon in pages %}
-                        <button class="test-btn" onclick="testPage('{{ page_id }}')" id="test-btn-{{ page_id }}">
+                        <button class="test-btn" data-onclick="testPage" data-args='{{ [page_id]|tojson }}' id="test-btn-{{ page_id }}">
                             <span class="test-icon">{{ icon }}</span>
                             <span class="test-label">{{ page_name }}</span>
                             <span class="test-status" id="test-status-{{ page_id }}">⏳</span>
@@ -269,7 +269,7 @@
                 <div class="card-header">
                     <span class="card-icon">📊</span>
                     <h3>Debug Data (JSON)</h3>
-                    <button class="btn-copy" onclick="copyDebugData()">
+                    <button class="btn-copy" data-onclick="copyDebugData">
                         <span>📋</span> Copier
                     </button>
                 </div>

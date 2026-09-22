@@ -6,7 +6,7 @@
 <div class="page-header fade-in">
     <h2>🔐 Audit de Sécurité Renforcé</h2>
     <div class="page-actions">
-        <button class="btn btn-primary" onclick="location.reload()">
+        <button class="btn btn-primary" data-onclick="reload">
             🔄 Rafraîchir l'audit
         </button>
     </div>
@@ -86,7 +86,7 @@
         <!-- Bouton de réparation -->
         {% if issue.fix_available %}
         <div style="text-align: right;">
-            <button class="btn btn-success" onclick="showFixModal('{{ issue.id }}', '{{ issue.fix_script }}', {{ issue.affected|length }})">
+            <button class="btn btn-success" data-onclick="showFixModal" data-args='{{ [issue.id, issue.fix_script, issue.affected|length]|tojson }}'>
                 🔧 Réparer ce problème
             </button>
             {% if issue.manual_check_required %}
@@ -123,8 +123,8 @@
             <div id="modal-inputs"></div>
         </div>
         <div class="modal-actions" style="margin-top: 1.5rem; text-align: right;">
-            <button class="btn btn-secondary" onclick="closeFixModal()">Annuler</button>
-            <button class="btn btn-success" id="confirm-fix-btn" onclick="confirmFix()">
+            <button class="btn btn-secondary" data-onclick="closeFixModal">Annuler</button>
+            <button class="btn btn-success" id="confirm-fix-btn" data-onclick="confirmFix">
                 ✅ Confirmer la réparation
             </button>
         </div>

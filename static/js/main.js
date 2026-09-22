@@ -164,7 +164,7 @@ function showKeyboardHelp() {
                     <tr><td><kbd>Escape</kbd></td><td>Fermer</td></tr>
                     <tr><td><kbd>?</kbd></td><td>Afficher cette aide</td></tr>
                 </table>
-                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary" style="margin-top: 1rem;">Fermer</button>
+                <button data-onclick="removeClosestModal" class="btn btn-secondary" style="margin-top: 1rem;">Fermer</button>
             </div>
         </div>
     `;

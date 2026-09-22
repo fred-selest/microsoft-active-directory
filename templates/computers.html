@@ -91,7 +91,7 @@
     <table class="data-table sortable">
         <thead>
             <tr>
-                <th><input type="checkbox" id="select-all-computers" onchange="toggleAllComputers(this)"></th>
+                <th><input type="checkbox" id="select-all-computers" data-onchange="toggleAllComputers" data-args='{{ ['$el']|tojson }}'></th>
                 <th>Nom</th>
                 <th>Systeme d'exploitation</th>
                 <th class="hide-mobile">Nom DNS</th>
@@ -103,9 +103,9 @@
         <tbody>
             {% for computer in computers %}
             <tr class="computer-row {% if computer.disabled %}disabled-row{% endif %}" 
-                onclick="showComputerDetails('{{ computer.dn }}', '{{ computer.cn }}', '{{ computer.os or '-' }}', '{{ computer.dns_name or '-' }}', '{{ computer.ou_path or '-' }}')"
+                data-onclick="showComputerDetails" data-args='{{ [computer.dn, computer.cn, computer.os or '-', computer.dns_name or '-', computer.ou_path or '-']|tojson }}'
                 style="cursor: pointer;">
-                <td><input type="checkbox" class="computer-checkbox" data-dn="{{ computer.dn }}" data-name="{{ computer.cn }}" onclick="event.stopPropagation();"></td>
+                <td><input type="checkbox" class="computer-checkbox" data-dn="{{ computer.dn }}" data-name="{{ computer.cn }}" data-stop-propagation></td>
                 <td>
                     <strong>{{ computer.cn }}</strong>
                     <div class="mobile-only"><small class="text-muted">{{ computer.dns_name or '-' }}</small></div>
@@ -122,7 +122,7 @@
                     <span class="badge badge-success">Actif</span>
                     {% endif %}
                 </td>
-                <td class="actions" onclick="event.stopPropagation();">
+                <td class="actions" data-stop-propagation>
                     <form method="post" action="{{ url_for('computers.toggle_computer', dn=computer.dn) }}" style="display: inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if computer.disabled %}
@@ -133,11 +133,11 @@
                         <button type="submit" class="btn btn-sm btn-secondary" title="Désactiver">⏸️</button>
                         {% endif %}
                     </form>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="showMoveModal('{{ computer.dn }}', '{{ computer.cn }}')" title="Déplacer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-onclick="showMoveModal" data-args='{{ [computer.dn, computer.cn]|tojson }}' title="Déplacer">
                         📍
                     </button>
                     <form method="post" action="{{ url_for('computers.delete_computer', dn=computer.dn) }}"
-                          style="display: inline;" onsubmit="return confirm('Supprimer cet ordinateur ?');">
+                          style="display: inline;" data-confirm="Supprimer cet ordinateur ?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger" title="Supprimer">
                             🗑️
@@ -183,7 +183,7 @@
             </div>
         </div>
         <div class="form-actions" style="margin-top: 1.5rem;">
-            <button type="button" class="btn btn-primary" onclick="closeComputerModal()">Fermer</button>
+            <button type="button" class="btn btn-primary" data-onclick="closeComputerModal">Fermer</button>
         </div>
     </div>
 </div>
@@ -205,11 +205,13 @@
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Deplacer</button>
-                <button type="button" class="btn btn-secondary" onclick="closeMoveModal()">Annuler</button>
+                <button type="button" class="btn btn-secondary" data-onclick="closeMoveModal">Annuler</button>
             </div>
         </form>
     </div>
 </div>
+
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -377,7 +379,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-{% endblock %}
 {% endblock %}
 
 

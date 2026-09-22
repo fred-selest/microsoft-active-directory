@@ -47,7 +47,7 @@
             <a href="{{ url_for('tools.edit_user_template', template_id=id) }}" class="btn btn-secondary btn-sm">Modifier</a>
             <form method="post" action="{{ url_for('tools.delete_user_template', template_id=id) }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce modele ?');">Supprimer</button>
+                <button type="submit" class="btn btn-danger btn-sm" data-confirm="Supprimer ce modele ?">Supprimer</button>
             </form>
         </div>
     </div>
