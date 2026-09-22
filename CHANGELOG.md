@@ -4,6 +4,58 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.50.3] - 2026-09-22 — Mot de passe expiré, menu, configuration par défaut
+
+### Corrections
+- **Parcours « mot de passe expiré » : cassé de bout en bout, désormais
+  fonctionnel.** Quatre défauts cumulés :
+  - le code AD `532` (mot de passe expiré) n'était pas détecté, seul `773`
+    l'était — et par une recherche trop large (`'773' in msg`) qui pouvait
+    aussi matcher un identifiant `DSID-…` sur un simple mauvais mot de passe ;
+  - sur le chemin de connexion par défaut (port 389), l'information
+    « mot de passe expiré » était noyée dans le message d'erreur générique :
+    la redirection vers la page de changement n'avait jamais lieu ;
+  - la page de changement (`change_password.html`) n'existait pas : erreur 500 ;
+  - le changement tentait un bind LDAP avec le mot de passe expiré — ce
+    qu'Active Directory refuse toujours — puis forçait `pwdLastSet=0`, ce qui
+    aurait ré-expiré immédiatement le nouveau mot de passe.
+
+  Le changement passe maintenant par `NetUserChangePassword` (API Windows),
+  le mécanisme utilisé par Windows lui-même : pas de bind préalable,
+  vérification de l'ancien mot de passe, stratégie du domaine appliquée
+  (longueur, complexité, historique). Hors Windows, un message explicite
+  invite à changer le mot de passe depuis un poste du domaine.
+- **Une entrée de menu invalide faisait tomber toute l'application.**
+  L'entrée « Recherche » pointait vers une page inexistante ; désactivée par
+  défaut, elle restait activable depuis Administration → Menu, ce qui
+  provoquait une erreur 500 sur **toutes** les pages — y compris la page
+  d'erreur et la page d'administration qui aurait permis d'annuler le
+  réglage. Les entrées de menu pointant vers une page inconnue sont
+  désormais ignorées (avec un avertissement dans les logs), et l'entrée
+  morte est retirée des valeurs par défaut.
+- Mode debug : la redirection des non-administrateurs visait une route
+  inexistante.
+
+### Sécurité
+- **Configuration par défaut : production** (constat F1 de l'audit). Sans
+  `FLASK_ENV`, l'application démarrait en mode développement : traces
+  d'exception affichées et outils `/_debug` actifs. Le service Windows ne
+  définit pas cette variable ; un `.env` incomplet suffisait donc à exposer
+  ces informations. ⚠️ Pour un poste de développement lancé avec
+  `python app.py`, définir désormais `FLASK_ENV=development` (inchangé avec
+  `python manage.py`).
+- **CSS personnalisé** : le filtre anti-XSS supprimait les motifs dangereux
+  en une seule passe, contournable par imbrication
+  (`javajavascript:script:` redevenait `javascript:`). Suppression répétée
+  jusqu'à stabilité. Le caractère `>` (sélecteur enfant CSS, sans risque
+  dans un bloc `<style>`) n'est plus retiré à tort.
+
+### Journalisation
+- Refus de permission journalisés en `debug` et non plus en `info` (liste
+  des groupes AD à chaque contrôle — volumineux et sensible, constat F6).
+- Erreurs 404 journalisées en `warning` avec le chemin demandé, au lieu de
+  `error` qui noyait les vraies erreurs dans l'analyseur de logs (constat F7).
+
 ## [1.50.2] - 2026-08-12 — Revue de la v1.50 : garde-fou CI, clé API, ProxyFix
 
 Issue d'une revue critique complète des livraisons v1.50.0 et v1.50.1.
