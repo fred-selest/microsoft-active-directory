@@ -4,6 +4,37 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.51.2] - 2026-09-22 — Injection PowerShell (LAPS), déverrouillage, corbeille
+
+Trouvés en exécutant toutes les actions (POST) de l'application contre un
+annuaire AD simulé.
+
+### Sécurité
+- **Injection de commandes PowerShell dans le rafraîchissement LAPS forcé.**
+  Le nom d'ordinateur saisi dans le formulaire était inséré tel quel dans un
+  script PowerShell exécuté sur le contrôleur de domaine : un nom comme
+  `x"; commande; "` ou `$(commande)` exécutait n'importe quelle commande avec
+  les droits du service. Accessible à toute personne disposant de la
+  permission LAPS. Le nom est désormais strictement validé (lettres,
+  chiffres, tirets, points) et transmis encodé, comme dans les autres
+  scripts. Même correction pour l'affichage du domaine dans le script de
+  configuration LDAPS.
+
+### Corrections
+- **Déverrouillage de comptes impossible** depuis la page « Comptes
+  verrouillés », en individuel comme en groupé : l'appel LDAP était mal
+  formé (liste au lieu d'un dictionnaire, rejetée par la bibliothèque avant
+  tout envoi) et la valeur envoyée n'était pas au bon format. Aucun compte
+  n'a jamais pu être déverrouillé depuis l'interface.
+- **Restauration depuis la corbeille AD impossible.** L'application tentait
+  un simple renommage de l'objet supprimé, ce qu'Active Directory refuse,
+  avec un nom mal construit. Elle applique maintenant la procédure
+  documentée par Microsoft (modification de `isDeleted` et
+  `distinguishedName` avec le contrôle « Show Deleted »). Une erreur LDAP
+  pendant la restauration ne provoque plus d'erreur 500.
+- **Corbeille** : les ordinateurs supprimés apparaissaient comme
+  « Utilisateur », et les noms gardaient le suffixe technique `DEL:<guid>`.
+
 ## [1.51.1] - 2026-09-22 — Aide clavier, nettoyage des CSS
 
 ### Corrections

@@ -1,13 +1,27 @@
 """Routes gestion des comptes : corbeille AD, comptes verrouillés, comptes expirant."""
 from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, session
-from ldap3 import SUBTREE, MODIFY_REPLACE
+from ldap3 import SUBTREE, MODIFY_DELETE, MODIFY_REPLACE
+from ldap3.utils.dn import escape_rdn
 
 from . import tools_bp
 from ..core import get_ad_connection, decode_ldap_value, is_connected, require_connection, require_permission
 
 
 # === CORBEILLE AD ===
+
+# LDAP_SERVER_SHOW_DELETED_OID : rend visibles (et modifiables) les objets
+# supprimés, qui sont sinon ignorés par le serveur.
+_SHOW_DELETED = [('1.2.840.113556.1.4.417', True, None)]
+
+
+def _original_name(cn):
+    """
+    Nom d'origine d'un objet supprimé. AD suffixe le CN d'un objet supprimé
+    par un saut de ligne suivi de « DEL:<guid> » (« Dupont\\nDEL:1a2b… »),
+    pour le rendre unique dans CN=Deleted Objects.
+    """
+    return str(cn or '').split('\nDEL:')[0].split('\\0ADEL:')[0]
 
 @tools_bp.route('/recycle-bin')
 @require_connection
@@ -25,19 +39,21 @@ def recycle_bin():
         deleted_dn = f'CN=Deleted Objects,{base_dn}'
         conn.search(deleted_dn, '(isDeleted=TRUE)', SUBTREE,
                     attributes=['cn', 'distinguishedName', 'whenChanged', 'objectClass', 'lastKnownParent'],
-                    controls=[('1.2.840.113556.1.4.417', True, None)])
+                    controls=_SHOW_DELETED)
 
         for entry in conn.entries:
             # Determiner le type d'objet
             obj_classes = entry.objectClass.values if hasattr(entry, 'objectClass') and entry.objectClass else []
-            if 'user' in obj_classes:
+            # « computer » avant « user » : en AD, la classe computer hérite de
+            # user, et les ordinateurs apparaissaient comme « Utilisateur ».
+            if 'computer' in obj_classes:
+                obj_type = 'Ordinateur'
+            elif 'user' in obj_classes:
                 obj_type = 'Utilisateur'
             elif 'group' in obj_classes:
                 obj_type = 'Groupe'
             elif 'organizationalUnit' in obj_classes:
                 obj_type = 'OU'
-            elif 'computer' in obj_classes:
-                obj_type = 'Ordinateur'
             else:
                 obj_type = 'Autre'
 
@@ -48,7 +64,7 @@ def recycle_bin():
             last_parent = decode_ldap_value(entry.lastKnownParent) if hasattr(entry, 'lastKnownParent') else ''
 
             deleted_objects.append({
-                'cn': decode_ldap_value(entry.cn),
+                'cn': _original_name(decode_ldap_value(entry.cn)),
                 'dn': decode_ldap_value(entry.entry_dn),
                 'whenChanged': when_changed,
                 'lastKnownParent': last_parent,
@@ -66,39 +82,46 @@ def recycle_bin():
 @require_connection
 @require_permission('tools:recycle_bin')
 def restore_deleted_object(dn):
-    """Restaurer un objet supprimé (placeholder — nécessite corbeille AD activée)."""
+    """
+    Restaurer un objet de la corbeille AD à son emplacement d'origine.
+
+    Procédure documentée par Microsoft : une opération LDAP *modify* (et non
+    un renommage) qui, avec le contrôle Show Deleted, retire l'attribut
+    isDeleted et remplace distinguishedName par le DN de destination.
+    L'ancienne implémentation tentait un modDN — refusé par AD sur un objet
+    supprimé — avec un RDN sans « CN= » et encore suffixé de « DEL:<guid> » :
+    aucune restauration ne pouvait aboutir.
+    """
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.recycle_bin'))
     try:
-                # Rechercher l'objet dans la corbeille
-        conn.search(dn, '(isDeleted=TRUE)', SUBTREE,
-                    attributes=['cn', 'lastKnownParent', 'distinguishedName'],
-                    controls=[('1.2.840.113556.1.4.417', True, None)])
-        
+        conn.search(dn, '(isDeleted=TRUE)', 'BASE',
+                    attributes=['cn', 'lastKnownParent'], controls=_SHOW_DELETED)
         if not conn.entries:
             flash("Objet introuvable dans la corbeille.", 'error')
             return redirect(url_for('tools.recycle_bin'))
-        
+
         entry = conn.entries[0]
-        new_rdn = entry.cn[0] if hasattr(entry.cn, '__getitem__') else entry.cn
-        parent_dn = entry.lastKnownParent[0] if hasattr(entry.lastKnownParent, '__getitem__') else entry.lastKnownParent
-        
-        # Restaurer l'objet à son emplacement d'origine
-        try:
-            conn.rename(
-                decode_ldap_value(entry.entry_dn),
-                new_rdn,
-                decode_ldap_value(parent_dn),
-                delete_source=False
-            )
-            if conn.result['result'] == 0:
-                flash("Objet restauré avec succès.", 'success')
-            else:
-                flash("Erreur: %s" % conn.result.get('description', 'erreur inconnue'), 'error')
-        except Exception as e:
-            flash("Erreur lors de la restauration: %s" % str(e), 'error')
+        name = _original_name(decode_ldap_value(entry.cn))
+        parent_dn = decode_ldap_value(entry.lastKnownParent) if 'lastKnownParent' in entry else ''
+        if not name or not parent_dn:
+            flash("Emplacement d'origine inconnu : restauration impossible.", 'error')
+            return redirect(url_for('tools.recycle_bin'))
+
+        target_dn = f'CN={escape_rdn(name)},{parent_dn}'
+        conn.modify(dn, {
+            'isDeleted': [(MODIFY_DELETE, [])],
+            'distinguishedName': [(MODIFY_REPLACE, [target_dn])],
+        }, controls=_SHOW_DELETED)
+        if conn.result['result'] == 0:
+            flash(f"Objet restauré : {target_dn}", 'success')
+        else:
+            flash("Erreur: %s" % (conn.result.get('message') or conn.result.get('description')
+                                  or 'erreur inconnue'), 'error')
+    except Exception as e:
+        flash(f"Erreur lors de la restauration: {e}", 'error')
     finally:
         conn.unbind()
     return redirect(url_for('tools.recycle_bin'))
@@ -136,6 +159,19 @@ def locked_accounts():
     return render_template('locked_accounts.html', accounts=locked, connected=is_connected())
 
 
+def _unlock(conn, dn):
+    """
+    Déverrouiller un compte : lockoutTime = 0.
+
+    ldap3 exige un dictionnaire {attribut: [(opération, [valeurs])]}. L'ancien
+    appel passait une liste — ldap3 levait « changes must be a dictionary »
+    avant tout envoi — et une valeur de 8 octets nuls, alors que lockoutTime
+    (syntaxe Integer8) attend l'entier 0 : aucun compte ne pouvait être
+    déverrouillé depuis l'interface.
+    """
+    conn.modify(dn, {'lockoutTime': [(MODIFY_REPLACE, [0])]})
+
+
 @tools_bp.route('/locked-accounts/unlock', methods=['POST'])
 @require_connection
 @require_permission('tools:unlock_accounts')
@@ -155,7 +191,7 @@ def bulk_unlock_accounts():
     try:
         for dn in selected:
             try:
-                conn.modify(dn, [('lockoutTime', [MODIFY_REPLACE, b'\x00\x00\x00\x00\x00\x00\x00\x00'])])
+                _unlock(conn, dn)
                 if conn.result['result'] == 0:
                     unlocked += 1
                 else:
@@ -185,7 +221,7 @@ def unlock_account(dn):
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.locked_accounts'))
     try:
-        conn.modify(dn, [('lockoutTime', [MODIFY_REPLACE, b'\x00\x00\x00\x00\x00\x00\x00\x00'])])
+        _unlock(conn, dn)
         if conn.result['result'] == 0:
             flash('Compte débloqué avec succès.', 'success')
         else:
