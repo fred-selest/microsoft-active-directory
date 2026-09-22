@@ -1,5 +1,6 @@
 """Routes LAPS (Local Administrator Password Solution) et configuration LDAPS."""
 import logging
+import re
 import subprocess
 from flask import render_template, request, flash, session, redirect, url_for
 from ldap3 import SUBTREE
@@ -150,7 +151,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "CONFIGURATION LDAPS TERMINEE" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Serveur : {domain}" -ForegroundColor Cyan
+Write-Host "Serveur : $domain" -ForegroundColor Cyan
 Write-Host "  • Serveur LDAPS : $certSubject" -ForegroundColor White
 Write-Host "  • Port : 636" -ForegroundColor White
 Write-Host "  • SSL/TLS : Active" -ForegroundColor White
@@ -554,6 +555,11 @@ def laps_passwords():
                            connected=is_connected(), laps_available=laps_available)
 
 
+# Nom d'hôte DNS/NetBIOS : labels alphanumériques et tirets, séparés par des
+# points (RFC 1123). Exclut tout caractère interprétable par PowerShell.
+_HOSTNAME_RE = re.compile(r'^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,62})(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}))*$')
+
+
 @tools_bp.route('/laps/refresh', methods=['POST'])
 @tools_bp.route('/laps/refresh/<path:computer_dn>', methods=['POST'])
 @require_connection
@@ -575,14 +581,27 @@ def laps_force_refresh(computer_dn=''):
     domain = base_dn.replace('DC=', '').replace(',', '.')
     computer_fqdn = f"{computer_name}.{domain}" if '.' not in computer_name else computer_name
 
+    # Le nom est une saisie libre du formulaire, insérée dans un script
+    # PowerShell : il était interpolé tel quel dans une chaîne entre
+    # guillemets doubles, où « "; commande; " » comme « $(commande) »
+    # s'exécutaient sur le contrôleur de domaine avec les droits du service.
+    # Double protection : nom d'hôte strictement validé, puis transmis encodé
+    # en base64 (comme configure_ldaps et configure_laps).
+    if not (_HOSTNAME_RE.match(computer_name) and _HOSTNAME_RE.match(computer_fqdn)):
+        flash('Nom d\'ordinateur invalide (lettres, chiffres, tirets et points uniquement).', 'error')
+        return redirect(url_for('tools.laps_passwords'))
+    import base64
+    b64_fqdn = base64.b64encode(computer_fqdn.encode('utf-16-le')).decode('ascii')
+    b64_short = base64.b64encode(computer_name.encode('utf-16-le')).decode('ascii')
+
     logger.info(f"LAPS Force Refresh: Attempting to refresh LAPS on {computer_fqdn}")
 
     # Script PowerShell pour forcer la mise a jour LAPS
     # Utilise plusieurs methodes: WinRM, PSExec, ou instructions manuelles
     ps_script = f'''
 $ErrorActionPreference = "Continue"
-$computerName = "{computer_fqdn}"
-$computerShort = "{computer_name}"
+$computerName = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('{b64_fqdn}'))
+$computerShort = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('{b64_short}'))
 
 Write-Host "=== Force LAPS Update on $computerName ===" -ForegroundColor Cyan
 
