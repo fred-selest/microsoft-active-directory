@@ -10,9 +10,17 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.51.1 — Septembre 2026
+**Dernière version :** v1.51.2 — Septembre 2026
 
 ---
+
+## 🆕 Nouveautés v1.51.2 — Sécurité LAPS, déverrouillage, corbeille
+
+> ⚠️ **Mise à jour de sécurité recommandée** : le rafraîchissement LAPS forcé permettait d'exécuter des commandes sur le contrôleur de domaine via le nom d'ordinateur saisi.
+
+- **Déverrouillage de comptes** (page « Comptes verrouillés ») : il n'avait jamais fonctionné, il fonctionne désormais.
+- **Restauration depuis la corbeille AD** : elle n'avait jamais fonctionné non plus ; elle suit maintenant la procédure Microsoft.
+- Corbeille : type des ordinateurs et noms d'objets correctement affichés.
 
 ## 🆕 Nouveautés v1.51.1 — Aide clavier, nettoyage des CSS
 
