@@ -10,9 +10,14 @@
 
 Gérez votre Active Directory depuis n'importe quel navigateur, sans installation cliente. Fonctionne en tant que service Windows natif.
 
-**Dernière version :** v1.51.0 — Septembre 2026
+**Dernière version :** v1.51.1 — Septembre 2026
 
 ---
+
+## 🆕 Nouveautés v1.51.1 — Aide clavier, nettoyage des CSS
+
+- L'aide des raccourcis clavier (touche « ? ») s'affiche enfin en fenêtre au centre de l'écran, et non plus en bas de page.
+- Suppression de feuilles de style obsolètes jamais chargées ; documentation de `static/` remise à jour.
 
 ## 🆕 Nouveautés v1.51.0 — Content-Security-Policy stricte
 
