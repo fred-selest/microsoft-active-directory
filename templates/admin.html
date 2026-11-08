@@ -193,7 +193,12 @@
                     <label for="smtp_from_name">Nom d'expéditeur</label>
                     <input type="text" id="smtp_from_name" name="smtp_from_name" value="{{ settings.smtp.from_name or 'AD Web Interface' }}" placeholder="AD Web Interface">
                 </div>
+                <div class="form-group">
+                    <label for="smtp_alert_recipient">Destinataire des alertes et rapports</label>
+                    <input type="email" id="smtp_alert_recipient" name="smtp_alert_recipient" value="{{ settings.smtp.alert_recipient or '' }}" placeholder="informatique@domaine.fr">
+                </div>
             </div>
+            <small class="form-hint">Mot de passe : laissez le champ vide pour conserver celui déjà enregistré.</small>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Enregistrer</button>

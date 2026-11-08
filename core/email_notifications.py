@@ -1,63 +1,40 @@
 """
-Notifications Email - Envoi de rapports d'audit par email
+Notifications e-mail : rapports d'audit et alertes.
+
+L'envoi passe par core/mailer.py, qui lit la configuration de la page
+Admin › SMTP (auparavant ignorée : ces fonctions cherchaient des réglages
+SMTP_* absents de config.py et ne partaient jamais).
 """
-import smtplib
-import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
+import logging
 from datetime import datetime
-from config import get_config
+
+from core.mailer import MailError, default_recipient, get_smtp_settings, is_configured, send_mail
+
+logger = logging.getLogger('email_notifications')
 
 
 def send_audit_email(audit_result, pdf_path=None, recipient=None):
     """
     Envoyer un rapport d'audit par email.
-    
+
     Args:
         audit_result: Résultats de l'audit
         pdf_path: Chemin vers le fichier PDF à joindre (optionnel)
-        recipient: Destinataire (défaut: EMAIL_TO du config)
-    
+        recipient: Destinataire (défaut : destinataire des alertes)
+
     Returns:
         bool: True si envoyé avec succès, False sinon
     """
-    config = get_config()
-    
-    # Vérifier si les emails sont activés
-    if not getattr(config, 'EMAIL_ENABLED', False):
+    smtp = get_smtp_settings()
+    email_to = recipient or default_recipient(smtp)
+    if not is_configured(smtp) or not email_to:
         return False
-    
-    # Récupérer la configuration SMTP
-    smtp_server = getattr(config, 'SMTP_SERVER', None)
-    smtp_port = getattr(config, 'SMTP_PORT', 587)
-    smtp_username = getattr(config, 'SMTP_USERNAME', None)
-    smtp_password = getattr(config, 'SMTP_PASSWORD', None)
-    smtp_use_tls = getattr(config, 'SMTP_USE_TLS', True)
-    smtp_from = getattr(config, 'SMTP_FROM', 'adweb@localhost')
-    email_to = recipient or getattr(config, 'EMAIL_TO', None)
-    
-    # Vérifier la configuration
-    if not smtp_server or not smtp_username or not smtp_password or not email_to:
-        return False
-    
     try:
-        # Créer le message
-        msg = MIMEMultipart()
-        msg['From'] = smtp_from
-        msg['To'] = email_to
-        msg['Subject'] = f"[AD Audit] Rapport de sécurité - {datetime.now().strftime('%d/%m/%Y')}"
-        
-        # Corps du message
         score = audit_result.get('summary', {}).get('global_score', 0)
-        score_color = audit_result.get('summary', {}).get('score_color', 'warning')
         total_issues = audit_result.get('summary', {}).get('total_issues', 0)
         critical_issues = audit_result.get('summary', {}).get('critical_issues', 0)
-        
-        # Déterminer l'urgence
         urgency = "🔴 CRITIQUE" if critical_issues > 0 else "🟠 ATTENTION" if total_issues > 0 else "🟢 RAS"
-        
+
         body = f"""
 Bonjour,
 
@@ -103,77 +80,36 @@ Voici le rapport d'audit de sécurité des mots de passe Active Directory.
 
 Cordialement,
 AD Web Interface
-Génééré automatiquement le """ + datetime.now().strftime('%d/%m/%Y à %H:%M')
+Généré automatiquement le """ + datetime.now().strftime('%d/%m/%Y à %H:%M')
         
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        
-        # Attacher le PDF si fourni
+        attachments = []
         if pdf_path:
             try:
                 with open(pdf_path, 'rb') as f:
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(f.read())
-                    encoders.encode_base64(part)
-                    part.add_header(
-                        'Content-Disposition',
-                        f'attachment; filename=audit_mdp_{datetime.now().strftime("%Y%m%d")}.pdf'
-                    )
-                    msg.attach(part)
-            except Exception as e:
-                print(f"Erreur attachment PDF: {e}")
-        
-        # Connexion et envoi
-        if smtp_use_tls:
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        
-        server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        
+                    attachments.append((f'audit_mdp_{datetime.now().strftime("%Y%m%d")}.pdf',
+                                        f.read(), 'application/pdf'))
+            except OSError as e:
+                logger.warning('Pièce jointe illisible : %s', e)
+        send_mail(email_to, f"[AD Audit] Rapport de sécurité - {datetime.now().strftime('%d/%m/%Y')}",
+                  body, attachments=attachments, smtp=smtp)
         return True
-        
-    except Exception as e:
-        print(f"Erreur envoi email: {e}")
+    except MailError as e:
+        logger.warning('Rapport d\'audit non envoyé : %s', e)
         return False
 
 
 def send_alert_email(alert_type, alert_message, recipient=None):
     """
     Envoyer une alerte rapide par email.
-    
-    Args:
-        alert_type: Type d'alerte (ex: "Comptes expirants", "Mots de passe faibles")
-        alert_message: Message de l'alerte
-        recipient: Destinataire (optionnel)
-    
+
     Returns:
         bool: True si envoyé avec succès
     """
-    config = get_config()
-    
-    if not getattr(config, 'EMAIL_ENABLED', False):
+    smtp = get_smtp_settings()
+    email_to = recipient or default_recipient(smtp)
+    if not is_configured(smtp) or not email_to:
         return False
-    
-    smtp_server = getattr(config, 'SMTP_SERVER', None)
-    smtp_port = getattr(config, 'SMTP_PORT', 587)
-    smtp_username = getattr(config, 'SMTP_USERNAME', None)
-    smtp_password = getattr(config, 'SMTP_PASSWORD', None)
-    smtp_use_tls = getattr(config, 'SMTP_USE_TLS', True)
-    smtp_from = getattr(config, 'SMTP_FROM', 'adweb@localhost')
-    email_to = recipient or getattr(config, 'EMAIL_TO', None)
-    
-    if not smtp_server or not smtp_username or not smtp_password or not email_to:
-        return False
-    
     try:
-        msg = MIMEMultipart()
-        msg['From'] = smtp_from
-        msg['To'] = email_to
-        msg['Subject'] = f"[AD Alert] {alert_type}"
-        
         body = f"""
 Bonjour,
 
@@ -192,69 +128,37 @@ Cordialement,
 AD Web Interface
 """
         
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        
-        # Connexion et envoi
-        if smtp_use_tls:
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        
-        server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        
+        send_mail(email_to, f"[AD Alert] {alert_type}", body, smtp=smtp)
         return True
-        
-    except Exception as e:
-        print(f"Erreur envoi alerte: {e}")
+    except MailError as e:
+        logger.warning('Alerte non envoyée : %s', e)
         return False
+
 
 
 def test_email_config():
     """
-    Tester la configuration email.
-    
+    Tester la configuration email (connexion et authentification).
+
     Returns:
-        dict: Résultat du test {'success': bool, 'error': str}
+        dict: {'success': bool, 'error': str}
     """
-    config = get_config()
-    
-    if not getattr(config, 'EMAIL_ENABLED', False):
-        return {'success': False, 'error': 'Email non activé (EMAIL_ENABLED=false)'}
-    
-    smtp_server = getattr(config, 'SMTP_SERVER', None)
-    smtp_username = getattr(config, 'SMTP_USERNAME', None)
-    smtp_password = getattr(config, 'SMTP_PASSWORD', None)
-    
-    if not smtp_server:
-        return {'success': False, 'error': 'SMTP_SERVER non configuré'}
-    
-    if not smtp_username:
-        return {'success': False, 'error': 'SMTP_USERNAME non configuré'}
-    
-    if not smtp_password:
-        return {'success': False, 'error': 'SMTP_PASSWORD non configuré'}
-    
+    import smtplib
+    smtp = get_smtp_settings()
+    if not is_configured(smtp):
+        return {'success': False, 'error': 'Envoi d\'e-mails non configuré (Admin › SMTP).'}
     try:
-        # Tester la connexion
-        smtp_use_tls = getattr(config, 'SMTP_USE_TLS', True)
-        
-        if smtp_use_tls:
-            server = smtplib.SMTP(smtp_server, getattr(config, 'SMTP_PORT', 587))
-            server.starttls()
+        if smtp['port'] == 465:
+            server = smtplib.SMTP_SSL(smtp['server'], smtp['port'], timeout=20)
         else:
-            server = smtplib.SMTP_SSL(smtp_server, getattr(config, 'SMTP_PORT', 465))
-        
-        server.login(smtp_username, smtp_password)
+            server = smtplib.SMTP(smtp['server'], smtp['port'], timeout=20)
+            if smtp.get('use_tls'):
+                server.starttls()
+        if smtp.get('use_auth') and smtp.get('username'):
+            server.login(smtp['username'], smtp.get('password') or '')
         server.quit()
-        
         return {'success': True, 'error': None}
-        
     except smtplib.SMTPAuthenticationError:
         return {'success': False, 'error': 'Échec authentification SMTP'}
-    except smtplib.SMTPConnectError:
-        return {'success': False, 'error': 'Échec connexion au serveur SMTP'}
-    except Exception as e:
-        return {'success': False, 'error': str(e)}
+    except (smtplib.SMTPException, OSError) as e:
+        return {'success': False, 'error': f'Connexion au serveur SMTP impossible : {e}'}

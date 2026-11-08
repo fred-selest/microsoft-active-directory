@@ -566,7 +566,7 @@ def send_audit_email_route():
     if send_audit_email(audit_result, pdf_path=pdf_path, recipient=recipient):
         flash('Rapport envoyé avec succès par email', 'success')
     else:
-        flash('Échec de l\'envoi. Vérifiez la configuration SMTP dans .env', 'error')
+        flash('Échec de l\'envoi. Vérifiez la configuration SMTP (Admin › SMTP) et le destinataire.', 'error')
     
     return redirect(url_for('tools.password_audit_history'))
 

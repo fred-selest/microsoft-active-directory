@@ -103,10 +103,10 @@ def send_critical_alerts(audit_result, recipient=None):
     Returns:
         dict: Résumé des alertes envoyées
     """
-    config = get_config()
-    
-    # Vérifier si les emails sont activés
-    if not getattr(config, 'EMAIL_ENABLED', False):
+    # Configuration de la page Admin › SMTP (l'ancien EMAIL_ENABLED n'existait
+    # pas dans config.py : aucune alerte automatique ne partait).
+    from core.mailer import is_configured
+    if not is_configured():
         return {'success': False, 'reason': 'Email non activé'}
     
     # Vérifier les problèmes critiques

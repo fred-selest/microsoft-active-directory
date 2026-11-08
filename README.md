@@ -14,6 +14,18 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.53.0 — Messagerie Microsoft 365 et mail de bienvenue
+
+- **Adresse pro** proposée à la création (prenom.nom@domaine.fr), enregistrée pour la synchronisation Entra ID (mail, proxyAddresses, UPN au choix).
+- **Groupe de licence Microsoft 365** au choix : la boîte est créée après la synchronisation.
+- **Mail de bienvenue** sur l'adresse personnelle, avec identifiant et mot de passe provisoire ; modèle modifiable.
+- ⚠️ **Correction** : la configuration SMTP de la page Admin n'était jamais utilisée — aucun rapport ni alerte ne partait.
+
+### Mise en service
+1. **Admin › SMTP** : serveur d'envoi (Microsoft 365 : `smtp.office365.com`, port 587, TLS, compte autorisé en SMTP authentifié), puis « Envoyer un test ».
+2. **Domaine** : le suffixe `@domaine.fr` doit être déclaré dans l'AD (console « Domaines et approbations Active Directory » › Propriétés › Suffixes UPN) et vérifié dans Microsoft 365.
+3. **Paramètres de messagerie** (lien sur la page « Nouvel utilisateur ») : domaine par défaut, format, groupes de licence, texte du mail.
+
 ## 🆕 Nouveautés v1.52.0 — Droits sur les répertoires
 
 - **Droits NTFS des partages** : voir et modifier qui a accès à chaque dossier, sur le contrôleur de domaine comme sur un serveur de fichiers.
