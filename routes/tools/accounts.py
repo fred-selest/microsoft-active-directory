@@ -132,7 +132,15 @@ def restore_deleted_object(dn):
 @tools_bp.route('/locked-accounts')
 @require_connection
 def locked_accounts():
-    """Afficher les comptes verrouillés."""
+    """
+    Afficher les comptes verrouillés.
+
+    lockoutTime reste renseigné après la fin de la durée de verrouillage
+    (AD ne le remet à 0 qu'à la connexion suivante) : on ne garde que les
+    comptes encore réellement verrouillés au regard de lockoutDuration.
+    """
+    from core.ad_dates import ad_datetime, get_account_policy, is_locked_out, utcnow
+
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
@@ -142,14 +150,20 @@ def locked_accounts():
     locked = []
 
     try:
-        conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
-                    attributes=['cn', 'sAMAccountName', 'distinguishedName', 'lockoutTime'])
+        policy = get_account_policy(conn, base_dn)
+        now = utcnow()
+        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person)(lockoutTime>=1))', SUBTREE,
+                    attributes=['cn', 'sAMAccountName', 'mail', 'lockoutTime'])
         for entry in conn.entries:
+            if not is_locked_out(entry.lockoutTime, policy['lockout_duration'], now):
+                continue
+            locked_at = ad_datetime(entry.lockoutTime)
             locked.append({
                 'cn': decode_ldap_value(entry.cn),
                 'sAMAccountName': decode_ldap_value(entry.sAMAccountName),
+                'mail': decode_ldap_value(entry.mail) if 'mail' in entry else '',
                 'dn': decode_ldap_value(entry.entry_dn),
-                'lockoutTime': decode_ldap_value(entry.lockoutTime),
+                'lockoutTime': locked_at.strftime('%d/%m/%Y %H:%M') + ' UTC' if locked_at else '',
             })
     except Exception as e:
         flash(f'Erreur: {e}', 'error')
@@ -182,7 +196,10 @@ def bulk_unlock_accounts():
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('tools.locked_accounts'))
 
-    selected = request.form.getlist('selected_accounts')
+    # « dns » : nom des cases à cocher de locked_accounts.html. L'ancien code
+    # lisait « selected_accounts », que la page n'envoie pas : le déblocage
+    # groupé répondait toujours « Aucun compte sélectionné ».
+    selected = request.form.getlist('dns') or request.form.getlist('selected_accounts')
     if not selected:
         flash('Aucun compte sélectionné.', 'warning')
         return redirect(url_for('tools.locked_accounts'))
@@ -235,23 +252,76 @@ def unlock_account(dn):
 
 # === COMPTES EXPIRANT ===
 
-_AD_EPOCH_DELTA = 116444736000000000  # 100ns intervals between 1601-01-01 and 1970-01-01
+def _collect_expiring(conn, base_dn):
+    """
+    Comptes expirant, mots de passe expirant et comptes inactifs.
+
+    Les dates passent par core.ad_dates : avec le schéma chargé, ldap3 les
+    renvoie déjà en datetime. Le mot de passe est jugé sur la durée maximale
+    réelle du domaine (maxPwdAge), et la dernière connexion sur
+    lastLogonTimestamp, répliqué entre les DC.
+    """
+    from core.account_stats import (ACCOUNT_WARNING_DAYS, INACTIVE_DAYS,
+                                    PASSWORD_WARNING_DAYS, UF_ACCOUNTDISABLE)
+    from core.ad_dates import ad_datetime, get_account_policy, last_logon, password_expiry, utcnow
+    from ..core import paged_search
+
+    now = utcnow()
+    account_limit = now + timedelta(days=ACCOUNT_WARNING_DAYS)
+    password_limit = now + timedelta(days=PASSWORD_WARNING_DAYS)
+    inactive_limit = now - timedelta(days=INACTIVE_DAYS)
+    policy = get_account_policy(conn, base_dn)
+
+    expiring, passwords, inactive = [], [], []
+    entries = paged_search(conn, base_dn, '(&(objectClass=user)(objectCategory=person))',
+                           attributes=['cn', 'sAMAccountName', 'mail', 'accountExpires',
+                                       'pwdLastSet', 'lastLogon', 'lastLogonTimestamp',
+                                       'whenCreated', 'userAccountControl'])
+    for entry in entries:
+        sam = decode_ldap_value(entry.sAMAccountName)
+        if sam.lower() in _EXCLUDED_ACCOUNTS or sam.endswith('$'):
+            continue
+        try:
+            uac = int(entry.userAccountControl.value or 0)
+        except (AttributeError, TypeError, ValueError):
+            uac = 0
+        if uac & UF_ACCOUNTDISABLE:
+            continue  # un compte désactivé n'expire ni ne se connecte
+        base = {
+            'cn': decode_ldap_value(entry.cn),
+            'sAMAccountName': sam,
+            'mail': decode_ldap_value(entry.mail) if 'mail' in entry else None,
+            'dn': decode_ldap_value(entry.entry_dn),
+        }
+
+        expires = ad_datetime(getattr(entry, 'accountExpires', None))
+        if expires and expires <= account_limit:
+            expiring.append(dict(base, date=expires, expired=expires < now))
+
+        pwd_expires = password_expiry(getattr(entry, 'pwdLastSet', None),
+                                      policy['max_pwd_age'], uac)
+        if pwd_expires and pwd_expires <= password_limit:
+            passwords.append(dict(base, date=pwd_expires, expired=pwd_expires < now))
+
+        seen = last_logon(entry)
+        if seen and seen < inactive_limit:
+            inactive.append(dict(base, date=seen))
+        elif not seen:
+            created = ad_datetime(getattr(entry, 'whenCreated', None))
+            if created and created < inactive_limit:
+                inactive.append(dict(base, date=None))  # jamais connecté
+
+    # Les plus urgents d'abord ; « jamais connecté » en tête des inactifs.
+    expiring.sort(key=lambda a: a['date'])
+    passwords.sort(key=lambda a: a['date'])
+    inactive.sort(key=lambda a: (a['date'] is not None, a['date'] or now))
+    return {'expiring_accounts': expiring, 'password_expiring': passwords,
+            'inactive_accounts': inactive, 'policy': policy,
+            'account_days': ACCOUNT_WARNING_DAYS, 'password_days': PASSWORD_WARNING_DAYS,
+            'inactive_days': INACTIVE_DAYS}
 
 
-def _safe_ad_date(entry, attr):
-    """Convertit un attribut FILETIME AD en datetime, retourne None si invalide."""
-    try:
-        val = getattr(entry, attr, None)
-        if val and val.value:
-            v = val.value
-            if isinstance(v, datetime):
-                return v.replace(tzinfo=None)  # Rendre naive
-            # FILETIME (int): 100-nanosecond intervals since 1601-01-01
-            if isinstance(v, int) and v > 0:
-                return datetime(1970, 1, 1) + timedelta(microseconds=(v - _AD_EPOCH_DELTA) // 10)
-    except Exception:
-        pass
-    return None
+_EXCLUDED_ACCOUNTS = {'krbtgt', 'guest', 'invité', 'defaultaccount', 'wdagutilityaccount'}
 
 
 @tools_bp.route('/expiring')
@@ -263,90 +333,94 @@ def expiring_accounts():
         flash(f'Erreur: {error}', 'error')
         return redirect(url_for('main.connect'))
 
-    base_dn = session.get('ad_base_dn', '')
-    now = datetime.now().replace(tzinfo=None)
-    expiry_threshold = now + timedelta(days=30)
-    password_threshold = now + timedelta(days=76)  # MDP de plus de 76 jours
-    inactive_threshold = now - timedelta(days=90)
-
-    expiring_accounts_list = []
-    password_expiring_list = []
-    inactive_accounts_list = []
-
-    # Comptes système à exclure
-    EXCLUDED_ACCOUNTS = ['krbtgt', 'guest', 'invité', 'defaultaccount']
-
+    data = {'expiring_accounts': [], 'password_expiring': [], 'inactive_accounts': [],
+            'policy': {'max_pwd_age': None}, 'account_days': 30, 'password_days': 14,
+            'inactive_days': 90}
     try:
-        # Recherche TOUS les utilisateurs (exclut les ordinateurs)
-        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
-                    attributes=['cn', 'sAMAccountName', 'accountExpires',
-                                'mail', 'distinguishedName', 'pwdLastSet', 'lastLogon'])
-
-        for entry in conn.entries:
-            sam = decode_ldap_value(entry.sAMAccountName)
-            
-            # Exclure les comptes système et les comptes machine
-            if sam.lower() in EXCLUDED_ACCOUNTS or sam.endswith('$'):
-                continue
-            
-            data = {
-                'cn': decode_ldap_value(entry.cn),
-                'sAMAccountName': sam,
-                'mail': decode_ldap_value(entry.mail) if hasattr(entry, 'mail') else None,
-                'dn': decode_ldap_value(entry.entry_dn),
-            }
-
-            # Vérifier expiration du compte
-            expiry = _safe_ad_date(entry, 'accountExpires')
-            if expiry and expiry.year > 1601 and expiry != datetime.max.replace(tzinfo=None):
-                data['accountExpires'] = expiry.strftime('%d/%m/%Y')
-                if expiry <= expiry_threshold:
-                    expiring_accounts_list.append(dict(data))
-            else:
-                data['accountExpires'] = None
-
-            # Vérifier expiration du mot de passe
-            pwd_date = _safe_ad_date(entry, 'pwdLastSet')
-            if pwd_date and pwd_date.year > 1601:
-                data['pwdLastSet'] = pwd_date.strftime('%d/%m/%Y')
-                if pwd_date <= password_threshold:
-                    password_expiring_list.append(dict(data))
-
-            # Vérifier inactivité
-            last_logon = _safe_ad_date(entry, 'lastLogon')
-            if last_logon and last_logon.year > 1601:
-                data['lastLogon'] = last_logon.strftime('%d/%m/%Y')
-                if last_logon <= inactive_threshold:
-                    inactive_accounts_list.append(dict(data))
-            # Exclure les comptes qui n'ont JAMAIS été connectés (bruit)
-            # Sauf s'ils ont été créés il y a plus de 90 jours
-            elif last_logon is None:
-                created_date = _safe_ad_date(entry, 'whenCreated')
-                if created_date and created_date <= inactive_threshold:
-                    # Compte créé il y a > 90 jours mais jamais utilisé
-                    data['lastLogon'] = 'Jamais'
-                    inactive_accounts_list.append(dict(data))
-
+        data = _collect_expiring(conn, session.get('ad_base_dn', ''))
     except Exception as e:
         flash(f'Erreur: {e}', 'error')
     finally:
         conn.unbind()
 
-    # Trier par date (plus récent en premier)
-    password_expiring_list.sort(key=lambda x: x.get('pwdLastSet', '9999'))
-    inactive_accounts_list.sort(key=lambda x: x.get('lastLogon', 'Jamais'))
-
-    return render_template('expiring_accounts.html',
-                           expiring_accounts=expiring_accounts_list,
-                           password_expiring=password_expiring_list,
-                           inactive_accounts=inactive_accounts_list,
-                           connected=is_connected())
+    return render_template('expiring_accounts.html', connected=is_connected(), **data)
 
 
 @tools_bp.route('/expiring/export-pdf')
 @require_connection
 @require_permission('tools:expiring_pdf')
 def export_expiring_pdf():
-    """Export PDF des comptes expirants (placeholder)."""
-    flash('Export PDF non implémenté.', 'info')
-    return redirect(url_for('tools.expiring_accounts'))
+    """Export PDF des comptes expirants, mots de passe expirant et inactifs."""
+    from io import BytesIO
+    from flask import send_file
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from xml.sax.saxutils import escape
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return redirect(url_for('tools.expiring_accounts'))
+    try:
+        data = _collect_expiring(conn, session.get('ad_base_dn', ''))
+    except Exception as e:
+        flash(f'Erreur: {e}', 'error')
+        return redirect(url_for('tools.expiring_accounts'))
+    finally:
+        conn.unbind()
+
+    styles = getSampleStyleSheet()
+    cell = styles['BodyText']
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), title='Comptes expirants',
+                            leftMargin=1.5 * cm, rightMargin=1.5 * cm,
+                            topMargin=1.5 * cm, bottomMargin=1.5 * cm)
+    story = [Paragraph('Comptes expirants', styles['Title']),
+             Paragraph(f"Généré le {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']),
+             Spacer(1, 0.5 * cm)]
+
+    def fmt(row, never='Jamais'):
+        if row['date'] is None:
+            return never
+        text = row['date'].strftime('%d/%m/%Y')
+        return f'{text} (dépassé)' if row.get('expired') else text
+
+    sections = [
+        (f"Comptes expirant sous {data['account_days']} jours", 'Expiration',
+         data['expiring_accounts']),
+        (f"Mots de passe expirant sous {data['password_days']} jours", 'Expiration du mot de passe',
+         data['password_expiring']),
+        (f"Comptes inactifs depuis plus de {data['inactive_days']} jours", 'Dernière connexion',
+         data['inactive_accounts']),
+    ]
+    for title, date_label, rows in sections:
+        story.append(Paragraph(f'{escape(title)} ({len(rows)})', styles['Heading2']))
+        if not rows:
+            story.append(Paragraph('Aucun.', styles['Normal']))
+            story.append(Spacer(1, 0.4 * cm))
+            continue
+        table_data = [['Nom', 'Identifiant', 'Email', date_label]]
+        for row in rows:
+            table_data.append([Paragraph(escape(str(row['cn'] or '')), cell),
+                               Paragraph(escape(str(row['sAMAccountName'] or '')), cell),
+                               Paragraph(escape(str(row['mail'] or '-')), cell),
+                               fmt(row)])
+        table = Table(table_data, colWidths=[7 * cm, 5 * cm, 8 * cm, 5 * cm], repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4e79')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
+        ]))
+        story += [table, Spacer(1, 0.5 * cm)]
+
+    doc.build(story)
+    buffer.seek(0)
+    filename = f"comptes_expirants_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return send_file(buffer, mimetype='application/pdf', as_attachment=True,
+                     download_name=filename)
