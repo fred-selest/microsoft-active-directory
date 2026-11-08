@@ -53,6 +53,7 @@ def _format_duration(val, is_days=True):
 
 @tools_bp.route('/password-policy')
 @require_connection
+@require_permission('tools:password_policy')
 def password_policy():
     """Afficher la politique de mots de passe du domaine."""
     conn, error = get_ad_connection()

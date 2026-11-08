@@ -74,6 +74,32 @@
     </form>
 </div>
 
+{% if config.FEATURE_FOLDERS_ENABLED and (check_user_permission('tools:folders_read') or check_user_permission('tools:home_folders')) %}
+<!-- ════════════════════ DOSSIERS ════════════════════ -->
+<div class="form-container">
+    <div class="form-section">
+        <h3>🗂️ Dossiers</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+            Dossier personnel :
+            {% if user.homeDirectory %}<code>{{ user.homeDirectory }}</code>{% if user.homeDrive %} (lecteur {{ user.homeDrive }}){% endif %}
+            {% else %}aucun{% endif %}
+        </p>
+        <div class="form-row">
+            {% if check_user_permission('tools:home_folders') %}
+            <form method="post" action="{{ url_for('folders.create_home', dn=user.dn) }}"
+                  data-confirm="Créer (ou remettre en ordre) le dossier personnel de {{ user.sAMAccountName }} et renseigner son lecteur ?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary">{{ 'Réparer les droits du' if user.homeDirectory else 'Créer le' }} dossier personnel</button>
+            </form>
+            {% endif %}
+            {% if check_user_permission('tools:folders_read') %}
+            <a href="{{ url_for('folders.access_page', dn=user.dn) }}" class="btn btn-secondary">Voir ses accès aux dossiers</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- ════════════════════ UNITÉ ORGANISATIONNELLE ════════════════════ -->
 <div class="form-container">
     <div class="form-section">

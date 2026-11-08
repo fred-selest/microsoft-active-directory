@@ -251,6 +251,7 @@ def log_analysis_page():
 
 @admin_tools_bp.route('/alerts')
 @require_connection
+@require_permission('admin:alerts')
 def alerts_page():
     """Page des alertes enrichie."""
     from datetime import datetime

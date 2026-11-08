@@ -14,6 +14,20 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.52.0 — Droits sur les répertoires
+
+- **Droits NTFS des partages** : voir et modifier qui a accès à chaque dossier, sur le contrôleur de domaine comme sur un serveur de fichiers.
+- **Accès d'un compte** : depuis la fiche d'un utilisateur ou d'un groupe, la liste des dossiers auxquels il a accès et par quel groupe.
+- **Dossiers partagés AGDLP** : création d'un dossier et de ses groupes `DL_` / `GG_` en une seule opération.
+- **Dossiers personnels** : création du dossier et du lecteur (H:) à la création d'un compte.
+- ⚠️ **Sécurité** : le bouton « Corriger automatiquement » de la page de connexion modifiait la sécurité LDAP du domaine et redémarrait AD DS sans aucun compte ; il exige maintenant un administrateur. Plusieurs pages (journal d'audit, audit des mots de passe, alertes, outils) vérifient désormais leur permission.
+
+### Mise en service
+1. Menu **Outils › Répertoires › Paramètres** : déclarez les partages à gérer, un par ligne (`\\SRV-DC02\Partages`, `\\SRV-FICHIERS\Donnees`). Pour un dossier du contrôleur de domaine, partagez-le et indiquez son chemin réseau.
+2. Facultatif : indiquez la racine des dossiers personnels (`\\SRV-FICHIERS\Utilisateurs$`). Elle doit donner le contrôle total aux administrateurs, sans droit pour les utilisateurs : chaque dossier personnel reçoit ensuite ses propres droits.
+3. Les opérations utilisent les identifiants de l'administrateur connecté : il doit avoir le droit de modifier les autorisations sur ces partages, comme dans l'explorateur Windows.
+4. Accordez les nouvelles permissions (**Permissions** : `tools:folders_*`, `tools:home_folders`) aux groupes concernés ; les administrateurs du domaine les ont déjà.
+
 ## 🆕 Nouveautés v1.51.5 — Comptes verrouillés, alertes et comptes expirants
 
 - **Comptes verrouillés** : le déverrouillage (sélection ou ligne par ligne) ne fonctionnait pas ; seuls les verrous encore actifs sont listés.

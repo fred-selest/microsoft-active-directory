@@ -108,9 +108,13 @@ def get_scripts_directory() -> Path:
 
 def get_script_path(script_name: str) -> Optional[Path]:
     """Obtenir le chemin complet d'un script."""
+    # Seuls les scripts déclarés : un nom comme « ..\\x.ps1 » ou un chemin
+    # absolu sortait du dossier scripts.
+    if script_name not in AVAILABLE_SCRIPTS:
+        return None
     scripts_dir = get_scripts_directory()
     script_path = scripts_dir / script_name
-    
+
     if script_path.exists():
         return script_path
     return None

@@ -8,7 +8,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import datetime
 
 from .core import (get_ad_connection, decode_ldap_value, is_connected,
-                   require_connection, get_user_role_from_groups)
+                   require_connection, require_permission, get_user_role_from_groups,
+                   safe_referrer)
 from core.security import validate_csrf_token, check_rate_limit, record_attempt
 from core.session_crypto import encrypt_password, decrypt_password
 from core.audit import log_action, ACTIONS
@@ -240,9 +241,36 @@ def change_expired_password():
 
 @main_bp.route('/connect/fix-ldap-channel-binding', methods=['POST'])
 def fix_ldap_channel_binding():
-    """Executer le script de correction LDAP channel binding."""
+    """
+    Exécuter le script de correction LDAP channel binding.
+
+    Le script abaisse les exigences de signature et de liaison de canal LDAP
+    du domaine et redémarre le service AD DS. Cette route n'exigeait qu'un
+    jeton CSRF, que n'importe qui obtient en ouvrant /connect : tout poste du
+    réseau pouvait, sans compte, affaiblir la sécurité LDAP du domaine et
+    couper le contrôleur de domaine. Comme la connexion LDAP échoue
+    justement dans ce cas, le compte administrateur est vérifié par Windows
+    (core/windows_auth.py), avec la même limitation de tentatives que la
+    connexion.
+    """
     if not validate_csrf_token(request.form.get('csrf_token')):
         flash('Token CSRF invalide.', 'error')
+        return redirect(url_for('main.connect'))
+
+    from core.audit import log_action
+    from core.windows_auth import verify_local_admin
+    ip = request.remote_addr
+    allowed, remaining, _ = check_rate_limit(ip, action='fix_ldap')
+    if not allowed:
+        flash(f'Trop de tentatives. Réessayez dans {remaining}s.', 'error')
+        return redirect(url_for('main.connect'))
+    admin_user = request.form.get('admin_username', '').strip()
+    ok, auth_error = verify_local_admin(admin_user, request.form.get('admin_password', ''))
+    record_attempt(ip, success=ok, action='fix_ldap')
+    log_action('fix_ldap_channel_binding', admin_user or 'anonyme',
+               {'step': 'authentification', 'error': auth_error}, ok, ip)
+    if not ok:
+        flash(f'Correction refusée : {auth_error}', 'error')
         return redirect(url_for('main.connect'))
 
     import subprocess
@@ -334,7 +362,7 @@ def disconnect():
 def toggle_dark_mode():
     """Basculer mode sombre."""
     session['dark_mode'] = not session.get('dark_mode', False)
-    return redirect(request.referrer or url_for('main.index'))
+    return redirect(safe_referrer(url_for('main.index')))
 
 
 @main_bp.route('/dashboard')
@@ -399,6 +427,7 @@ def dashboard():
 
 @main_bp.route('/audit')
 @require_connection
+@require_permission('admin:audit_logs')
 def audit_logs():
     """Logs d'audit."""
     from core.audit import get_audit_logs

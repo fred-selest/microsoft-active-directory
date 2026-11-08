@@ -131,6 +131,7 @@ def restore_deleted_object(dn):
 
 @tools_bp.route('/locked-accounts')
 @require_connection
+@require_permission('tools:locked_accounts')
 def locked_accounts():
     """
     Afficher les comptes verrouillés.
@@ -326,6 +327,7 @@ _EXCLUDED_ACCOUNTS = {'krbtgt', 'guest', 'invité', 'defaultaccount', 'wdagutili
 
 @tools_bp.route('/expiring')
 @require_connection
+@require_permission('tools:expiring_accounts')
 def expiring_accounts():
     """Comptes expirant bientôt."""
     conn, error = get_ad_connection()

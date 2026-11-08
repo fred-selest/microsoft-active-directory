@@ -131,6 +131,23 @@ def require_permission(permission):
     return decorator
 
 
+def safe_referrer(default):
+    """
+    Page précédente si elle est sur ce site, sinon default.
+
+    redirect(request.referrer) renvoyait vers n'importe quel site : un lien
+    vers /toggle-dark-mode posé sur un site tiers ramenait l'utilisateur sur
+    ce site après être passé par l'application (redirection ouverte).
+    """
+    from urllib.parse import urlparse
+    ref = request.referrer
+    if ref:
+        parsed = urlparse(ref)
+        if parsed.netloc == request.host and parsed.scheme in ('http', 'https'):
+            return ref
+    return default
+
+
 # === Helpers pour connexion AD ===
 
 def _extract_username(username):

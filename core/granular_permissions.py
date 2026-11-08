@@ -50,6 +50,10 @@ ALL_PERMISSIONS = {
     'tools:recycle_bin': 'Corbeille AD (voir et restaurer)',
     'tools:laps': 'Consulter les mots de passe LAPS',
     'tools:bitlocker': 'Consulter les clés de récupération BitLocker',
+    'tools:folders_read': 'Voir les droits des répertoires et les accès d\'un compte',
+    'tools:folders_manage': 'Modifier les droits des répertoires',
+    'tools:folders_create': 'Créer des dossiers partagés et leurs groupes d\'accès',
+    'tools:home_folders': 'Créer les dossiers personnels',
 
     # Admin
     'admin:settings': 'Paramètres',

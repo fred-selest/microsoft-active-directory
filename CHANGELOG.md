@@ -4,6 +4,61 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.52.0] - 2026-11-08 — Droits des utilisateurs et des groupes sur les répertoires
+
+### Fonctionnalités
+- **Droits NTFS des partages** (menu Outils › Répertoires) : navigation dans
+  les partages déclarés, liste des droits de chaque dossier (compte ou
+  groupe, autoriser/refuser, niveau, portée, hérité ou explicite),
+  propriétaire et état de l'héritage. Ajout d'un droit (Lecture et
+  exécution, Modification, Contrôle total ; ce dossier seulement ou toute
+  l'arborescence) et retrait des droits explicites d'un compte.
+- **Accès d'un utilisateur ou d'un groupe** : depuis sa fiche ou la page
+  dédiée, liste des dossiers où il a des droits, directement ou par ses
+  groupes (imbriqués, groupe principal, groupes implicites comme
+  Utilisateurs authentifiés), avec le groupe qui lui donne chaque droit.
+- **Dossiers partagés AGDLP** : création d'un dossier avec ses groupes
+  d'accès DL_Nom_L / DL_Nom_M (domaine local) et, en option,
+  GG_Nom_L / GG_Nom_M (globaux, membres des premiers), ajout des
+  comptes, et héritage coupé pour ne laisser que Administrateurs, Système
+  et les groupes d'accès. Les groupes existants sont réutilisés.
+- **Dossiers personnels** : à la création d'un compte (case à cocher) ou
+  depuis sa fiche, création de \\serveur\partage\identifiant avec
+  droits Modification pour le seul utilisateur, et renseignement du
+  lecteur (homeDirectory, homeDrive).
+- **Paramètres des répertoires** : partages gérés, racine des dossiers
+  personnels, lettre de lecteur, profondeur d'analyse.
+
+### Sécurité
+- **Correction du domaine sans authentification.** Le bouton « Corriger
+  automatiquement » de la page de connexion lançait, pour n'importe quel
+  poste du réseau et sans compte, le script qui abaisse les exigences de
+  signature et de liaison de canal LDAP du domaine et redémarre AD DS. Il
+  exige désormais un compte administrateur du contrôleur de domaine,
+  vérifié par Windows (la connexion LDAP échouant justement dans ce cas),
+  avec limitation des tentatives et trace dans le journal d'audit.
+- **Permissions non vérifiées** : journal d'audit, audit des mots de passe
+  (qui enregistre l'historique et envoie les alertes par e-mail), alertes
+  (lecture, acquittement, suppression), comptes verrouillés, comptes
+  expirants, politique de mots de passe et modèles d'utilisateurs
+  n'exigeaient qu'une connexion. Chacun exige sa permission.
+- Exécution de scripts : arguments et délai validés, nom de script limité
+  à la liste déclarée.
+- Redirection vers la page précédente limitée au site lui-même.
+- Les opérations sur les fichiers s'exécutent avec les identifiants de
+  l'administrateur connecté, et non avec le compte du service : ses droits
+  NTFS réels s'appliquent. Elles ne sont possibles que sous les partages
+  déclarés. Les valeurs saisies sont transmises à PowerShell en données
+  (JSON sur l'entrée standard), jamais insérées dans le script, et le mot
+  de passe n'apparaît pas sur la ligne de commande.
+- Quatre nouvelles permissions : voir les droits et accès, modifier les
+  droits, créer des dossiers partagés, créer les dossiers personnels.
+  Toutes les actions sont tracées dans le journal d'audit.
+
+### Corrections
+- Les entrées de menu ajoutées par une mise à jour n'apparaissaient pas
+  sur une installation dont le menu avait déjà été enregistré.
+
 ## [1.51.5] - 2026-11-08 — Comptes verrouillés, alertes et comptes expirants
 
 ### Corrections

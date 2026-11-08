@@ -33,7 +33,8 @@ def edit_user(dn):
         # Recherche BASE sur le DN direct
         conn.search(dn, '(objectClass=*)', 'BASE',
                    attributes=['cn', 'displayName', 'sAMAccountName', 'mail',
-                              'department', 'title', 'telephoneNumber', 'description', 'memberOf'])
+                              'department', 'title', 'telephoneNumber', 'description', 'memberOf',
+                              'homeDirectory', 'homeDrive'])
         if not conn.entries:
             flash('Utilisateur introuvable.', 'error')
             conn.unbind()
@@ -63,6 +64,8 @@ def edit_user(dn):
             'title': str(entry.title.value) if entry.title else '',
             'telephoneNumber': str(entry.telephoneNumber.value) if entry.telephoneNumber else '',
             'description': str(entry.description.value) if hasattr(entry, 'description') and entry.description else '',
+            'homeDirectory': str(entry.homeDirectory.value) if 'homeDirectory' in entry and entry.homeDirectory.value else '',
+            'homeDrive': str(entry.homeDrive.value) if 'homeDrive' in entry and entry.homeDrive.value else '',
             'current_ou': current_ou,
             'current_groups': current_groups,
         }
@@ -174,7 +177,8 @@ def edit_user(dn):
         try:
             conn.search(dn, '(objectClass=*)', 'BASE',
                        attributes=['cn', 'displayName', 'sAMAccountName', 'mail',
-                                  'department', 'title', 'telephoneNumber', 'description', 'memberOf'])
+                                  'department', 'title', 'telephoneNumber', 'description', 'memberOf',
+                              'homeDirectory', 'homeDrive'])
             if conn.entries:
                 entry = conn.entries[0]
                 ou_parts = [p for p in dn.split(',') if p.strip().upper().startswith('OU=') or p.strip().upper().startswith('CN=')]
@@ -195,6 +199,8 @@ def edit_user(dn):
                     'title': str(entry.title.value) if entry.title else '',
                     'telephoneNumber': str(entry.telephoneNumber.value) if entry.telephoneNumber else '',
                     'description': str(entry.description.value) if hasattr(entry, 'description') and entry.description else '',
+                    'homeDirectory': str(entry.homeDirectory.value) if 'homeDirectory' in entry and entry.homeDirectory.value else '',
+                    'homeDrive': str(entry.homeDrive.value) if 'homeDrive' in entry and entry.homeDrive.value else '',
                     'current_ou': current_ou, 'current_groups': current_groups,
                 }
         except Exception:

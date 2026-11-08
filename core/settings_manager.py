@@ -46,6 +46,7 @@ DEFAULT_SETTINGS = {
             {'id': 'expiring',      'label': 'Expirations',     'endpoint': 'tools.expiring_accounts', 'icon': '⏰', 'feature': 'FEATURE_EXPIRING_ACCOUNTS_ENABLED', 'enabled': True, 'order': 5},
             {'id': 'pwd_policy',    'label': 'Politique MDP',   'endpoint': 'tools.password_policy', 'icon': '🛡️', 'feature': 'FEATURE_PASSWORD_POLICY_ENABLED',   'enabled': True,  'order': 6},
             {'id': 'pwd_audit',     'label': 'Audit MDP',       'endpoint': 'tools.password_audit',  'icon': '🔍', 'feature': 'FEATURE_PASSWORD_AUDIT_ENABLED',    'enabled': True,  'order': 7},
+            {'id': 'folders',       'label': 'Répertoires',     'endpoint': 'folders.browse',        'icon': '🗂️', 'feature': 'FEATURE_FOLDERS_ENABLED',           'enabled': True,  'order': 8},
         ],
         # Section "Administration" — visible par les admins uniquement
         'admin_items': [
@@ -112,7 +113,7 @@ def load_settings():
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
                 # Fusionner avec les parametres par defaut pour les nouvelles options
-                return merge_settings(DEFAULT_SETTINGS, settings)
+                return _add_missing_menu_items(merge_settings(DEFAULT_SETTINGS, settings))
         except Exception as e:
             print(f"Erreur chargement parametres: {e}")
 
@@ -214,6 +215,29 @@ def generate_new_default_password(
     return password
 
 
+def _add_missing_menu_items(settings):
+    """
+    Complète chaque section du menu avec les entrées par défaut absentes.
+
+    merge_settings remplace les listes en bloc : un settings.json enregistré
+    par une version antérieure ne recevait jamais les entrées ajoutées depuis
+    (nouvel outil invisible dans le menu). Fait au chargement, pour que la
+    barre latérale et l'éditeur de menu de /admin voient les mêmes entrées
+    (et que la prochaine sauvegarde les enregistre). Les entrées que
+    l'administrateur a désactivées restent présentes avec enabled: False.
+    """
+    menu = settings.get('menu')
+    if not isinstance(menu, dict):
+        return settings
+    for key, defaults in DEFAULT_SETTINGS['menu'].items():
+        saved = menu.get(key)
+        if not isinstance(saved, list):
+            continue
+        ids = {item.get('id') for item in saved if isinstance(item, dict)}
+        menu[key] = list(saved) + [dict(item) for item in defaults if item.get('id') not in ids]
+    return settings
+
+
 def save_settings(settings):
     """Sauvegarder les parametres dans le fichier JSON."""
     ensure_data_dir()
@@ -292,20 +316,17 @@ def _sorted_enabled(items):
 
 def get_menu_items():
     """Éléments de la section Gestion (tous utilisateurs connectés)."""
-    settings = load_settings()
-    return _sorted_enabled(settings.get('menu', {}).get('items', []))
+    return _sorted_enabled(load_settings().get('menu', {}).get('items', []))
 
 
 def get_tool_items():
     """Éléments de la section Outils (admins uniquement)."""
-    settings = load_settings()
-    return _sorted_enabled(settings.get('menu', {}).get('tool_items', []))
+    return _sorted_enabled(load_settings().get('menu', {}).get('tool_items', []))
 
 
 def get_admin_items():
     """Éléments de la section Administration (admins uniquement)."""
-    settings = load_settings()
-    return _sorted_enabled(settings.get('menu', {}).get('admin_items', []))
+    return _sorted_enabled(load_settings().get('menu', {}).get('admin_items', []))
 
 
 def get_dropdown_items():

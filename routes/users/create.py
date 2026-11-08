@@ -17,6 +17,36 @@ from .validators import UserCreateRequest
 logger = logging.getLogger(__name__)
 
 
+def _home_folder_root():
+    """Racine des dossiers personnels si la fonction est disponible pour ce compte."""
+    from config import get_config
+    from core.folders import get_folder_settings
+    from core.granular_permissions import has_permission
+    cfg = get_config()
+    if not getattr(cfg, 'FEATURE_FOLDERS_ENABLED', False):
+        return ''
+    if cfg.RBAC_ENABLED and not has_permission(
+            session.get('user_groups', []), 'tools:home_folders',
+            username=session.get('ad_username'), user_dn=session.get('user_dn')):
+        return ''
+    return get_folder_settings()['home_root']
+
+
+def _create_home_folder(conn, user_dn):
+    """Dossier personnel du compte créé ; un échec n'annule pas la création."""
+    from core.folders import FolderError
+    from routes.folders import provision_home_folder
+    try:
+        path = provision_home_folder(conn, user_dn)
+        log_action('home_folder', session.get('ad_username'), {'dn': user_dn, 'path': path},
+                   True, request.remote_addr)
+        flash(f'Dossier personnel {path} créé.', 'success')
+    except FolderError as e:
+        log_action('home_folder', session.get('ad_username'), {'dn': user_dn, 'error': str(e)},
+                   False, request.remote_addr)
+        flash(f'Compte créé, mais le dossier personnel n\'a pas pu l\'être : {e}', 'warning')
+
+
 @users_bp.route('/create', methods=['GET', 'POST'])
 @require_connection
 @require_permission('users:create')
@@ -48,13 +78,15 @@ def create_user():
 
     # OU par défaut = CN=Users du domaine
     default_ou = f"CN=Users,{base_dn}" if base_dn else ''
+    home_folder_root = _home_folder_root()
 
     if request.method == 'POST':
         if not validate_csrf_token(request.form.get('csrf_token')):
             flash('Token CSRF invalide.', 'error')
             return render_template('create_user.html',
                                    ous=ou_list, default_ou=default_ou,
-                                   can_set_password=can_set_password, connected=is_connected())
+                                   can_set_password=can_set_password, home_folder_root=home_folder_root,
+                               connected=is_connected())
 
         # Récupérer les valeurs du formulaire
         target_ou = request.form.get('target_ou', '').strip()
@@ -83,7 +115,8 @@ def create_user():
                 flash(err, 'error')
             return render_template('create_user.html',
                                    ous=ou_list, default_ou=default_ou,
-                                   can_set_password=can_set_password, connected=is_connected())
+                                   can_set_password=can_set_password, home_folder_root=home_folder_root,
+                               connected=is_connected())
 
         # Construire le DN.
         # Le CN doit être échappé (RFC 4514) AVANT d'être interpolé dans le
@@ -136,6 +169,8 @@ def create_user():
                                True, request.remote_addr)
 
                     flash(f'Utilisateur {user_req.username} créé avec succès.', 'success')
+                    if request.form.get('create_home') == 'on' and home_folder_root:
+                        _create_home_folder(conn, user_dn)
                     conn.unbind()
                     return redirect(url_for('users.list_users'))
                 else:
@@ -166,10 +201,12 @@ def create_user():
 
         return render_template('create_user.html',
                                ous=ou_list, default_ou=default_ou,
-                               can_set_password=can_set_password, connected=is_connected())
+                               can_set_password=can_set_password, home_folder_root=home_folder_root,
+                               connected=is_connected())
 
     # GET
     conn.unbind()
     return render_template('create_user.html',
                            ous=ou_list, default_ou=default_ou,
-                           can_set_password=can_set_password, connected=is_connected())
+                           can_set_password=can_set_password, home_folder_root=home_folder_root,
+                           connected=is_connected())
