@@ -55,6 +55,7 @@
     var button = document.getElementById('access-submit');
     var presetDn = {{ dn|tojson }};
     var browseUrl = {{ url_for('folders.browse')|tojson }};
+    var statusUrl = {{ url_for('folders.api_access')|tojson }} + '/';
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -98,15 +99,41 @@
         if (!body.dn && !body.principal) { return; }
         button.disabled = true;
         out.innerHTML = '<div class="card"><p>⏳ Analyse en cours…</p></div>';
+        // L'analyse tourne en arrière-plan sur le serveur : on récupère un
+        // identifiant puis on interroge son état toutes les 2 secondes.
         fetch({{ url_for('folders.api_access')|tojson }}, {
             method: 'POST',
             headers: {'Content-Type': 'application/json',
                       'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
             body: JSON.stringify(body)
         }).then(function (r) { return r.json(); })
-          .then(render)
-          .catch(function () { render({success: false, error: 'Le serveur n\'a pas répondu.'}); })
-          .then(function () { button.disabled = false; });
+          .then(function (data) {
+              if (!data.success || !data.job) { render(data); button.disabled = false; return; }
+              poll(data.job, data.principal);
+          })
+          .catch(function () {
+              render({success: false, error: 'Le serveur n\'a pas répondu.'});
+              button.disabled = false;
+          });
+    }
+
+    function poll(job, principal) {
+        fetch(statusUrl + encodeURIComponent(job))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.status === 'running') {
+                    out.innerHTML = '<div class="card"><p>⏳ Analyse des accès de ' + esc(principal.name) +
+                        ' en cours… (' + data.elapsed + ' s)</p></div>';
+                    setTimeout(function () { poll(job, principal); }, 2000);
+                    return;
+                }
+                render(data);
+                button.disabled = false;
+            })
+            .catch(function () {
+                // Coupure passagère : on réessaie, l'analyse continue côté serveur.
+                setTimeout(function () { poll(job, principal); }, 5000);
+            });
     }
 
     form.addEventListener('submit', function (e) { e.preventDefault(); run(); });

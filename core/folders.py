@@ -159,7 +159,13 @@ def validate_folder_name(name):
 # --- Paramètres --------------------------------------------------------------
 
 def get_folder_settings():
-    from core.settings_manager import get_setting
+    from core.settings_manager import load_settings
+    raw = load_settings().get('folders') or {}   # une seule lecture du fichier
+
+    def get_setting(path, default=None):
+        value = raw.get(path.split('.', 1)[1], default)
+        return default if value is None else value
+
     roots = get_setting('folders.roots', []) or []
     clean = []
     for root in roots:
@@ -228,20 +234,17 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
 $req = [Console]::In.ReadToEnd() | ConvertFrom-Json
 $out = @{ ok = $true }
-$drives = New-Object System.Collections.ArrayList
-$driveNames = New-Object System.Collections.ArrayList
-
-function Open-Share([string]$root) {
-    if ($script:drives -contains $root) { return }
-    $name = 'ADWI' + [guid]::NewGuid().ToString('N').Substring(0, 8)
-    if ($req.user) {
-        $sec = ConvertTo-SecureString $req.password -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential($req.user, $sec)
-        New-PSDrive -Name $name -PSProvider FileSystem -Root $root -Credential $cred -Scope Script | Out-Null
-    }
-    [void]$script:drives.Add($root)
-    [void]$script:driveNames.Add($name)
+$logonType = @'
+using System;
+using System.Runtime.InteropServices;
+public static class AdwiLogon {
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern bool LogonUser(string user, string domain, string password,
+                                        int logonType, int provider, out IntPtr token);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool CloseHandle(IntPtr handle);
 }
+'@
 
 function Get-Dir([string]$path) {
     $item = Get-Item -LiteralPath $path -Force
@@ -285,8 +288,24 @@ function Read-Aces($acl, [bool]$explicitOnly) {
     return ,$list
 }
 
+$token = [IntPtr]::Zero
+$impersonation = $null
 try {
-    foreach ($root in @($req.shares)) { Open-Share $root }
+    if ($req.user) {
+        # Session « nouveaux identifiants » (LOGON32_LOGON_NEW_CREDENTIALS = 9,
+        # comme runas /netonly) : les accès réseau de ce processus se font sous
+        # le compte de l'administrateur connecté. Les connexions SMB sont
+        # propres à cette session de logon : elles ne se mélangent pas à
+        # celles des autres requêtes et disparaissent avec le processus, même
+        # s'il est tué au délai d'expiration.
+        if (-not ('AdwiLogon' -as [type])) { Add-Type -TypeDefinition $logonType }
+        $user = $req.user; $domain = $null
+        if ($user.Contains('\')) { $domain, $user = $user.Split('\', 2) }
+        if (-not [AdwiLogon]::LogonUser($user, $domain, $req.password, 9, 3, [ref]$token)) {
+            throw "Ouverture de session impossible (code $([Runtime.InteropServices.Marshal]::GetLastWin32Error()))"
+        }
+        $impersonation = [System.Security.Principal.WindowsIdentity]::Impersonate($token)
+    }
 
     switch ($req.op) {
         'acl' {
@@ -328,6 +347,13 @@ try {
             if ($req.protect) {
                 # Héritage coupé sans copie : seuls les droits ci-dessous restent.
                 $acl.SetAccessRuleProtection($true, $false)
+                if ($req.reset) {
+                    # Dossier existant (réparation) : les droits explicites déjà
+                    # posés pour d'autres comptes sont retirés aussi.
+                    foreach ($r in @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))) {
+                        $acl.RemoveAccessRuleSpecific($r)
+                    }
+                }
                 foreach ($s in @('S-1-5-32-544', 'S-1-5-18')) {
                     $acl.AddAccessRule((New-Rule $s 0x1F01FF 'all'))
                 }
@@ -372,7 +398,8 @@ try {
 } catch {
     $out = @{ ok = $false; error = $_.Exception.Message }
 } finally {
-    foreach ($n in $driveNames) { Remove-PSDrive -Name $n -Force -ErrorAction SilentlyContinue }
+    if ($impersonation) { $impersonation.Undo() }
+    if ($token -ne [IntPtr]::Zero) { [void][AdwiLogon]::CloseHandle($token) }
 }
 [Console]::Out.Write((ConvertTo-Json -InputObject $out -Depth 6 -Compress))
 '''
@@ -439,17 +466,20 @@ def _credentials():
     username = session.get('ad_username', '')
     password = decrypt_password(session.get('ad_password'))
     if '\\' not in username and '@' not in username:
+        # Nom implicite user@domaine.dns : seuls les composants DC= de la
+        # base comptent (une base limitée à une OU, OU=Paris,DC=corp,…,
+        # donnait « Paris.corp.local »).
         base_dn = session.get('ad_base_dn', '')
-        domain = '.'.join(p.split('=', 1)[1] for p in base_dn.split(',') if '=' in p)
+        domain = '.'.join(p.strip().split('=', 1)[1] for p in base_dn.split(',')
+                          if p.strip().upper().startswith('DC='))
         if domain:
             username = f'{username}@{domain}'
     return username, password
 
 
-def _call(op, shares, timeout=PS_TIMEOUT, **params):
-    user, password = _credentials()
-    data = {'op': op, 'shares': sorted({share_root(s) for s in shares}),
-            'user': user, 'password': password}
+def _call(op, timeout=PS_TIMEOUT, credentials=None, **params):
+    user, password = credentials or _credentials()
+    data = {'op': op, 'user': user, 'password': password}
     data.update(params)
     return run_ps(data, timeout=timeout)
 
@@ -478,7 +508,7 @@ def _format_aces(aces):
 def get_folder(path):
     """ACL et sous-dossiers d'un dossier autorisé."""
     path = check_allowed(path)
-    result = _call('acl', [path], path=path)
+    result = _call('acl', path=path)
     aces = _format_aces(result.get('aces'))
     aces.sort(key=lambda a: (a['inherited'], not a['deny'], a['name'].lower()))
     return {'path': path, 'aces': aces, 'owner': result.get('owner') or '',
@@ -492,23 +522,25 @@ def grant(path, sid, level, applies='all'):
         raise FolderError('Niveau de droits invalide.')
     if applies not in APPLIES:
         raise FolderError('Portée invalide.')
-    _call('grant', [path], path=path, sid=_check_sid(sid), rights=LEVELS[level]['rights'],
+    _call('grant', path=path, sid=_check_sid(sid), rights=LEVELS[level]['rights'],
           applies=applies)
     return path
 
 
 def revoke(path, sid):
     path = check_allowed(path)
-    _call('revoke', [path], path=path, sid=_check_sid(sid))
+    _call('revoke', path=path, sid=_check_sid(sid))
     return path
 
 
-def create_folder(parent, name, grants, protect=False, extra_roots=(), allow_existing=False):
+def create_folder(parent, name, grants, protect=False, extra_roots=(), allow_existing=False,
+                  reset=False):
     """
     Crée parent\\name et y ajoute les droits [(sid, level)].
 
     protect : coupe l'héritage, ne garde que Administrateurs, Système et les
-    droits demandés.
+    droits demandés. reset (avec protect, sur un dossier existant) : retire
+    aussi les droits explicites déjà posés.
     """
     parent = check_allowed(parent, extra_roots=extra_roots)
     path = parent + '\\' + validate_folder_name(name)
@@ -517,29 +549,106 @@ def create_folder(parent, name, grants, protect=False, extra_roots=(), allow_exi
         if level not in LEVELS:
             raise FolderError('Niveau de droits invalide.')
         grant_list.append({'sid': _check_sid(sid), 'rights': LEVELS[level]['rights']})
-    result = _call('mkdir', [path], path=path, grants=grant_list, protect=bool(protect),
-                   allow_existing=bool(allow_existing))
+    result = _call('mkdir', path=path, grants=grant_list, protect=bool(protect),
+                   allow_existing=bool(allow_existing), reset=bool(reset and protect))
     return {'path': path, 'existed': bool(result.get('existed'))}
 
 
-def scan_access(sids, roots=None, depth=None):
+def prepare_scan(sids):
+    """
+    Paramètres d'une analyse d'accès, préparés pendant la requête HTTP
+    (paramètres, identifiants de session) pour pouvoir l'exécuter ensuite
+    hors requête, dans un thread.
+    """
+    settings = get_folder_settings()
+    roots = settings['roots']
+    if not roots:
+        raise FolderError('Aucune racine déclarée dans les paramètres des répertoires.')
+    return {'roots': roots, 'sids': sorted({_check_sid(s) for s in sids}),
+            'depth': settings['scan_depth'], 'credentials': _credentials()}
+
+
+def scan_access(prepared):
     """
     Dossiers où l'un des SID a un droit, sous les racines autorisées.
 
     Racines : droits explicites et hérités ; sous-dossiers : explicites.
     """
-    settings = get_folder_settings()
-    roots = [check_allowed(r) for r in (roots or settings['roots'])]
-    if not roots:
-        raise FolderError('Aucune racine déclarée dans les paramètres des répertoires.')
-    result = _call('scan', roots, timeout=SCAN_TIMEOUT, roots=roots,
-                   sids=sorted({_check_sid(s) for s in sids}),
-                   depth=depth or settings['scan_depth'], max_folders=MAX_SCAN_FOLDERS)
+    result = _call('scan', timeout=SCAN_TIMEOUT, credentials=prepared['credentials'],
+                   roots=prepared['roots'], sids=prepared['sids'], depth=prepared['depth'],
+                   max_folders=MAX_SCAN_FOLDERS)
     found = _format_aces(result.get('found'))
     found.sort(key=lambda a: (a['path'].lower(), a['name'].lower()))
     return {'found': found, 'errors': list(result.get('errors') or [])[:50],
             'scanned': result.get('scanned', 0), 'truncated': bool(result.get('truncated')),
-            'roots': roots}
+            'roots': prepared['roots']}
+
+
+# --- Analyses en arrière-plan ------------------------------------------------
+#
+# Une analyse peut durer plusieurs minutes : la faire dans la requête HTTP
+# bloquait un thread du serveur et dépassait le délai des navigateurs et
+# proxys (« le serveur n'a pas répondu » alors que PowerShell tournait
+# encore). Elle tourne dans un thread ; la page interroge son état.
+
+import threading  # noqa: E402
+import time  # noqa: E402
+import uuid  # noqa: E402
+
+_JOBS = {}
+_JOBS_LOCK = threading.Lock()
+JOB_TTL = 3600
+MAX_RUNNING_JOBS = 2
+
+
+def _purge_jobs(now):
+    for job_id in [j for j, job in _JOBS.items() if now - job['created'] > JOB_TTL]:
+        del _JOBS[job_id]
+
+
+def start_scan_job(owner, prepared, decorate=None):
+    """
+    Lance scan_access(prepared) dans un thread.
+
+    owner : identifiant de l'administrateur (seul lui peut lire le
+    résultat). decorate(result) complète le résultat (libellés « via »).
+    """
+    now = time.time()
+    with _JOBS_LOCK:
+        _purge_jobs(now)
+        running = [j for j in _JOBS.values() if j['status'] == 'running']
+        if len(running) >= MAX_RUNNING_JOBS:
+            raise FolderError('Trop d\'analyses en cours : réessayez quand l\'une d\'elles sera terminée.')
+        job_id = uuid.uuid4().hex
+        _JOBS[job_id] = {'owner': owner, 'status': 'running', 'created': now, 'result': None,
+                         'error': None}
+
+    def work():
+        try:
+            result = scan_access(prepared)
+            if decorate:
+                decorate(result)
+            update = {'status': 'done', 'result': result}
+        except FolderError as e:
+            update = {'status': 'error', 'error': str(e)}
+        except Exception:
+            logger.exception('Analyse des accès interrompue')
+            update = {'status': 'error', 'error': 'Erreur inattendue pendant l\'analyse.'}
+        prepared.pop('credentials', None)  # ne pas garder le mot de passe en mémoire
+        with _JOBS_LOCK:
+            if job_id in _JOBS:
+                _JOBS[job_id].update(update)
+
+    threading.Thread(target=work, name=f'folder-scan-{job_id[:8]}', daemon=True).start()
+    return job_id
+
+
+def get_scan_job(job_id, owner):
+    with _JOBS_LOCK:
+        job = _JOBS.get(job_id)
+        if not job or job['owner'] != owner:
+            return None
+        return dict(job)
 
 
 _SID_RE = re.compile(r'^S-1-\d+(-\d+){1,14}$')
@@ -685,9 +794,13 @@ def access_group_names(folder_name, with_global):
     return names
 
 
-def ensure_group(conn, base_dn, ou_dn, name, group_type, description):
+def ensure_group(conn, base_dn, ou_dn, name, group_type, description, reuse=False):
     """
-    Groupe de sécurité name dans ou_dn (réutilisé s'il existe).
+    Groupe de sécurité name dans ou_dn.
+
+    Un groupe du même nom n'est repris que si reuse est vrai ; sinon
+    FolderError, pour ne pas donner à un nouveau dossier les membres d'un
+    groupe existant sans que l'administrateur l'ait voulu.
 
     Returns:
         (dn, sid, created)
@@ -700,6 +813,9 @@ def ensure_group(conn, base_dn, ou_dn, name, group_type, description):
                 SUBTREE, attributes=['objectSid'])
     if conn.entries:
         entry = conn.entries[0]
+        if not reuse:
+            raise FolderError(f'Le groupe {name} existe déjà ({entry.entry_dn}). Cochez « Réutiliser '
+                              'les groupes existants » ou indiquez un autre nom de groupes.')
         return entry.entry_dn, sid_to_str(entry.objectSid), False
     dn = f'CN={escape_rdn(name)},{ou_dn}'
     ok = conn.add(dn, ['top', 'group'], {'sAMAccountName': name, 'groupType': group_type,

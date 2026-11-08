@@ -136,8 +136,11 @@ class TestRunPs:
     def test_script(self):
         s = fs.PS_SCRIPT
         assert 'Invoke-Expression' not in s and 'iex ' not in s.lower()
-        assert 'Remove-PSDrive' in s.split('finally')[1]      # connexion toujours refermée
-        assert '-Credential $cred' in s
+        # Session « nouveaux identifiants » propre au processus, pas de
+        # connexion partagée par tout le service (New-PSDrive -Credential)
+        assert 'LogonUser($user, $domain, $req.password, 9, 3' in s
+        assert 'New-PSDrive' not in s and 'net use' not in s.lower()
+        assert '$impersonation.Undo()' in s.split('finally')[-1]
         assert 'New-Item -ItemType' not in s                 # -Path interpréterait [ ]
         assert '{0}' not in s and '%s' not in s
 
@@ -174,15 +177,23 @@ class FakeConn:
                 sam='GRP-Compta', cn='Compta', cls=['top', 'group'], sid=DOMAIN_SID + '-1200'),
         }
         self.member_of = {'CN=Jean Dupont,OU=Users,DC=corp,DC=local': ['CN=Compta,OU=Groupes,DC=corp,DC=local']}
-        self.added, self.modified = [], []
+        self.added, self.modified, self.deleted = [], [], []
         self.entries = []
         self.result = {'result': 0}
         self.next_rid = 3000
 
     def _entry(self, dn):
         o = self.objects[dn]
-        return _E(dn, objectSid=o['sid'], sAMAccountName=o['sam'], cn=o.get('cn', o['sam']),
-                  objectClass=o['cls'], primaryGroupID=o.get('pgid'), name='x')
+        attrs = dict(objectSid=o['sid'], sAMAccountName=o['sam'], cn=o.get('cn', o['sam']),
+                     objectClass=o['cls'], primaryGroupID=o.get('pgid'), name='x')
+        if o.get('home'):
+            attrs['homeDirectory'] = o['home']
+        return _E(dn, **attrs)
+
+    def delete(self, dn):
+        self.deleted.append(dn)
+        self.objects.pop(dn, None)
+        return True
 
     def search(self, base, flt, scope=None, attributes=None, **k):
         self.entries = []
@@ -284,7 +295,7 @@ class TestBrowse:
         assert 'Refuser' in html and 'ace-deny' in html
         assert 'Compta' in html and 'RH' in html                       # sous-dossiers
         req = [c for c in calls if c['op'] == 'acl'][-1]
-        assert req['path'] == ROOT and req['shares'] == [ROOT]
+        assert req['path'] == ROOT
         assert req['user'] == 'CORP\\admin' and req['password'] == 'Secret-1'
         # Un droit hérité n'a pas de bouton « Retirer »
         assert html.count('name="sid"') == 2
@@ -379,9 +390,43 @@ class TestCreateShared:
         conn.objects['CN=DL_RH_L,OU=Groupes,DC=corp,DC=local'] = dict(
             sam='DL_RH_L', cls=['top', 'group'], sid=DOMAIN_SID + '-1500')
         client.post('/folders/create', data={'csrf_token': tok, 'parent': ROOT, 'name': 'RH',
-                                             'ou': 'OU=Groupes,DC=corp,DC=local'})
+                                             'ou': 'OU=Groupes,DC=corp,DC=local', 'reuse_groups': 'on'})
         assert [a['sAMAccountName'] for _, a in conn.added] == ['DL_RH_M']
         assert DOMAIN_SID + '-1500' in [g['sid'] for g in calls[-1]['grants']]
+
+    def test_groupe_existant_refuse_sans_accord(self, env):
+        """Deux dossiers « RH » dans des parents différents ne partagent pas leurs groupes en silence."""
+        client, conn, calls, tok = env
+        conn.objects['CN=DL_RH_L,OU=Groupes,DC=corp,DC=local'] = dict(
+            sam='DL_RH_L', cls=['top', 'group'], sid=DOMAIN_SID + '-1500')
+        r = client.post('/folders/create', data={'csrf_token': tok, 'parent': ROOT, 'name': 'RH',
+                                                 'ou': 'OU=Groupes,DC=corp,DC=local',
+                                                 'members_modify': 'jdupont'})
+        html = client.get(r.headers['Location']).get_data(as_text=True)
+        assert 'DL_RH_L existe déjà' in html
+        assert not conn.added and not conn.modified
+        assert not [c for c in calls if c['op'] == 'mkdir']
+
+    def test_nom_de_groupes_personnalise(self, env):
+        client, conn, calls, tok = env
+        client.post('/folders/create', data={'csrf_token': tok, 'parent': ROOT, 'name': 'Compta',
+                                             'group_base': 'Compta 2026', 'ou': 'OU=Groupes,DC=corp,DC=local'})
+        assert sorted(a['sAMAccountName'] for _, a in conn.added) == ['DL_Compta_2026_L', 'DL_Compta_2026_M']
+
+    def test_echec_du_dossier_annule_les_groupes(self, env, monkeypatch):
+        client, conn, calls, tok = env
+        real = fs.run_ps
+
+        def failing(data, timeout=None):
+            if data['op'] == 'mkdir':
+                raise fs.FolderError('Le dossier existe déjà')
+            return real(data, timeout)
+        monkeypatch.setattr(fs, 'run_ps', failing)
+        client.post('/folders/create', data={'csrf_token': tok, 'parent': ROOT, 'name': 'Projet',
+                                             'ou': 'OU=Groupes,DC=corp,DC=local', 'with_global': 'on',
+                                             'members_read': 'jdupont'})
+        assert len(conn.added) == 4 and sorted(conn.deleted) == sorted(dn for dn, _ in conn.added)
+        assert not conn.modified          # aucune appartenance modifiée
 
     def test_membre_inconnu(self, env):
         client, conn, calls, tok = env
@@ -398,8 +443,10 @@ class TestAccess:
         client, _, calls, tok = env
         r = client.post('/folders/api/access', json={'principal': 'jdupont'},
                         headers={'X-CSRFToken': tok})
-        data = r.get_json()
-        assert data['success'], data
+        assert r.status_code == 202
+        job = r.get_json()['job']
+        data = _wait(client, job)
+        assert data['success'] and data['status'] == 'done', data
         req = calls[-1]
         assert req['op'] == 'scan' and req['roots'] == [ROOT] and req['depth'] == 3
         assert set(req['sids']) >= {DOMAIN_SID + '-1105', DOMAIN_SID + '-1200', DOMAIN_SID + '-513',
@@ -407,6 +454,15 @@ class TestAccess:
         rows = {r['path']: r for r in data['found']}
         assert rows[ROOT + r'\Compta']['via'] == 'Compta' and not rows[ROOT + r'\Compta']['direct']
         assert rows[ROOT]['via'] == 'Utilisateurs authentifiés'
+
+    def test_resultat_reserve_au_demandeur(self, env):
+        client, _, _, tok = env
+        job = client.post('/folders/api/access', json={'principal': 'jdupont'},
+                          headers={'X-CSRFToken': tok}).get_json()['job']
+        _wait(client, job)
+        with client.session_transaction() as s:
+            s['ad_username'] = 'CORP\\autre'
+        assert client.get('/folders/api/access/' + job).status_code == 404
 
     def test_page(self, env):
         client = env[0]
@@ -420,14 +476,45 @@ class TestAccess:
         assert r.status_code == 400
 
 
+def _wait(client, job):
+    import time
+    for _ in range(200):
+        data = client.get('/folders/api/access/' + job).get_json()
+        if data.get('status') != 'running':
+            return data
+        time.sleep(0.02)
+    raise AssertionError('analyse jamais terminée')
+
+
 class TestHome:
+    def test_dossier_existant_hors_racine_intouche(self, env):
+        """Rediriger H: vers un dossier vide laisserait les données à l'ancien emplacement."""
+        import routes.folders as rf
+        client, conn, calls, _ = env
+        dn = 'CN=Jean Dupont,OU=Users,DC=corp,DC=local'
+        conn.objects[dn]['home'] = r'\\ANCIEN\Homes\jdupont'
+        n = len(calls)
+        with client.application.test_request_context('/'):
+            with pytest.raises(fs.FolderError, match='pas sous la racine'):
+                rf.provision_home_folder(conn, dn)
+        assert len(calls) == n and not conn.modified
+
+    def test_reparation_du_dossier_existant(self, env):
+        client, conn, calls, tok = env
+        dn = 'CN=Jean Dupont,OU=Users,DC=corp,DC=local'
+        conn.objects[dn]['home'] = HOME + r'\jean.dupont'
+        client.post('/folders/home/' + dn, data={'csrf_token': tok})
+        req = calls[-1]
+        assert req['path'] == HOME + r'\jean.dupont'          # pas \jdupont : le dossier existant
+        assert req['reset'] is True and req['protect'] is True
+
     def test_dossier_personnel(self, env):
         client, conn, calls, tok = env
         dn = 'CN=Jean Dupont,OU=Users,DC=corp,DC=local'
         client.post('/folders/home/' + dn, data={'csrf_token': tok})
         req = calls[-1]
         assert req['op'] == 'mkdir' and req['path'] == HOME + r'\jdupont'
-        assert req['protect'] is True and req['allow_existing'] is True
+        assert req['protect'] is True and req['allow_existing'] is True and req['reset'] is True
         assert req['grants'] == [{'sid': DOMAIN_SID + '-1105', 'rights': fs.MODIFY}]
         dn_mod, changes = conn.modified[-1]
         assert dn_mod == dn
@@ -508,3 +595,39 @@ def test_liens_depuis_les_fiches(env, template, ctx):
     assert '/folders/access?dn=CN%3D' in html
     if template == 'edit_user.html':
         assert '/folders/home/CN=Jean' in html and HOME + r'\jdupont' in html
+
+
+def test_identifiants_base_limitee_a_une_ou(env):
+    from flask import session
+    from core.session_crypto import encrypt_password
+    client = env[0]
+    with client.application.test_request_context('/'):
+        session.update(ad_username='admin', ad_password=encrypt_password('x'),
+                       ad_base_dn='OU=Paris,DC=corp,DC=local')
+        assert fs._credentials() == ('admin@corp.local', 'x')
+        session['ad_username'] = 'CORP\\admin'
+        assert fs._credentials()[0] == 'CORP\\admin'
+
+
+def test_editeur_de_menu_voit_les_nouvelles_entrees(monkeypatch, tmp_path):
+    """Les entrées ajoutées sont fusionnées au chargement : /admin peut les modifier."""
+    import core.settings_manager as sm
+    path = tmp_path / 'settings.json'
+    path.write_text(json.dumps({'menu': {'tool_items': [{'id': 'laps', 'label': 'LAPS',
+                                                         'endpoint': 'tools.laps_passwords'}]}}),
+                    encoding='utf-8')
+    monkeypatch.setattr(sm, 'SETTINGS_FILE', str(path))
+    ids = [i['id'] for i in sm.load_settings()['menu']['tool_items']]
+    assert ids[0] == 'laps' and 'folders' in ids and ids.count('laps') == 1
+
+
+def test_trop_d_analyses_simultanees(monkeypatch):
+    import threading
+    gate = threading.Event()
+    monkeypatch.setattr(fs, 'scan_access', lambda p: gate.wait(5) and {'found': []})
+    monkeypatch.setattr(fs, '_JOBS', {})
+    jobs = [fs.start_scan_job('a', {'credentials': ('u', 'p')}) for _ in range(fs.MAX_RUNNING_JOBS)]
+    with pytest.raises(fs.FolderError, match='Trop'):
+        fs.start_scan_job('a', {'credentials': ('u', 'p')})
+    gate.set()
+    assert all(fs.get_scan_job(j, 'a') for j in jobs) and fs.get_scan_job(jobs[0], 'b') is None

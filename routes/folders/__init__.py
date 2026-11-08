@@ -7,6 +7,7 @@ Le travail sur les fichiers est fait par core/folders.py, sous l'identité de
 l'administrateur connecté.
 """
 import logging
+import time
 
 from flask import (Blueprint, flash, jsonify, redirect, render_template, request,
                    session, url_for)
@@ -36,6 +37,16 @@ def _audit(action, details, ok=True):
 
 def _back(path=None):
     return redirect(url_for('folders.browse', path=path) if path else url_for('folders.browse'))
+
+
+def _can(permission):
+    """Même règle que require_permission, pour adapter une page."""
+    from config import get_config
+    from core.granular_permissions import has_permission
+    if not get_config().RBAC_ENABLED:
+        return True
+    return has_permission(session.get('user_groups', []), permission,
+                          username=session.get('ad_username'), user_dn=session.get('user_dn'))
 
 
 def _breadcrumb(path, roots):
@@ -80,7 +91,9 @@ def browse():
             error = str(e)
 
     ous = []
-    if folder:
+    # Liste des OU : seulement pour le formulaire de création, affiché aux
+    # comptes qui ont le droit de créer.
+    if folder and _can('tools:folders_create'):
         conn, _ = get_ad_connection()
         if conn:
             ous = _ous(conn, session.get('ad_base_dn', ''))
@@ -154,16 +167,18 @@ def create_shared():
     """
     parent = request.form.get('parent', '')
     name = request.form.get('name', '').strip()
+    group_base = request.form.get('group_base', '').strip()
     ou_dn = request.form.get('ou', '').strip()
     with_global = request.form.get('with_global') == 'on'
     protect = request.form.get('protect') == 'on'
+    reuse = request.form.get('reuse_groups') == 'on'
     base_dn = session.get('ad_base_dn', '')
 
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur : {error}', 'error')
         return _back(parent)
-    created = []
+    created = []          # [(nom, dn)] créés par cette requête
     try:
         fs.check_allowed(parent)
         folder_name = fs.validate_folder_name(name)
@@ -173,40 +188,59 @@ def create_shared():
                    'modify': _members(conn, base_dn, request.form.get('members_modify', ''))}
         target = parent.rstrip('\\') + '\\' + folder_name
 
-        grants = []
-        for level, names in fs.access_group_names(folder_name, with_global).items():
+        # 1. Groupes (il faut leurs SID pour poser les droits). Un groupe
+        #    existant n'est repris que sur demande explicite : deux dossiers
+        #    « Compta » dans des parents différents partageraient sinon leurs
+        #    groupes d'accès, et donc leurs membres.
+        grants, nesting = [], []
+        for level, names in fs.access_group_names(group_base or folder_name, with_global).items():
             label = fs.LEVELS[level]['label']
             dl_dn, dl_sid, new = fs.ensure_group(conn, base_dn, ou_dn, names['dl'],
                                                  fs.GROUP_DOMAIN_LOCAL_SECURITY,
-                                                 f'{label} sur {target}')
+                                                 f'{label} sur {target}', reuse=reuse)
             if new:
-                created.append(names['dl'])
+                created.append((names['dl'], dl_dn))
             grants.append((dl_sid, level))
             member_group = dl_dn
             if 'gg' in names:
                 gg_dn, _, new = fs.ensure_group(conn, base_dn, ou_dn, names['gg'],
                                                 fs.GROUP_GLOBAL_SECURITY,
-                                                f'Comptes ayant {label.lower()} sur {target}')
+                                                f'Comptes ayant {label.lower()} sur {target}',
+                                                reuse=reuse)
                 if new:
-                    created.append(names['gg'])
-                fs.add_member(conn, dl_dn, gg_dn)
+                    created.append((names['gg'], gg_dn))
+                nesting.append((dl_dn, gg_dn))
                 member_group = gg_dn
-            for member_dn in members[level]:
-                fs.add_member(conn, member_group, member_dn)
+            nesting += [(member_group, m) for m in members[level]]
 
-        result = fs.create_folder(parent, folder_name, grants, protect=protect)
-        _audit('folder_create', {'path': result['path'], 'groups': created,
-                                 'protect': protect, 'agdlp': with_global})
+        # 2. Dossier. En cas d'échec, les groupes créés ci-dessus sont
+        #    supprimés et aucune appartenance n'a encore été modifiée.
+        try:
+            result = fs.create_folder(parent, folder_name, grants, protect=protect)
+        except fs.FolderError:
+            for _, dn in created:
+                conn.delete(dn)
+            created = []
+            raise
+
+        # 3. Appartenances (GG dans DL, comptes dans GG ou DL).
+        for group_dn, member_dn in nesting:
+            fs.add_member(conn, group_dn, member_dn)
+
+        names_created = [n for n, _ in created]
+        _audit('folder_create', {'path': result['path'], 'groups': names_created,
+                                 'protect': protect, 'agdlp': with_global, 'reuse': reuse})
         msg = f'Dossier {result["path"]} créé'
-        if created:
-            msg += f' ; groupes créés : {", ".join(created)}'
+        if names_created:
+            msg += f' ; groupes créés : {", ".join(names_created)}'
         flash(msg + '.', 'success')
         return _back(result['path'])
     except fs.FolderError as e:
-        _audit('folder_create', {'parent': parent, 'name': name, 'groups': created,
+        names_created = [n for n, _ in created]
+        _audit('folder_create', {'parent': parent, 'name': name, 'groups': names_created,
                                  'error': str(e)}, False)
-        if created:
-            flash(f'{e} (groupes déjà créés : {", ".join(created)})', 'error')
+        if names_created:
+            flash(f'{e} (groupes créés : {", ".join(names_created)})', 'error')
         else:
             flash(str(e), 'error')
         return _back(parent)
@@ -267,13 +301,19 @@ def api_access():
         who = fs.resolve_principal(conn, base_dn, dn)
         conn.unbind()
         conn = None
-        result = fs.scan_access(list(who['sids'].keys()))
-        for row in result['found']:
-            row['via'] = who['sids'].get(row['sid'], row['name'])
-            row['direct'] = row['sid'] == who['sid']
-        return jsonify({'success': True, 'principal': {'name': who['name'], 'kind': who['kind'],
-                                                       'dn': dn, 'groups': len(who['sids']) - 1},
-                        **result})
+        prepared = fs.prepare_scan(list(who['sids'].keys()))
+        principal_info = {'name': who['name'], 'kind': who['kind'], 'dn': dn,
+                          'groups': len(who['sids']) - 1}
+
+        def decorate(result):
+            for row in result['found']:
+                row['via'] = who['sids'].get(row['sid'], row['name'])
+                row['direct'] = row['sid'] == who['sid']
+            result['principal'] = principal_info
+
+        job_id = fs.start_scan_job(session.get('ad_username'), prepared, decorate)
+        _audit('folder_access_scan', {'principal': who['name'], 'dn': dn})
+        return jsonify({'success': True, 'job': job_id, 'principal': principal_info}), 202
     except fs.FolderError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
     finally:
@@ -281,13 +321,35 @@ def api_access():
             conn.unbind()
 
 
+@folders_bp.route('/api/access/<job_id>')
+@require_connection
+@require_permission('tools:folders_read')
+def api_access_status(job_id):
+    """État d'une analyse lancée par api_access (interrogé par la page)."""
+    job = fs.get_scan_job(job_id, session.get('ad_username'))
+    if not job:
+        return jsonify({'success': False, 'error': 'Analyse introuvable ou expirée.'}), 404
+    if job['status'] == 'running':
+        return jsonify({'success': True, 'status': 'running',
+                        'elapsed': int(time.time() - job['created'])})
+    if job['status'] == 'error':
+        return jsonify({'success': False, 'status': 'error', 'error': job['error']})
+    return jsonify({'success': True, 'status': 'done', **job['result']})
+
+
 # --- Dossiers personnels -----------------------------------------------------
 
 def provision_home_folder(conn, user_dn):
     """
-    Crée \\\\racine\\<sAMAccountName>, droits Modification pour le seul
-    utilisateur (plus Administrateurs et Système), et renseigne
-    homeDirectory / homeDrive.
+    Dossier personnel : \\\\racine\\<sAMAccountName> avec droits Modification
+    pour le seul utilisateur (plus Administrateurs et Système), et
+    homeDirectory / homeDrive renseignés.
+
+    Si le compte a déjà un dossier personnel sous la racine configurée, c'est
+    celui-là qui est remis en ordre (droits explicites des autres comptes
+    retirés). S'il pointe ailleurs, rien n'est modifié : l'y rediriger
+    laisserait l'utilisateur devant un dossier vide, ses données restant à
+    l'ancien emplacement.
 
     Returns:
         str: le chemin du dossier. Raises FolderError.
@@ -297,14 +359,31 @@ def provision_home_folder(conn, user_dn):
     root = settings['home_root']
     if not root:
         raise fs.FolderError('Aucune racine des dossiers personnels n\'est configurée.')
-    conn.search(user_dn, '(objectClass=user)', BASE, attributes=['sAMAccountName', 'objectSid'])
+    conn.search(user_dn, '(objectClass=user)', BASE,
+                attributes=['sAMAccountName', 'objectSid', 'homeDirectory'])
     if not conn.entries:
         raise fs.FolderError('Utilisateur introuvable.')
     entry = conn.entries[0]
     sam = str(entry.sAMAccountName.value)
     sid = fs.sid_to_str(entry.objectSid)
-    result = fs.create_folder(root, sam, [(sid, 'modify')], protect=True,
-                              extra_roots=[root], allow_existing=True)
+    current = ''
+    if 'homeDirectory' in entry and entry.homeDirectory.value:
+        current = str(entry.homeDirectory.value).strip()
+
+    parent, name = root, sam
+    if current:
+        try:
+            current = fs.normalize_unc(current)
+        except fs.FolderError:
+            current = None
+        if not current or not fs.is_under(current, root) or current.lower() == root.lower():
+            raise fs.FolderError(
+                f'Le dossier personnel actuel ({entry.homeDirectory.value}) n\'est pas sous la racine '
+                f'configurée ({root}) : déplacez les données puis modifiez homeDirectory vous-même.')
+        parent, name = current.rsplit('\\', 1)
+
+    result = fs.create_folder(parent, name, [(sid, 'modify')], protect=True,
+                              extra_roots=[root], allow_existing=True, reset=True)
     conn.modify(user_dn, {'homeDirectory': [(MODIFY_REPLACE, [result['path']])],
                           'homeDrive': [(MODIFY_REPLACE, [settings['home_drive']])]})
     if conn.result.get('result') != 0:

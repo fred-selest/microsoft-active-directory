@@ -113,7 +113,7 @@ def load_settings():
             with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
                 # Fusionner avec les parametres par defaut pour les nouvelles options
-                return merge_settings(DEFAULT_SETTINGS, settings)
+                return _add_missing_menu_items(merge_settings(DEFAULT_SETTINGS, settings))
         except Exception as e:
             print(f"Erreur chargement parametres: {e}")
 
@@ -215,6 +215,29 @@ def generate_new_default_password(
     return password
 
 
+def _add_missing_menu_items(settings):
+    """
+    Complète chaque section du menu avec les entrées par défaut absentes.
+
+    merge_settings remplace les listes en bloc : un settings.json enregistré
+    par une version antérieure ne recevait jamais les entrées ajoutées depuis
+    (nouvel outil invisible dans le menu). Fait au chargement, pour que la
+    barre latérale et l'éditeur de menu de /admin voient les mêmes entrées
+    (et que la prochaine sauvegarde les enregistre). Les entrées que
+    l'administrateur a désactivées restent présentes avec enabled: False.
+    """
+    menu = settings.get('menu')
+    if not isinstance(menu, dict):
+        return settings
+    for key, defaults in DEFAULT_SETTINGS['menu'].items():
+        saved = menu.get(key)
+        if not isinstance(saved, list):
+            continue
+        ids = {item.get('id') for item in saved if isinstance(item, dict)}
+        menu[key] = list(saved) + [dict(item) for item in defaults if item.get('id') not in ids]
+    return settings
+
+
 def save_settings(settings):
     """Sauvegarder les parametres dans le fichier JSON."""
     ensure_data_dir()
@@ -291,35 +314,19 @@ def _sorted_enabled(items):
     return sorted([i for i in items if i.get('enabled', True)], key=lambda x: x.get('order', 99))
 
 
-def _menu_section(settings, key):
-    """
-    Entrées d'une section du menu, complétées des entrées par défaut absentes.
-
-    merge_settings remplace les listes en bloc : un settings.json enregistré
-    par une version antérieure ne recevait jamais les entrées ajoutées depuis
-    (nouvel outil invisible dans le menu). Les entrées par défaut dont l'id
-    manque sont ajoutées ; celles que l'administrateur a désactivées restent
-    présentes (enabled: False) et donc respectées.
-    """
-    saved = settings.get('menu', {}).get(key, [])
-    defaults = DEFAULT_SETTINGS['menu'].get(key, [])
-    ids = {item.get('id') for item in saved}
-    return list(saved) + [dict(item) for item in defaults if item.get('id') not in ids]
-
-
 def get_menu_items():
     """Éléments de la section Gestion (tous utilisateurs connectés)."""
-    return _sorted_enabled(_menu_section(load_settings(), 'items'))
+    return _sorted_enabled(load_settings().get('menu', {}).get('items', []))
 
 
 def get_tool_items():
     """Éléments de la section Outils (admins uniquement)."""
-    return _sorted_enabled(_menu_section(load_settings(), 'tool_items'))
+    return _sorted_enabled(load_settings().get('menu', {}).get('tool_items', []))
 
 
 def get_admin_items():
     """Éléments de la section Administration (admins uniquement)."""
-    return _sorted_enabled(_menu_section(load_settings(), 'admin_items'))
+    return _sorted_enabled(load_settings().get('menu', {}).get('admin_items', []))
 
 
 def get_dropdown_items():

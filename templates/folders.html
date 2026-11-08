@@ -141,14 +141,20 @@
     <p class="text-muted">Crée le dossier et ses groupes d'accès selon la méthode AGDLP : deux groupes de
         domaine local <code>DL_&lt;nom&gt;_L</code> (lecture) et <code>DL_&lt;nom&gt;_M</code> (modification)
         portent les droits NTFS ; en option, deux groupes globaux <code>GG_&lt;nom&gt;_L</code> et
-        <code>GG_&lt;nom&gt;_M</code>, membres des premiers, reçoivent les comptes. Un groupe qui existe déjà
-        est réutilisé.</p>
+        <code>GG_&lt;nom&gt;_M</code>, membres des premiers, reçoivent les comptes. Si un groupe de même nom
+        existe déjà, la création s'arrête, sauf si vous choisissez de le réutiliser. En cas d'échec de la création
+        du dossier, les groupes créés sont supprimés.</p>
     <form method="post" action="{{ url_for('folders.create_shared') }}" class="folder-form folder-form-wide">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="parent" value="{{ folder.path }}">
         <div class="form-group">
             <label for="new_name">Nom du dossier *</label>
             <input type="text" id="new_name" name="name" required maxlength="120" placeholder="Comptabilite">
+        </div>
+        <div class="form-group">
+            <label for="group_base">Nom des groupes</label>
+            <input type="text" id="group_base" name="group_base" maxlength="50"
+                   placeholder="Par défaut : nom du dossier (ex. Compta_2026)">
         </div>
         <div class="form-group">
             <label for="ou">OU des groupes *</label>
@@ -167,6 +173,8 @@
         </div>
         <label class="checkbox-label"><input type="checkbox" name="with_global" checked>
             Créer aussi les groupes globaux GG_ (AGDLP complet)</label>
+        <label class="checkbox-label"><input type="checkbox" name="reuse_groups">
+            Réutiliser les groupes existants de même nom (leurs membres auront accès au nouveau dossier)</label>
         <label class="checkbox-label"><input type="checkbox" name="protect" checked>
             Désactiver l'héritage : seuls Administrateurs, Système et les groupes d'accès gardent des droits</label>
         <button type="submit" class="btn btn-primary">Créer le dossier et les groupes</button>
