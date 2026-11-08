@@ -25,6 +25,14 @@ Historique complet : `git log`. Détails et captures d'écran : `README.md`.
   Paramètres de messagerie) : domaine et format des adresses, groupes de
   licence proposés, modèle du mail avec aperçu et envoi d'un exemple.
 - Le formulaire de création conserve la saisie en cas d'erreur.
+- **Fiche d'un utilisateur existant**, section Messagerie et Microsoft 365 :
+  modification de l'adresse pro (mail, proxyAddresses et UPN au choix,
+  ancienne adresse gardée en alias pour continuer à recevoir les messages)
+  et de l'adresse personnelle ; bouton « Nouveau mot de passe envoyé par
+  e-mail » qui génère un mot de passe provisoire (changement obligatoire)
+  et l'envoie à l'adresse personnelle. L'envoi est vérifié avant de
+  changer le mot de passe ; si le mail échoue malgré tout, le mot de passe
+  est affiché une fois à l'administrateur.
 
 ### Corrections
 - **Aucun e-mail ne partait** : la configuration SMTP de la page Admin
@@ -33,6 +41,9 @@ Historique complet : `git log`. Détails et captures d'écran : `README.md`.
   configuration ; un destinataire des alertes peut y être indiqué.
 - Enregistrer la page Admin › SMTP effaçait le mot de passe SMTP (le champ
   n'est jamais pré-rempli) ; laissé vide, il est désormais conservé.
+- Le champ « Email » de la fiche utilisateur modifiait mail sans
+  proxyAddresses : l'adresse vue par Microsoft 365 divergeait. Les adresses
+  se modifient désormais ensemble dans la section Messagerie.
 - Le générateur de mot de passe du formulaire de création utilisait
   Math.random, prévisible ; il utilise maintenant le générateur
   cryptographique du navigateur.

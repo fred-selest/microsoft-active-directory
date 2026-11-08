@@ -342,3 +342,116 @@ def test_admin_smtp_conserve_le_mot_de_passe(smtp, monkeypatch):
                                           'smtp_alert_recipient': 'it@x.fr'})
     smtp_settings = sm.load_settings()['smtp']
     assert smtp_settings['password'] == 'smtp-secret' and smtp_settings['alert_recipient'] == 'it@x.fr'
+
+
+# --- Utilisateur existant ----------------------------------------------------
+
+USER_DN = 'CN=Jean Dupont,OU=Users,DC=laprovidence,DC=local'
+
+
+def test_merge_proxy_addresses():
+    from routes.users.update import merge_proxy_addresses
+    current = ['SMTP:jean.dupont@laprovidence.fr', 'smtp:jd@laprovidence.fr', 'X500:/o=Org/cn=jd']
+    assert merge_proxy_addresses(current, 'jean.dupont@laprovidence.com') == [
+        'SMTP:jean.dupont@laprovidence.com', 'smtp:jean.dupont@laprovidence.fr',
+        'smtp:jd@laprovidence.fr', 'X500:/o=Org/cn=jd']
+    assert merge_proxy_addresses(current, 'jean.dupont@laprovidence.com', keep_old_as_alias=False) == [
+        'SMTP:jean.dupont@laprovidence.com', 'smtp:jd@laprovidence.fr', 'X500:/o=Org/cn=jd']
+    # Un alias promu adresse principale n'est pas dupliqué
+    assert merge_proxy_addresses(current, 'jd@laprovidence.fr') == [
+        'SMTP:jd@laprovidence.fr', 'smtp:jean.dupont@laprovidence.fr', 'X500:/o=Org/cn=jd']
+
+
+class UserConn(FakeConn):
+    def __init__(self, personal='jean.dupont@gmail.com'):
+        super().__init__()
+        self.personal = personal
+
+    def search(self, base, flt, scope=None, attributes=None, **k):
+        if base == USER_DN and str(scope).upper() == 'BASE':
+            attrs = dict(cn='Jean Dupont', displayName='Jean Dupont', sAMAccountName='jdupont',
+                         givenName='Jean', sn='Dupont', mail='jean.dupont@laprovidence.fr',
+                         userPrincipalName='jean.dupont@laprovidence.fr',
+                         proxyAddresses=['SMTP:jean.dupont@laprovidence.fr'], memberOf=[],
+                         department='', title='', telephoneNumber='', description='')
+            if self.personal:
+                attrs['otherMailbox'] = [self.personal]
+            self.entries = [_E(USER_DN, **attrs)]
+            return
+        super().search(base, flt, scope, attributes, **k)
+
+
+@pytest.fixture
+def user_env(env, monkeypatch):
+    import routes.users.password as up
+    import routes.users.update as uu
+    client, _, tok, audit, _ = env
+    conn = UserConn()
+    for mod in (uu, up):
+        monkeypatch.setattr(mod, 'get_ad_connection', lambda *a, **k: (conn, None))
+        monkeypatch.setattr(mod, 'log_action', lambda *a, **k: audit.append(a))
+    return client, conn, tok, audit
+
+
+class TestExistingUser:
+    def test_fiche(self, user_env):
+        client = user_env[0]
+        html = client.get(f'/users/{USER_DN}/edit').get_data(as_text=True)
+        assert 'name="pro_email"' in html and 'jean.dupont@gmail.com' in html
+        assert 'name="mail"' not in html            # plus de modification de mail seul
+        assert '/users/CN=Jean%20Dupont,OU=Users,DC=laprovidence,DC=local/send-credentials' in html
+
+    def test_changement_adresse(self, user_env):
+        client, conn, tok, _ = user_env
+        client.post(f'/users/{USER_DN}/edit', data={
+            'csrf_token': tok, 'action': 'update_mail', 'pro_email': 'J.Dupont@LAPROVIDENCE.fr',
+            'personal_email': 'jd.perso@gmail.com', 'set_upn': 'on', 'keep_alias': 'on'})
+        dn, changes = [m for m in conn.modified if m[0] == USER_DN][-1]
+        assert changes['mail'][0][1] == ['j.dupont@laprovidence.fr']
+        assert changes['proxyAddresses'][0][1] == ['SMTP:j.dupont@laprovidence.fr',
+                                                   'smtp:jean.dupont@laprovidence.fr']
+        assert changes['userPrincipalName'][0][1] == ['j.dupont@laprovidence.fr']
+        assert changes['otherMailbox'][0][1] == ['jd.perso@gmail.com']
+
+    def test_adresse_prise_par_un_autre(self, user_env):
+        client, conn, tok, _ = user_env
+        client.post(f'/users/{USER_DN}/edit', data={'csrf_token': tok, 'action': 'update_mail',
+                                                     'pro_email': 'deja.pris@laprovidence.fr'})
+        assert not [m for m in conn.modified if m[0] == USER_DN]
+
+    def test_l_ancien_champ_mail_est_ignore(self, user_env):
+        client, conn, tok, _ = user_env
+        client.post(f'/users/{USER_DN}/edit', data={'csrf_token': tok, 'mail': 'x@y.fr', 'title': 'Comptable'})
+        changed = {k for dn, ch in conn.modified if dn == USER_DN for k in ch}
+        assert 'mail' not in changed and 'title' in changed
+
+    def test_nouveau_mot_de_passe_par_mail(self, user_env):
+        client, conn, tok, audit = user_env
+        client.post(f'/users/{USER_DN}/send-credentials', data={'csrf_token': tok})
+        pwd_change = [ch for dn, ch in conn.modified if dn == USER_DN and 'unicodePwd' in ch][0]
+        password = pwd_change['unicodePwd'][0][1][0].decode('utf-16-le').strip('"')
+        assert len(password) >= 12
+        assert any('pwdLastSet' in ch for dn, ch in conn.modified if dn == USER_DN)
+        msg = [c for c in env_smtp_calls() if isinstance(c, tuple) and c[0] == 'send'][-1][1]
+        assert msg['To'] == 'jean.dupont@gmail.com' and password in msg.get_body(('plain',)).get_content()
+        assert password not in json.dumps([list(map(str, a)) for a in audit])
+
+    def test_sans_smtp_mot_de_passe_inchange(self, user_env):
+        import core.settings_manager as sm
+        client, conn, tok, _ = user_env
+        sm.set_setting('smtp', dict(SMTP, enabled=False))
+        client.post(f'/users/{USER_DN}/send-credentials', data={'csrf_token': tok})
+        assert not [ch for dn, ch in conn.modified if 'unicodePwd' in ch]
+
+    def test_sans_adresse_personnelle(self, user_env):
+        client, conn, tok, _ = user_env
+        conn.personal = ''
+        client.post(f'/users/{USER_DN}/send-credentials', data={'csrf_token': tok})
+        assert not [ch for dn, ch in conn.modified if 'unicodePwd' in ch]
+
+    def test_connexion_non_chiffree(self, user_env):
+        client, conn, tok, _ = user_env
+        with client.session_transaction() as s:
+            s['ad_use_ssl'] = False
+        client.post(f'/users/{USER_DN}/send-credentials', data={'csrf_token': tok})
+        assert not [ch for dn, ch in conn.modified if 'unicodePwd' in ch]

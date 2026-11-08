@@ -35,9 +35,9 @@
             </div>
 
             <div class="form-group">
-                <label for="mail">Email</label>
-                <input type="email" id="mail" name="mail"
-                       value="{{ user.mail }}" placeholder="jean.dupont@domaine.com">
+                <label>Email professionnel</label>
+                <p class="form-hint">{{ user.mail or 'aucun' }} — modifiable dans la section
+                    <a href="#messagerie">Messagerie et Microsoft 365</a>.</p>
             </div>
 
             <div class="form-row">
@@ -72,6 +72,56 @@
             <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
+</div>
+
+<!-- ════════════════════ MESSAGERIE ════════════════════ -->
+<div class="form-container" id="messagerie">
+    <div class="form-section">
+        <h3>✉️ Messagerie et Microsoft 365</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+            Identifiant de connexion (UPN) : <code>{{ user.userPrincipalName or '—' }}</code>
+            {% if user.aliases %}<br>Alias : {{ user.aliases|join(', ') }}{% endif %}
+        </p>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update_mail">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="pro_email">Adresse professionnelle</label>
+                    <input type="email" id="pro_email" name="pro_email" value="{{ user.mail or '' }}"
+                           placeholder="prenom.nom@domaine.fr">
+                </div>
+                <div class="form-group">
+                    <label for="personal_email">Adresse personnelle</label>
+                    <input type="email" id="personal_email" name="personal_email"
+                           value="{{ user.personal_email or '' }}" placeholder="jean.dupont@gmail.com">
+                </div>
+            </div>
+            <div class="form-group form-check">
+                <input type="checkbox" id="set_upn" name="set_upn" class="form-check-input"
+                       {% if user.mail and user.userPrincipalName and user.mail|lower == user.userPrincipalName|lower %}checked{% endif %}>
+                <label for="set_upn" class="form-check-label">Utiliser l'adresse professionnelle comme identifiant de
+                    connexion (UPN). <small>Le changer modifie l'identifiant Microsoft 365 de l'utilisateur.</small></label>
+            </div>
+            <div class="form-group form-check">
+                <input type="checkbox" id="keep_alias" name="keep_alias" class="form-check-input" checked>
+                <label for="keep_alias" class="form-check-label">Garder l'ancienne adresse comme alias (les messages
+                    qui lui sont adressés continuent d'arriver)</label>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer les adresses</button>
+        </form>
+
+        <hr>
+        <form method="post" action="{{ url_for('users.send_credentials', dn=user.dn) }}"
+              data-confirm="Générer un nouveau mot de passe provisoire pour {{ user.sAMAccountName }} et l'envoyer à {{ user.personal_email or 'son adresse personnelle' }} ? L'ancien mot de passe ne fonctionnera plus.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning" {% if not user.personal_email %}disabled{% endif %}>
+                🔑 Nouveau mot de passe envoyé par e-mail</button>
+            <small class="form-hint">{% if user.personal_email %}Envoie le mail de bienvenue à {{ user.personal_email }}
+                avec un mot de passe provisoire (changement obligatoire à la connexion).{% else %}Renseignez d'abord
+                l'adresse personnelle.{% endif %}</small>
+        </form>
+    </div>
 </div>
 
 {% if config.FEATURE_FOLDERS_ENABLED and (check_user_permission('tools:folders_read') or check_user_permission('tools:home_folders')) %}

@@ -225,3 +225,89 @@ def toggle_user_status(dn):
         conn.unbind()
 
     return redirect(url_for('users.list_users'))
+
+
+@users_bp.route('/<path:dn>/send-credentials', methods=['POST'])
+@require_connection
+@require_permission('users:update')
+def send_credentials(dn):
+    """
+    Nouveau mot de passe provisoire envoyé à l'adresse personnelle.
+
+    Génère un mot de passe, l'applique (changement obligatoire à la
+    prochaine connexion), puis envoie le mail de bienvenue à l'adresse
+    personnelle (otherMailbox). L'envoi d'e-mails est vérifié AVANT de
+    toucher au mot de passe ; si l'envoi échoue malgré tout, le mot de passe
+    est affiché une fois à l'administrateur pour qu'il le transmette.
+    """
+    from ldap3 import BASE, MODIFY_REPLACE
+    from core.mailer import MailError, is_configured, send_mail
+    from core.onboarding import get_onboarding_settings, render_welcome, valid_email
+    from core.password_generator import generate_ad_password
+
+    dn = unquote(dn)
+    back = redirect(url_for('users.edit_user', dn=dn))
+    if not validate_csrf_token(request.form.get('csrf_token')):
+        flash('Token CSRF invalide.', 'error')
+        return back
+    if not (session.get('ad_use_ssl') or session.get('ad_starttls')):
+        flash('Connexion LDAP non chiffrée : le mot de passe ne peut pas être modifié. '
+              'Reconnectez-vous en LDAPS (port 636) ou STARTTLS.', 'error')
+        return back
+    if not is_configured():
+        flash('L\'envoi d\'e-mails n\'est pas configuré (Admin › SMTP) : mot de passe inchangé.', 'error')
+        return back
+
+    conn, error = get_ad_connection()
+    if not conn:
+        flash(f'Erreur: {error}', 'error')
+        return back
+    try:
+        conn.search(dn, '(objectClass=user)', BASE,
+                    attributes=['sAMAccountName', 'givenName', 'sn', 'mail', 'userPrincipalName',
+                                'otherMailbox'])
+        if not conn.entries:
+            flash('Utilisateur introuvable.', 'error')
+            return back
+        entry = conn.entries[0]
+
+        def first(attr):
+            return str(getattr(entry, attr).values[0]) if attr in entry and getattr(entry, attr).values else ''
+
+        personal = first('otherMailbox')
+        if not valid_email(personal):
+            flash('Aucune adresse personnelle valide sur la fiche : renseignez-la dans « Messagerie ».', 'error')
+            return back
+
+        password = generate_ad_password('high')
+        conn.modify(dn, {'unicodePwd': [(MODIFY_REPLACE, [f'"{password}"'.encode('utf-16-le')])]})
+        if conn.result.get('result') != 0:
+            flash(format_ldap_error(conn.result.get('result', 0), conn.result.get('description', ''),
+                                    conn.result.get('message', ''), 'reset_password'), 'error')
+            return back
+        conn.modify(dn, {'pwdLastSet': [(MODIFY_REPLACE, [0])]})
+
+        base_dn = session.get('ad_base_dn', '')
+        netbios = next((p.split('=', 1)[1] for p in base_dn.split(',')
+                        if p.strip().upper().startswith('DC=')), '').upper()
+        sam = first('sAMAccountName')
+        subject, text, html = render_welcome(get_onboarding_settings(), {
+            'prenom': first('givenName'), 'nom': first('sn'),
+            'nom_complet': f'{first("givenName")} {first("sn")}'.strip(),
+            'identifiant': first('userPrincipalName') or sam,
+            'login_windows': f'{netbios}\\{sam}',
+            'adresse_pro': first('mail') or '—', 'mot_de_passe': password,
+        })
+        try:
+            send_mail(personal, subject, text, html=html)
+            log_action('send_credentials', session.get('ad_username'), {'dn': dn, 'to': personal},
+                       True, request.remote_addr)
+            flash(f'Nouveau mot de passe provisoire envoyé à {personal}.', 'success')
+        except MailError as e:
+            log_action('send_credentials', session.get('ad_username'),
+                       {'dn': dn, 'to': personal, 'error': str(e)}, False, request.remote_addr)
+            flash(f'Mot de passe changé, mais le mail n\'est pas parti ({e}). Mot de passe provisoire à '
+                  f'transmettre vous-même : {password}', 'warning')
+    finally:
+        conn.unbind()
+    return back

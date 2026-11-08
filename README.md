@@ -19,6 +19,7 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 - **Adresse pro** proposée à la création (prenom.nom@domaine.fr), enregistrée pour la synchronisation Entra ID (mail, proxyAddresses, UPN au choix).
 - **Groupe de licence Microsoft 365** au choix : la boîte est créée après la synchronisation.
 - **Mail de bienvenue** sur l'adresse personnelle, avec identifiant et mot de passe provisoire ; modèle modifiable.
+- **Comptes existants** : modification de l'adresse pro (ancienne gardée en alias) et de l'adresse personnelle ; envoi d'un nouveau mot de passe provisoire par e-mail.
 - ⚠️ **Correction** : la configuration SMTP de la page Admin n'était jamais utilisée — aucun rapport ni alerte ne partait.
 
 ### Mise en service

@@ -15,6 +15,94 @@ from .helpers import get_ous, get_user_attributes
 from core.ldap_errors import format_ldap_error, handle_ldap_exception
 
 
+def _mail_fields(entry):
+    """Adresse pro, alias, UPN et adresse personnelle d'une entrée."""
+    def values(attr):
+        return [str(v) for v in getattr(entry, attr).values] if attr in entry else []
+    proxies = values('proxyAddresses')
+    upn = values('userPrincipalName')
+    return {
+        'userPrincipalName': upn[0] if upn else '',
+        'aliases': [p[5:] for p in proxies if p.lower().startswith('smtp:') and not p.startswith('SMTP:')],
+        'proxyAddresses': proxies,
+        'personal_email': (values('otherMailbox') or [''])[0],
+    }
+
+
+def merge_proxy_addresses(current, new_primary, keep_old_as_alias=True):
+    """
+    proxyAddresses après changement d'adresse principale.
+
+    L'ancienne adresse principale (SMTP:) devient un alias (smtp:) pour que
+    les messages qui lui sont adressés continuent d'arriver, ou disparaît.
+    Les autres entrées (alias, X500:, SIP:…) sont conservées.
+    """
+    result = []
+    for value in current:
+        if value.lower() == f'smtp:{new_primary}'.lower():
+            continue
+        if value.startswith('SMTP:'):
+            if keep_old_as_alias:
+                result.append('smtp:' + value[5:])
+            continue
+        result.append(value)
+    return [f'SMTP:{new_primary}'] + result
+
+
+def _update_mail(conn, dn, user):
+    """Adresse pro (mail, proxyAddresses, UPN au choix) et adresse personnelle."""
+    from core.onboarding import address_owner, get_upn_suffixes, valid_email
+    base_dn = session.get('ad_base_dn', '')
+    pro = request.form.get('pro_email', '').strip().lower()
+    personal = request.form.get('personal_email', '').strip()
+    set_upn = request.form.get('set_upn') == 'on'
+    keep_alias = request.form.get('keep_alias') == 'on'
+
+    errors = []
+    if pro and not valid_email(pro):
+        errors.append('Adresse professionnelle invalide.')
+    if personal and not valid_email(personal):
+        errors.append('Adresse personnelle invalide.')
+    if pro and personal and pro == personal.lower():
+        errors.append('L\'adresse personnelle doit être différente de l\'adresse professionnelle.')
+    if pro and not errors:
+        owner = address_owner(conn, base_dn, pro, exclude_dn=dn)
+        if owner:
+            errors.append(f'L\'adresse {pro} est déjà utilisée par {owner}.')
+        suffixes = get_upn_suffixes(conn, base_dn)
+        if set_upn and suffixes and pro.split('@', 1)[1] not in suffixes:
+            errors.append(f'Le domaine {pro.split("@", 1)[1]} n\'est pas un suffixe UPN de la forêt.')
+    if set_upn and not pro:
+        errors.append('Indiquez l\'adresse professionnelle à utiliser comme identifiant.')
+    for err in errors:
+        flash(err, 'error')
+    if errors:
+        return
+
+    changes = {'otherMailbox': [(MODIFY_REPLACE, [personal] if personal else [])]}
+    if pro:
+        changes['mail'] = [(MODIFY_REPLACE, [pro])]
+        changes['proxyAddresses'] = [(MODIFY_REPLACE, merge_proxy_addresses(
+            user.get('proxyAddresses', []), pro, keep_alias))]
+        if set_upn:
+            changes['userPrincipalName'] = [(MODIFY_REPLACE, [pro])]
+    elif user.get('mail'):
+        changes['mail'] = [(MODIFY_REPLACE, [])]
+    conn.modify(dn, changes)
+    ok = conn.result.get('result') == 0
+    log_action('edit_user_mail', session.get('ad_username'),
+               {'dn': dn, 'mail': pro, 'upn': set_upn, 'personal': bool(personal)}, ok, request.remote_addr)
+    if ok:
+        flash('Adresses mises à jour ; Microsoft 365 les reprendra à la prochaine synchronisation.', 'success')
+        for key, value in (('mail', pro), ('personal_email', personal)):
+            user[key] = value
+        if set_upn:
+            user['userPrincipalName'] = pro
+    else:
+        flash(format_ldap_error(conn.result.get('result', 0), conn.result.get('description', ''),
+                                conn.result.get('message', ''), 'edit'), 'error')
+
+
 @users_bp.route('/<path:dn>/edit', methods=['GET', 'POST'])
 @require_connection
 @require_permission('users:update')
@@ -34,7 +122,8 @@ def edit_user(dn):
         conn.search(dn, '(objectClass=*)', 'BASE',
                    attributes=['cn', 'displayName', 'sAMAccountName', 'mail',
                               'department', 'title', 'telephoneNumber', 'description', 'memberOf',
-                              'homeDirectory', 'homeDrive'])
+                              'homeDirectory', 'homeDrive',
+                              'userPrincipalName', 'proxyAddresses', 'otherMailbox'])
         if not conn.entries:
             flash('Utilisateur introuvable.', 'error')
             conn.unbind()
@@ -66,6 +155,7 @@ def edit_user(dn):
             'description': str(entry.description.value) if hasattr(entry, 'description') and entry.description else '',
             'homeDirectory': str(entry.homeDirectory.value) if 'homeDirectory' in entry and entry.homeDirectory.value else '',
             'homeDrive': str(entry.homeDrive.value) if 'homeDrive' in entry and entry.homeDrive.value else '',
+            **_mail_fields(entry),
             'current_ou': current_ou,
             'current_groups': current_groups,
         }
@@ -120,6 +210,9 @@ def edit_user(dn):
                 except Exception as e:
                     flash(f'Erreur déplacement: {str(e)}', 'error')
 
+        elif action == 'update_mail':
+            _update_mail(conn, dn, user)
+
         elif action == 'add_group':
             # Ajouter à un groupe
             group_dn = request.form.get('group_dn', '').strip()
@@ -149,7 +242,9 @@ def edit_user(dn):
         else:
             # Mise à jour des attributs
             updates = {}
-            for field in ['displayName', 'mail', 'department', 'title', 'telephoneNumber', 'description']:
+            # « mail » n'est plus modifié ici : seul, il désalignait proxyAddresses
+            # (adresse reprise par Microsoft 365). Voir l'action update_mail.
+            for field in ['displayName', 'department', 'title', 'telephoneNumber', 'description']:
                 value = request.form.get(field, '').strip()
                 if value:
                     updates[field] = value
@@ -178,7 +273,8 @@ def edit_user(dn):
             conn.search(dn, '(objectClass=*)', 'BASE',
                        attributes=['cn', 'displayName', 'sAMAccountName', 'mail',
                                   'department', 'title', 'telephoneNumber', 'description', 'memberOf',
-                              'homeDirectory', 'homeDrive'])
+                              'homeDirectory', 'homeDrive',
+                              'userPrincipalName', 'proxyAddresses', 'otherMailbox'])
             if conn.entries:
                 entry = conn.entries[0]
                 ou_parts = [p for p in dn.split(',') if p.strip().upper().startswith('OU=') or p.strip().upper().startswith('CN=')]
@@ -201,6 +297,7 @@ def edit_user(dn):
                     'description': str(entry.description.value) if hasattr(entry, 'description') and entry.description else '',
                     'homeDirectory': str(entry.homeDirectory.value) if 'homeDirectory' in entry and entry.homeDirectory.value else '',
                     'homeDrive': str(entry.homeDrive.value) if 'homeDrive' in entry and entry.homeDrive.value else '',
+                    **_mail_fields(entry),
                     'current_ou': current_ou, 'current_groups': current_groups,
                 }
         except Exception:
