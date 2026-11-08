@@ -14,6 +14,12 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.51.5 — Comptes verrouillés, alertes et comptes expirants
+
+- **Comptes verrouillés** : le déverrouillage (sélection ou ligne par ligne) ne fonctionnait pas ; seuls les verrous encore actifs sont listés.
+- **Alertes** : les mots de passe expirant étaient toujours à 0 ; durée maximale réelle du domaine, compteurs justes au-delà de 1000 comptes, administrateurs détectés sur un AD francophone.
+- **Comptes expirants** : la section mots de passe listait tout le monde ; export PDF ajouté.
+
 ## 🆕 Nouveautés v1.51.4 — Ordinateurs manquants, pages non protégées, tableau de bord
 
 - **Ordinateurs** : la liste s'arrêtait aux 25 premiers, sans lien vers les pages suivantes. Pagination ajoutée ; filtres conservés d'une page à l'autre sur les listes Utilisateurs, Groupes et Ordinateurs.

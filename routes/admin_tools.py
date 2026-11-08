@@ -253,198 +253,53 @@ def log_analysis_page():
 @require_connection
 def alerts_page():
     """Page des alertes enrichie."""
-    from ldap3 import SUBTREE
-    from datetime import datetime, timedelta
-    from .core import decode_ldap_value
+    from datetime import datetime
+    from core.account_stats import (compute_account_alerts, ACCOUNT_WARNING_DAYS,
+                                    INACTIVE_DAYS, PASSWORD_WARNING_DAYS)
 
     conn, error = get_ad_connection()
     if not conn:
         flash(f'Erreur: {error}', 'error')
         return render_template('alerts.html', alert_data={}, alerts=[], connected=True)
 
-    base_dn = session.get('ad_base_dn', '')
-
-    # Statistiques d'alertes enrichies
-    alert_data = {
-        'expiring_accounts': 0,
-        'password_expiring': 0,
-        'inactive_accounts': 0,
-        'locked_accounts': 0,
-        'empty_groups': 0,
-        'disabled_accounts': 0,
-        'inactive_computers': 0,
-        'admin_accounts': 0,
-        'service_accounts': 0,
-    }
-
     alerts = []
-    now = datetime.now()
-
+    alert_data = {}
     try:
-        # === COMPTES VERROUILLES ===
-        conn.search(base_dn, '(&(objectClass=user)(lockoutTime>=1))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'lockoutTime'], size_limit=100)
-        alert_data['locked_accounts'] = len(conn.entries)
-
-        if alert_data['locked_accounts'] > 0:
-            alerts.append({
-                'title': f'{alert_data["locked_accounts"]} compte(s) verrouillé(s)',
-                'message': 'Des comptes sont actuellement verrouillés suite à tentatives de connexion échouées.',
-                'severity': 'warning',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'tools.locked_accounts'
-            })
-
-        # === COMPTES DESACTIVES ===
-        conn.search(base_dn, '(&(objectClass=user)(userAccountControl:1.2.840.113556.1.4.803:=2))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName'], size_limit=1000)
-        alert_data['disabled_accounts'] = len(conn.entries)
-
-        if alert_data['disabled_accounts'] > 5:
-            alerts.append({
-                'title': f'{alert_data["disabled_accounts"]} compte(s) désactivé(s)',
-                'message': 'Des comptes utilisateurs sont désactivés. Vérifiez s\'ils doivent être supprimés.',
-                'severity': 'info',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'users.list_users'
-            })
-
-        # === COMPTES INACTIFS (lastLogon > 90 jours) ===
-        inactive_users_list = []
-        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'lastLogon'], size_limit=5000)
-        for entry in conn.entries:
-            last_logon_attr = getattr(entry, 'lastLogon', None)
-            if last_logon_attr and last_logon_attr.value:
-                try:
-                    last_logon_val = int(str(last_logon_attr.value))
-                    if last_logon_val == 0:
-                        alert_data['inactive_accounts'] += 1
-                    else:
-                        last_logon_date = datetime.fromtimestamp(last_logon_val / 10000000 - 11644473600)
-                        days_since_logon = (now - last_logon_date).days
-                        if days_since_logon > 90:
-                            alert_data['inactive_accounts'] += 1
-                            inactive_users_list.append(str(entry.cn))
-                except (ValueError, TypeError):
-                    pass
-            else:
-                alert_data['inactive_accounts'] += 1
-
-        if alert_data['inactive_accounts'] > 10:
-            alerts.append({
-                'title': f'{alert_data["inactive_accounts"]} compte(s) inactif(s)',
-                'message': f'Ces comptes n\'ont pas été utilisés depuis plus de 90 jours.',
-                'severity': 'info',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'tools.inactive_accounts'
-            })
-
-        # === MOTS DE PASSE EXPIRANT (dans 14 jours) ===
-        conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName', 'pwdLastSet', 'userAccountControl'], size_limit=5000)
-        for entry in conn.entries:
-            pwd_last_set_attr = getattr(entry, 'pwdLastSet', None)
-            uac_attr = getattr(entry, 'userAccountControl', None)
-            
-            # Skip if password doesn't expire (DONT_EXPIRE_PASSWORD flag = 65536)
-            if uac_attr and uac_attr.value:
-                try:
-                    uac = int(str(uac_attr.value))
-                    if uac & 65536:  # DONT_EXPIRE_PASSWORD
-                        continue
-                except Exception:
-                    pass
-            
-            if pwd_last_set_attr and pwd_last_set_attr.value:
-                try:
-                    pwd_val = int(str(pwd_last_set_attr.value))
-                    if pwd_val > 0:
-                        pwd_date = datetime.fromtimestamp(pwd_val / 10000000 - 11644473600)
-                        # Default AD password age is 42 days
-                        days_since_change = (now - pwd_date).days
-                        if days_since_change > 28 and days_since_change < 42:  # Expires in 14 days
-                            alert_data['password_expiring'] += 1
-                except Exception:
-                    pass
-
-        if alert_data['password_expiring'] > 0:
-            alerts.append({
-                'title': f'{alert_data["password_expiring"]} mot(s) de passe expirant',
-                'message': 'Des mots de passe expirent dans moins de 14 jours. Notifiez les utilisateurs.',
-                'severity': 'warning',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'tools.password_policy'
-            })
-
-        # === COMPTES ADMIN (memberof Domain Admins) ===
-        from core.security import escape_ldap_filter
-        safe_base_dn = escape_ldap_filter(base_dn)
-        conn.search(base_dn, f'(&(objectClass=user)(|(memberof=CN=Domain Admins,CN=Users,{safe_base_dn})(memberof=CN=Enterprise Admins,CN=Users,{safe_base_dn})))', SUBTREE,
-                   attributes=['cn', 'sAMAccountName'], size_limit=200)
-        alert_data['admin_accounts'] = len(conn.entries)
-
-        if alert_data['admin_accounts'] > 3:
-            alerts.append({
-                'title': f'{alert_data["admin_accounts"]} compte(s) admin',
-                'message': f'Multiple comptes Domain Admins détectés. Limitez les accès administrateurs.',
-                'severity': 'critical',
-                'date': now.strftime('%d/%m/%Y %H:%M'),
-                'link': 'groups.view_group'
-            })
-
-        # Groupes vides (exclure les groupes système Windows)
-        # Ces groupes ont member.Count=0 mais sont des groupes "primaires" 
-        # ou groupes BUILTIN qui ont des membres via primaryGroupID
-        SYSTEM_GROUP_TOKENS = [
-            513, 514, 515, 516, 498, 521, 522, 525, 526, 527,  # Domain groups
-            548, 549, 550, 551, 552, 553, 556, 557, 558, 559,  # BUILTIN groups
-            560, 562, 569, 571, 573, 579, 580, 582, 568,  # More BUILTIN + RODC
-            1102, 1103, 1104, 1114, 1118, 1121, 1124, 1125, 1126, 1129,  # App groups + VPN
-            1153, 1154,  # DHCP groups
-        ]
-        
-        conn.search(base_dn, '(objectClass=group)', SUBTREE,
-                   attributes=['cn', 'member', 'primaryGroupToken', 'groupType'], size_limit=2000)
-        for entry in conn.entries:
-            # Vérifier si c'est un groupe système
-            is_system_group = False
-            if hasattr(entry, 'primaryGroupToken') and entry.primaryGroupToken.value:
-                try:
-                    token = int(str(entry.primaryGroupToken.value))
-                    if token in SYSTEM_GROUP_TOKENS:
-                        is_system_group = True
-                except (ValueError, TypeError):
-                    pass
-            
-            # Vérifier si le groupe a des membres (attribut member)
-            has_members = False
-            if hasattr(entry, 'member'):
-                member_attr = entry.member
-                if member_attr and member_attr.value:
-                    if isinstance(member_attr.value, list):
-                        has_members = len(member_attr.value) > 0
-                    elif isinstance(member_attr.value, str):
-                        has_members = len(member_attr.value) > 0
-                    else:
-                        has_members = bool(member_attr.value)
-            
-            # Compter seulement les groupes non-système sans membres
-            if not is_system_group and not has_members:
-                alert_data['empty_groups'] += 1
-        
-        if alert_data['empty_groups'] > 5:
-            alerts.append({
-                'title': f'{alert_data["empty_groups"]} groupe(s) vide(s)',
-                'message': 'Certains groupes n\'ont aucun membre. Vérifiez leur pertinence.',
-                'severity': 'info',
-                'date': now.strftime('%d/%m/%Y %H:%M')
-            })
-
+        alert_data = compute_account_alerts(conn, session.get('ad_base_dn', ''))
     except Exception as e:
         flash(f'Erreur lors de la récupération des alertes: {str(e)}', 'error')
     finally:
         conn.unbind()
+
+    date = datetime.now().strftime('%d/%m/%Y %H:%M')
+
+    def add(count, title, message, severity, threshold=0):
+        if alert_data.get(count, 0) > threshold:
+            alerts.append({'title': title.format(n=alert_data[count]), 'message': message,
+                           'severity': severity, 'date': date})
+
+    add('locked_accounts', '{n} compte(s) verrouillé(s)',
+        'Des comptes sont actuellement verrouillés suite à des tentatives de connexion échouées.',
+        'warning')
+    add('password_expiring', '{n} mot(s) de passe expirant',
+        f'Des mots de passe expirent dans moins de {PASSWORD_WARNING_DAYS} jours. '
+        'Notifiez les utilisateurs.', 'warning')
+    add('expiring_accounts', '{n} compte(s) expirant',
+        f'Des comptes atteignent leur date d\'expiration dans moins de {ACCOUNT_WARNING_DAYS} jours.',
+        'warning')
+    add('privileged_accounts', '{n} compte(s) administrateur du domaine',
+        'Comptes actifs membres (directs ou imbriqués) des Admins du domaine ou des '
+        'Administrateurs de l\'entreprise. Limitez les accès administrateurs.',
+        'critical', threshold=3)
+    add('inactive_accounts', '{n} compte(s) inactif(s)',
+        f'Ces comptes actifs n\'ont pas été utilisés depuis plus de {INACTIVE_DAYS} jours.',
+        'info', threshold=10)
+    add('disabled_accounts', '{n} compte(s) désactivé(s)',
+        'Des comptes utilisateurs sont désactivés. Vérifiez s\'ils doivent être supprimés.',
+        'info', threshold=5)
+    add('empty_groups', '{n} groupe(s) vide(s)',
+        'Certains groupes n\'ont aucun membre. Vérifiez leur pertinence.',
+        'info', threshold=5)
 
     return render_template('alerts.html', alert_data=alert_data, alerts=alerts, connected=True)
 

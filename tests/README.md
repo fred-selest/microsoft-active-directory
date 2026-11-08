@@ -12,7 +12,7 @@ Interface. Elle est exécutée par la CI (`.github/workflows/ci.yml`, job
 
 **Framework :** `pytest`
 
-Ce fichier décrit les fichiers **réellement présents** dans `tests/` (20
+Ce fichier décrit les fichiers **réellement présents** dans `tests/` (21
 fichiers). Les versions précédentes de ce document faisaient référence à des
 dizaines de fichiers (`test_users.py`, `test_groups.py`, `test_mobile.py`,
 `test_page_structure.py`…) qui n'ont jamais existé dans ce dépôt : ce
@@ -38,6 +38,7 @@ document les remplace.
 | `test_dn_escaping_create_user.py` | Échappement RFC 4514 du CN dans le DN de création de compte ; écriture atomique des modèles |
 | `test_favorites_templates.py` | Favoris et modèles utilisateur (`routes/tools/misc.py`) |
 | `test_account_tools.py` | Outils de comptes : déverrouillage (forme de l'appel LDAP), restauration depuis la corbeille AD, refus des noms d'ordinateur invalides et transmission en base64 dans les scripts PowerShell LAPS |
+| `test_account_dates.py` | Dates AD telles que renvoyées par ldap3 avec schéma (datetime, timedelta), verrous actifs, échéance des mots de passe selon la stratégie du domaine, compteurs du centre des alertes, déverrouillage groupé et individuel, page et PDF des comptes expirants |
 | `test_pagination.py` | Pagination des listes : total réel, liens vers toutes les pages, filtres conservés, recherche encodée, numéro de page borné |
 | `test_path_traversal.py` | Identifiants d'audit et de rapport : refus des chemins forgés (`../`, `..\\`, noms trop longs), fichier hors de l'historique ni lu ni supprimé ; journal d'erreurs et diagnostic inaccessibles sans connexion |
 | `test_csp.py` | Content-Security-Policy stricte (constat M9) : nonce sur chaque `<script>`, aucun gestionnaire `on*=`, aucune ressource externe, modes `CSP_MODE`, notes de version échappées |
