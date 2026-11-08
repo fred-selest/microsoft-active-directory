@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Répertoires - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🗂️ Droits sur les répertoires</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('folders.access_page') }}" class="btn btn-secondary">Accès d'un compte</a>
+        {% if check_user_permission('admin:settings') %}
+        <a href="{{ url_for('folders.settings_page') }}" class="btn btn-secondary">Paramètres</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if not settings.roots %}
+<div class="alert alert-info">
+    Aucun partage n'est encore déclaré. Indiquez dans les
+    {% if check_user_permission('admin:settings') %}<a href="{{ url_for('folders.settings_page') }}">paramètres</a>{% else %}paramètres (droit « Paramètres » requis){% endif %}
+    les partages à gérer, par exemple <code>\\SRV-DC02\Partages</code> ou <code>\\SRV-FICHIERS\Donnees</code>.
+</div>
+{% else %}
+
+<div class="folder-roots">
+    {% for root in settings.roots %}
+    <a href="{{ url_for('folders.browse', path=root) }}"
+       class="btn btn-sm {{ 'btn-primary' if folder and breadcrumb and breadcrumb[0].path == root else 'btn-secondary' }}">{{ root }}</a>
+    {% endfor %}
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}{% if path %} — <code>{{ path }}</code>{% endif %}</div>
+{% endif %}
+
+{% if folder %}
+<nav class="folder-breadcrumb" aria-label="Chemin">
+    {% for crumb in breadcrumb %}
+        {% if not loop.last %}<a href="{{ url_for('folders.browse', path=crumb.path) }}">{{ crumb.name }}</a><span class="sep">\</span>
+        {% else %}<strong>{{ crumb.name }}</strong>{% endif %}
+    {% endfor %}
+</nav>
+
+<div class="folder-layout">
+    <section class="card">
+        <h3>Sous-dossiers ({{ folder.children|length }})</h3>
+        {% if folder.children %}
+        <ul class="folder-children">
+            {% for child in folder.children %}
+            <li><a href="{{ url_for('folders.browse', path=folder.path ~ '\\' ~ child) }}">📁 {{ child }}</a></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">Aucun sous-dossier.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h3>Droits NTFS</h3>
+        <p class="folder-meta">
+            Propriétaire : <strong>{{ folder.owner or 'inconnu' }}</strong> —
+            {% if folder.protected %}<span class="badge badge-warning">Héritage désactivé</span>
+            {% else %}<span class="badge badge-info">Hérite du dossier parent</span>{% endif %}
+        </p>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Utilisateur ou groupe</th>
+                        <th>Type</th>
+                        <th>Droits</th>
+                        <th>S'applique à</th>
+                        <th>Origine</th>
+                        {% if check_user_permission('tools:folders_manage') %}<th data-no-sort>Actions</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ace in folder.aces %}
+                    <tr class="{{ 'ace-deny' if ace.deny }}">
+                        <td title="{{ ace.sid }}">{{ ace.name }}</td>
+                        <td>{{ ace.type }}</td>
+                        <td>{{ ace.level }}</td>
+                        <td>{{ ace.applies }}</td>
+                        <td>{% if ace.inherited %}<span class="text-muted">Hérité</span>{% else %}Explicite{% endif %}</td>
+                        {% if check_user_permission('tools:folders_manage') %}
+                        <td class="actions">
+                            {% if not ace.inherited %}
+                            <form method="post" action="{{ url_for('folders.revoke') }}"
+                                  data-confirm="Retirer tous les droits explicites de {{ ace.name }} sur ce dossier ?">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="path" value="{{ folder.path }}">
+                                <input type="hidden" name="sid" value="{{ ace.sid }}">
+                                <input type="hidden" name="name" value="{{ ace.name }}">
+                                <button type="submit" class="btn btn-sm btn-danger">Retirer</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center">Aucun droit.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted folder-hint">Un droit hérité se modifie sur le dossier parent. « Retirer » supprime
+            tous les droits explicites (autoriser et refuser) de ce compte sur ce dossier.</p>
+
+        {% if check_user_permission('tools:folders_manage') %}
+        <h4>Ajouter un droit</h4>
+        <form method="post" action="{{ url_for('folders.grant') }}" class="folder-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="path" value="{{ folder.path }}">
+            <div class="form-group">
+                <label for="principal">Utilisateur ou groupe</label>
+                <input type="text" id="principal" name="principal" required list="principal-list"
+                       autocomplete="off" placeholder="Identifiant ou nom de groupe">
+            </div>
+            <div class="form-group">
+                <label for="level">Droits</label>
+                <select id="level" name="level">
+                    {% for key, lvl in levels.items() %}<option value="{{ key }}">{{ lvl.label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="applies">S'applique à</label>
+                <select id="applies" name="applies">
+                    {% for key, label in applies.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Ajouter</button>
+        </form>
+        <p class="text-muted folder-hint">Bonne pratique : accordez les droits à des groupes plutôt qu'à des
+            utilisateurs (voir « Nouveau dossier partagé »).</p>
+        {% endif %}
+    </section>
+</div>
+
+{% if check_user_permission('tools:folders_create') %}
+<section class="card">
+    <h3>Nouveau dossier partagé dans {{ folder.path }}</h3>
+    <p class="text-muted">Crée le dossier et ses groupes d'accès selon la méthode AGDLP : deux groupes de
+        domaine local <code>DL_&lt;nom&gt;_L</code> (lecture) et <code>DL_&lt;nom&gt;_M</code> (modification)
+        portent les droits NTFS ; en option, deux groupes globaux <code>GG_&lt;nom&gt;_L</code> et
+        <code>GG_&lt;nom&gt;_M</code>, membres des premiers, reçoivent les comptes. Un groupe qui existe déjà
+        est réutilisé.</p>
+    <form method="post" action="{{ url_for('folders.create_shared') }}" class="folder-form folder-form-wide">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="parent" value="{{ folder.path }}">
+        <div class="form-group">
+            <label for="new_name">Nom du dossier *</label>
+            <input type="text" id="new_name" name="name" required maxlength="120" placeholder="Comptabilite">
+        </div>
+        <div class="form-group">
+            <label for="ou">OU des groupes *</label>
+            <select id="ou" name="ou" required>
+                <option value="">— Choisir —</option>
+                {% for ou in ous %}<option value="{{ ou.dn }}">{{ ou.dn }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="members_read">Comptes en lecture</label>
+            <input type="text" id="members_read" name="members_read" placeholder="jdupont, Stagiaires">
+        </div>
+        <div class="form-group">
+            <label for="members_modify">Comptes en modification</label>
+            <input type="text" id="members_modify" name="members_modify" placeholder="mmartin">
+        </div>
+        <label class="checkbox-label"><input type="checkbox" name="with_global" checked>
+            Créer aussi les groupes globaux GG_ (AGDLP complet)</label>
+        <label class="checkbox-label"><input type="checkbox" name="protect" checked>
+            Désactiver l'héritage : seuls Administrateurs, Système et les groupes d'accès gardent des droits</label>
+        <button type="submit" class="btn btn-primary">Créer le dossier et les groupes</button>
+    </form>
+</section>
+{% endif %}
+
+{% elif not error %}
+<p class="text-muted">Choisissez un partage ci-dessus.</p>
+{% endif %}
+{% endif %}
+
+<datalist id="principal-list"></datalist>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.folder-roots { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.folder-breadcrumb { margin: .5rem 0 1rem; overflow-wrap: anywhere; }
+.folder-breadcrumb .sep { margin: 0 .3rem; color: var(--text-secondary, #666); }
+.folder-layout { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(0, 4fr); gap: 1rem; margin-bottom: 1rem; }
+/* Le tableau des droits défile dans sa carte au lieu de déborder de la page. */
+.folder-layout .table-container { overflow-x: auto; }
+.folder-layout .data-table td.actions form { display: inline; }
+.folder-children { list-style: none; padding: 0; margin: 0; max-height: 32rem; overflow-y: auto; }
+.folder-children li { padding: .3rem 0; overflow-wrap: anywhere; }
+.folder-meta, .folder-hint { font-size: .875rem; }
+.folder-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+.folder-form .form-group { flex: 1 1 12rem; margin: 0; }
+.folder-form-wide .checkbox-label { flex: 1 1 100%; }
+.ace-deny td { color: var(--danger, #dc3545); }
+@media (max-width: 1100px) { .folder-layout { grid-template-columns: minmax(0, 1fr); } }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var input = document.getElementById('principal');
+    var list = document.getElementById('principal-list');
+    if (!input) { return; }
+    var timer = null;
+    input.addEventListener('input', function () {
+        clearTimeout(timer);
+        var q = input.value.trim();
+        if (q.length < 2) { return; }
+        timer = setTimeout(function () {
+            Promise.all(['user', 'group'].map(function (type) {
+                return fetch('/api/ad-search?type=' + type + '&q=' + encodeURIComponent(q))
+                    .then(function (r) { return r.ok ? r.json() : []; })
+                    .catch(function () { return []; });
+            })).then(function (res) {
+                list.innerHTML = '';
+                res[0].concat(res[1]).slice(0, 30).forEach(function (item) {
+                    var opt = document.createElement('option');
+                    opt.value = item.value;
+                    opt.label = item.label;
+                    list.appendChild(opt);
+                });
+            });
+        }, 250);
+    });
+})();
+</script>
+{% endblock %}

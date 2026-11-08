@@ -41,6 +41,9 @@ templates/
 ├── computers.html            # Liste des ordinateurs
 ├── laps.html                 # Mots de passe LAPS
 ├── bitlocker.html            # Clés BitLocker
+├── folders.html              # Droits NTFS d'un dossier, création AGDLP
+├── folder_access.html        # Dossiers accessibles à un compte
+├── folder_settings.html      # Partages gérés, dossiers personnels
 │
 ├── ous.html                  # Liste des OUs
 ├── ou_form.html              # Formulaire OU

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Paramètres des répertoires - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🗂️ Paramètres des répertoires</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('folders.browse') }}" class="btn btn-secondary">Retour</a>
+    </div>
+</div>
+
+<div class="card">
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+            <label for="roots">Partages gérés (un par ligne)</label>
+            <textarea id="roots" name="roots" rows="5" placeholder="\\SRV-DC02\Partages&#10;\\SRV-FICHIERS\Donnees">{{ settings.roots|join('\n') }}</textarea>
+            <small class="form-text">Chemins réseau <code>\\serveur\partage</code> (ou un sous-dossier). L'interface
+                n'agit que sous ces chemins, avec les identifiants de l'administrateur connecté : ses droits NTFS
+                réels s'appliquent. Pour un dossier du contrôleur de domaine, partagez-le et indiquez son chemin
+                réseau (<code>\\SRV-DC02\…</code>).</small>
+        </div>
+
+        <div class="form-group">
+            <label for="home_root">Racine des dossiers personnels</label>
+            <input type="text" id="home_root" name="home_root" value="{{ settings.home_root }}"
+                   placeholder="\\SRV-FICHIERS\Utilisateurs$">
+            <small class="form-text">Chaque utilisateur y reçoit un dossier à son identifiant, avec droits
+                Modification pour lui seul (plus Administrateurs et Système). Laisser vide pour désactiver.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="home_drive">Lecteur du dossier personnel</label>
+            <input type="text" id="home_drive" name="home_drive" value="{{ settings.home_drive }}" maxlength="2"
+                   pattern="[D-Zd-z]:?">
+        </div>
+
+        <div class="form-group">
+            <label for="scan_depth">Profondeur de l'analyse « Accès d'un compte »</label>
+            <input type="number" id="scan_depth" name="scan_depth" min="1" max="6" value="{{ settings.scan_depth }}">
+            <small class="form-text">Nombre de niveaux de sous-dossiers parcourus sous chaque partage (1 à 6).</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+    </form>
+</div>
+{% endblock %}

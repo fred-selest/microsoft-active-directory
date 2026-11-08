@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Accès aux dossiers - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🗂️ Accès aux dossiers d'un compte</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('folders.browse') }}" class="btn btn-secondary">Droits sur les répertoires</a>
+    </div>
+</div>
+
+{% if not settings.roots %}
+<div class="alert alert-info">Aucun partage n'est déclaré dans les paramètres des répertoires.</div>
+{% else %}
+<div class="card">
+    <form id="access-form" class="folder-form">
+        <div class="form-group">
+            <label for="principal">Utilisateur ou groupe</label>
+            <input type="text" id="principal" list="principal-list" autocomplete="off"
+                   placeholder="Identifiant ou nom de groupe" {% if dn %}value="{{ dn }}" readonly{% endif %}>
+        </div>
+        <button type="submit" class="btn btn-primary" id="access-submit">Analyser</button>
+    </form>
+    <p class="text-muted folder-hint">
+        Parcourt {{ settings.roots|length }} partage(s) sur {{ settings.scan_depth }} niveau(x) de sous-dossiers
+        ({{ settings.roots|join(', ') }}). Sont pris en compte les droits accordés au compte lui-même, à ses
+        groupes (y compris imbriqués et groupe principal) et aux groupes implicites (Tout le monde,
+        Utilisateurs authentifiés, Utilisateurs). L'analyse peut prendre plusieurs minutes sur de gros partages.
+    </p>
+</div>
+
+<div id="access-result"></div>
+{% endif %}
+<datalist id="principal-list"></datalist>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.folder-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+.folder-form .form-group { flex: 1 1 18rem; margin: 0; }
+.folder-hint { font-size: .875rem; margin-top: .75rem; }
+.access-path { overflow-wrap: anywhere; }
+.ace-deny td { color: var(--danger, #dc3545); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var form = document.getElementById('access-form');
+    if (!form) { return; }
+    var input = document.getElementById('principal');
+    var out = document.getElementById('access-result');
+    var button = document.getElementById('access-submit');
+    var presetDn = {{ dn|tojson }};
+    var browseUrl = {{ url_for('folders.browse')|tojson }};
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+
+    function render(data) {
+        if (!data.success) {
+            out.innerHTML = '<div class="alert alert-error">' + esc(data.error || 'Erreur') + '</div>';
+            return;
+        }
+        var p = data.principal;
+        var html = '<div class="card"><h3>' + esc(p.name) + ' — ' + data.found.length +
+            ' droit(s) trouvé(s)</h3><p class="text-muted">' + (p.kind === 'group' ? 'Groupe' : 'Utilisateur') +
+            ', membre de ' + p.groups + ' groupe(s) pris en compte. ' + data.scanned + ' dossier(s) analysé(s)' +
+            (data.truncated ? ' — <strong>analyse interrompue à la limite de dossiers</strong>' : '') + '.</p>';
+        if (data.found.length) {
+            html += '<div class="table-container"><table class="data-table"><thead><tr><th>Dossier</th>' +
+                '<th>Type</th><th>Droits</th><th>Via</th><th>S\'applique à</th><th>Origine</th></tr></thead><tbody>';
+            data.found.forEach(function (a) {
+                html += '<tr class="' + (a.deny ? 'ace-deny' : '') + '"><td class="access-path"><a href="' +
+                    esc(browseUrl + '?path=' + encodeURIComponent(a.path)) + '">' + esc(a.path) + '</a></td><td>' +
+                    esc(a.type) + '</td><td>' + esc(a.level) + '</td><td>' +
+                    (a.direct ? '<strong>Directement</strong>' : esc(a.via)) + '</td><td>' + esc(a.applies) +
+                    '</td><td>' + (a.inherited ? 'Hérité' : 'Explicite') + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+        } else {
+            html += '<p>Aucun droit sur les dossiers analysés.</p>';
+        }
+        if (data.errors && data.errors.length) {
+            html += '<details><summary>' + data.errors.length + ' dossier(s) illisible(s)</summary><ul>' +
+                data.errors.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></details>';
+        }
+        out.innerHTML = html + '</div>';
+    }
+
+    function run() {
+        var body = presetDn ? {dn: presetDn} : {principal: input.value.trim()};
+        if (!body.dn && !body.principal) { return; }
+        button.disabled = true;
+        out.innerHTML = '<div class="card"><p>⏳ Analyse en cours…</p></div>';
+        fetch({{ url_for('folders.api_access')|tojson }}, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json',
+                      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+            body: JSON.stringify(body)
+        }).then(function (r) { return r.json(); })
+          .then(render)
+          .catch(function () { render({success: false, error: 'Le serveur n\'a pas répondu.'}); })
+          .then(function () { button.disabled = false; });
+    }
+
+    form.addEventListener('submit', function (e) { e.preventDefault(); run(); });
+    if (presetDn) { run(); }
+
+    var list = document.getElementById('principal-list');
+    var timer = null;
+    input.addEventListener('input', function () {
+        clearTimeout(timer);
+        var q = input.value.trim();
+        if (q.length < 2) { return; }
+        timer = setTimeout(function () {
+            Promise.all(['user', 'group'].map(function (type) {
+                return fetch('/api/ad-search?type=' + type + '&q=' + encodeURIComponent(q))
+                    .then(function (r) { return r.ok ? r.json() : []; })
+                    .catch(function () { return []; });
+            })).then(function (res) {
+                list.innerHTML = '';
+                res[0].concat(res[1]).slice(0, 30).forEach(function (item) {
+                    var opt = document.createElement('option');
+                    opt.value = item.value;
+                    opt.label = item.label;
+                    list.appendChild(opt);
+                });
+            });
+        }, 250);
+    });
+})();
+</script>
+{% endblock %}

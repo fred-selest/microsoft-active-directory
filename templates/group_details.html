@@ -5,7 +5,12 @@
 {% block content %}
 <div class="page-header">
     <h2>{{ group.cn }}</h2>
-    <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+    <div class="page-actions">
+        {% if config.FEATURE_FOLDERS_ENABLED and check_user_permission('tools:folders_read') %}
+        <a href="{{ url_for('folders.access_page', dn=group.dn) }}" class="btn btn-secondary">🗂️ Accès aux dossiers</a>
+        {% endif %}
+        <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Retour aux groupes</a>
+    </div>
 </div>
 
 {% set is_builtin = 'cn=builtin' in (group.dn or '').lower() %}

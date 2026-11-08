@@ -46,6 +46,7 @@ DEFAULT_SETTINGS = {
             {'id': 'expiring',      'label': 'Expirations',     'endpoint': 'tools.expiring_accounts', 'icon': '⏰', 'feature': 'FEATURE_EXPIRING_ACCOUNTS_ENABLED', 'enabled': True, 'order': 5},
             {'id': 'pwd_policy',    'label': 'Politique MDP',   'endpoint': 'tools.password_policy', 'icon': '🛡️', 'feature': 'FEATURE_PASSWORD_POLICY_ENABLED',   'enabled': True,  'order': 6},
             {'id': 'pwd_audit',     'label': 'Audit MDP',       'endpoint': 'tools.password_audit',  'icon': '🔍', 'feature': 'FEATURE_PASSWORD_AUDIT_ENABLED',    'enabled': True,  'order': 7},
+            {'id': 'folders',       'label': 'Répertoires',     'endpoint': 'folders.browse',        'icon': '🗂️', 'feature': 'FEATURE_FOLDERS_ENABLED',           'enabled': True,  'order': 8},
         ],
         # Section "Administration" — visible par les admins uniquement
         'admin_items': [
@@ -290,22 +291,35 @@ def _sorted_enabled(items):
     return sorted([i for i in items if i.get('enabled', True)], key=lambda x: x.get('order', 99))
 
 
+def _menu_section(settings, key):
+    """
+    Entrées d'une section du menu, complétées des entrées par défaut absentes.
+
+    merge_settings remplace les listes en bloc : un settings.json enregistré
+    par une version antérieure ne recevait jamais les entrées ajoutées depuis
+    (nouvel outil invisible dans le menu). Les entrées par défaut dont l'id
+    manque sont ajoutées ; celles que l'administrateur a désactivées restent
+    présentes (enabled: False) et donc respectées.
+    """
+    saved = settings.get('menu', {}).get(key, [])
+    defaults = DEFAULT_SETTINGS['menu'].get(key, [])
+    ids = {item.get('id') for item in saved}
+    return list(saved) + [dict(item) for item in defaults if item.get('id') not in ids]
+
+
 def get_menu_items():
     """Éléments de la section Gestion (tous utilisateurs connectés)."""
-    settings = load_settings()
-    return _sorted_enabled(settings.get('menu', {}).get('items', []))
+    return _sorted_enabled(_menu_section(load_settings(), 'items'))
 
 
 def get_tool_items():
     """Éléments de la section Outils (admins uniquement)."""
-    settings = load_settings()
-    return _sorted_enabled(settings.get('menu', {}).get('tool_items', []))
+    return _sorted_enabled(_menu_section(load_settings(), 'tool_items'))
 
 
 def get_admin_items():
     """Éléments de la section Administration (admins uniquement)."""
-    settings = load_settings()
-    return _sorted_enabled(settings.get('menu', {}).get('admin_items', []))
+    return _sorted_enabled(_menu_section(load_settings(), 'admin_items'))
 
 
 def get_dropdown_items():

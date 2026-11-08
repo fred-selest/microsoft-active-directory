@@ -19,6 +19,7 @@ routes/
 ├── main.py               # Blueprint principal (accueil, connexion)
 ├── api.py                # Endpoints JSON/API REST
 ├── admin_tools.py        # Outils d'administration (permissions, settings)
+├── folders/              # Répertoires : droits NTFS, AGDLP, dossiers personnels
 │
 ├── users/                # Gestion des utilisateurs AD
 │   ├── __init__.py       # Déclaration du blueprint users_bp
@@ -72,6 +73,7 @@ routes/
 | `debug_bp` | `/_debug` | `debug/__init__.py` | Debug (réservé admin) |
 | `api_bp` | `/api` | `api.py` | API JSON |
 | `admin_tools_bp` | `/` | `admin_tools.py` | Permissions, settings |
+| `folders_bp` | `/folders` | `folders/__init__.py` | Droits NTFS des partages, accès d'un compte, dossiers AGDLP et personnels |
 
 ---
 

@@ -130,6 +130,15 @@ body.dark-mode .ldaps-manual-config summary {
                     Forcer le changement de mot de passe à la première connexion
                 </label>
             </div>
+
+            {% if home_folder_root %}
+            <div class="form-group form-check">
+                <input type="checkbox" id="create_home" name="create_home" class="form-check-input" checked>
+                <label for="create_home" class="form-check-label">
+                    Créer le dossier personnel dans <code>{{ home_folder_root }}</code>
+                </label>
+            </div>
+            {% endif %}
         </div>
 
         <div class="form-section">
