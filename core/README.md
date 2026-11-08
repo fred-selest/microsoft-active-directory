@@ -31,6 +31,7 @@ Le répertoire `core/` contient tous les **modules utilitaires** essentiels au f
 | `ad_dates.py` | **Dates AD :** FILETIME, intervalles, dernière connexion, stratégie de comptes, verrou actif, échéance du mot de passe |
 | `account_stats.py` | **Statistiques :** Compteurs du centre des alertes et du tableau de bord (recherches paginées) |
 | `folders.py` | **Répertoires :** Droits NTFS des partages, analyse d'accès, groupes AGDLP, dossiers personnels (PowerShell sous l'identité de l'administrateur connecté) |
+| `windows_auth.py` | **Authentification Windows :** vérification d'un compte administrateur du serveur sans LDAP (LogonUser + appartenance à Administrateurs) |
 | `alerts.py` | **Alertes :** Détection des comptes expirés, bloqués, inactifs |
 | `auto_alerts.py` | **Notifications :** Déclenchement automatique des alertes par email |
 | `backup.py` | **Sauvegarde :** Backup et restauration de la configuration |

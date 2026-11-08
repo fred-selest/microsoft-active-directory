@@ -30,6 +30,21 @@ Historique complet : `git log`. Détails et captures d'écran : `README.md`.
   personnels, lettre de lecteur, profondeur d'analyse.
 
 ### Sécurité
+- **Correction du domaine sans authentification.** Le bouton « Corriger
+  automatiquement » de la page de connexion lançait, pour n'importe quel
+  poste du réseau et sans compte, le script qui abaisse les exigences de
+  signature et de liaison de canal LDAP du domaine et redémarre AD DS. Il
+  exige désormais un compte administrateur du contrôleur de domaine,
+  vérifié par Windows (la connexion LDAP échouant justement dans ce cas),
+  avec limitation des tentatives et trace dans le journal d'audit.
+- **Permissions non vérifiées** : journal d'audit, audit des mots de passe
+  (qui enregistre l'historique et envoie les alertes par e-mail), alertes
+  (lecture, acquittement, suppression), comptes verrouillés, comptes
+  expirants, politique de mots de passe et modèles d'utilisateurs
+  n'exigeaient qu'une connexion. Chacun exige sa permission.
+- Exécution de scripts : arguments et délai validés, nom de script limité
+  à la liste déclarée.
+- Redirection vers la page précédente limitée au site lui-même.
 - Les opérations sur les fichiers s'exécutent avec les identifiants de
   l'administrateur connecté, et non avec le compte du service : ses droits
   NTFS réels s'appliquent. Elles ne sont possibles que sous les partages

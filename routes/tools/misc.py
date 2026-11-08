@@ -5,7 +5,7 @@ import secrets
 import hashlib
 
 from . import tools_bp
-from ..core import require_connection, require_permission
+from ..core import require_connection, require_permission, safe_referrer
 from core.user_templates import (
     load_templates, create_template, update_template, delete_template,
 )
@@ -24,6 +24,7 @@ def _favorites_counts(favorites_list):
 
 @tools_bp.route('/templates')
 @require_connection
+@require_permission('admin:user_templates')
 def user_templates():
     """Page des modèles utilisateurs."""
     return render_template('user_templates.html', templates=load_templates(), connected=True)
@@ -122,11 +123,11 @@ def toggle_favorite():
         name = request.form.get('name', '').strip()
         if not fav_type or not name:
             flash('Élément invalide.', 'error')
-            return redirect(request.referrer or url_for('tools.favorites'))
+            return redirect(safe_referrer(url_for('tools.favorites')))
         if not any(f.get('dn') == dn for f in favorites_list):
             if len(favorites_list) >= MAX_FAVORITES:
                 flash(f'Limite de {MAX_FAVORITES} favoris atteinte.', 'error')
-                return redirect(request.referrer or url_for('tools.favorites'))
+                return redirect(safe_referrer(url_for('tools.favorites')))
             favorites_list.append({
                 'dn': dn,
                 'type': fav_type,
@@ -135,7 +136,7 @@ def toggle_favorite():
             })
 
     session['favorites'] = favorites_list
-    return redirect(request.referrer or url_for('tools.favorites'))
+    return redirect(safe_referrer(url_for('tools.favorites')))
 
 
 def _build_api_docs_context():

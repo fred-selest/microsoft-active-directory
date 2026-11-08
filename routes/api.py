@@ -196,6 +196,7 @@ def api_diagnostic():
 
 @api_bp.route('/password-audit')
 @require_connection
+@require_permission('tools:password_audit')
 def api_password_audit():
     """API d'audit des mots de passe."""
     from password_audit.runner import run_password_audit
@@ -317,6 +318,7 @@ def api_password_audit_quick_fix():
 
 @api_bp.route('/alerts')
 @require_connection
+@require_permission('admin:alerts')
 def api_get_alerts():
     """API pour récupérer les alertes."""
     from core.alerts import get_alerts
@@ -331,6 +333,7 @@ def api_get_alerts():
 
 @api_bp.route('/alerts/<alert_id>/acknowledge', methods=['POST'])
 @require_connection
+@require_permission('admin:alerts')
 def api_acknowledge_alert(alert_id):
     """API pour acquitter une alerte."""
     from core.alerts import acknowledge_alert
@@ -342,6 +345,7 @@ def api_acknowledge_alert(alert_id):
 
 @api_bp.route('/alerts/<alert_id>/delete', methods=['POST'])
 @require_connection
+@require_permission('admin:alerts')
 def api_delete_alert(alert_id):
     """API pour supprimer une alerte."""
     from core.alerts import delete_alert
@@ -353,6 +357,7 @@ def api_delete_alert(alert_id):
 
 @api_bp.route('/alerts/check', methods=['POST'])
 @require_connection
+@require_permission('admin:alerts')
 def api_check_alerts():
     """API pour vérifier les alertes."""
     from core.alerts import run_full_alert_check
@@ -902,6 +907,16 @@ def api_execute_script(script_name):
     data = request.get_json() if request.is_json else request.form
     arguments = data.get('arguments', [])
     timeout = data.get('timeout', None)
+    # Une chaîne au lieu d'une liste était découpée caractère par caractère
+    # par list.extend ; le délai n'était pas borné.
+    if not isinstance(arguments, list) or not all(isinstance(a, str) and len(a) <= 500
+                                                  for a in arguments) or len(arguments) > 20:
+        return jsonify({'success': False, 'error': 'Arguments invalides (liste de chaînes attendue).'}), 400
+    if timeout is not None:
+        try:
+            timeout = max(5, min(int(timeout), 600))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Délai invalide.'}), 400
     
     # Vérifier les prérequis
     prereqs = check_script_prerequisites(script_name)

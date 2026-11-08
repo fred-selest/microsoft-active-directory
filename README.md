@@ -20,6 +20,7 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 - **Accès d'un compte** : depuis la fiche d'un utilisateur ou d'un groupe, la liste des dossiers auxquels il a accès et par quel groupe.
 - **Dossiers partagés AGDLP** : création d'un dossier et de ses groupes `DL_` / `GG_` en une seule opération.
 - **Dossiers personnels** : création du dossier et du lecteur (H:) à la création d'un compte.
+- ⚠️ **Sécurité** : le bouton « Corriger automatiquement » de la page de connexion modifiait la sécurité LDAP du domaine et redémarrait AD DS sans aucun compte ; il exige maintenant un administrateur. Plusieurs pages (journal d'audit, audit des mots de passe, alertes, outils) vérifient désormais leur permission.
 
 ### Mise en service
 1. Menu **Outils › Répertoires › Paramètres** : déclarez les partages à gérer, un par ligne (`\\SRV-DC02\Partages`, `\\SRV-FICHIERS\Donnees`). Pour un dossier du contrôleur de domaine, partagez-le et indiquez son chemin réseau.

@@ -26,8 +26,16 @@
             Le serveur <strong>{{ server }}</strong> exige une authentification renforcée (LDAP signing / channel binding).
             Cela est courant sur <strong>Windows Server 2025</strong> qui active ces restrictions par défaut.
         </p>
-        <form method="post" action="{{ url_for('main.fix_ldap_channel_binding') }}" style="display:inline;">
+        <form method="post" action="{{ url_for('main.fix_ldap_channel_binding') }}" class="fix-ldap-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <p style="margin:0 0 .5rem 0; font-size:0.85rem;">Cette action modifie la configuration du domaine :
+                elle exige un compte <strong>administrateur du contrôleur de domaine</strong>.</p>
+            <div class="form-row" style="display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:.5rem;">
+                <input type="text" name="admin_username" required autocomplete="username"
+                       placeholder="DOMAINE\administrateur" style="flex:1 1 12rem;">
+                <input type="password" name="admin_password" required autocomplete="current-password"
+                       placeholder="Mot de passe" style="flex:1 1 12rem;">
+            </div>
             <button type="submit" class="btn btn-warning btn-lg"
                     data-confirm="Appliquer la correction LDAP ?&#10;&#10;Cette action va :&#10;- Autoriser les connexions NTLM sur port 389&#10;- Désactiver l'exigence de channel binding&#10;- Redémarrer le service AD DS&#10;&#10;Nécessite des droits d'administrateur.">
                 🔧 Corriger automatiquement
