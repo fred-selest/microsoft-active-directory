@@ -213,51 +213,34 @@ def check_password_expiring(conn, base_dn, days=14):
     Returns:
         Liste des utilisateurs avec mot de passe expirant
     """
-    from ldap3 import SUBTREE
+    from core.ad_dates import get_account_policy, password_expiry, utcnow
+    from routes.core import paged_search
 
     expiring = []
 
     try:
-        # Rechercher les utilisateurs avec pwdLastSet
-        conn.search(
-            base_dn,
-            '(&(objectClass=user)(objectCategory=person)(pwdLastSet>=1))',
-            SUBTREE,
-            attributes=['cn', 'sAMAccountName', 'mail', 'pwdLastSet', 'distinguishedName']
-        )
+        # Durée maximale réelle du domaine. L'ancien code faisait
+        # int(maxPwdAge) alors que ldap3 renvoie un timedelta : l'exception
+        # était journalisée en avertissement et aucune alerte n'était créée.
+        max_pwd_age = get_account_policy(conn, base_dn)['max_pwd_age']
+        if not max_pwd_age:
+            return expiring  # les mots de passe n'expirent pas
 
-        # Sauvegarder les entrees avant la prochaine recherche qui ecraserait conn.entries
-        user_entries = list(conn.entries)
+        # Comptes actifs uniquement, mot de passe défini.
+        entries = paged_search(
+            conn, base_dn,
+            '(&(objectClass=user)(objectCategory=person)(pwdLastSet>=1)'
+            '(!(userAccountControl:1.2.840.113556.1.4.803:=2)))',
+            attributes=['cn', 'sAMAccountName', 'mail', 'pwdLastSet',
+                        'userAccountControl', 'distinguishedName'])
 
-        # Obtenir la politique de mot de passe du domaine
-        conn.search(base_dn, '(objectClass=domain)', SUBTREE, attributes=['maxPwdAge'])
-
-        max_pwd_age_days = 90  # Par defaut
-        if conn.entries:
-            max_pwd_age = conn.entries[0].maxPwdAge.value
-            if max_pwd_age:
-                # Convertir en jours (valeur negative en 100-nanosecond intervals)
-                max_pwd_age_days = abs(int(max_pwd_age)) / (10000000 * 60 * 60 * 24)
-
-        # Identifier les utilisateurs dont le mot de passe expire dans la fenetre
-        now = datetime.now()
+        now = utcnow()
         expiry_window = now + timedelta(days=days)
-
-        for entry in user_entries:
-            if not entry.pwdLastSet or not entry.pwdLastSet.value:
-                continue
-
-            pwd_last_set = entry.pwdLastSet.value
-            # ldap3 peut retourner un datetime ou un entier Windows FILETIME
-            if isinstance(pwd_last_set, datetime):
-                pwd_set_date = pwd_last_set.replace(tzinfo=None)
-            else:
-                # Convertir depuis Windows FILETIME (100-nanoseconde intervals depuis 1601-01-01)
-                pwd_set_date = datetime(1601, 1, 1) + timedelta(microseconds=int(pwd_last_set) / 10)
-
-            expiry_date = pwd_set_date + timedelta(days=max_pwd_age_days)
-
-            if now <= expiry_date <= expiry_window:
+        for entry in entries:
+            uac = getattr(entry, 'userAccountControl', None)
+            expiry_date = password_expiry(entry.pwdLastSet, max_pwd_age,
+                                          uac.value if uac is not None else 0)
+            if expiry_date and now <= expiry_date <= expiry_window:
                 expiring.append({
                     'cn': str(entry.cn) if entry.cn else '',
                     'sAMAccountName': str(entry.sAMAccountName) if entry.sAMAccountName else '',

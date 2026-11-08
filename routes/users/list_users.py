@@ -5,12 +5,12 @@ Liste et recherche des utilisateurs Active Directory.
 from flask import render_template, request, session, redirect, url_for, flash
 from ldap3 import SUBTREE
 from ldap3.core.exceptions import LDAPException
-from datetime import datetime
 
 from . import users_bp
 from ..core import (get_ad_connection, decode_ldap_value, is_connected,
                    require_connection, config, paged_search)
 from core.security import escape_ldap_filter
+from core.ad_dates import ad_datetime, last_logon as ad_last_logon
 
 
 # Comptes système à exclure (Windows — noms EN et FR)
@@ -65,7 +65,6 @@ def list_users():
                                               'lastLogonTimestamp', 'lastLogon', 'whenCreated', 'pwdLastSet'])
 
         user_list = []
-        now = datetime.now()
         for entry in all_entries:
             entry_dn = str(entry.entry_dn).lower()
             # Exclure les utilisateurs système du conteneur Builtin et Users
@@ -84,59 +83,12 @@ def list_users():
             if status_filter == 'disabled' and not is_disabled:
                 continue
 
-            # Dernière connexion — lastLogonTimestamp (répliqué entre DC)
-            last_logon = None
-            if hasattr(entry, 'lastLogonTimestamp') and entry.lastLogonTimestamp and entry.lastLogonTimestamp.value:
-                llt_val = entry.lastLogonTimestamp.value
-                try:
-                    if isinstance(llt_val, datetime):
-                        last_logon = llt_val
-                        if last_logon.tzinfo:
-                            last_logon = last_logon.replace(tzinfo=None)
-                    elif isinstance(llt_val, str):
-                        last_logon = datetime.strptime(llt_val.rstrip('Z'), '%Y%m%d%H%M%S')
-                    else:
-                        logon_val = int(str(llt_val))
-                        if logon_val > 0:
-                            last_logon = datetime.fromtimestamp(logon_val / 10000000 - 11644473600)
-                except (ValueError, TypeError, OSError):
-                    pass
-
-            # Fallback : lastLogon (local au DC, non répliqué mais toujours disponible)
-            if not last_logon and hasattr(entry, 'lastLogon') and entry.lastLogon and entry.lastLogon.value:
-                ll_val = entry.lastLogon.value
-                try:
-                    if isinstance(ll_val, datetime):
-                        last_logon = ll_val
-                        if last_logon.tzinfo:
-                            last_logon = last_logon.replace(tzinfo=None)
-                    else:
-                        logon_val = int(str(ll_val))
-                        if logon_val > 0:
-                            last_logon = datetime.fromtimestamp(logon_val / 10000000 - 11644473600)
-                except (ValueError, TypeError, OSError):
-                    pass
-
-            # Date de création
-            created = None
-            if hasattr(entry, 'whenCreated') and entry.whenCreated and entry.whenCreated.value:
-                try:
-                    created = datetime.strptime(str(entry.whenCreated.value), '%Y%m%d%H%M%S.0Z')
-                except (ValueError, TypeError):
-                    try:
-                        created = datetime.fromisoformat(str(entry.whenCreated.value).replace('Z', '+00:00'))
-                    except (ValueError, TypeError):
-                        pass
-
-            # Dernier changement de mot de passe
-            pwd_last_set = None
-            if hasattr(entry, 'pwdLastSet') and entry.pwdLastSet and entry.pwdLastSet.value:
-                try:
-                    pwd_val = int(str(entry.pwdLastSet.value))
-                    if pwd_val > 0:
-                        pwd_last_set = datetime.fromtimestamp(pwd_val / 10000000 - 11644473600)
-                except (ValueError, TypeError, OSError):
-                    pass
+            # Dates via core.ad_dates : avec le schéma chargé, ldap3 renvoie des
+            # datetime ; l'ancien int(str(…)) échouait en silence sur pwdLastSet
+            # (colonne toujours vide) et 1601 passait pour une vraie date.
+            last_logon = ad_last_logon(entry)
+            created = ad_datetime(getattr(entry, 'whenCreated', None))
+            pwd_last_set = ad_datetime(getattr(entry, 'pwdLastSet', None))
 
             user_list.append({
                 'cn': str(entry.cn.value) if entry.cn else '',

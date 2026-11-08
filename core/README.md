@@ -28,6 +28,8 @@ Le répertoire `core/` contient tous les **modules utilitaires** essentiels au f
 | `password_generator.py` | **Génération :** Mots de passe sécurisés côté serveur |
 | `translations.py` | **i18n :** Traductions minimales FR/EN |
 | `ad_detect.py` | **Détection :** Auto-détection du domaine Active Directory |
+| `ad_dates.py` | **Dates AD :** FILETIME, intervalles, dernière connexion, stratégie de comptes, verrou actif, échéance du mot de passe |
+| `account_stats.py` | **Statistiques :** Compteurs du centre des alertes et du tableau de bord (recherches paginées) |
 | `alerts.py` | **Alertes :** Détection des comptes expirés, bloqués, inactifs |
 | `auto_alerts.py` | **Notifications :** Déclenchement automatique des alertes par email |
 | `backup.py` | **Sauvegarde :** Backup et restauration de la configuration |

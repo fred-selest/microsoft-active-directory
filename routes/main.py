@@ -5,7 +5,6 @@ Contient: index, connect, disconnect, dashboard, ous, audit, toggle-dark-mode
 """
 import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from ldap3 import SUBTREE
 from datetime import datetime
 
 from .core import (get_ad_connection, decode_ldap_value, is_connected,
@@ -358,46 +357,28 @@ def dashboard():
     if conn:
         base_dn = session.get('ad_base_dn', '')
         try:
-            # Compter utilisateurs
-            conn.search(base_dn, '(&(objectClass=user)(objectCategory=person))',
-                       SUBTREE, attributes=['userAccountControl'], size_limit=5000)
-            for e in conn.entries:
+            # Recherches paginées : une recherche simple est tronquée par AD
+            # à 1000 objets, ce qui faussait les totaux des grands domaines.
+            from core.account_stats import UF_ACCOUNTDISABLE, count_empty_groups, load_groups, load_users
+            from .core import paged_search
+            users = load_users(conn, base_dn)
+            for e in users:
+                try:
+                    uac = int(e.userAccountControl.value or 0)
+                except (AttributeError, TypeError, ValueError):
+                    uac = 0
                 stats['total_users'] += 1
-                uac = e.userAccountControl.value if hasattr(e, 'userAccountControl') else 512
-                if int(uac or 512) & 2:
+                if uac & UF_ACCOUNTDISABLE:
                     stats['disabled_users'] += 1
                 else:
                     stats['active_users'] += 1
 
-            # Compter groupes et groupes vides
-            conn.search(base_dn, '(objectClass=group)', SUBTREE, attributes=['cn', 'member', 'groupType'], size_limit=2000)
-            stats['total_groups'] = len(conn.entries)
-            
-            # Groupes spéciaux qui n'ont pas de membres directs mais utilisent primaryGroupID
-            special_group_patterns = [
-                'domain users', 'utilisateurs du domaine',
-                'domain computers', 'ordinateurs du domaine',
-                'domain controllers', 'contrôleurs de domaine',
-                'domain guests', 'invités du domaine',
-                'enterprise admins', 'administrateurs de l\'entreprise',
-                'schema admins', 'administrateurs du schéma',
-                'protected users', 'utilisateurs protégés'
-            ]
-            
-            for e in conn.entries:
-                cn_lower = str(e.cn).lower() if e.cn else ''
-                members = e.member.values if hasattr(e, 'member') and e.member else []
-                
-                # Vérifier si c'est un groupe spécial
-                is_special = any(pattern in cn_lower for pattern in special_group_patterns)
-                
-                # Un groupe est considéré vide seulement s'il n'a pas de membres ET n'est pas spécial
-                if not members and not is_special:
-                    stats['empty_groups'] += 1
+            groups = load_groups(conn, base_dn)
+            stats['total_groups'] = len(groups)
+            stats['empty_groups'] = count_empty_groups(groups, users)
 
-            # Compter OUs
-            conn.search(base_dn, '(objectClass=organizationalUnit)', SUBTREE, attributes=['name'], size_limit=1000)
-            stats['total_ous'] = len(conn.entries)
+            stats['total_ous'] = len(paged_search(conn, base_dn, '(objectClass=organizationalUnit)',
+                                                  attributes=['name']))
 
             # Récupérer widgets
             widgets = get_dashboard_widgets()

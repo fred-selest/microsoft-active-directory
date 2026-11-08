@@ -19,7 +19,7 @@
     <!-- Comptes qui expirent -->
     <div class="section-card">
         <h3>Comptes expirants ({{ expiring_accounts|length }})</h3>
-        <p class="section-desc">Comptes qui expireront dans les 30 prochains jours</p>
+        <p class="section-desc">Comptes actifs qui expirent dans les {{ account_days }} prochains jours (ou déjà expirés)</p>
 
         {% if expiring_accounts %}
         <table class="data-table">
@@ -38,13 +38,8 @@
                     <td>{{ account.cn }}</td>
                     <td>{{ account.sAMAccountName }}</td>
                     <td>{{ account.mail or '-' }}</td>
-                    <td>
-                        {% if account.accountExpires %}
-                            <span style="color: #dc3545; font-weight: bold;">{{ account.accountExpires }}</span>
-                        {% else %}
-                            <em style="color: #666;">Aucune</em>
-                        {% endif %}
-                    </td>
+                    <td><span class="date-alert">{{ account.date.strftime('%d/%m/%Y') }}</span>
+                        {% if account.expired %}<span class="badge-expired">expiré</span>{% endif %}</td>
                     <td>
                         <a href="{{ url_for('users.edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                     </td>
@@ -53,14 +48,14 @@
             </tbody>
         </table>
         {% else %}
-        <p class="no-data">Aucun compte expirant dans les 30 prochains jours.</p>
+        <p class="no-data">Aucun compte expirant dans les {{ account_days }} prochains jours.</p>
         {% endif %}
     </div>
 
     <!-- Mots de passe expirants -->
     <div class="section-card">
-        <h3>Mots de passe anciens ({{ password_expiring|length }})</h3>
-        <p class="section-desc">Utilisateurs dont le mot de passe n'a pas été changé depuis plus de 76 jours</p>
+        <h3>Mots de passe expirant ({{ password_expiring|length }})</h3>
+        <p class="section-desc">{% if policy.max_pwd_age %}Mots de passe qui expirent dans les {{ password_days }} prochains jours (durée maximale du domaine : {{ policy.max_pwd_age.days }} jours), ou déjà expirés{% else %}La stratégie du domaine ne fait pas expirer les mots de passe{% endif %}</p>
 
         {% if password_expiring %}
         <table class="data-table">
@@ -69,7 +64,7 @@
                     <th>Nom</th>
                     <th>Identifiant</th>
                     <th>Email</th>
-                    <th>Dernier changement</th>
+                    <th>Expiration</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -79,7 +74,8 @@
                     <td>{{ user.cn }}</td>
                     <td>{{ user.sAMAccountName }}</td>
                     <td>{{ user.mail or '-' }}</td>
-                    <td>{{ user.pwdLastSet or 'Inconnu' }}</td>
+                    <td><span class="date-alert">{{ user.date.strftime('%d/%m/%Y') }}</span>
+                        {% if user.expired %}<span class="badge-expired">expiré</span>{% endif %}</td>
                     <td>
                         <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                         <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-sm btn-warning">Reset MDP</a>
@@ -89,14 +85,14 @@
             </tbody>
         </table>
         {% else %}
-        <p class="no-data">Aucun mot de passe de plus de 76 jours détecté.</p>
+        <p class="no-data">Aucun mot de passe n'expire dans les {{ password_days }} prochains jours.</p>
         {% endif %}
     </div>
 
     <!-- Comptes inactifs -->
     <div class="section-card">
         <h3>Comptes inactifs ({{ inactive_accounts|length }})</h3>
-        <p class="section-desc">Comptes sans connexion depuis plus de 90 jours</p>
+        <p class="section-desc">Comptes actifs sans connexion depuis plus de {{ inactive_days }} jours (ou jamais connectés depuis leur création)</p>
 
         {% if inactive_accounts %}
         <table class="data-table">
@@ -112,10 +108,10 @@
             <tbody>
                 {% for account in inactive_accounts %}
                 <tr>
-                    <td>{{ account.cn | escape | default('N/A') }}</td>
-                    <td>{{ account.sAMAccountName | escape | default('N/A') }}</td>
-                    <td>{{ account.mail | escape | default('-') }}</td>
-                    <td>{{ account.lastLogon | escape | default('Jamais') }}</td>
+                    <td>{{ account.cn or 'N/A' }}</td>
+                    <td>{{ account.sAMAccountName or 'N/A' }}</td>
+                    <td>{{ account.mail or '-' }}</td>
+                    <td>{{ account.date.strftime('%d/%m/%Y') if account.date else 'Jamais' }}</td>
                     <td>
                         <a href="{{ url_for('users.edit_user', dn=account.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
                         <a href="{{ url_for('users.reset_password', dn=account.dn) }}" class="btn btn-sm btn-warning">Reset MDP</a>
@@ -134,6 +130,8 @@
 
 {% block extra_css %}
 <style>
+.date-alert { color: var(--danger, #dc3545); font-weight: bold; }
+.badge-expired { display: inline-block; margin-left: .4rem; padding: 0 .4rem; border-radius: 4px; font-size: .75rem; background: var(--danger, #dc3545); color: #fff; }
 .section-card {
     background: white;
     padding: 1.5rem;

@@ -4,6 +4,53 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.51.5] - 2026-11-08 — Comptes verrouillés, alertes et comptes expirants
+
+### Corrections
+- **Déverrouillage impossible depuis la page Comptes verrouillés.** Le bouton
+  « Déverrouiller la sélection » envoyait les cases cochées sous un nom que
+  la route ne lisait pas : la réponse était toujours « Aucun compte
+  sélectionné ». Le bouton « Déverrouiller » de chaque ligne était un
+  formulaire imbriqué dans celui de la sélection ; le navigateur ignore un
+  formulaire imbriqué, et le bouton soumettait le déblocage groupé à la
+  place. Les deux fonctionnent désormais.
+- **Comptes verrouillés fantômes.** AD laisse la date de verrouillage
+  renseignée après la fin de la durée de verrouillage, jusqu'à la connexion
+  suivante. La page et les alertes listaient donc des comptes qui n'étaient
+  plus verrouillés. Seuls les verrous encore actifs (selon la durée de
+  verrouillage du domaine) sont affichés, avec leur date.
+- **« Mots de passe expirant » toujours à 0** dans le centre des alertes,
+  et alerte automatique correspondante jamais déclenchée : les dates
+  renvoyées par l'AD n'étaient pas lues correctement. L'échéance est
+  maintenant calculée avec la durée maximale réelle du domaine (au lieu de
+  42 jours codés en dur), en ignorant les comptes désactivés et ceux dont le
+  mot de passe n'expire jamais.
+- **Page Comptes expirants** : la section « Mots de passe » listait tous les
+  comptes ayant un mot de passe ; elle liste désormais ceux qui expirent dans
+  les 14 jours (ou sont déjà expirés), avec la date d'expiration. Les
+  comptes jamais connectés depuis plus de 90 jours apparaissent parmi les
+  inactifs (ils étaient toujours ignorés), les comptes désactivés sont
+  exclus, le tri suit les dates réelles et « None » ne s'affiche plus dans
+  la colonne Email.
+- **Export PDF des comptes expirants** : le bouton affichait « non
+  implémenté ». Il produit maintenant le rapport des trois sections.
+- **Comptes inactifs sur un domaine à plusieurs DC** : la dernière connexion
+  ne lisait que l'attribut propre au DC interrogé ; un compte qui
+  s'authentifie sur un autre DC passait pour inactif. La date répliquée est
+  désormais prise en compte.
+- **Compteurs justes au-delà de 1000 objets** (tableau de bord, alertes) :
+  les recherches étaient tronquées par AD à 1000 résultats. Les ordinateurs
+  ne sont plus comptés parmi les comptes désactivés ou verrouillés.
+- **Comptes administrateurs** : l'alerte cherchait « Domain Admins » par son
+  nom anglais et sans appartenance imbriquée ; sur un AD francophone
+  (« Admins du domaine ») elle valait 0. Les groupes sont trouvés par leur
+  identifiant de sécurité.
+- **Groupes vides** : la liste de groupes système était propre à une
+  installation ; les groupes intégrés et les groupes principaux sont
+  reconnus par leur identifiant, sur tous les domaines.
+- **Liste des utilisateurs** : la date du dernier changement de mot de passe
+  était toujours vide.
+
 ## [1.51.4] - 2026-09-22 — Ordinateurs manquants, pages non protégées, tableau de bord
 
 Suite à des retours d'utilisation sur un contrôleur de domaine en production.
