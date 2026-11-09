@@ -4,6 +4,50 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.53.0] - 2026-11-08 — Arrivée d'un utilisateur : messagerie Microsoft 365 et mail de bienvenue
+
+### Fonctionnalités
+- **Adresse professionnelle synchronisée avec Entra ID** : à la création
+  d'un compte, l'adresse pro est proposée selon le format choisi
+  (prenom.nom, p.nom…), sans accents, avec un chiffre ajouté si elle est
+  déjà prise. Elle est enregistrée dans mail et proxyAddresses (adresse
+  principale) et, au choix, comme identifiant de connexion (UPN) ; le
+  domaine doit être un suffixe UPN de la forêt.
+- **Groupe de licence Microsoft 365** : le compte peut être ajouté à un
+  groupe auquel Entra ID attribue une licence ; la boîte est créée après la
+  synchronisation.
+- **Mail de bienvenue sur l'adresse personnelle** : identifiant, adresse
+  pro et mot de passe provisoire (changement obligatoire à la première
+  connexion). L'adresse personnelle est conservée sur la fiche
+  (otherMailbox). Le mot de passe n'est jamais écrit dans le journal
+  d'audit.
+- **Paramètres de messagerie** (Utilisateurs › Nouvel utilisateur ›
+  Paramètres de messagerie) : domaine et format des adresses, groupes de
+  licence proposés, modèle du mail avec aperçu et envoi d'un exemple.
+- Le formulaire de création conserve la saisie en cas d'erreur.
+- **Fiche d'un utilisateur existant**, section Messagerie et Microsoft 365 :
+  modification de l'adresse pro (mail, proxyAddresses et UPN au choix,
+  ancienne adresse gardée en alias pour continuer à recevoir les messages)
+  et de l'adresse personnelle ; bouton « Nouveau mot de passe envoyé par
+  e-mail » qui génère un mot de passe provisoire (changement obligatoire)
+  et l'envoie à l'adresse personnelle. L'envoi est vérifié avant de
+  changer le mot de passe ; si le mail échoue malgré tout, le mot de passe
+  est affiché une fois à l'administrateur.
+
+### Corrections
+- **Aucun e-mail ne partait** : la configuration SMTP de la page Admin
+  était enregistrée mais jamais lue (rapports d'audit, alertes, alertes
+  automatiques). Tous les envois passent désormais par cette
+  configuration ; un destinataire des alertes peut y être indiqué.
+- Enregistrer la page Admin › SMTP effaçait le mot de passe SMTP (le champ
+  n'est jamais pré-rempli) ; laissé vide, il est désormais conservé.
+- Le champ « Email » de la fiche utilisateur modifiait mail sans
+  proxyAddresses : l'adresse vue par Microsoft 365 divergeait. Les adresses
+  se modifient désormais ensemble dans la section Messagerie.
+- Le générateur de mot de passe du formulaire de création utilisait
+  Math.random, prévisible ; il utilise maintenant le générateur
+  cryptographique du navigateur.
+
 ## [1.52.0] - 2026-11-08 — Droits des utilisateurs et des groupes sur les répertoires
 
 ### Fonctionnalités

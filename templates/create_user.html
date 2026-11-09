@@ -90,24 +90,21 @@ body.dark-mode .ldaps-manual-config summary {
 
             <div class="form-group">
                 <label for="username">Identifiant (login) *</label>
-                <input type="text" id="username" name="username" required
-                       placeholder="jdupont" autocomplete="off">
+                <input type="text" id="username" name="username" required maxlength="20"
+                       placeholder="jdupont" autocomplete="off" value="{{ form.get('username', '') }}">
             </div>
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="first_name">Prénom *</label>
-                    <input type="text" id="first_name" name="first_name" required placeholder="Jean">
+                    <input type="text" id="first_name" name="first_name" required placeholder="Jean"
+                           value="{{ form.get('first_name', '') }}">
                 </div>
                 <div class="form-group">
                     <label for="last_name">Nom *</label>
-                    <input type="text" id="last_name" name="last_name" required placeholder="Dupont">
+                    <input type="text" id="last_name" name="last_name" required placeholder="Dupont"
+                           value="{{ form.get('last_name', '') }}">
                 </div>
-            </div>
-
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" placeholder="jean.dupont@{{ request.host }}">
             </div>
 
             <div class="form-group">
@@ -141,17 +138,85 @@ body.dark-mode .ldaps-manual-config summary {
             {% endif %}
         </div>
 
+        <div class="form-section" id="mail-section">
+            <h3>Messagerie et Microsoft 365</h3>
+            <p class="form-hint">L'adresse professionnelle est enregistrée dans l'AD (mail, proxyAddresses) et
+                reprise par la synchronisation Entra ID.
+                {% if check_user_permission('admin:settings') %}<a href="{{ url_for('users.onboarding_settings') }}">Paramètres de messagerie</a>{% endif %}</p>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="email">Adresse e-mail professionnelle</label>
+                    <input type="email" id="email" name="email" autocomplete="off"
+                           placeholder="prenom.nom@{{ onboarding.default_domain or 'domaine.fr' }}"
+                           value="{{ form.get('email', '') }}">
+                    <small class="form-hint" id="emailStatus"></small>
+                </div>
+                <div class="form-group">
+                    <label for="email_domain">Domaine</label>
+                    <select id="email_domain">
+                        {% for d in onboarding.suffixes %}
+                        <option value="{{ d }}" {% if d == onboarding.default_domain %}selected{% endif %}>@{{ d }}{% if d.endswith('.local') or d.endswith('.lan') %} (non routable){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group form-check">
+                <input type="checkbox" id="set_upn" name="set_upn" class="form-check-input"
+                       {% if (form and form.get('set_upn')) or (not form and onboarding.settings.set_upn) %}checked{% endif %}>
+                <label for="set_upn" class="form-check-label">
+                    Utiliser l'adresse professionnelle comme identifiant de connexion (UPN, Microsoft 365)
+                </label>
+            </div>
+
+            {% if onboarding.license_groups %}
+            <div class="form-group">
+                <label for="license_group">Groupe de licence Microsoft 365</label>
+                <select id="license_group" name="license_group">
+                    <option value="">— Aucun (licence attribuée à la main) —</option>
+                    {% for g in onboarding.license_groups %}
+                    <option value="{{ g.dn }}" {% if form.get('license_group') == g.dn %}selected{% endif %}>{{ g.name }}</option>
+                    {% endfor %}
+                </select>
+                <small class="form-hint">Entra ID attribue la licence aux membres du groupe ; la boîte est créée
+                    après la synchronisation.</small>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="personal_email">Adresse e-mail personnelle</label>
+                <input type="email" id="personal_email" name="personal_email" autocomplete="off"
+                       placeholder="jean.dupont@gmail.com" value="{{ form.get('personal_email', '') }}">
+                <small class="form-hint">Enregistrée sur la fiche (otherMailbox) ; reçoit le mail de bienvenue.</small>
+            </div>
+
+            <div class="form-group form-check">
+                <input type="checkbox" id="send_welcome" name="send_welcome" class="form-check-input"
+                       {% if not onboarding.smtp_ready %}disabled{% elif not form or form.get('send_welcome') %}checked{% endif %}>
+                <label for="send_welcome" class="form-check-label">
+                    Envoyer le mail de bienvenue (identifiant, adresse pro et mot de passe provisoire)
+                    à l'adresse personnelle
+                </label>
+                {% if not onboarding.smtp_ready %}
+                <small class="form-hint text-warning">L'envoi d'e-mails n'est pas configuré (Admin › SMTP).</small>
+                {% endif %}
+            </div>
+        </div>
+
         <div class="form-section">
             <h3>Informations professionnelles</h3>
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="department">Service / Département</label>
-                    <input type="text" id="department" name="department" placeholder="Informatique">
+                    <input type="text" id="department" name="department" placeholder="Informatique"
+                           value="{{ form.get('department', '') }}">
                 </div>
                 <div class="form-group">
                     <label for="title">Fonction</label>
-                    <input type="text" id="title" name="title" placeholder="Administrateur système">
+                    <input type="text" id="title" name="title" placeholder="Administrateur système"
+                           value="{{ form.get('title', '') }}">
                 </div>
             </div>
 
@@ -160,7 +225,7 @@ body.dark-mode .ldaps-manual-config summary {
                 <select id="target_ou" name="target_ou">
                     <option value="">CN=Users (par défaut)</option>
                     {% for ou in ous %}
-                    <option value="{{ ou.dn }}">{{ ou.name }}</option>
+                    <option value="{{ ou.dn }}" {% if form.get('target_ou') == ou.dn %}selected{% endif %}>{{ ou.name }}</option>
                     {% endfor %}
                 </select>
                 <small class="form-hint">Laissez vide pour créer dans CN=Users</small>
@@ -186,6 +251,15 @@ body.dark-mode .ldaps-manual-config summary {
     });
 
     // ── Générateur de mot de passe sécurisé ─────────────────────────────────
+    // Tirage avec crypto.getRandomValues : Math.random n'est pas fait pour
+    // produire des secrets (générateur prévisible).
+    function rand(n) {
+        var buf = new Uint32Array(1);
+        var limit = Math.floor(0x100000000 / n) * n;
+        do { window.crypto.getRandomValues(buf); } while (buf[0] >= limit);
+        return buf[0] % n;
+    }
+
     function generatePassword() {
         var upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
         var lower   = 'abcdefghjkmnpqrstuvwxyz';
@@ -193,17 +267,17 @@ body.dark-mode .ldaps-manual-config summary {
         var special = '!@#$%&*+-=?';
         var all     = upper + lower + digits + special;
         var pwd     = [
-            upper  [Math.floor(Math.random() * upper.length)],
-            lower  [Math.floor(Math.random() * lower.length)],
-            digits [Math.floor(Math.random() * digits.length)],
-            special[Math.floor(Math.random() * special.length)]
+            upper  [rand(upper.length)],
+            lower  [rand(lower.length)],
+            digits [rand(digits.length)],
+            special[rand(special.length)]
         ];
         for (var i = 4; i < 16; i++) {
-            pwd.push(all[Math.floor(Math.random() * all.length)]);
+            pwd.push(all[rand(all.length)]);
         }
         // Fisher-Yates shuffle
         for (var i = pwd.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
+            var j = rand(i + 1);
             var tmp = pwd[i]; pwd[i] = pwd[j]; pwd[j] = tmp;
         }
         return pwd.join('');
@@ -281,6 +355,64 @@ body.dark-mode .ldaps-manual-config summary {
 
     document.getElementById('first_name').addEventListener('blur', suggestLogin);
     document.getElementById('last_name').addEventListener('blur', suggestLogin);
+
+    // ── Adresse professionnelle ─────────────────────────────────────────────
+    // Proposée par le serveur (format configuré, première adresse libre) ;
+    // une adresse saisie à la main est vérifiée (déjà utilisée ?).
+    var emailInput = document.getElementById('email');
+    var emailStatus = document.getElementById('emailStatus');
+    var domainSelect = document.getElementById('email_domain');
+    var emailModified = emailInput.value.length > 0;
+    var suggestUrl = {{ url_for('users.address_suggestion')|tojson }};
+
+    function setStatus(text, cls) {
+        emailStatus.textContent = text;
+        emailStatus.className = 'form-hint ' + (cls || '');
+    }
+
+    function suggestEmail() {
+        if (emailModified || !domainSelect || !domainSelect.value) { return; }
+        var fn = document.getElementById('first_name').value.trim();
+        var ln = document.getElementById('last_name').value.trim();
+        if (!fn || !ln) { return; }
+        var url = suggestUrl + '?first=' + encodeURIComponent(fn) + '&last=' + encodeURIComponent(ln) +
+                  '&domain=' + encodeURIComponent(domainSelect.value);
+        fetch(url).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.success && d.address && !emailModified) {
+                emailInput.value = d.address;
+                setStatus('✅ Adresse disponible', 'text-success');
+            }
+        }).catch(function () {});
+    }
+
+    function checkEmail() {
+        var v = emailInput.value.trim();
+        if (!v) { setStatus(''); return; }
+        fetch(suggestUrl + '?address=' + encodeURIComponent(v)).then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.success) { return; }
+                if (!d.valid) { setStatus('Adresse invalide', 'text-danger'); }
+                else if (d.owner) { setStatus('⚠️ Déjà utilisée par ' + d.owner, 'text-danger'); }
+                else { setStatus('✅ Adresse disponible', 'text-success'); }
+            }).catch(function () {});
+    }
+
+    emailInput.addEventListener('input', function () { emailModified = this.value.length > 0; });
+    emailInput.addEventListener('blur', checkEmail);
+    document.getElementById('first_name').addEventListener('blur', suggestEmail);
+    document.getElementById('last_name').addEventListener('blur', suggestEmail);
+    if (domainSelect) {
+        domainSelect.addEventListener('change', function () {
+            var v = emailInput.value.trim();
+            if (v.indexOf('@') > 0) {
+                emailInput.value = v.split('@')[0] + '@' + domainSelect.value;
+                checkEmail();
+            } else {
+                emailModified = false;
+                suggestEmail();
+            }
+        });
+    }
 })();
 </script>
 {% endblock %}

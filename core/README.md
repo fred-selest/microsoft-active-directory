@@ -32,6 +32,8 @@ Le répertoire `core/` contient tous les **modules utilitaires** essentiels au f
 | `account_stats.py` | **Statistiques :** Compteurs du centre des alertes et du tableau de bord (recherches paginées) |
 | `folders.py` | **Répertoires :** Droits NTFS des partages, analyse d'accès, groupes AGDLP, dossiers personnels (PowerShell sous l'identité de l'administrateur connecté) |
 | `windows_auth.py` | **Authentification Windows :** vérification d'un compte administrateur du serveur sans LDAP (LogonUser + appartenance à Administrateurs) |
+| `mailer.py` | **E-mail :** envoi SMTP commun, configuration de la page Admin (repli sur les variables d'environnement) |
+| `onboarding.py` | **Arrivée :** adresse pro, suffixes UPN, attributs Entra ID, groupes de licence, modèle du mail de bienvenue |
 | `alerts.py` | **Alertes :** Détection des comptes expirés, bloqués, inactifs |
 | `auto_alerts.py` | **Notifications :** Déclenchement automatique des alertes par email |
 | `backup.py` | **Sauvegarde :** Backup et restauration de la configuration |

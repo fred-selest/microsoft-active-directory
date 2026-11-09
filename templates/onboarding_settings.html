@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Paramètres de messagerie - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>✉️ Paramètres de messagerie</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('users.create_user') }}" class="btn btn-secondary">Nouvel utilisateur</a>
+    </div>
+</div>
+
+{% if not smtp_ready %}
+<div class="alert alert-warning">
+    L'envoi d'e-mails n'est pas configuré : le mail de bienvenue ne pourra pas partir.
+    Renseignez le serveur SMTP dans <a href="{{ url_for('admin.admin_page') }}#smtp-section">Admin › SMTP</a>
+    (Microsoft 365 : <code>smtp.office365.com</code>, port 587, TLS, compte avec licence ou boîte partagée
+    autorisée en SMTP authentifié).
+</div>
+{% endif %}
+
+<div class="card">
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <h3>Adresse professionnelle</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="email_domain">Domaine par défaut</label>
+                <select id="email_domain" name="email_domain">
+                    <option value="">— Premier domaine routable —</option>
+                    {% for d in suffixes %}
+                    <option value="{{ d }}" {% if d == settings.email_domain %}selected{% endif %}>@{{ d }}</option>
+                    {% endfor %}
+                    {% if settings.email_domain and settings.email_domain not in suffixes %}
+                    <option value="{{ settings.email_domain }}" selected>@{{ settings.email_domain }} (non déclaré dans l'AD)</option>
+                    {% endif %}
+                </select>
+                <small class="form-hint">Suffixes UPN de la forêt. Pour en ajouter un (ex. <code>@laprovidence.fr</code>) :
+                    console « Domaines et approbations Active Directory » › Propriétés › Suffixes UPN. Le domaine doit
+                    aussi être vérifié dans Microsoft 365.</small>
+            </div>
+            <div class="form-group">
+                <label for="pattern">Format</label>
+                <select id="pattern" name="pattern">
+                    {% for key, label in patterns.items() %}
+                    <option value="{{ key }}" {% if key == settings.pattern %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <small class="form-hint">Accents retirés, espaces remplacés par des tirets. Si l'adresse est prise,
+                    un chiffre est ajouté (prenom.nom2).</small>
+            </div>
+        </div>
+        <label class="checkbox-label"><input type="checkbox" name="set_upn" {% if settings.set_upn %}checked{% endif %}>
+            Par défaut, utiliser l'adresse pro comme identifiant de connexion (UPN)</label>
+
+        <h3>Groupes de licence Microsoft 365</h3>
+        <div class="form-group">
+            <label for="license_groups">Groupes proposés à la création (un par ligne)</label>
+            <textarea id="license_groups" name="license_groups" rows="3"
+                      placeholder="LIC_M365_BusinessStandard">{{ settings.license_groups|join('\n') }}</textarea>
+            <small class="form-hint">Groupes AD synchronisés auxquels une licence est attribuée dans Entra ID
+                (Licences › attribution par groupe).</small>
+            {% if missing_groups %}
+            <small class="form-hint text-danger">Introuvables dans l'AD : {{ missing_groups|join(', ') }}</small>
+            {% endif %}
+        </div>
+
+        <h3>Mail de bienvenue</h3>
+        <div class="form-group">
+            <label for="welcome_subject">Objet</label>
+            <input type="text" id="welcome_subject" name="welcome_subject" maxlength="200"
+                   value="{{ settings.welcome_subject }}">
+        </div>
+        <div class="form-group">
+            <label for="welcome_body">Message</label>
+            <textarea id="welcome_body" name="welcome_body" rows="16">{{ settings.welcome_body }}</textarea>
+            <small class="form-hint">Champs disponibles :
+                {% for key, label in placeholders.items() %}<code>{{ '{' ~ key ~ '}' }}</code> {{ label }}{% if not loop.last %} · {% endif %}{% endfor %}
+            </small>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+    </form>
+</div>
+
+{% if preview %}
+<div class="card">
+    <h3>Aperçu</h3>
+    <p><strong>Objet :</strong> {{ preview[0] }}</p>
+    <pre class="welcome-preview">{{ preview[1] }}</pre>
+    {% if smtp_ready %}
+    <form method="post" class="folder-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="test">
+        <div class="form-group">
+            <label for="test_to">Envoyer un exemple à</label>
+            <input type="email" id="test_to" name="test_to" required placeholder="vous@domaine.fr">
+        </div>
+        <button type="submit" class="btn btn-secondary">Envoyer l'exemple</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.welcome-preview { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-tertiary, #f5f5f5);
+                   padding: 1rem; border-radius: 6px; font-family: inherit; }
+.folder-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+.folder-form .form-group { flex: 1 1 16rem; margin: 0; }
+.card h3 { margin-top: 1.25rem; }
+.card h3:first-of-type { margin-top: 0; }
+</style>
+{% endblock %}

@@ -144,9 +144,13 @@ def save_smtp_settings():
     settings['smtp']['use_tls'] = request.form.get('smtp_use_tls') == 'on'
     settings['smtp']['use_auth'] = request.form.get('smtp_use_auth') == 'on'
     settings['smtp']['username'] = request.form.get('smtp_username', '').strip()
-    settings['smtp']['password'] = request.form.get('smtp_password', '').strip()
+    # Champ laissé vide : le mot de passe enregistré est conservé (il n'est
+    # jamais renvoyé dans la page).
+    if request.form.get('smtp_password', '').strip():
+        settings['smtp']['password'] = request.form.get('smtp_password', '').strip()
     settings['smtp']['from_email'] = request.form.get('smtp_from_email', '').strip()
     settings['smtp']['from_name'] = request.form.get('smtp_from_name', 'AD Web Interface').strip()
+    settings['smtp']['alert_recipient'] = request.form.get('smtp_alert_recipient', '').strip()
 
     if save_settings(settings):
         flash('Configuration SMTP enregistrée!', 'success')
@@ -170,65 +174,19 @@ def test_smtp():
         flash('Token CSRF invalide.', 'error')
         return redirect(url_for('admin.admin_page'))
 
-    from core.settings_manager import load_settings
-    settings = load_settings()
-    smtp = settings.get('smtp', {})
-
+    from core.mailer import MailError, get_smtp_settings, send_mail
+    from html import escape
+    smtp = get_smtp_settings()
+    to = request.form.get('test_email', '').strip()
+    text = ('Test SMTP réussi.\n\nCeci est un email de test envoyé depuis l\'interface Web Active '
+            f'Directory.\nServeur : {smtp.get("server")}:{smtp.get("port")} — TLS : '
+            f'{"Oui" if smtp.get("use_tls") else "Non"}\n\nAD Web Interface v{get_current_version()}')
+    html = '<html><body><p>' + escape(text).replace('\n', '<br>') + '</p></body></html>'
     try:
-        # Créer le message
-        msg = MIMEMultipart()
-        msg['From'] = f"{smtp.get('from_name', 'AD Web Interface')} <{smtp.get('from_email', '')}>"
-        msg['To'] = request.form.get('test_email', '').strip()
-        msg['Subject'] = '[AD Web Interface] Test de configuration SMTP'
-
-        body = """
-        <html>
-        <body>
-            <h2>✅ Test SMTP réussi!</h2>
-            <p>Ceci est un email de test envoyé depuis l'interface Web Active Directory.</p>
-            <p><strong>Configuration:</strong></p>
-            <ul>
-                <li>Serveur: {server}</li>
-                <li>Port: {port}</li>
-                <li>TLS: {tls}</li>
-            </ul>
-            <p>Si vous recevez cet email, la configuration SMTP est correcte.</p>
-            <hr>
-            <p><small>AD Web Interface v{version}</small></p>
-        </body>
-        </html>
-        """.format(
-            server=smtp.get('server', 'N/A'),
-            port=smtp.get('port', 'N/A'),
-            tls='Oui' if smtp.get('use_tls') else 'Non',
-            version=get_current_version()
-        )
-
-        msg.attach(MIMEText(body, 'html', 'utf-8'))
-
-        # Connexion au serveur SMTP
-        server = smtplib.SMTP(smtp.get('server', ''), smtp.get('port', 587))
-        server.set_debuglevel(0)
-
-        if smtp.get('use_tls'):
-            server.starttls()
-
-        if smtp.get('use_auth') and smtp.get('username') and smtp.get('password'):
-            server.login(smtp.get('username', ''), smtp.get('password', ''))
-
-        server.send_message(msg)
-        server.quit()
-
-        flash(f'Email de test envoyé avec succès à {msg["To"]}!', 'success')
-
-    except smtplib.SMTPAuthenticationError:
-        flash('Erreur: Authentification SMTP échouée. Vérifiez username/password.', 'error')
-    except smtplib.SMTPConnectError:
-        flash(f'Erreur: Connexion au serveur SMTP échouée. Vérifiez serveur:port', 'error')
-    except smtplib.SMTPException as e:
-        flash(f'Erreur SMTP: {str(e)}', 'error')
-    except Exception as e:
-        flash(f'Erreur: {str(e)}', 'error')
+        send_mail(to, '[AD Web Interface] Test de configuration SMTP', text, html=html, smtp=smtp)
+        flash(f'Email de test envoyé avec succès à {to} !', 'success')
+    except MailError as e:
+        flash(f'Erreur : {e}', 'error')
 
     return redirect(url_for('admin.admin_page'))
 
