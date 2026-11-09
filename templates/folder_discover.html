@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}Partages du domaine - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🗂️ Partages du domaine</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('folders.browse') }}" class="btn btn-secondary">Droits sur les répertoires</a>
+    </div>
+</div>
+
+<p class="text-muted">Serveurs Windows actifs de l'annuaire. Les partages sont lus avec vos identifiants ; les partages
+    administratifs (C$, ADMIN$…) sont masqués.
+    {% if can_add %}Ajoutez un partage aux partages gérés pour parcourir ses droits.{% else %}L'ajout d'un partage aux
+    partages gérés demande le droit « Paramètres ».{% endif %}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<div class="discover-list">
+    {% for srv in servers %}
+    <section class="card discover-server" data-host="{{ srv.host }}">
+        <div class="discover-head">
+            <div>
+                <h3>🖥️ {{ srv.name }}</h3>
+                <small class="text-muted">{{ srv.host }} — {{ srv.os }}</small>
+            </div>
+            <div>
+                <button type="button" class="btn btn-sm btn-secondary discover-load">↻ Relire</button>
+                {% if can_add %}<button type="button" class="btn btn-sm btn-primary discover-add-all" style="display:none">Gérer tous les partages</button>{% endif %}
+            </div>
+        </div>
+        <div class="discover-shares"></div>
+    </section>
+    {% else %}
+    {% if not error %}<p>Aucun serveur Windows trouvé dans l'annuaire.</p>{% endif %}
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.discover-list { display: grid; gap: 1rem; }
+.discover-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; align-items: center; }
+.discover-head h3 { margin: 0; }
+.discover-shares table { margin-top: .75rem; }
+.discover-shares td { overflow-wrap: anywhere; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/folders.js') }}?v={{ app_version }}"></script>
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var esc = window.AdwiFolders.esc;
+    var sharesUrl = {{ url_for('folders.api_shares')|tojson }};
+    var rootsUrl = {{ url_for('folders.api_add_root')|tojson }};
+    var browseUrl = {{ url_for('folders.browse')|tojson }};
+    var overviewUrl = {{ url_for('folders.overview_page')|tojson }};
+    var canAdd = {{ can_add|tojson }};
+
+    function addRoots(paths, done) {
+        fetch(rootsUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json',
+                      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+            body: JSON.stringify({paths: paths})
+        }).then(function (r) { return r.json(); }).then(done)
+          .catch(function () { done({success: false, error: 'Le serveur n\'a pas répondu.'}); });
+    }
+
+    function render(section, shares) {
+        var out = section.querySelector('.discover-shares');
+        if (!shares.length) { out.innerHTML = '<p class="text-muted">Aucun partage de fichiers.</p>'; return; }
+        var html = '<div class="table-container folder-table-wrap"><table class="data-table"><thead><tr>' +
+            '<th>Partage</th><th>Description</th><th>Chemin</th><th data-no-sort>Actions</th></tr></thead><tbody>';
+        shares.forEach(function (sh) {
+            html += '<tr><td><strong>' + esc(sh.name) + '</strong></td><td>' + esc(sh.remark) + '</td><td>' +
+                esc(sh.path) + '</td><td class="actions">';
+            if (sh.managed) {
+                html += '<a class="btn btn-sm btn-secondary" href="' + esc(browseUrl + '?path=' + encodeURIComponent(sh.path)) +
+                    '">Parcourir</a> <a class="btn btn-sm btn-secondary" href="' +
+                    esc(overviewUrl + '?path=' + encodeURIComponent(sh.path)) + '">Vue d\'ensemble</a>';
+            } else if (canAdd) {
+                html += '<button type="button" class="btn btn-sm btn-primary discover-add-one" data-path="' +
+                    esc(sh.path) + '">Gérer ce partage</button>';
+            } else {
+                html += '<span class="text-muted">Non géré</span>';
+            }
+            html += '</td></tr>';
+        });
+        out.innerHTML = html + '</tbody></table></div>';
+        var all = section.querySelector('.discover-add-all');
+        var unmanaged = shares.filter(function (s) { return !s.managed; }).map(function (s) { return s.path; });
+        if (all) { all.style.display = unmanaged.length ? '' : 'none'; all.dataset.paths = JSON.stringify(unmanaged); }
+    }
+
+    function load(section) {
+        var out = section.querySelector('.discover-shares');
+        out.innerHTML = '<p class="text-muted">⏳ Lecture des partages…</p>';
+        fetch(sharesUrl + '?server=' + encodeURIComponent(section.dataset.host))
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.success) { out.innerHTML = '<div class="alert alert-error">' + esc(d.error) + '</div>'; return; }
+                render(section, d.shares);
+            })
+            .catch(function () { out.innerHTML = '<div class="alert alert-error">Le serveur n\'a pas répondu.</div>'; });
+    }
+
+    // Partages de tous les serveurs chargés à l'ouverture, trois à la fois.
+    var pending = Array.prototype.slice.call(document.querySelectorAll('.discover-server'));
+    function next() {
+        var section = pending.shift();
+        if (!section) { return; }
+        var out = section.querySelector('.discover-shares');
+        out.innerHTML = '<p class="text-muted">⏳ Lecture des partages…</p>';
+        fetch(sharesUrl + '?server=' + encodeURIComponent(section.dataset.host))
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.success) { out.innerHTML = '<div class="alert alert-error">' + esc(d.error) + '</div>'; }
+                else { render(section, d.shares); }
+            })
+            .catch(function () { out.innerHTML = '<div class="alert alert-error">Le serveur n\'a pas répondu.</div>'; })
+            .then(next);
+    }
+    next(); next(); next();
+
+    document.querySelectorAll('.discover-server').forEach(function (section) {
+        section.querySelector('.discover-load').addEventListener('click', function () { load(section); });
+        var all = section.querySelector('.discover-add-all');
+        if (all) {
+            all.addEventListener('click', function () {
+                addRoots(JSON.parse(all.dataset.paths || '[]'), function (d) {
+                    if (!d.success) { alert(d.error); return; }
+                    load(section);
+                });
+            });
+        }
+        section.addEventListener('click', function (e) {
+            var btn = e.target.closest('.discover-add-one');
+            if (!btn) { return; }
+            btn.disabled = true;
+            addRoots([btn.dataset.path], function (d) {
+                if (!d.success) { alert(d.error); btn.disabled = false; return; }
+                load(section);
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

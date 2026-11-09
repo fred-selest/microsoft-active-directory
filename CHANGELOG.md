@@ -4,6 +4,37 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.54.0] - 2026-11-09 — Tous les partages, vue d'ensemble des droits, répertoires sur les fiches
+
+### Fonctionnalités
+- **Partages du domaine** (Répertoires › Partages du domaine) : liste des
+  serveurs Windows de l'annuaire et de leurs partages de fichiers, lus avec
+  les identifiants de l'administrateur connecté (partages administratifs
+  masqués). Un partage, ou tous ceux d'un serveur, s'ajoute en un clic aux
+  partages gérés.
+- **Vue d'ensemble des droits** d'un partage ou d'un dossier : tous les
+  dossiers dont les droits diffèrent de ceux du parent (droits ajoutés,
+  héritage coupé), sur la profondeur choisie, avec des badges par niveau
+  (lecture, modification, contrôle total, refus). La liste des comptes et
+  groupes présents permet de ne garder que les dossiers d'un compte d'un
+  clic, ou de filtrer par nom.
+- **Répertoires sur les fiches** : la fiche d'un utilisateur ou d'un
+  groupe affiche directement les répertoires auxquels il a accès et par
+  quel groupe ; le nom d'un utilisateur dans la liste ouvre sa fiche.
+  Résultat gardé 10 minutes (bouton « Actualiser » pour relancer).
+
+### Corrections
+- **Page Utilisateurs trop large** : jusqu'à 730 px de débordement sur un
+  écran de 1280 px (adresses et identifiants longs sans retour à la ligne,
+  dix colonnes). Les textes longs passent à la ligne, les colonnes « Créé
+  le » et « OU » sont masquées sous 1700 px et le tableau défile dans son
+  cadre plutôt que d'élargir la page.
+- Un même serveur déclaré par son nom court (SRV-FIC) ou son nom complet
+  (srv-fic.domaine.local) est reconnu comme identique.
+- Le script PowerShell des répertoires est désormais un fichier
+  (scripts/folders.ps1) : passé sur la ligne de commande, il approchait la
+  limite de longueur de Windows.
+
 ## [1.53.0] - 2026-11-08 — Arrivée d'un utilisateur : messagerie Microsoft 365 et mail de bienvenue
 
 ### Fonctionnalités

@@ -7,7 +7,6 @@ PowerShell n'est pas disponible en CI : run_ps est remplacé par un faux qui
 enregistre les requêtes. Les tests vérifient ce que l'application demande
 au script (opération, chemin, SID, droits) et ce qu'elle en affiche.
 """
-import base64
 import json
 import os
 import re
@@ -114,9 +113,8 @@ class TestRunPs:
         cmdline = ' '.join(calls['args'])
         assert secret not in cmdline and 'Remove-Item C:' not in cmdline
         assert json.loads(calls['kw']['input'])['password'] == secret
-        # Le script exécuté est la constante, sans aucune valeur insérée
-        encoded = calls['args'][calls['args'].index('-EncodedCommand') + 1]
-        assert base64.b64decode(encoded).decode('utf-16-le') == fs.PS_SCRIPT
+        # Le script exécuté est le fichier livré, sans aucune valeur insérée
+        assert calls['args'][calls['args'].index('-File') + 1] == fs.PS_SCRIPT_PATH
 
     def test_erreur_du_script(self, monkeypatch):
         class Proc:
@@ -571,9 +569,10 @@ def test_creation_utilisateur_avec_dossier_personnel(env, monkeypatch):
     assert done == ['CN=Jean Dupont,OU=Users,DC=corp,DC=local']
 
 
-def test_script_tient_sur_la_ligne_de_commande():
-    """-EncodedCommand : la ligne de commande Windows est limitée à 32 767 caractères."""
-    assert len(fs._encoded_script()) < 30000
+def test_script_livre_en_utf8_avec_bom():
+    """Windows PowerShell 5.1 lit un script sans BOM en ANSI : accents corrompus."""
+    raw = open(fs.PS_SCRIPT_PATH, 'rb').read()
+    assert raw.startswith(b'\xef\xbb\xbf') and 'Opération inconnue' in fs.PS_SCRIPT
 
 
 @pytest.mark.parametrize('template,ctx', [
@@ -631,3 +630,147 @@ def test_trop_d_analyses_simultanees(monkeypatch):
         fs.start_scan_job('a', {'credentials': ('u', 'p')})
     gate.set()
     assert all(fs.get_scan_job(j, 'a') for j in jobs) and fs.get_scan_job(jobs[0], 'b') is None
+
+
+# --- Découverte des partages, vue d'ensemble, fiches ------------------------
+
+def _extend_ps(monkeypatch):
+    real = fs.run_ps
+
+    def fake(data, timeout=None):
+        if data['op'] == 'shares':
+            return {'ok': True, 'shares': [
+                {'name': 'Partages', 'type': 0, 'remark': 'Données'},
+                {'name': 'Compta', 'type': 0, 'remark': ''},
+                {'name': 'C$', 'type': 0x80000000, 'remark': 'Partage par défaut'},
+                {'name': 'IPC$', 'type': 0x80000003, 'remark': ''},
+                {'name': 'Users$', 'type': 0, 'remark': ''},
+                {'name': 'print$', 'type': 0, 'remark': ''},
+                {'name': 'Imprimante', 'type': 1, 'remark': ''}]}
+        if data['op'] == 'tree':
+            root = data['path']
+            return {'ok': True, 'scanned': 40, 'truncated': False, 'errors': [], 'folders': [
+                {'path': root, 'level': 0, 'protected': False, 'aces': [
+                    {'sid': 'S-1-5-32-544', 'name': 'BUILTIN\\Administrateurs', 'rights': fs.FULL_CONTROL,
+                     'type': 'Allow', 'inherited': True, 'inheritance': 3, 'propagation': 0}]},
+                {'path': root + r'\Compta', 'level': 1, 'protected': True, 'aces': [
+                    {'sid': DOMAIN_SID + '-1200', 'name': 'CORP\\GRP-Compta', 'rights': fs.MODIFY,
+                     'type': 'Allow', 'inherited': False, 'inheritance': 3, 'propagation': 0}]},
+                {'path': root + r'\Compta\Paie', 'level': 2, 'protected': False, 'aces': [
+                    {'sid': DOMAIN_SID + '-1105', 'name': 'CORP\\jdupont', 'rights': fs.WRITE,
+                     'type': 'Deny', 'inherited': False, 'inheritance': 0, 'propagation': 0},
+                    {'sid': DOMAIN_SID + '-1200', 'name': 'CORP\\GRP-Compta', 'rights': fs.READ_AND_EXECUTE,
+                     'type': 'Allow', 'inherited': False, 'inheritance': 3, 'propagation': 0}]}]}
+        return real(data, timeout)
+    monkeypatch.setattr(fs, 'run_ps', fake)
+
+
+class TestDiscover:
+    def test_partages_de_fichiers_seulement(self, env, monkeypatch):
+        _extend_ps(monkeypatch)
+        client = env[0]
+        with client.application.test_request_context('/'):
+            from flask import session
+            from core.session_crypto import encrypt_password
+            session.update(ad_username='CORP\\admin', ad_password=encrypt_password('x'),
+                           ad_base_dn='DC=corp,DC=local')
+            shares = fs.list_shares('SRV-FIC')
+        assert [s['name'] for s in shares] == ['Compta', 'Partages']    # ni C$, IPC$, Users$, print$, imprimante
+        assert {s['name']: s['managed'] for s in shares} == {'Compta': False, 'Partages': True}
+        assert shares[0]['path'] == r'\\SRV-FIC\Compta'
+
+    def test_serveur_invalide(self, env):
+        client = env[0]
+        r = client.get('/folders/api/shares?server=' + 'x; rm -rf')
+        assert r.status_code == 400
+
+    def test_page_serveurs(self, env, monkeypatch):
+        import routes.core as rc
+        client = env[0]
+        monkeypatch.setattr(rc, 'paged_search', lambda *a, **k: [
+            _E('CN=SRV-FIC,OU=Serveurs,DC=corp,DC=local', cn='SRV-FIC', dNSHostName='srv-fic.corp.local',
+               operatingSystem='Windows Server 2022 Standard')])
+        html = client.get('/folders/discover').get_data(as_text=True)
+        assert 'SRV-FIC' in html and 'data-host="srv-fic.corp.local"' in html
+        assert 'discover-add-all' in html                     # administrateur : ajout possible
+
+    def test_ajout_aux_partages_geres(self, env):
+        client, _, _, tok = env
+        r = client.post('/folders/api/roots', json={'paths': [r'\\SRV-FIC\Compta', r'\\srv-fic\compta']},
+                        headers={'X-CSRFToken': tok})
+        assert r.get_json()['success']
+        assert fs.get_folder_settings()['roots'] == [ROOT, r'\\SRV-FIC\Compta']
+        r = client.post('/folders/api/roots', json={'paths': ['C:\\Windows']}, headers={'X-CSRFToken': tok})
+        assert r.status_code == 400
+
+    def test_ajout_reserve_aux_parametres(self, env):
+        client, _, _, tok = env
+        with client.session_transaction() as s:
+            s.update(user_role='user', user_groups=['Utilisateurs du domaine'])
+        r = client.post('/folders/api/roots', json={'paths': [r'\\SRV-FIC\Compta']}, headers={'X-CSRFToken': tok})
+        assert r.status_code == 403 and fs.get_folder_settings()['roots'] == [ROOT]
+
+
+class TestOverview:
+    def test_vue_d_ensemble(self, env, monkeypatch):
+        _extend_ps(monkeypatch)
+        client, _, calls, tok = env
+        r = client.post('/folders/api/overview', json={'path': ROOT, 'depth': 3}, headers={'X-CSRFToken': tok})
+        assert r.status_code == 202
+        data = _wait(client, r.get_json()['job'])
+        assert data['status'] == 'done'
+        assert [f['rel'] for f in data['folders']] == ['.', 'Compta', r'Compta\Paie']
+        assert data['folders'][1]['protected'] is True
+        paie = data['folders'][2]['aces']
+        assert paie[0]['deny'] and paie[0]['name'] == 'CORP\\jdupont'       # refus en premier
+        counts = {p['name']: p['folders'] for p in data['principals']}
+        assert counts == {'CORP\\GRP-Compta': 2, 'BUILTIN\\Administrateurs': 1, 'CORP\\jdupont': 1}
+
+    def test_hors_racine(self, env):
+        client, _, _, tok = env
+        r = client.post('/folders/api/overview', json={'path': r'\\SRV-FIC\C$'}, headers={'X-CSRFToken': tok})
+        assert r.status_code == 400
+
+    def test_page(self, env):
+        html = env[0].get('/folders/overview?path=' + ROOT).get_data(as_text=True)
+        assert 'data-path="\\\\SRV-FIC\\Partages"' in html and 'js/folders.js' in html
+
+
+class TestCache:
+    def test_meme_analyse_reutilisee(self, env):
+        client, _, calls, tok = env
+        first = client.post('/folders/api/access', json={'principal': 'jdupont'},
+                            headers={'X-CSRFToken': tok}).get_json()['job']
+        _wait(client, first)
+        n = len([c for c in calls if c['op'] == 'scan'])
+        again = client.post('/folders/api/access', json={'principal': 'jdupont'},
+                            headers={'X-CSRFToken': tok}).get_json()['job']
+        assert again == first and len([c for c in calls if c['op'] == 'scan']) == n
+        fresh = client.post('/folders/api/access', json={'principal': 'jdupont', 'refresh': True},
+                            headers={'X-CSRFToken': tok}).get_json()['job']
+        assert fresh != first
+
+
+def test_section_repertoires_sur_les_fiches(env):
+    from flask import render_template
+    client = env[0]
+    with client.application.test_request_context('/'):
+        from flask import session
+        session.update(user_role='admin', user_groups=['Domain Admins'], ad_username='CORP\\admin',
+                       ad_server='dc', ad_password='x')
+        html = render_template('group_details.html', connected=True,
+                               group={'dn': 'CN=Compta,OU=Groupes,DC=corp,DC=local', 'cn': 'Compta',
+                                      'description': '', 'members': []})
+    assert 'data-folder-access' in html and 'data-dn="CN=Compta,OU=Groupes,DC=corp,DC=local"' in html
+    assert 'js/folders.js' in html
+
+
+def test_nom_court_et_nom_complet_du_serveur(monkeypatch):
+    """Un partage déclaré \\\\SRV-FIC\\… est le même que \\\\srv-fic.corp.local\\…"""
+    monkeypatch.setattr(fs, 'get_folder_settings', lambda: {'roots': [ROOT], 'home_root': '',
+                                                            'home_drive': 'H:', 'scan_depth': 3})
+    assert fs.check_allowed(r'\\srv-fic.corp.local\partages\RH') == ROOT + r'\RH'
+    with pytest.raises(fs.FolderError):
+        fs.check_allowed(r'\\srv-fic.corp.local\Partages2')
+    monkeypatch.setattr(fs, '_call', lambda op, **k: {'shares': [{'name': 'Partages', 'type': 0, 'remark': ''}]})
+    assert fs.list_shares('srv-fic.corp.local')[0]['managed'] is True

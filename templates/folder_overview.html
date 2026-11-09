@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}Vue d'ensemble des droits - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🗂️ Vue d'ensemble des droits</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('folders.discover') }}" class="btn btn-secondary">Partages du domaine</a>
+        <a href="{{ url_for('folders.browse', path=path) if path else url_for('folders.browse') }}" class="btn btn-secondary">Parcourir</a>
+    </div>
+</div>
+
+{% if not settings.roots %}
+<div class="alert alert-info">Aucun partage géré : ajoutez-en depuis <a href="{{ url_for('folders.discover') }}">Partages du domaine</a>.</div>
+{% else %}
+<form class="card overview-form" method="get" action="{{ url_for('folders.overview_page') }}">
+    <div class="form-group">
+        <label for="ov-path">Partage ou dossier</label>
+        <input type="text" id="ov-path" name="path" value="{{ path }}" list="ov-roots" required>
+        <datalist id="ov-roots">{% for r in settings.roots %}<option value="{{ r }}">{% endfor %}</datalist>
+    </div>
+    <div class="form-group">
+        <label for="ov-depth">Profondeur</label>
+        <select id="ov-depth" name="depth">
+            {% for d in range(1, 7) %}<option value="{{ d }}" {% if d == (request.args.get('depth')|int or settings.scan_depth) %}selected{% endif %}>{{ d }} niveau{{ 'x' if d > 1 }}</option>{% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Afficher</button>
+</form>
+{% endif %}
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if path and not error %}
+<div id="overview" data-path="{{ path }}" data-depth="{{ request.args.get('depth', settings.scan_depth) }}">
+    <div class="card overview-status"><p class="text-muted">⏳ Analyse des droits de {{ path }}…</p></div>
+    <div class="overview-body" style="display:none">
+        <section class="card">
+            <div class="overview-toolbar">
+                <h3>Comptes et groupes</h3>
+                <input type="text" id="ov-filter" placeholder="Filtrer les dossiers par compte ou groupe…">
+                <button type="button" class="btn btn-sm btn-secondary" id="ov-refresh">↻ Actualiser</button>
+            </div>
+            <div class="principal-chips" id="ov-principals"></div>
+            <p class="form-hint">Cliquez sur un compte ou un groupe pour ne garder que les dossiers où il a des droits.
+                Seuls les droits ajoutés sur chaque dossier sont listés (les droits hérités viennent du dossier parent,
+                sauf pour le dossier analysé).</p>
+        </section>
+        <section class="card">
+            <p class="text-muted" id="ov-summary"></p>
+            <div class="table-container folder-table-wrap">
+                <table class="data-table overview-table">
+                    <thead><tr><th>Dossier</th><th>Héritage</th><th>Droits</th></tr></thead>
+                    <tbody id="ov-rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.overview-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; margin-bottom: 1rem; }
+.overview-form .form-group { margin: 0; flex: 1 1 14rem; }
+.overview-form .form-group:first-child { flex: 3 1 22rem; }
+.overview-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.overview-toolbar h3 { margin: 0; flex: 1 1 auto; }
+.overview-toolbar input { flex: 1 1 16rem; max-width: 26rem; padding: .45rem .7rem;
+                         border: 1px solid var(--border-color, #ccc); border-radius: 6px; font: inherit; }
+.principal-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .75rem 0; }
+.principal-chip { border: 1px solid var(--border-color, #ccc); background: var(--card-bg, #fff); color: inherit;
+                  border-radius: 999px; padding: .2rem .6rem; font-size: .85rem; cursor: pointer; }
+.principal-chip.active { background: var(--primary-color, #0078d4); color: #fff; border-color: transparent; }
+.principal-chip .count { opacity: .7; margin-left: .25rem; }
+.overview-table td:nth-child(2) { white-space: nowrap; width: 1%; }
+.overview-table td:nth-child(3) { min-width: 16rem; width: 55%; }
+.overview-table td { vertical-align: top; }
+.overview-table .folder-name { overflow-wrap: anywhere; }
+.overview-table .ace-line { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; margin-bottom: .2rem; }
+.overview-table .ace-name { overflow-wrap: anywhere; }
+.overview-table .ace-inherited { opacity: .65; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/folders.js') }}?v={{ app_version }}"></script>
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var box = document.getElementById('overview');
+    if (!box) { return; }
+    var F = window.AdwiFolders, esc = F.esc;
+    var startUrl = {{ url_for('folders.api_overview')|tojson }};
+    var statusUrl = {{ url_for('folders.api_access')|tojson }} + '/';
+    var browseUrl = {{ url_for('folders.browse')|tojson }};
+    var status = box.querySelector('.overview-status');
+    var body = box.querySelector('.overview-body');
+    var filterInput = document.getElementById('ov-filter');
+    var data = null, selected = null;
+
+    function renderRows() {
+        var q = (filterInput.value || '').trim().toLowerCase();
+        var rows = '', shown = 0;
+        data.folders.forEach(function (f) {
+            var aces = f.aces.filter(function (a) {
+                return (!selected || a.sid === selected) && (!q || a.name.toLowerCase().indexOf(q) >= 0);
+            });
+            if ((selected || q) && !aces.length) { return; }
+            shown++;
+            var indent = f.level * 1.25;
+            rows += '<tr><td class="folder-name" style="padding-left:' + (0.75 + indent) + 'rem">' +
+                '<a href="' + esc(browseUrl + '?path=' + encodeURIComponent(f.path)) + '">📁 ' +
+                esc(f.level ? f.rel.split('\\').pop() : f.path) + '</a></td><td>' +
+                (f.protected ? '<span class="badge badge-warning">Coupé</span>' :
+                 '<span class="text-muted">Hérité</span>') + '</td><td>' +
+                (aces.length ? aces.map(function (a) {
+                    return '<div class="ace-line' + (a.inherited ? ' ace-inherited' : '') + '">' + F.rightBadge(a) +
+                        ' <span class="ace-name" title="' + esc(a.sid) + '">' + esc(a.name) + '</span>' +
+                        (a.applies !== 'Ce dossier, les sous-dossiers et les fichiers' ?
+                            ' <small class="text-muted">(' + esc(a.applies) + ')</small>' : '') + '</div>';
+                }).join('') : '<span class="text-muted">Aucun droit ajouté (héritage seul)</span>') + '</td></tr>';
+        });
+        document.getElementById('ov-rows').innerHTML = rows ||
+            '<tr><td colspan="3" class="text-center">Aucun dossier ne correspond.</td></tr>';
+        document.getElementById('ov-summary').textContent = shown + ' dossier(s) affiché(s) sur ' +
+            data.folders.length + ' avec des droits propres — ' + data.scanned + ' dossier(s) analysé(s)' +
+            (data.truncated ? ' (analyse interrompue à la limite de dossiers)' : '') + '.';
+    }
+
+    function renderPrincipals() {
+        document.getElementById('ov-principals').innerHTML = data.principals.map(function (p) {
+            return '<button type="button" class="principal-chip' + (p.sid === selected ? ' active' : '') +
+                '" data-sid="' + esc(p.sid) + '">' + esc(p.name) + '<span class="count">' + p.folders + '</span></button>';
+        }).join('');
+    }
+
+    function start(force) {
+        status.style.display = '';
+        body.style.display = 'none';
+        F.runJob(startUrl, statusUrl, {path: box.dataset.path, depth: box.dataset.depth, refresh: !!force},
+            function (sec) { status.innerHTML = '<p class="text-muted">⏳ Analyse des droits en cours… (' + sec + ' s)</p>'; },
+            function (d) {
+                if (!d.success) {
+                    status.innerHTML = '<div class="alert alert-error">' + esc(d.error || 'Erreur') + '</div>';
+                    return;
+                }
+                data = d;
+                status.style.display = 'none';
+                body.style.display = '';
+                renderPrincipals();
+                renderRows();
+            });
+    }
+
+    document.getElementById('ov-principals').addEventListener('click', function (e) {
+        var chip = e.target.closest('.principal-chip');
+        if (!chip) { return; }
+        selected = selected === chip.dataset.sid ? null : chip.dataset.sid;
+        renderPrincipals();
+        renderRows();
+    });
+    filterInput.addEventListener('input', renderRows);
+    document.getElementById('ov-refresh').addEventListener('click', function () { start(true); });
+    start(false);
+})();
+</script>
+{% endblock %}
