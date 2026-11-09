@@ -44,6 +44,8 @@ templates/
 ├── folders.html              # Droits NTFS d'un dossier, création AGDLP
 ├── folder_access.html        # Dossiers accessibles à un compte
 ├── folder_settings.html      # Partages gérés, dossiers personnels
+├── folder_discover.html      # Serveurs et partages du domaine
+├── folder_overview.html      # Vue d'ensemble des droits d'un partage
 ├── onboarding_settings.html  # Messagerie : domaine, format, licences, mail de bienvenue
 │
 ├── ous.html                  # Liste des OUs

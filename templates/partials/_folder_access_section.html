@@ -1,0 +1,23 @@
+{# Section « Répertoires accessibles » d'une fiche utilisateur ou groupe.
+   Paramètre : folder_dn. L'analyse démarre au chargement (static/js/folders.js),
+   son résultat est mis en cache 10 minutes côté serveur. #}
+{% if config.FEATURE_FOLDERS_ENABLED and check_user_permission('tools:folders_read') %}
+<section class="form-container folder-access-section" id="repertoires" data-folder-access
+         data-dn="{{ folder_dn }}"
+         data-start-url="{{ url_for('folders.api_access') }}"
+         data-status-url="{{ url_for('folders.api_access') }}/"
+         data-browse-url="{{ url_for('folders.browse') }}">
+    <div class="form-section">
+        <div class="section-head">
+            <h3>🗂️ Répertoires accessibles</h3>
+            <div>
+                <button type="button" class="btn btn-sm btn-secondary folder-access-refresh">↻ Actualiser</button>
+                <a href="{{ url_for('folders.access_page', dn=folder_dn) }}" class="btn btn-sm btn-secondary">Page détaillée</a>
+            </div>
+        </div>
+        <p class="form-hint">Droits sur les partages gérés, directement ou par les groupes (y compris imbriqués).</p>
+        <div class="folder-access-result"></div>
+    </div>
+</section>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/folders.js') }}?v={{ app_version }}"></script>
+{% endif %}

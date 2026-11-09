@@ -59,8 +59,8 @@
     {% endif %}
 </div>
 
-<div class="table-container">
-    <table class="data-table sortable">
+<div class="table-container users-table-wrap">
+    <table class="data-table sortable users-table">
         <thead>
             <tr>
                 <th><input type="checkbox" id="select-all-users" data-onchange="toggleAllUsers" data-args='{{ ['$el']|tojson }}'></th>
@@ -69,8 +69,8 @@
                 <th class="hide-mobile col-email">Email</th>
                 <th class="hide-tablet col-department">Service</th>
                 <th class="hide-tablet col-lastlogon">Dernière connexion</th>
-                <th class="hide-tablet col-created">Créé le</th>
-                <th class="hide-mobile col-ou">OU</th>
+                <th class="hide-tablet hide-lg col-created">Créé le</th>
+                <th class="hide-mobile hide-lg col-ou">OU</th>
                 <th>Statut</th>
                 <th data-no-sort>Actions</th>
             </tr>
@@ -80,10 +80,10 @@
             <tr class="{% if user.disabled %}disabled-user{% endif %}">
                 <td><input type="checkbox" class="user-checkbox" data-dn="{{ user.dn }}" data-name="{{ user.displayName or user.cn }}"></td>
                 <td>
-                    <strong>{{ user.displayName or user.cn }}</strong>
+                    <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="user-link"><strong>{{ user.displayName or user.cn }}</strong></a>
                     <div class="mobile-only"><small class="text-muted">{{ user.sAMAccountName }}</small></div>
                 </td>
-                <td>{{ user.sAMAccountName }}</td>
+                <td class="col-login">{{ user.sAMAccountName }}</td>
                 <td class="hide-mobile col-email">{{ user.mail or '-' }}</td>
                 <td class="hide-tablet col-department">{{ user.department or '-' }}</td>
                 <td class="hide-tablet col-lastlogon">
@@ -93,14 +93,14 @@
                     <span class="text-muted">Jamais</span>
                     {% endif %}
                 </td>
-                <td class="hide-tablet col-created">
+                <td class="hide-tablet hide-lg col-created">
                     {% if user.whenCreated %}
                     {{ user.whenCreated.strftime('%d/%m/%Y') }}
                     {% else %}
                     -
                     {% endif %}
                 </td>
-                <td class="hide-mobile col-ou">
+                <td class="hide-mobile hide-lg col-ou">
                     {% set ns = namespace(ou_name='') %}
                     {% for part in user.dn.split(',') %}
                         {% if part.upper().startswith('OU=') and not ns.ou_name %}
@@ -372,6 +372,22 @@
         display: none;
     }
 }
+
+/* La liste débordait de 650 px sur un écran de 1366 px : adresses et
+   identifiants longs sans retour à la ligne, en-têtes sur une seule ligne,
+   dix colonnes. Les textes longs passent à la ligne, « Créé le » et « OU »
+   sont masqués sous 1700 px, et le tableau défile dans son cadre en dernier
+   recours plutôt que d'élargir la page. */
+.users-table th { white-space: normal; }
+.users-table td.col-email, .users-table td.col-login {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 14rem;
+}
+.users-table .user-link { color: inherit; text-decoration: none; }
+.users-table .user-link:hover strong { text-decoration: underline; }
+@media (max-width: 1700px) { .users-table .hide-lg { display: none; } }
+@media (max-width: 1440px) { .users-table-wrap { overflow-x: auto; } }
 
 .col-ou {
     max-width: 140px;

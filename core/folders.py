@@ -19,7 +19,6 @@ Les identités sont toujours transmises par SID, lus dans l'AD : un groupe
 tout juste créé n'est pas encore connu du serveur de fichiers par son nom
 (réplication), mais son SID est utilisable immédiatement.
 """
-import base64
 import json
 import logging
 import os
@@ -221,192 +220,25 @@ def check_allowed(path, roots=None, extra_roots=()):
     path = normalize_unc(path)
     settings = get_folder_settings()
     allowed = list(roots if roots is not None else settings['roots']) + list(extra_roots)
-    if not any(is_under(path, root) for root in allowed):
-        raise FolderError('Ce chemin n\'est pas sous une racine autorisée (voir Paramètres des répertoires).')
-    return path
+    for root in sorted(allowed, key=len, reverse=True):
+        if is_under(_short_host(path), _short_host(root)):
+            # Même serveur nommé autrement (SRV-FIC / srv-fic.corp.local) :
+            # le chemin reprend l'écriture de la racine déclarée.
+            depth = len(root.rstrip('\\').split('\\'))
+            rest = path.split('\\')[depth:]
+            return root.rstrip('\\') + ''.join('\\' + part for part in rest)
+    raise FolderError('Ce chemin n\'est pas sous une racine autorisée (voir Paramètres des répertoires).')
 
 
 # --- Exécution PowerShell ----------------------------------------------------
 
-PS_SCRIPT = r'''
-$ErrorActionPreference = 'Stop'
-[Console]::InputEncoding = [Text.Encoding]::UTF8
-[Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
-$req = [Console]::In.ReadToEnd() | ConvertFrom-Json
-$out = @{ ok = $true }
-$logonType = @'
-using System;
-using System.Runtime.InteropServices;
-public static class AdwiLogon {
-    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    public static extern bool LogonUser(string user, string domain, string password,
-                                        int logonType, int provider, out IntPtr token);
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool CloseHandle(IntPtr handle);
-}
-'@
-
-function Get-Dir([string]$path) {
-    $item = Get-Item -LiteralPath $path -Force
-    if (-not $item.PSIsContainer) { throw "Ce chemin n'est pas un dossier : $path" }
-    return $item
-}
-
-function Sid([string]$value) { New-Object System.Security.Principal.SecurityIdentifier($value) }
-
-function New-Rule([string]$sid, [int]$rights, [string]$applies) {
-    $inherit = if ($applies -eq 'this') { 0 } else { 3 }
-    New-Object System.Security.AccessControl.FileSystemAccessRule(
-        (Sid $sid), [System.Security.AccessControl.FileSystemRights]$rights,
-        [System.Security.AccessControl.InheritanceFlags]$inherit,
-        [System.Security.AccessControl.PropagationFlags]0,
-        [System.Security.AccessControl.AccessControlType]::Allow)
-}
-
-function Get-Access($dir) {
-    return $dir.GetAccessControl([System.Security.AccessControl.AccessControlSections]::Access)
-}
-
-function Read-Aces($acl, [bool]$explicitOnly) {
-    $bySid = $acl.GetAccessRules($true, -not $explicitOnly, [System.Security.Principal.SecurityIdentifier])
-    # Un SID orphelin (compte supprimé) fait échouer toute la traduction en
-    # noms : on retombe alors sur les SID.
-    try { $byName = $acl.GetAccessRules($true, -not $explicitOnly, [System.Security.Principal.NTAccount]) }
-    catch { $byName = @() }
-    $list = New-Object System.Collections.ArrayList
-    for ($i = 0; $i -lt $bySid.Count; $i++) {
-        $r = $bySid[$i]
-        $name = $r.IdentityReference.Value
-        if ($byName.Count -eq $bySid.Count) { $name = $byName[$i].IdentityReference.Value }
-        [void]$list.Add(@{
-            sid = $r.IdentityReference.Value; name = $name
-            rights = [int64]([int]$r.FileSystemRights -band 0xFFFFFFFFL)
-            type = $r.AccessControlType.ToString(); inherited = $r.IsInherited
-            inheritance = [int]$r.InheritanceFlags; propagation = [int]$r.PropagationFlags
-        })
-    }
-    return ,$list
-}
-
-$token = [IntPtr]::Zero
-$impersonation = $null
-try {
-    if ($req.user) {
-        # Session « nouveaux identifiants » (LOGON32_LOGON_NEW_CREDENTIALS = 9,
-        # comme runas /netonly) : les accès réseau de ce processus se font sous
-        # le compte de l'administrateur connecté. Les connexions SMB sont
-        # propres à cette session de logon : elles ne se mélangent pas à
-        # celles des autres requêtes et disparaissent avec le processus, même
-        # s'il est tué au délai d'expiration.
-        if (-not ('AdwiLogon' -as [type])) { Add-Type -TypeDefinition $logonType }
-        $user = $req.user; $domain = $null
-        if ($user.Contains('\')) { $domain, $user = $user.Split('\', 2) }
-        if (-not [AdwiLogon]::LogonUser($user, $domain, $req.password, 9, 3, [ref]$token)) {
-            throw "Ouverture de session impossible (code $([Runtime.InteropServices.Marshal]::GetLastWin32Error()))"
-        }
-        $impersonation = [System.Security.Principal.WindowsIdentity]::Impersonate($token)
-    }
-
-    switch ($req.op) {
-        'acl' {
-            $dir = Get-Dir $req.path
-            $acl = Get-Access $dir
-            $out.aces = Read-Aces $acl $false
-            $out.protected = $acl.AreAccessRulesProtected
-            try { $out.owner = (Get-Acl -LiteralPath $req.path).Owner } catch { $out.owner = '' }
-            $children = New-Object System.Collections.ArrayList
-            foreach ($c in @(Get-ChildItem -LiteralPath $req.path -Directory -Force -ErrorAction SilentlyContinue | Sort-Object Name)) {
-                [void]$children.Add($c.Name)
-            }
-            $out.children = $children
-        }
-        'grant' {
-            $dir = Get-Dir $req.path
-            $acl = Get-Access $dir
-            $acl.AddAccessRule((New-Rule $req.sid ([int]$req.rights) $req.applies))
-            $dir.SetAccessControl($acl)
-        }
-        'revoke' {
-            $dir = Get-Dir $req.path
-            $acl = Get-Access $dir
-            $acl.PurgeAccessRules((Sid $req.sid))
-            $dir.SetAccessControl($acl)
-        }
-        'mkdir' {
-            if (Test-Path -LiteralPath $req.path) {
-                if (-not $req.allow_existing) { throw "Le dossier existe déjà : $($req.path)" }
-                $dir = Get-Dir $req.path
-                $out.existed = $true
-            } else {
-                # API .NET : New-Item -Path interpréterait [ ] comme des jokers.
-                [void][System.IO.Directory]::CreateDirectory($req.path)
-                $dir = Get-Dir $req.path
-                $out.existed = $false
-            }
-            $acl = Get-Access $dir
-            if ($req.protect) {
-                # Héritage coupé sans copie : seuls les droits ci-dessous restent.
-                $acl.SetAccessRuleProtection($true, $false)
-                if ($req.reset) {
-                    # Dossier existant (réparation) : les droits explicites déjà
-                    # posés pour d'autres comptes sont retirés aussi.
-                    foreach ($r in @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))) {
-                        $acl.RemoveAccessRuleSpecific($r)
-                    }
-                }
-                foreach ($s in @('S-1-5-32-544', 'S-1-5-18')) {
-                    $acl.AddAccessRule((New-Rule $s 0x1F01FF 'all'))
-                }
-            }
-            foreach ($g in @($req.grants)) {
-                $acl.AddAccessRule((New-Rule $g.sid ([int]$g.rights) 'all'))
-            }
-            $dir.SetAccessControl($acl)
-        }
-        'scan' {
-            $wanted = @{}
-            foreach ($s in @($req.sids)) { $wanted[$s] = $true }
-            $found = New-Object System.Collections.ArrayList
-            $errors = New-Object System.Collections.ArrayList
-            $count = 0
-            $queue = New-Object System.Collections.Queue
-            foreach ($r in @($req.roots)) { $queue.Enqueue(@($r, 0)) }
-            while ($queue.Count -gt 0 -and $count -lt $req.max_folders) {
-                $entry = $queue.Dequeue(); $path = $entry[0]; $level = $entry[1]
-                $count++
-                try {
-                    $acl = Get-Access (Get-Item -LiteralPath $path -Force)
-                    # Racine : droits hérités compris ; dessous, seuls les droits
-                    # explicites (les hérités viennent du parent déjà listé).
-                    foreach ($a in (Read-Aces $acl ($level -gt 0))) {
-                        if ($wanted.ContainsKey($a.sid)) { $a.path = $path; [void]$found.Add($a) }
-                    }
-                } catch { [void]$errors.Add("$path : $($_.Exception.Message)") }
-                if ($level -lt $req.depth) {
-                    foreach ($c in @(Get-ChildItem -LiteralPath $path -Directory -Force -ErrorAction SilentlyContinue)) {
-                        $queue.Enqueue(@($c.FullName, ($level + 1)))
-                    }
-                }
-            }
-            $out.found = $found
-            $out.errors = $errors
-            $out.scanned = $count
-            $out.truncated = ($queue.Count -gt 0)
-        }
-        default { throw "Opération inconnue : $($req.op)" }
-    }
-} catch {
-    $out = @{ ok = $false; error = $_.Exception.Message }
-} finally {
-    if ($impersonation) { $impersonation.Undo() }
-    if ($token -ne [IntPtr]::Zero) { [void][AdwiLogon]::CloseHandle($token) }
-}
-[Console]::Out.Write((ConvertTo-Json -InputObject $out -Depth 6 -Compress))
-'''
-
-
-def _encoded_script():
-    return base64.b64encode(PS_SCRIPT.encode('utf-16-le')).decode('ascii')
+PS_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                              'scripts', 'folders.ps1')
+# Le script est un fichier (scripts/folders.ps1) exécuté avec -File : passé
+# en -EncodedCommand, il approchait la limite de 32 767 caractères de la
+# ligne de commande Windows.
+with open(PS_SCRIPT_PATH, encoding='utf-8-sig') as _f:
+    PS_SCRIPT = _f.read()
 
 
 def _friendly_error(message):
@@ -438,7 +270,7 @@ def run_ps(request_data, timeout=PS_TIMEOUT):
     try:
         proc = subprocess.run(
             ['powershell', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-             '-EncodedCommand', _encoded_script()],
+             '-File', PS_SCRIPT_PATH],
             input=json.dumps(request_data), capture_output=True, text=True,
             encoding='utf-8', errors='replace', timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -606,41 +438,62 @@ def _purge_jobs(now):
         del _JOBS[job_id]
 
 
-def start_scan_job(owner, prepared, decorate=None):
-    """
-    Lance scan_access(prepared) dans un thread.
+CACHE_TTL = 600
 
-    owner : identifiant de l'administrateur (seul lui peut lire le
-    résultat). decorate(result) complète le résultat (libellés « via »).
+
+def start_job(owner, key, func, decorate=None, refresh=False):
+    """
+    Lance func() dans un thread et renvoie l'identifiant de la tâche.
+
+    owner : identifiant de l'administrateur (seul lui peut lire le résultat).
+    key : une même analyse (même compte, même dossier) relancée dans les
+    CACHE_TTL secondes réutilise la tâche en cours ou son résultat, sauf
+    refresh. decorate(result) complète le résultat.
     """
     now = time.time()
     with _JOBS_LOCK:
         _purge_jobs(now)
+        if not refresh:
+            for job_id, job in _JOBS.items():
+                if (job['owner'] == owner and job.get('key') == key and
+                        (job['status'] == 'running' or
+                         (job['status'] == 'done' and now - job['finished'] < CACHE_TTL))):
+                    return job_id
         running = [j for j in _JOBS.values() if j['status'] == 'running']
         if len(running) >= MAX_RUNNING_JOBS:
             raise FolderError('Trop d\'analyses en cours : réessayez quand l\'une d\'elles sera terminée.')
         job_id = uuid.uuid4().hex
-        _JOBS[job_id] = {'owner': owner, 'status': 'running', 'created': now, 'result': None,
-                         'error': None}
+        _JOBS[job_id] = {'owner': owner, 'key': key, 'status': 'running', 'created': now,
+                         'finished': None, 'result': None, 'error': None}
 
     def work():
         try:
-            result = scan_access(prepared)
+            result = func()
             if decorate:
                 decorate(result)
             update = {'status': 'done', 'result': result}
         except FolderError as e:
             update = {'status': 'error', 'error': str(e)}
         except Exception:
-            logger.exception('Analyse des accès interrompue')
+            logger.exception('Analyse des répertoires interrompue')
             update = {'status': 'error', 'error': 'Erreur inattendue pendant l\'analyse.'}
-        prepared.pop('credentials', None)  # ne pas garder le mot de passe en mémoire
+        update['finished'] = time.time()
         with _JOBS_LOCK:
             if job_id in _JOBS:
                 _JOBS[job_id].update(update)
 
-    threading.Thread(target=work, name=f'folder-scan-{job_id[:8]}', daemon=True).start()
+    threading.Thread(target=work, name=f'folder-job-{job_id[:8]}', daemon=True).start()
     return job_id
+
+
+def start_scan_job(owner, prepared, decorate=None, key=None, refresh=False):
+    """Analyse des accès (scan_access) en arrière-plan."""
+    def func():
+        try:
+            return scan_access(prepared)
+        finally:
+            prepared.pop('credentials', None)  # ne pas garder le mot de passe en mémoire
+    return start_job(owner, key or uuid.uuid4().hex, func, decorate, refresh)
 
 
 def get_scan_job(job_id, owner):
@@ -649,6 +502,107 @@ def get_scan_job(job_id, owner):
         if not job or job['owner'] != owner:
             return None
         return dict(job)
+
+
+# --- Découverte et vue d'ensemble -------------------------------------------
+
+_HOST_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9.-]{0,252}$')
+
+STYPE_DISKTREE = 0
+STYPE_SPECIAL = 0x80000000
+
+
+def list_servers(conn, base_dn):
+    """Serveurs Windows du domaine (comptes ordinateur actifs, système « Server »)."""
+    from routes.core import paged_search
+    entries = paged_search(conn, base_dn,
+                           '(&(objectCategory=computer)(operatingSystem=*Server*)'
+                           '(!(userAccountControl:1.2.840.113556.1.4.803:=2)))',
+                           attributes=['cn', 'dNSHostName', 'operatingSystem'])
+    servers = []
+    for e in entries:
+        host = str(getattr(getattr(e, 'dNSHostName', None), 'value', '') or
+                   getattr(getattr(e, 'cn', None), 'value', '') or '')
+        if host:
+            servers.append({'name': str(e.cn.value), 'host': host.lower(),
+                            'os': str(getattr(getattr(e, 'operatingSystem', None), 'value', '') or '')})
+    return sorted(servers, key=lambda x: x['name'].lower())
+
+
+def _short_host(unc):
+    """\\\\SRV.corp.local\\Partage → \\\\srv\\partage : un même serveur peut être déclaré
+    par son nom court ou son nom DNS complet."""
+    host, _, rest = unc[2:].partition('\\')
+    return ('\\\\' + host.split('.', 1)[0] + '\\' + rest).lower()
+
+
+def list_shares(server):
+    """
+    Partages disque d'un serveur (sans les partages administratifs C$,
+    ADMIN$… ni IPC$), avec leur chemin réseau et s'ils sont déjà gérés.
+    """
+    server = (server or '').strip()
+    if not _HOST_RE.match(server):
+        raise FolderError('Nom de serveur invalide.')
+    result = _call('shares', server=server)
+    managed = [_short_host(r) for r in get_folder_settings()['roots']]
+    shares = []
+    for sh in result.get('shares') or []:
+        stype = int(sh.get('type') or 0)
+        if stype & 0xFF != STYPE_DISKTREE or stype & STYPE_SPECIAL or sh.get('name', '').endswith('$'):
+            continue
+        unc = f'\\\\{server}\\{sh["name"]}'
+        try:
+            unc = normalize_unc(unc)
+        except FolderError:
+            continue
+        shares.append({'name': sh['name'], 'remark': sh.get('remark') or '', 'path': unc,
+                       'managed': any(is_under(_short_host(unc), r) for r in managed)})
+    return sorted(shares, key=lambda x: x['name'].lower())
+
+
+def add_root(path):
+    """Ajoute path aux partages gérés (sans doublon)."""
+    from core.settings_manager import set_setting
+    path = normalize_unc(path)
+    settings = get_folder_settings()
+    if path.lower() not in [r.lower() for r in settings['roots']]:
+        set_setting('folders.roots', settings['roots'] + [path])
+    return path
+
+
+def prepare_overview(path, depth=None):
+    """Paramètres d'une vue d'ensemble, préparés pendant la requête HTTP."""
+    settings = get_folder_settings()
+    return {'path': check_allowed(path), 'depth': max(1, min(int(depth or settings['scan_depth']), 6)),
+            'credentials': _credentials()}
+
+
+def rights_overview(prepared):
+    """
+    Droits explicites de chaque dossier d'une arborescence (et tous ceux de
+    la racine), plus la liste des comptes et groupes qui y apparaissent.
+    """
+    try:
+        result = _call('tree', timeout=SCAN_TIMEOUT, credentials=prepared['credentials'],
+                       path=prepared['path'], depth=prepared['depth'], max_folders=MAX_SCAN_FOLDERS)
+    finally:
+        prepared.pop('credentials', None)
+    folders, principals = [], {}
+    for f in result.get('folders') or []:
+        aces = _format_aces(f.get('aces'))
+        aces.sort(key=lambda a: (a['inherited'], not a['deny'], a['name'].lower()))
+        rel = f['path'][len(prepared['path']):].lstrip('\\') or '.'
+        folders.append({'path': f['path'], 'rel': rel, 'level': int(f.get('level') or 0),
+                        'protected': bool(f.get('protected')), 'aces': aces})
+        for a in aces:
+            p = principals.setdefault(a['sid'], {'sid': a['sid'], 'name': a['name'], 'folders': 0})
+            p['folders'] += 1
+    folders.sort(key=lambda f: f['path'].lower())
+    return {'path': prepared['path'], 'depth': prepared['depth'], 'folders': folders,
+            'principals': sorted(principals.values(), key=lambda p: (-p['folders'], p['name'].lower())),
+            'errors': list(result.get('errors') or [])[:50], 'scanned': result.get('scanned', 0),
+            'truncated': bool(result.get('truncated'))}
 
 
 _SID_RE = re.compile(r'^S-1-\d+(-\d+){1,14}$')

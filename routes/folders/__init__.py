@@ -311,7 +311,8 @@ def api_access():
                 row['direct'] = row['sid'] == who['sid']
             result['principal'] = principal_info
 
-        job_id = fs.start_scan_job(session.get('ad_username'), prepared, decorate)
+        job_id = fs.start_scan_job(session.get('ad_username'), prepared, decorate,
+                                   key=('access', dn.lower()), refresh=bool(data.get('refresh')))
         _audit('folder_access_scan', {'principal': who['name'], 'dn': dn})
         return jsonify({'success': True, 'job': job_id, 'principal': principal_info}), 202
     except fs.FolderError as e:
@@ -411,3 +412,88 @@ def create_home(dn):
     finally:
         conn.unbind()
     return redirect(url_for('users.edit_user', dn=dn))
+
+
+# --- Découverte des partages et vue d'ensemble --------------------------------
+
+@folders_bp.route('/discover')
+@require_connection
+@require_permission('tools:folders_read')
+def discover():
+    """Serveurs du domaine ; leurs partages sont listés à la demande (JS)."""
+    servers, error = [], None
+    conn, err = get_ad_connection()
+    if conn:
+        try:
+            servers = fs.list_servers(conn, session.get('ad_base_dn', ''))
+        except Exception as e:
+            error = str(e)
+        finally:
+            conn.unbind()
+    else:
+        error = err
+    return render_template('folder_discover.html', servers=servers, error=error,
+                           settings=fs.get_folder_settings(), can_add=_can('admin:settings'),
+                           connected=is_connected())
+
+
+@folders_bp.route('/api/shares')
+@require_connection
+@require_permission('tools:folders_read')
+def api_shares():
+    try:
+        return jsonify({'success': True, 'shares': fs.list_shares(request.args.get('server', ''))})
+    except fs.FolderError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@folders_bp.route('/api/roots', methods=['POST'])
+@require_connection
+@require_permission('admin:settings')
+def api_add_root():
+    """Ajoute un ou plusieurs partages aux partages gérés."""
+    data = request.get_json(silent=True) or {}
+    paths = data.get('paths') or ([data.get('path')] if data.get('path') else [])
+    if not isinstance(paths, list) or not paths or len(paths) > 200:
+        return jsonify({'success': False, 'error': 'Aucun partage indiqué.'}), 400
+    added = []
+    try:
+        for path in paths:
+            added.append(fs.add_root(str(path)))
+    except fs.FolderError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    _audit('folder_roots_add', {'paths': added})
+    return jsonify({'success': True, 'added': added, 'roots': fs.get_folder_settings()['roots']})
+
+
+@folders_bp.route('/overview')
+@require_connection
+@require_permission('tools:folders_read')
+def overview_page():
+    """Vue d'ensemble des droits d'un partage ou d'un dossier (analyse en JS)."""
+    settings = fs.get_folder_settings()
+    path = request.args.get('path', '').strip() or (settings['roots'][0] if settings['roots'] else '')
+    error = None
+    if path:
+        try:
+            path = fs.check_allowed(path)
+        except fs.FolderError as e:
+            error = str(e)
+    return render_template('folder_overview.html', path=path, error=error, settings=settings,
+                           connected=is_connected())
+
+
+@folders_bp.route('/api/overview', methods=['POST'])
+@require_connection
+@require_permission('tools:folders_read')
+def api_overview():
+    data = request.get_json(silent=True) or {}
+    try:
+        prepared = fs.prepare_overview(data.get('path', ''), data.get('depth'))
+        job_id = fs.start_job(session.get('ad_username'),
+                              ('overview', prepared['path'].lower(), prepared['depth']),
+                              lambda: fs.rights_overview(prepared), refresh=bool(data.get('refresh')))
+        _audit('folder_overview', {'path': prepared['path'], 'depth': prepared['depth']})
+        return jsonify({'success': True, 'job': job_id}), 202
+    except fs.FolderError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400

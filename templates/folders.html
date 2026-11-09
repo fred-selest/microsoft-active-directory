@@ -6,6 +6,8 @@
 <div class="page-header">
     <h2>🗂️ Droits sur les répertoires</h2>
     <div class="page-actions">
+        <a href="{{ url_for('folders.discover') }}" class="btn btn-secondary">Partages du domaine</a>
+        {% if folder %}<a href="{{ url_for('folders.overview_page', path=folder.path) }}" class="btn btn-secondary">Vue d'ensemble des droits</a>{% endif %}
         <a href="{{ url_for('folders.access_page') }}" class="btn btn-secondary">Accès d'un compte</a>
         {% if check_user_permission('admin:settings') %}
         <a href="{{ url_for('folders.settings_page') }}" class="btn btn-secondary">Paramètres</a>
@@ -15,7 +17,8 @@
 
 {% if not settings.roots %}
 <div class="alert alert-info">
-    Aucun partage n'est encore déclaré. Indiquez dans les
+    Aucun partage n'est encore géré. Le plus simple : <a href="{{ url_for('folders.discover') }}">Partages du domaine</a>
+    liste les partages de vos serveurs et les ajoute en un clic. Vous pouvez aussi les indiquer dans les
     {% if check_user_permission('admin:settings') %}<a href="{{ url_for('folders.settings_page') }}">paramètres</a>{% else %}paramètres (droit « Paramètres » requis){% endif %}
     les partages à gérer, par exemple <code>\\SRV-DC02\Partages</code> ou <code>\\SRV-FICHIERS\Donnees</code>.
 </div>

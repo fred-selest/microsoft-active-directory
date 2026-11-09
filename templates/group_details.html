@@ -7,7 +7,7 @@
     <h2>{{ group.cn }}</h2>
     <div class="page-actions">
         {% if config.FEATURE_FOLDERS_ENABLED and check_user_permission('tools:folders_read') %}
-        <a href="{{ url_for('folders.access_page', dn=group.dn) }}" class="btn btn-secondary">🗂️ Accès aux dossiers</a>
+        <a href="#repertoires" class="btn btn-secondary">🗂️ Répertoires</a>
         {% endif %}
         <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Retour aux groupes</a>
     </div>
@@ -111,6 +111,7 @@
     </table>
 </div>
 
+{% with folder_dn = group.dn %}{% include 'partials/_folder_access_section.html' %}{% endwith %}
 {% endblock %}
 
 {% block extra_css %}

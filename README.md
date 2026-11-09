@@ -14,6 +14,13 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.54.0 — Tous les partages et vue d'ensemble des droits
+
+- **Partages du domaine** : tous les partages de vos serveurs, ajoutés aux partages gérés en un clic.
+- **Vue d'ensemble des droits** d'un partage : chaque dossier aux droits particuliers, filtrable par compte ou groupe.
+- **Fiches utilisateur et groupe** : les répertoires accessibles s'affichent directement.
+- **Page Utilisateurs** : ne déborde plus de l'écran.
+
 ## 🆕 Nouveautés v1.53.0 — Messagerie Microsoft 365 et mail de bienvenue
 
 - **Adresse pro** proposée à la création (prenom.nom@domaine.fr), enregistrée pour la synchronisation Entra ID (mail, proxyAddresses, UPN au choix).
