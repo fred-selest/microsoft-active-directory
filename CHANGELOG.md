@@ -4,6 +4,30 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.57.0] - 2026-11-12 — Boîtes aux lettres partagées Microsoft 365
+
+### Fonctionnalités
+- **Boîtes partagées** (menu Outils › Boîtes partagées) : liste des boîtes
+  aux lettres partagées d'Exchange Online, et pour chacune les personnes
+  qui y ont accès (accès total, envoyer en tant que).
+- **Ajouter ou retirer un utilisateur** : le compte se choisit dans
+  l'annuaire, l'application en déduit son adresse Microsoft 365. La boîte
+  apparaît ensuite d'elle-même dans son Outlook.
+- **Créer une boîte partagée** (nom, adresse, domaine parmi ceux du
+  locataire). Aucune licence n'est nécessaire.
+- **Mise en place en un script** (scripts/setup_m365.ps1, à lancer une
+  fois comme administrateur général) : il installe le module Exchange
+  Online, crée l'application dans Entra ID avec un certificat conservé sur
+  le serveur, et lui donne le rôle d'administrateur des destinataires
+  Exchange. Aucun mot de passe n'est enregistré.
+- Trois nouvelles permissions : voir les boîtes, gérer les accès, créer
+  une boîte.
+
+### Sécurité
+- Seules les boîtes partagées sont modifiables : la vérification est faite
+  avant chaque écriture, côté application et côté Exchange. Les boîtes
+  personnelles ne sont ni listées ni accessibles.
+
 ## [1.56.1] - 2026-11-12 — Journal du domaine : la dernière photo s'affiche toute seule
 
 ### Corrections
