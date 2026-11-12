@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Départ de {{ report.name }} - Rapport{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🚪 Départ de {{ report.name }} <small class="text-muted">({{ report.sam }})</small></h2>
+    <div class="page-actions">
+        <a href="{{ url_for('users.overview', dn=report.dn) }}" class="btn btn-secondary">Fiche du compte</a>
+    </div>
+</div>
+
+<div class="card">
+    <p class="text-muted">Traité le {{ report.date }} par {{ report.by }}.</p>
+    <table class="data-table">
+        <thead><tr><th>Étape</th><th class="rep-res">Résultat</th><th class="rep-detail">Détail</th></tr></thead>
+        <tbody>
+            {% for s in report.steps %}
+            <tr><td>{{ s.label }}</td><td>{{ '✅ Fait' if s.ok else '❌ Échec' }}</td><td class="access-path">{{ s.detail }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if report.home %}<p>Dossier personnel conservé : <code>{{ report.home }}</code></p>{% endif %}
+</div>
+
+<div class="card">
+    <h3>État d'origine</h3>
+    <p class="access-path">Emplacement : {{ report.original.ou }}<br>
+        Groupes ({{ report.original.groups|length }}) :
+        {% for g in report.original.groups %}{{ g.split(',')[0].split('=', 1)[-1] }}{% if not loop.last %}, {% endif %}{% else %}aucun{% endfor %}</p>
+    {% if report.undone %}
+    <div class="alert alert-info">Départ annulé le {{ report.undone.date }} par {{ report.undone.by }}.
+        <ul>{% for r in report.undone.results %}<li>{{ '✅' if r.ok else '❌' }} {{ r.label }}{% if r.detail %} — {{ r.detail }}{% endif %}</li>{% endfor %}</ul>
+    </div>
+    {% else %}
+    <form method="post" action="{{ url_for('users.offboard_undo', report_id=report.id) }}"
+          data-confirm="Annuler le départ de {{ report.name }} ? Le compte sera réactivé, remis à sa place et dans ses groupes.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-secondary">↩ Annuler le départ</button>
+    </form>
+    <p class="form-hint">Le mot de passe n'est pas rétabli (réinitialisez-le) et une boîte convertie en boîte partagée
+        le reste.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card { margin-bottom: 1rem; overflow-x: auto; }
+.rep-res { white-space: nowrap; }
+.rep-detail { width: 45%; }
+.data-table td { overflow-wrap: anywhere; }
+.page-header h2 small { font-size: .6em; font-weight: normal; }
+</style>
+{% endblock %}

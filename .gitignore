@@ -23,6 +23,7 @@ data/sessions/
 data/gpo_backups/
 data/snapshots/
 data/m365.json
+data/offboarding/
 data/user_templates.json
 data/alerts.json
 # 'logs/*' et non 'logs/' : git ne sait pas re-inclure un fichier situe dans

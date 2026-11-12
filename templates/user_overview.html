@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ user.name }} - Fiche{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>👤 {{ user.name }} <small class="text-muted">({{ user.sam }})</small></h2>
+    <div class="page-actions">
+        {% if check_user_permission('users:update') %}
+        <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="btn btn-primary">✏️ Modifier</a>
+        <a href="{{ url_for('users.reset_password', dn=user.dn) }}" class="btn btn-secondary">🔑 Mot de passe</a>
+        {% endif %}
+        {% if check_user_permission('users:offboard') %}
+        <a href="{{ url_for('users.offboard', dn=user.dn) }}" class="btn btn-danger">🚪 Départ</a>
+        {% endif %}
+        <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Liste</a>
+    </div>
+</div>
+
+<div class="ov-badges">
+    <span class="badge {{ 'badge-success' if user.enabled else 'badge-danger' }}">{{ 'Actif' if user.enabled else 'Désactivé' }}</span>
+    {% if user.locked %}<span class="badge badge-danger">Verrouillé</span>{% endif %}
+    {% if user.admin %}<span class="badge badge-warning">Compte d'administration</span>{% endif %}
+    {% if user.pwd_expired %}<span class="badge badge-danger">Mot de passe expiré</span>{% endif %}
+    {% if user.account_expired %}<span class="badge badge-danger">Compte expiré</span>{% endif %}
+    {% if user.pwd_never_expires %}<span class="badge badge-warning">Mot de passe sans expiration</span>{% endif %}
+</div>
+
+<div class="ov-grid">
+    <section class="card">
+        <h3>Compte</h3>
+        <dl class="ov-dl">
+            <dt>Fonction</dt><dd>{{ user.title or '—' }}{% if user.department %} — {{ user.department }}{% endif %}</dd>
+            <dt>Responsable</dt><dd>{{ user.manager or '—' }}</dd>
+            <dt>Téléphone</dt><dd>{{ user.phone or '—' }}</dd>
+            <dt>Emplacement</dt><dd class="access-path">{{ user.ou }}</dd>
+            <dt>Créé le</dt><dd>{{ user.created.strftime('%d/%m/%Y') if user.created else '—' }}</dd>
+            <dt>Dernière connexion</dt><dd>{{ user.last_logon.strftime('%d/%m/%Y %H:%M') if user.last_logon else 'Jamais' }}</dd>
+            <dt>Mot de passe</dt>
+            <dd>{% if user.pwd_must_change %}à changer à la prochaine connexion
+                {% elif user.pwd_never_expires %}n'expire jamais
+                {% elif user.pwd_expires %}{{ 'a expiré' if user.pwd_expired else 'expire' }} le {{ user.pwd_expires.strftime('%d/%m/%Y') }}
+                {% else %}—{% endif %}</dd>
+            {% if user.account_expires %}<dt>Fin du compte</dt><dd>{{ user.account_expires.strftime('%d/%m/%Y') }}</dd>{% endif %}
+            {% if user.description %}<dt>Description</dt><dd>{{ user.description }}</dd>{% endif %}
+        </dl>
+    </section>
+
+    <section class="card">
+        <h3>Messagerie et Microsoft 365</h3>
+        <dl class="ov-dl">
+            <dt>Adresse</dt><dd class="access-path">{{ user.mail or '—' }}</dd>
+            <dt>Identifiant</dt><dd class="access-path">{{ user.upn or '—' }}</dd>
+            {% if user.aliases %}<dt>Alias</dt><dd class="access-path">{{ user.aliases|join(', ') }}</dd>{% endif %}
+            <dt>Adresse perso</dt><dd class="access-path">{{ user.personal_email or '—' }}</dd>
+            <dt>Licence</dt>
+            <dd>{% set lic = user.groups|selectattr('license')|list %}
+                {% if lic %}{% for g in lic %}<span class="badge badge-info">{{ g.name }}</span> {% endfor %}
+                {% else %}<span class="text-muted">aucun groupe de licence</span>{% endif %}</dd>
+            <dt>Dossier personnel</dt><dd class="access-path">{{ user.home or '—' }}{% if user.home_drive %} ({{ user.home_drive }}){% endif %}</dd>
+        </dl>
+    </section>
+
+    <section class="card">
+        <h3>Groupes ({{ user.groups|length }})</h3>
+        {% if user.groups %}
+        <ul class="ov-list">
+            {% for g in user.groups %}
+            <li><a href="{{ url_for('groups.view_group', dn=g.dn) }}">{{ g.name }}</a>{% if g.license %} <span class="badge badge-info">licence</span>{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="text-muted">Aucun groupe (hors groupe principal).</p>{% endif %}
+    </section>
+
+    {% if config.FEATURE_GPO_ENABLED and check_user_permission('gpo:read') %}
+    <section class="card">
+        <h3>Stratégies de groupe reçues{% if gpos %} ({{ gpos.applied|length }}){% endif %}</h3>
+        {% if gpo_error %}<p class="text-muted">Lecture impossible : {{ gpo_error }}</p>
+        {% elif gpos and gpos.applied %}
+        <ol class="ov-list">
+            {% for g in gpos.applied %}
+            <li><a href="{{ url_for('gpo.view_gpo', guid=g.guid) }}">{{ g.name }}</a>
+                <small class="text-muted">— {{ g.source_name }}{% if g.via %}, via {{ g.via }}{% endif %}</small></li>
+            {% endfor %}
+        </ol>
+        <a href="{{ url_for('gpo.applied', dn=user.dn) }}" class="btn btn-sm btn-secondary">Détail et stratégies écartées</a>
+        {% else %}<p class="text-muted">Aucune.</p>{% endif %}
+    </section>
+    {% endif %}
+</div>
+
+{% with folder_dn = user.dn %}{% include 'partials/_folder_access_section.html' %}{% endwith %}
+
+{% if departures %}
+<section class="card">
+    <h3>Départs enregistrés</h3>
+    <ul class="ov-list">
+        {% for d in departures %}
+        <li>{% if check_user_permission('users:offboard') %}<a href="{{ url_for('users.offboard_report', report_id=d.id) }}">{{ d.date }}</a>{% else %}{{ d.date }}{% endif %}
+            par {{ d.by }}{% if d.undone %} — <span class="text-muted">annulé le {{ d.undone.date }}</span>{% endif %}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card { margin-bottom: 1rem; }
+.ov-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.ov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1rem; }
+.ov-grid .card { margin: 0; }
+.ov-dl { display: grid; grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr); gap: .3rem .9rem; margin: 0; }
+.ov-dl dt { color: var(--text-secondary, #666); }
+.ov-dl dd { margin: 0; overflow-wrap: anywhere; }
+.ov-list { margin: 0 0 .75rem; padding-left: 1.2rem; max-height: 18rem; overflow-y: auto; }
+.ov-list li { padding: .1rem 0; overflow-wrap: anywhere; }
+.page-header h2 small { font-size: .6em; font-weight: normal; }
+.folder-access-section { margin-top: 1rem; }
+</style>
+{% endblock %}

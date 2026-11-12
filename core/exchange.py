@@ -182,6 +182,19 @@ def create(name, alias, domain):
     return address
 
 
+def convert_to_shared(address):
+    """
+    Convertit la boîte personnelle d'un compte en boîte partagée (départ
+    d'un collaborateur) : le courrier est conservé et la licence peut être
+    retirée. Sans effet si elle est déjà partagée.
+    """
+    address = _email(address, 'Adresse de la boîte')
+    run_ps({'op': 'to_shared', 'mailbox': address})
+    with _lock:
+        _cache.update(at=0, data=None)
+    return address
+
+
 def user_address(conn, base_dn, name):
     """Adresse Microsoft 365 (UPN) d'un utilisateur de l'AD, par identifiant ou adresse."""
     from ldap3 import SUBTREE

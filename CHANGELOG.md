@@ -4,6 +4,34 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.58.0] - 2026-11-12 — Fiche complète d'une personne et départ d'un collaborateur
+
+### Fonctionnalités
+- **Fiche complète** : dans la liste des utilisateurs, cliquer sur un nom
+  ouvre une page qui réunit l'état du compte (actif, verrouillé, mot de
+  passe, dernière connexion), la messagerie (adresse, alias, adresse
+  personnelle, groupes de licence), les groupes, les stratégies de groupe
+  reçues, les répertoires accessibles et les départs déjà enregistrés.
+- **Départ d'un collaborateur** (bouton « Départ » de la fiche) : en une
+  fois, désactivation du compte, mot de passe aléatoire, retrait de tous
+  les groupes, masquage dans le carnet d'adresses, déplacement dans
+  l'unité d'organisation des départs et, si Microsoft 365 est configuré,
+  conversion de la boîte en boîte partagée avec accès pour un responsable.
+  Chaque action se coche ; un aperçu liste les groupes concernés.
+- **Rien n'est supprimé** : le compte, le dossier personnel et la boîte
+  sont conservés.
+- **Rapport et annulation** : chaque départ laisse un rapport étape par
+  étape. « Annuler le départ » réactive le compte, le remet dans son unité
+  d'organisation et dans ses groupes. Le mot de passe et la boîte
+  convertie ne sont pas rétablis.
+
+### Sécurité
+- Nouvelle permission « users:offboard », classée sensible.
+- Les comptes intégrés (Administrateur, krbtgt) sont refusés ; un
+  avertissement signale un compte d'administration ou son propre compte.
+- Le mot de passe aléatoire n'est enregistré nulle part.
+- Une étape en échec n'arrête pas les suivantes et figure dans le rapport.
+
 ## [1.57.0] - 2026-11-12 — Boîtes aux lettres partagées Microsoft 365
 
 ### Fonctionnalités

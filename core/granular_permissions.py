@@ -21,6 +21,7 @@ ALL_PERMISSIONS = {
     'users:delete': 'Supprimer des utilisateurs',
     'users:import': 'Importer des utilisateurs',
     'users:export': 'Exporter des utilisateurs',
+    'users:offboard': 'Traiter le départ d\'un collaborateur (désactivation, retrait des groupes, déplacement)',
     
     # Groups
     'groups:create': 'Créer des groupes',
@@ -92,6 +93,7 @@ ALL_PERMISSIONS = {
 # indirectement, d'obtenir un contrôle complet sur le domaine. A n'accorder
 # qu'aux administrateurs. Utilisé par l'UI pour afficher un avertissement.
 SENSITIVE_PERMISSIONS = {
+    'users:offboard',
     'm365:mailboxes_manage',
     'history:revert',
     'gpo:manage',

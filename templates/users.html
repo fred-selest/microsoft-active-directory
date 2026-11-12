@@ -80,7 +80,7 @@
             <tr class="{% if user.disabled %}disabled-user{% endif %}">
                 <td><input type="checkbox" class="user-checkbox" data-dn="{{ user.dn }}" data-name="{{ user.displayName or user.cn }}"></td>
                 <td>
-                    <a href="{{ url_for('users.edit_user', dn=user.dn) }}" class="user-link"><strong>{{ user.displayName or user.cn }}</strong></a>
+                    <a href="{{ url_for('users.overview', dn=user.dn) }}" class="user-link" title="Fiche complète"><strong>{{ user.displayName or user.cn }}</strong></a>
                     <div class="mobile-only"><small class="text-muted">{{ user.sAMAccountName }}</small></div>
                 </td>
                 <td class="col-login">{{ user.sAMAccountName }}</td>
