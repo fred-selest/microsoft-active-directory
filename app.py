@@ -49,6 +49,7 @@ from routes.folders import folders_bp
 from routes.gpo import gpo_bp
 from routes.history import history_bp
 from routes.mailboxes import mailboxes_bp
+from routes.m365 import m365_bp
 
 app = Flask(__name__)
 config = get_config()
@@ -110,6 +111,7 @@ app.register_blueprint(folders_bp)
 app.register_blueprint(gpo_bp)
 app.register_blueprint(history_bp)
 app.register_blueprint(mailboxes_bp)
+app.register_blueprint(m365_bp)
 
 # Debug
 if config.DEBUG:

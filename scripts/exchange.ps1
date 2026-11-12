@@ -89,6 +89,24 @@ try {
                 throw "Type de boite non pris en charge : $($m.RecipientTypeDetails)"
             }
         }
+        'stats' {
+            # Taille des boites (lecture seule). Une requete par boite : lent sur un grand locataire.
+            $list = New-Object System.Collections.ArrayList
+            foreach ($m in @(Get-EXOMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited `
+                             -Properties RecipientTypeDetails, ProhibitSendReceiveQuota, ArchiveStatus)) {
+                $row = @{ name = $m.DisplayName; address = [string]$m.PrimarySmtpAddress; upn = [string]$m.UserPrincipalName
+                          shared = ($m.RecipientTypeDetails -eq 'SharedMailbox'); quota = [string]$m.ProhibitSendReceiveQuota
+                          archive = ([string]$m.ArchiveStatus -eq 'Active'); size = ''; items = 0; last_logon = '' }
+                try {
+                    $st = Get-EXOMailboxStatistics -Identity $m.ExternalDirectoryObjectId -Properties LastLogonTime
+                    $row.size = [string]$st.TotalItemSize
+                    $row.items = [int]$st.ItemCount
+                    if ($st.LastLogonTime) { $row.last_logon = ([datetime]$st.LastLogonTime).ToString('yyyy-MM-dd') }
+                } catch { $row.error = $_.Exception.Message }
+                [void]$list.Add($row)
+            }
+            $out.mailboxes = $list
+        }
         default { throw "Operation inconnue : $($req.op)" }
     }
 } catch {

@@ -67,6 +67,7 @@ ALL_PERMISSIONS = {
     'history:revert': 'Annuler un changement depuis le journal du domaine',
 
     # Microsoft 365
+    'm365:read': 'Voir les licences Microsoft 365, la synchronisation et les écarts avec l\'annuaire',
     'm365:mailboxes_read': 'Voir les boîtes aux lettres partagées et leurs accès',
     'm365:mailboxes_manage': 'Ajouter ou retirer des accès aux boîtes partagées',
     'm365:mailboxes_create': 'Créer des boîtes aux lettres partagées',

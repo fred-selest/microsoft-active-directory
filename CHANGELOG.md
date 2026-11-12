@@ -4,6 +4,36 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.59.0] - 2026-11-12 — Microsoft 365 rapproché de l'annuaire
+
+### Fonctionnalités
+- **Page Microsoft 365** (menu Outils › Microsoft 365), en lecture seule :
+  - **Licences** : attribuées, achetées, libres, dépassements, abonnements
+    expirés ou suspendus.
+  - **Synchronisation** : date de la dernière synchronisation de
+    l'annuaire, alerte si elle a plus de trois heures de retard.
+  - **Écarts entre l'AD et Microsoft 365** : comptes désactivés qui gardent
+    une licence, comptes synchronisés dont le compte AD a disparu,
+    identifiant différent des deux côtés, comptes créés directement dans
+    le cloud, comptes AD actifs absents du cloud, comptes sans licence.
+  - **Taille des boîtes aux lettres** : relevé à la demande, en
+    arrière-plan, avec le remplissage par rapport au quota.
+- **Fiche d'une personne** : une ligne indique son état dans Microsoft 365
+  (compte actif, synchronisé, licences).
+- Nouvelle permission « m365:read ».
+
+### Mise en place
+- Relancez une fois scripts/setup_m365.ps1 (PowerShell en administrateur,
+  compte Administrateur général) : il ajoute à l'application le droit de
+  lire les comptes et les licences (User.Read.All, Organization.Read.All).
+  L'application et le certificat existants sont réutilisés.
+- La lecture passe par Microsoft Graph avec le certificat du serveur ;
+  aucun module supplémentaire, aucun mot de passe enregistré.
+
+### Sécurité
+- Aucune écriture dans Microsoft 365 depuis cette page : les droits
+  accordés sont des droits de lecture.
+
 ## [1.58.0] - 2026-11-12 — Fiche complète d'une personne et départ d'un collaborateur
 
 ### Fonctionnalités

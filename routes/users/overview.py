@@ -48,7 +48,8 @@ def _overview(conn, dn):
                             'proxyAddresses', 'otherMailbox', 'title', 'department', 'manager',
                             'telephoneNumber', 'description', 'userAccountControl', 'lastLogon',
                             'lastLogonTimestamp', 'pwdLastSet', 'accountExpires', 'lockoutTime',
-                            'whenCreated', 'memberOf', 'homeDirectory', 'homeDrive', 'adminCount'])
+                            'whenCreated', 'memberOf', 'homeDirectory', 'homeDrive', 'adminCount',
+                            'objectGUID'])
     if not conn.entries:
         return None
     e = conn.entries[0]
@@ -93,6 +94,8 @@ def _overview(conn, dn):
         'home': str(val('homeDirectory')), 'home_drive': str(val('homeDrive')),
         'groups': groups,
     }
+    from core.m365 import anchor_of
+    user['anchor'] = anchor_of(val('objectGUID')) if val('objectGUID') else ''
     return user
 
 
@@ -123,7 +126,10 @@ def overview(dn):
                 gpo_error = str(e)
     finally:
         conn.unbind()
-    return render_template('user_overview.html', user=user, gpos=gpos, gpo_error=gpo_error,
+    from core import m365
+    from core.features import is_feature_enabled
+    m365_ready = is_feature_enabled('m365') and m365.status() == 'ready' and _can('m365:read')
+    return render_template('user_overview.html', user=user, gpos=gpos, gpo_error=gpo_error, m365_ready=m365_ready,
                            departures=ob.list_reports(user['sam'])[:5], connected=is_connected())
 
 

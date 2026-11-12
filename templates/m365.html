@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+
+{% block title %}Microsoft 365{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>☁️ Microsoft 365</h2>
+    <div class="page-actions">
+        {% if status == 'ready' %}<button type="button" id="m-refresh" class="btn btn-secondary">↻ Actualiser</button>{% endif %}
+        {% if check_user_permission('m365:mailboxes_read') %}
+        <a href="{{ url_for('mailboxes.index') }}" class="btn btn-secondary">📬 Boîtes partagées</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if status != 'ready' %}
+<div class="card">
+    {% if status == 'none' %}
+    <h3>Liaison à mettre en place</h3>
+    <p>Cette page compare votre annuaire à Microsoft 365 : licences disponibles, état de la synchronisation,
+        comptes présents d'un seul côté, licences laissées à des comptes désactivés.</p>
+    {% else %}
+    <h3>Un droit de lecture reste à accorder</h3>
+    <p>La liaison Microsoft 365 existe déjà (boîtes partagées), mais l'application n'a pas encore le droit de
+        <strong>lire</strong> les comptes et les licences. Relancez le script de mise en place : l'application et le
+        certificat existants sont conservés.</p>
+    {% endif %}
+    <ol>
+        <li>Sur le serveur de l'application, ouvrez PowerShell <strong>en tant qu'administrateur</strong>.</li>
+        <li>Lancez <code>scripts\setup_m365.ps1</code> depuis le dossier de l'application.</li>
+        <li>Connectez-vous avec un compte <strong>Administrateur général</strong> Microsoft 365.</li>
+    </ol>
+    <p class="text-muted">Lecture seule : rien n'est modifié dans Microsoft 365 par cette page.</p>
+</div>
+{% else %}
+<div id="m-error"></div>
+<div id="m-loading" class="card text-muted">Lecture de Microsoft 365 en cours…</div>
+
+<div id="m-body" hidden>
+    <div id="m-sync"></div>
+    <div class="m-tiles" id="m-tiles"></div>
+
+    <section class="card">
+        <h3>Licences</h3>
+        <div class="m-table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Licence</th><th class="m-num">Attribuées</th><th class="m-num">Achetées</th>
+                    <th class="m-num">Libres</th><th>Utilisation</th></tr></thead>
+                <tbody id="m-licenses"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h3>Écarts entre l'annuaire et Microsoft 365</h3>
+        <div id="m-findings"></div>
+    </section>
+
+    <section class="card">
+        <h3>Taille des boîtes aux lettres</h3>
+        <p class="text-muted" id="m-box-note">Le relevé interroge chaque boîte une par une : comptez une à deux
+            secondes par boîte. Il tourne en arrière-plan, vous pouvez quitter la page.</p>
+        <button type="button" id="m-box-start" class="btn btn-secondary">Relever la taille des boîtes</button>
+        <div id="m-box-error"></div>
+        <div class="m-table-wrap" id="m-box-wrap" hidden>
+            <table class="data-table">
+                <thead><tr><th>Boîte</th><th class="m-num">Taille</th><th>Remplissage</th>
+                    <th class="m-num">Éléments</th><th>Dernière ouverture</th></tr></thead>
+                <tbody id="m-boxes"></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card { margin-bottom: 1rem; }
+.m-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.m-tile { background: var(--bg-secondary, #fff); border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; padding: .8rem 1rem; }
+.m-tile strong { display: block; font-size: 1.6rem; line-height: 1.2; }
+.m-tile span { color: var(--text-secondary, #666); font-size: .9rem; }
+.m-tile.bad strong { color: var(--danger-color, #c62828); }
+.m-table-wrap { overflow-x: auto; }
+.m-table-wrap .data-table th { position: static; }
+.m-table-wrap td { overflow-wrap: anywhere; }
+.m-num { text-align: right; white-space: nowrap; }
+.m-bar { background: var(--bg-tertiary, #eee); border-radius: 4px; height: .6rem; min-width: 6rem; overflow: hidden; }
+.m-bar i { display: block; height: 100%; background: var(--primary-color, #0078d4); }
+.m-bar i.warn { background: #d98300; }
+.m-bar i.full { background: var(--danger-color, #c62828); }
+.m-find { border-top: 1px solid var(--border-color, #e5e7eb); padding: .6rem 0; }
+.m-find summary { cursor: pointer; font-weight: 600; }
+.m-find summary small { font-weight: normal; color: var(--text-secondary, #666); }
+.m-find p { margin: .4rem 0; color: var(--text-secondary, #666); }
+.m-find.empty summary { font-weight: normal; color: var(--text-secondary, #666); cursor: default; }
+.m-count { display: inline-block; min-width: 1.8rem; text-align: center; border-radius: 999px; padding: 0 .5rem; margin-right: .4rem;
+           background: var(--bg-tertiary, #eee); }
+.m-count.high { background: #fde0e0; color: #9b1c1c; }
+.m-count.medium { background: #fff1d6; color: #8a5300; }
+@media (max-width: 768px) {
+    .m-table-wrap .data-table tbody td { display: block; text-align: left; padding: .15rem 0; }
+    .m-table-wrap .data-table tbody td:empty { display: none; }
+    .m-table-wrap td[data-label]::before { content: attr(data-label) " : "; color: var(--text-secondary, #666); }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{% if status == 'ready' %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var urls = {overview: {{ url_for('m365.api_overview')|tojson }}, boxes: {{ url_for('m365.api_mailboxes')|tojson }},
+                start: {{ url_for('m365.api_mailboxes_start')|tojson }}, user: {{ url_for('users.list_users')|tojson }}};
+    var canOpenUser = {{ check_user_permission('users:read')|tojson }};
+    var FINDINGS = [
+        ['disabled_licensed', 'high', 'Comptes désactivés qui gardent une licence',
+         'Ces licences sont payées pour rien. Retirez le compte de son groupe de licence, ou retirez la licence dans le centre d\'administration Microsoft 365.'],
+        ['orphans', 'high', 'Comptes synchronisés dont le compte AD a disparu',
+         'Le compte AD d\'origine est introuvable (supprimé ou sorti du périmètre de synchronisation). Microsoft 365 supprimera ou a déjà bloqué le compte.'],
+        ['upn_mismatch', 'medium', 'Identifiant différent entre l\'AD et Microsoft 365',
+         'La personne ne se connecte pas avec le même identifiant des deux côtés. La synchronisation n\'a pas repris le changement, souvent à cause d\'un domaine non vérifié.'],
+        ['cloud_only', 'medium', 'Comptes créés directement dans Microsoft 365',
+         'Ils n\'existent pas dans l\'annuaire : leur mot de passe et leur départ ne sont pas gérés ici. Normal pour les comptes d\'administration du cloud et les comptes de secours.'],
+        ['ad_only', 'low', 'Comptes AD actifs absents de Microsoft 365',
+         'Ils ont un identifiant de messagerie mais n\'ont pas été synchronisés (hors du périmètre d\'Entra Connect, ou erreur de synchronisation).'],
+        ['unlicensed', 'low', 'Comptes synchronisés sans licence',
+         'Ils existent dans Microsoft 365 mais n\'ont ni boîte aux lettres ni Office.']
+    ];
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+    function el(id) { return document.getElementById(id); }
+    function showError(target, msg) {
+        el(target).innerHTML = msg ? '<div class="alert alert-error">' + esc(msg) + '</div>' : '';
+    }
+    function getJson(url) {
+        return fetch(url, {headers: {'Accept': 'application/json'}})
+            .then(function (r) { return r.json(); })
+            .catch(function () { return {success: false, error: 'Le serveur n\'a pas répondu.'}; });
+    }
+    function when(iso) {
+        var d = new Date(iso);
+        return isNaN(d) ? '' : d.toLocaleString('fr-FR', {dateStyle: 'short', timeStyle: 'short'});
+    }
+    function size(bytes) {
+        if (!bytes) { return '—'; }
+        var units = ['o', 'Ko', 'Mo', 'Go', 'To'], i = 0;
+        while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+        return bytes.toLocaleString('fr-FR', {maximumFractionDigits: i > 2 ? 1 : 0}) + ' ' + units[i];
+    }
+    function bar(percent) {
+        if (percent == null) { return ''; }
+        var cls = percent >= 100 ? 'full' : (percent >= 90 ? 'warn' : '');
+        return '<div class="m-bar" title="' + percent + ' %"><i class="' + cls + '" style="width:' +
+            Math.min(percent, 100) + '%"></i></div>';
+    }
+    function tile(value, label, bad) {
+        return '<div class="m-tile' + (bad ? ' bad' : '') + '"><strong>' + esc(value) + '</strong><span>' +
+            esc(label) + '</span></div>';
+    }
+
+    function renderSync(org) {
+        var html;
+        if (!org.sync_enabled) {
+            html = '<div class="alert alert-info">La synchronisation de l\'annuaire (Entra Connect) n\'est pas activée ' +
+                'sur ce locataire : les comptes de l\'AD et ceux de Microsoft 365 sont gérés séparément.</div>';
+        } else if (org.sync_late) {
+            html = '<div class="alert alert-error">⚠️ La synchronisation de l\'annuaire est en retard : dernière ' +
+                'synchronisation ' + (org.last_sync ? 'le ' + esc(when(org.last_sync)) : 'inconnue') +
+                '. Vérifiez le service Entra Connect sur son serveur.</div>';
+        } else {
+            html = '<div class="alert alert-success">Synchronisation de l\'annuaire à jour (' +
+                esc(when(org.last_sync)) + ').</div>';
+        }
+        el('m-sync').innerHTML = html;
+    }
+
+    function renderLicenses(list) {
+        el('m-licenses').innerHTML = list.length ? list.map(function (s) {
+            var percent = s.total ? Math.round(s.used * 100 / s.total) : null;
+            var note = s.over ? ' <span class="badge badge-danger">' + s.over + ' en trop</span>' : '';
+            if (s.status && s.status !== 'Enabled') {
+                note += ' <span class="badge badge-warning">' + esc(s.status === 'Warning' ? 'expirée, délai de grâce' :
+                    (s.status === 'Suspended' ? 'suspendue' : s.status)) + '</span>';
+            }
+            if (!s.free_sku && s.total && !s.free && !s.over) { note += ' <span class="badge badge-warning">plus aucune libre</span>'; }
+            return '<tr><td><strong>' + esc(s.name) + '</strong>' + (s.name !== s.code ? '<br><small class="text-muted">' +
+                esc(s.code) + '</small>' : '') + note + '</td><td class="m-num" data-label="Attribuées">' + s.used +
+                '</td><td class="m-num" data-label="Achetées">' + s.total + '</td><td class="m-num" data-label="Libres">' +
+                s.free + '</td><td>' + bar(percent) + '</td></tr>';
+        }).join('') : '<tr><td colspan="5" class="text-muted">Aucune licence.</td></tr>';
+    }
+
+    function renderFindings(findings) {
+        el('m-findings').innerHTML = FINDINGS.map(function (f) {
+            var rows = findings[f[0]] || [];
+            if (!rows.length) {
+                return '<details class="m-find empty"><summary><span class="m-count">0</span>' + esc(f[2]) + '</summary></details>';
+            }
+            return '<details class="m-find"><summary><span class="m-count ' + f[1] + '">' + rows.length + '</span>' +
+                esc(f[2]) + '</summary><p>' + esc(f[3]) + '</p><div class="m-table-wrap"><table class="data-table"><thead><tr>' +
+                '<th>Nom</th><th>Identifiant Microsoft 365</th><th>Licences</th><th>Remarque</th></tr></thead><tbody>' +
+                rows.map(function (r) {
+                    var name = esc(r.name || r.sam);
+                    if (r.dn && canOpenUser) {
+                        name = '<a href="' + urls.user + encodeURIComponent(r.dn).replace(/%2C/g, ',').replace(/%3D/g, '=') +
+                            '/overview">' + name + '</a>';
+                    }
+                    return '<tr><td>' + name + '</td><td>' + esc(r.upn) + '</td><td>' + esc(r.licenses.join(', ')) +
+                        '</td><td>' + esc(r.detail) + '</td></tr>';
+                }).join('') + '</tbody></table></div></details>';
+        }).join('');
+    }
+
+    function load(refresh) {
+        el('m-loading').hidden = false;
+        showError('m-error', '');
+        getJson(urls.overview + (refresh ? '?refresh=1' : '')).then(function (d) {
+            el('m-loading').hidden = true;
+            if (!d.success) { showError('m-error', d.error); return; }
+            el('m-body').hidden = false;
+            renderSync(d.organization);
+            var c = d.counts;
+            el('m-tiles').innerHTML = tile(c.cloud, 'comptes Microsoft 365') + tile(c.licensed, 'avec une licence') +
+                tile(c.synced, 'synchronisés depuis l\'AD') + tile(c.guests, 'invités') +
+                tile(c.wasted, 'licences sur des comptes désactivés', c.wasted > 0);
+            renderLicenses(d.licenses);
+            renderFindings(d.findings);
+        });
+    }
+
+    var timer = null;
+    function renderBoxes(d) {
+        var button = el('m-box-start');
+        if (!d.success) { showError('m-box-error', d.error); return; }
+        showError('m-box-error', d.status === 'error' ? d.error : '');
+        button.disabled = d.status === 'running';
+        button.textContent = d.status === 'running' ? 'Relevé en cours…' :
+            (d.mailboxes ? '↻ Refaire le relevé' : 'Relever la taille des boîtes');
+        if (d.mailboxes) {
+            el('m-box-note').textContent = d.mailboxes.length + ' boîtes, relevé du ' + when(d.at * 1000) + '.';
+            el('m-box-wrap').hidden = false;
+            el('m-boxes').innerHTML = d.mailboxes.map(function (m) {
+                return '<tr><td><strong>' + esc(m.name) + '</strong>' + (m.shared ? ' <span class="badge badge-info">partagée</span>' : '') +
+                    (m.archive ? ' <span class="badge badge-info">archive</span>' : '') + '<br><small class="text-muted">' +
+                    esc(m.address) + '</small></td><td class="m-num" data-label="Taille">' + (m.error ? '<span title="' + esc(m.error) + '">illisible</span>' : size(m.size)) +
+                    '</td><td>' + bar(m.percent) + (m.percent != null ? '<small class="text-muted">' + m.percent + ' % de ' +
+                    size(m.quota) + '</small>' : '') + '</td><td class="m-num" data-label="Éléments">' + m.items.toLocaleString('fr-FR') +
+                    '</td><td data-label="Dernière ouverture">' + esc(m.last_logon ? m.last_logon.split('-').reverse().join('/') : '—') + '</td></tr>';
+            }).join('');
+        }
+        clearTimeout(timer);
+        if (d.status === 'running') { timer = setTimeout(function () { getJson(urls.boxes).then(renderBoxes); }, 5000); }
+    }
+
+    el('m-refresh').addEventListener('click', function () { load(true); });
+    el('m-box-start').addEventListener('click', function () {
+        var again = !el('m-box-wrap').hidden;
+        fetch(urls.start, {method: 'POST', headers: {'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+            body: JSON.stringify({refresh: again})})
+            .then(function (r) { return r.json(); })
+            .catch(function () { return {success: false, error: 'Le serveur n\'a pas répondu.'}; })
+            .then(renderBoxes);
+    });
+    load(false);
+    getJson(urls.boxes).then(renderBoxes);
+})();
+</script>
+{% endif %}
+{% endblock %}

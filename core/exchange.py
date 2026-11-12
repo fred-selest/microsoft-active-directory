@@ -52,7 +52,8 @@ def get_config():
             and _ORG_RE.match(str(cfg.get('organization', '')))):
         return None
     return {'organization': cfg['organization'], 'app_id': cfg['app_id'],
-            'thumbprint': cfg['thumbprint'].upper(), 'expires': str(cfg.get('expires', ''))}
+            'thumbprint': cfg['thumbprint'].upper(), 'expires': str(cfg.get('expires', '')),
+            'graph': cfg.get('graph') is True}
 
 
 def _friendly(message):
@@ -193,6 +194,33 @@ def convert_to_shared(address):
     with _lock:
         _cache.update(at=0, data=None)
     return address
+
+
+_SIZE_RE = re.compile(r'\(([\d\s,.\u00a0\u202f]+)\s*bytes\)')
+
+def _bytes(text):
+    """« 1.2 GB (1,288,490,188 bytes) » → 1288490188 ; 0 si illisible ou « Unlimited »."""
+    match = _SIZE_RE.search(str(text or ''))
+    digits = re.sub(r'\D', '', match.group(1)) if match else ''
+    return int(digits) if digits else 0
+
+
+def mailbox_stats():
+    """
+    Taille de chaque boîte (utilisateurs et partagées), la plus grosse
+    d'abord. Lent : une requête par boîte — à lancer en arrière-plan.
+    """
+    result = run_ps({'op': 'stats'}, timeout=1800)
+    rows = []
+    for m in result.get('mailboxes') or []:
+        size, quota = _bytes(m.get('size')), _bytes(m.get('quota'))
+        rows.append({'name': str(m.get('name') or ''), 'address': str(m.get('address') or '').lower(),
+                     'upn': str(m.get('upn') or '').lower(), 'shared': bool(m.get('shared')),
+                     'archive': bool(m.get('archive')), 'size': size, 'quota': quota,
+                     'percent': round(size * 100 / quota) if quota else None,
+                     'items': int(m.get('items') or 0), 'last_logon': str(m.get('last_logon') or ''),
+                     'error': str(m.get('error') or '')[:200]})
+    return sorted(rows, key=lambda r: -r['size'])
 
 
 def user_address(conn, base_dn, name):

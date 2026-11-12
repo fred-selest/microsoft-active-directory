@@ -50,6 +50,7 @@
 .rep-res { white-space: nowrap; }
 .rep-detail { width: 45%; }
 .data-table td { overflow-wrap: anywhere; }
+@media (max-width: 768px) { .data-table tbody td { display: block; padding: .15rem 0; } .data-table tbody td:empty { display: none; } }
 .page-header h2 small { font-size: .6em; font-weight: normal; }
 </style>
 {% endblock %}
