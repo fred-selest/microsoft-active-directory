@@ -14,6 +14,12 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.55.0 — Stratégies de groupe (GPO)
+
+- **Toutes les stratégies** avec leurs OU liées, leurs groupes concernés et les anomalies (liée nulle part, vide, lien orphelin).
+- **Qui reçoit quoi ?** : les stratégies reçues par un utilisateur, un ordinateur ou une OU, et pourquoi les autres sont écartées.
+- **Gestion des liens** (lier, délier, forcer, priorité, blocage d'héritage) et **sauvegarde / restauration**.
+
 ## 🆕 Nouveautés v1.54.0 — Tous les partages et vue d'ensemble des droits
 
 - **Partages du domaine** : tous les partages de vos serveurs, ajoutés aux partages gérés en un clic.

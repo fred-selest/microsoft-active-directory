@@ -4,6 +4,36 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.55.0] - 2026-11-12 — Stratégies de groupe (GPO)
+
+### Fonctionnalités
+- **Stratégies de groupe** (menu Outils › Stratégies) : liste de toutes les
+  stratégies avec leur état, les unités d'organisation où elles sont liées,
+  les groupes et comptes concernés (filtrage de sécurité) et les constats
+  (liée nulle part, désactivée, vide, sans personne pour l'appliquer, lien
+  vers une stratégie supprimée).
+- **Par unité d'organisation** : stratégies liées dans l'ordre de priorité,
+  héritage bloqué ou non.
+- **Qui reçoit quoi ?** : pour un utilisateur, un ordinateur ou une OU, la
+  liste des stratégies reçues dans l'ordre de priorité, avec le groupe qui
+  la lui donne, et celles qui sont écartées avec la raison (héritage
+  bloqué, lien désactivé, filtrage de sécurité, refus). Accessible depuis
+  la fiche d'un utilisateur.
+- **Fiche d'une stratégie** : utilisateurs et ordinateurs qui la reçoivent
+  réellement, liens, filtrage.
+- **Gestion** : lier ou délier une stratégie à une OU, activer, désactiver
+  ou forcer un lien, changer sa priorité, changer l'état de la stratégie,
+  bloquer ou rétablir l'héritage d'une OU, nettoyer les liens orphelins.
+- **Sauvegarde et restauration** de toutes les stratégies (30 dernières
+  sauvegardes conservées sur le serveur).
+- Trois nouvelles permissions : voir, gérer, sauvegarder les stratégies.
+
+### Limites
+- Les paramètres d'une stratégie se modifient dans la console Windows de
+  gestion des stratégies de groupe.
+- Les stratégies liées aux sites, les filtres WMI et le mode de bouclage
+  ne sont pas évalués ; l'interface le signale.
+
 ## [1.54.0] - 2026-11-09 — Tous les partages, vue d'ensemble des droits, répertoires sur les fiches
 
 ### Fonctionnalités

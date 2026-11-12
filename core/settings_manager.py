@@ -47,6 +47,7 @@ DEFAULT_SETTINGS = {
             {'id': 'pwd_policy',    'label': 'Politique MDP',   'endpoint': 'tools.password_policy', 'icon': '🛡️', 'feature': 'FEATURE_PASSWORD_POLICY_ENABLED',   'enabled': True,  'order': 6},
             {'id': 'pwd_audit',     'label': 'Audit MDP',       'endpoint': 'tools.password_audit',  'icon': '🔍', 'feature': 'FEATURE_PASSWORD_AUDIT_ENABLED',    'enabled': True,  'order': 7},
             {'id': 'folders',       'label': 'Répertoires',     'endpoint': 'folders.browse',        'icon': '🗂️', 'feature': 'FEATURE_FOLDERS_ENABLED',           'enabled': True,  'order': 8},
+            {'id': 'gpo',           'label': 'Stratégies (GPO)', 'endpoint': 'gpo.list_gpos',        'icon': '📜', 'feature': 'FEATURE_GPO_ENABLED',               'enabled': True,  'order': 9},
         ],
         # Section "Administration" — visible par les admins uniquement
         'admin_items': [

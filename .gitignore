@@ -20,6 +20,7 @@ data/permissions.json
 data/crypto_salt.bin
 data/backups/
 data/sessions/
+data/gpo_backups/
 data/user_templates.json
 data/alerts.json
 # 'logs/*' et non 'logs/' : git ne sait pas re-inclure un fichier situe dans
