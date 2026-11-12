@@ -4,6 +4,33 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.56.0] - 2026-11-12 — Journal du domaine (boîte noire)
+
+### Fonctionnalités
+- **Photos du domaine** : état des comptes, des groupes et de leurs
+  membres, des ordinateurs, des unités d'organisation, des stratégies de
+  groupe et de leurs liens, et des droits des partages gérés. Prises à la
+  demande, à la première connexion du jour d'un administrateur, ou chaque
+  nuit avec un compte de lecture dédié (mot de passe chiffré). 90 photos
+  conservées.
+- **Journal des changements** (Administration › Journal du domaine) : ce
+  qui a changé entre deux photos, classé par gravité. Critique : ajout à
+  un groupe d'administration, compte devenu privilégié, stratégie
+  supprimée, dossier ouvert en modification à tous les comptes. À
+  vérifier : stratégies et liens modifiés, héritage bloqué, mot de passe
+  sans expiration, droits de dossiers. Courant : créations, désactivations,
+  déplacements.
+- **Annulation en un clic** : retirer ou remettre un membre, rétablir
+  l'état d'un compte, les liens de stratégies d'une OU, le blocage
+  d'héritage ou l'état d'une stratégie. Les autres changements renvoient
+  vers la page qui permet de corriger (sauvegardes des stratégies, droits
+  du dossier).
+- **Alerte par e-mail** quand une photo révèle des changements critiques.
+- Un compte déplacé ou renommé est reconnu comme le même objet : il
+  n'apparaît pas comme supprimé puis recréé.
+- Trois nouvelles permissions : voir le journal, prendre une photo,
+  annuler un changement.
+
 ## [1.55.0] - 2026-11-12 — Stratégies de groupe (GPO)
 
 ### Fonctionnalités

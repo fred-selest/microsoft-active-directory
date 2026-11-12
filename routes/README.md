@@ -21,6 +21,7 @@ routes/
 ├── admin_tools.py        # Outils d'administration (permissions, settings)
 ├── folders/              # Répertoires : droits NTFS, AGDLP, dossiers personnels
 ├── gpo/                  # Stratégies de groupe
+├── history/              # Journal du domaine (photos, changements, annulation)
 │
 ├── users/                # Gestion des utilisateurs AD
 │   ├── __init__.py       # Déclaration du blueprint users_bp

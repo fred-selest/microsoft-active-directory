@@ -60,6 +60,11 @@ ALL_PERMISSIONS = {
     'gpo:manage': 'Lier, délier, activer ou désactiver des stratégies de groupe',
     'gpo:backup': 'Sauvegarder et restaurer les stratégies de groupe',
 
+    # Journal du domaine
+    'history:read': 'Voir le journal des changements du domaine',
+    'history:snapshot': 'Prendre une photo du domaine',
+    'history:revert': 'Annuler un changement depuis le journal du domaine',
+
     # Admin
     'admin:settings': 'Paramètres',
     'admin:backups': 'Sauvegardes',
@@ -82,6 +87,7 @@ ALL_PERMISSIONS = {
 # indirectement, d'obtenir un contrôle complet sur le domaine. A n'accorder
 # qu'aux administrateurs. Utilisé par l'UI pour afficher un avertissement.
 SENSITIVE_PERMISSIONS = {
+    'history:revert',
     'gpo:manage',
     'gpo:backup',
     'system:execute_script',

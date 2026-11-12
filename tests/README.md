@@ -12,7 +12,7 @@ Interface. Elle est exécutée par la CI (`.github/workflows/ci.yml`, job
 
 **Framework :** `pytest`
 
-Ce fichier décrit les fichiers **réellement présents** dans `tests/` (25
+Ce fichier décrit les fichiers **réellement présents** dans `tests/` (26
 fichiers). Les versions précédentes de ce document faisaient référence à des
 dizaines de fichiers (`test_users.py`, `test_groups.py`, `test_mobile.py`,
 `test_page_structure.py`…) qui n'ont jamais existé dans ce dépôt : ce
@@ -43,6 +43,7 @@ document les remplace.
 | `test_system_review.py` | Revue complète v1.52.0 : correction LDAP réservée à un administrateur vérifié par Windows (limitation des tentatives), permissions des pages d'audit, d'alertes et d'outils, validation des arguments de scripts, redirection limitée au site |
 | `test_onboarding.py` | Arrivée d'un utilisateur : format et unicité de l'adresse pro, attributs synchronisés (mail, proxyAddresses, UPN, otherMailbox), suffixe UPN, groupe de licence, mail de bienvenue (modèle échappé, champs limités), envoi SMTP commun et configuration de la page Admin ; comptes existants : changement d'adresse (alias, UPN), nouveau mot de passe envoyé par e-mail (SMTP vérifié avant, connexion chiffrée exigée) |
 | `test_gpo.py` | Stratégies de groupe : descripteur de sécurité binaire (droit « Appliquer »), liens gPLink, constats, stratégies reçues (ordre, lien forcé, héritage bloqué, filtrage, refus), portée réelle, écritures (lier, délier, priorité, état, héritage), permissions, sauvegarde et restauration |
+| `test_domain_history.py` | Journal du domaine : comparaison de deux photos (gravité, déplacement sans faux changement, stratégies, partages), stockage, annulation recalculée côté serveur, alerte e-mail, collecte, photo quotidienne unique, compte de lecture chiffré, permissions |
 | `test_pagination.py` | Pagination des listes : total réel, liens vers toutes les pages, filtres conservés, recherche encodée, numéro de page borné |
 | `test_path_traversal.py` | Identifiants d'audit et de rapport : refus des chemins forgés (`../`, `..\\`, noms trop longs), fichier hors de l'historique ni lu ni supprimé ; journal d'erreurs et diagnostic inaccessibles sans connexion |
 | `test_csp.py` | Content-Security-Policy stricte (constat M9) : nonce sur chaque `<script>`, aucun gestionnaire `on*=`, aucune ressource externe, modes `CSP_MODE`, notes de version échappées |
