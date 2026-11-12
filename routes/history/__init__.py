@@ -15,7 +15,7 @@ import threading
 import time
 from datetime import datetime
 
-from flask import (Blueprint, current_app, flash, redirect, render_template, request,
+from flask import (Blueprint, current_app, flash, jsonify, redirect, render_template, request,
                    session, url_for)
 
 from ..core import (get_ad_connection, is_connected, require_connection,
@@ -66,6 +66,13 @@ def _share_credentials(username, password, base_dn):
 def run_snapshot(app, creds, by, notify=True):
     """Prend une photo hors requête HTTP (thread). creds : identifiants en clair."""
     try:
+        return _run_snapshot(app, creds, by, notify)
+    finally:
+        _state['pending'] = False
+
+
+def _run_snapshot(app, creds, by, notify):
+    try:
         with app.test_request_context('/'):
             conn, error = get_ad_connection(creds['server'], creds['username'], creds['password'],
                                             creds.get('use_ssl', False), creds.get('port'))
@@ -101,6 +108,7 @@ def _session_creds():
 
 def _start(creds, by, notify):
     app = current_app._get_current_object()
+    _state['pending'] = True        # visible tout de suite, avant que le thread ne prenne le verrou
     threading.Thread(target=run_snapshot, args=(app, creds, by, notify),
                      name='domain-snapshot', daemon=True).start()
 
@@ -182,20 +190,32 @@ def timeline():
     return render_template('history.html', snapshots=snapshots, events=events, counts=counts, error=error,
                            old=by_name.get(old_name), new=by_name.get(new_name), sections=dh.SECTIONS,
                            revert_labels=dh.REVERT_LABELS, direct=dh.DIRECT_REVERTS,
-                           running=dh._LOCK.locked(), last_error=_state['last_error'],
+                           running=dh._LOCK.locked() or _state.get('pending', False),
+                           latest=snapshots[0] if snapshots else None, last_error=_state['last_error'],
                            cfg=_settings(), connected=is_connected())
+
+
+@history_bp.route('/api/status')
+@require_connection
+@require_permission('history:read')
+def api_status():
+    """Photo en cours ? Nom de la dernière photo (la page se recharge quand il change)."""
+    snapshots = dh.list_snapshots()
+    return jsonify({'running': dh._LOCK.locked() or _state.get('pending', False),
+                    'latest': snapshots[0]['name'] if snapshots else None,
+                    'error': _state['last_error']})
 
 
 @history_bp.route('/snapshot', methods=['POST'])
 @require_connection
 @require_permission('history:snapshot')
 def snapshot():
-    if dh._LOCK.locked():
+    if dh._LOCK.locked() or _state.get('pending'):
         flash('Une photo est déjà en cours.', 'warning')
     else:
         _start(_session_creds(), session.get('ad_username', ''), False)
         log_action('domain_snapshot', session.get('ad_username'), {}, True, request.remote_addr)
-        flash('Photo du domaine lancée : elle apparaîtra dans la liste dans quelques instants.', 'success')
+        flash('Photo du domaine lancée : la page affichera ses changements dès qu\'elle sera terminée.', 'success')
     return redirect(url_for('history.timeline'))
 
 

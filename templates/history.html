@@ -43,6 +43,13 @@
     <button type="submit" class="btn btn-secondary">Comparer</button>
 </form>
 
+{% if new and latest and new.name != latest.name %}
+<div class="alert alert-warning">
+    Vous regardez une comparaison ancienne. Une photo plus récente existe ({{ latest.date.strftime('%d/%m/%Y %H:%M') }}{% if latest.changes.critical or latest.changes.warning or latest.changes.info %}, {{ latest.changes.critical + latest.changes.warning + latest.changes.info }} changement(s){% endif %}) :
+    <a href="{{ url_for('history.timeline') }}"><strong>voir les derniers changements</strong></a>.
+</div>
+{% endif %}
+
 {% if old and new %}
 <div class="stats-grid history-stats">
     <button type="button" class="stat-card history-filter" data-sev="critical"><div><div class="stat-value sev-critical">{{ counts.critical }}</div><div class="stat-label">Critiques</div></div></button>
@@ -109,10 +116,10 @@
                     <td><a href="{{ url_for('history.timeline', b=s.name) }}">{{ s.date.strftime('%d/%m/%Y %H:%M') }}</a></td>
                     <td>{{ s.by }}</td>
                     <td><small>{{ s.counts.users }} comptes, {{ s.counts.groups }} groupes, {{ s.counts.computers }} ordinateurs, {{ s.counts.gpos }} stratégies, {{ s.counts.shares }} dossiers</small></td>
-                    <td>{% if s.changes.critical %}<span class="sev-badge sev-bg-critical">{{ s.changes.critical }} critique(s)</span>{% endif %}
+                    <td><a class="history-changes" href="{{ url_for('history.timeline', b=s.name) }}" title="Voir ces changements">{% if s.changes.critical %}<span class="sev-badge sev-bg-critical">{{ s.changes.critical }} critique(s)</span>{% endif %}
                         {% if s.changes.warning %}<span class="sev-badge sev-bg-warning">{{ s.changes.warning }} à vérifier</span>{% endif %}
-                        {% if s.changes.info %}<span class="sev-badge sev-bg-info">{{ s.changes.info }}</span>{% endif %}
-                        {% if not (s.changes.critical or s.changes.warning or s.changes.info) %}<span class="text-muted">—</span>{% endif %}</td>
+                        {% if s.changes.info %}<span class="sev-badge sev-bg-info">{{ s.changes.info }} courant(s)</span>{% endif %}
+                        {% if not (s.changes.critical or s.changes.warning or s.changes.info) %}<span class="text-muted">—</span>{% endif %}</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -173,6 +180,7 @@
 .sev-bg-warning { background: #fff3e0; color: #8a4b00; border: 1px solid #f5c98b; }
 .sev-bg-info { background: #eee; color: #444; }
 .history-service .form-group { flex: 1 1 12rem; }
+.history-changes { text-decoration: none; }
 .checkbox-label { display: block; margin: .35rem 0; }
 </style>
 {% endblock %}
@@ -180,6 +188,18 @@
 {% block extra_js %}
 <script nonce="{{ csp_nonce() }}">
 (function () {
+    // Photo en cours : on attend sa fin, puis on affiche ses changements
+    // (sans les anciens paramètres de comparaison restés dans l'adresse).
+    var running = {{ running|tojson }}, latest = {{ (latest.name if latest else none)|tojson }};
+    var statusUrl = {{ url_for('history.api_status')|tojson }}, home = {{ url_for('history.timeline')|tojson }};
+    function poll() {
+        fetch(statusUrl).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.running) { setTimeout(poll, 3000); return; }
+            if (d.latest !== latest || d.error) { window.location = home; }
+        }).catch(function () { setTimeout(poll, 6000); });
+    }
+    if (running) { setTimeout(poll, 2000); }
+
     var buttons = document.querySelectorAll('.history-filter'), active = null;
     buttons.forEach(function (btn) {
         btn.addEventListener('click', function () {

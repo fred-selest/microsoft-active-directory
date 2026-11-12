@@ -4,6 +4,18 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.56.1] - 2026-11-12 — Journal du domaine : la dernière photo s'affiche toute seule
+
+### Corrections
+- Après « Prendre une photo maintenant », il fallait recharger la page à
+  la main, et une ancienne comparaison restée dans l'adresse continuait de
+  s'afficher (« aucun changement ») alors que la nouvelle photo en
+  contenait. La page attend désormais la fin de la photo puis affiche ses
+  changements.
+- Un bandeau signale qu'une photo plus récente existe quand on regarde une
+  comparaison ancienne ; les compteurs de la liste des photos sont
+  cliquables.
+
 ## [1.56.0] - 2026-11-12 — Journal du domaine (boîte noire)
 
 ### Fonctionnalités
