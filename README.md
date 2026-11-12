@@ -14,6 +14,10 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.56.1 — Journal du domaine
+
+- La page affiche d'elle-même les changements de la photo qui vient d'être prise ; un bandeau signale une comparaison ancienne.
+
 ## 🆕 Nouveautés v1.56.0 — Journal du domaine
 
 - **Photos quotidiennes du domaine** et **journal des changements** classés par gravité : qui est entré dans les Admins du domaine, quelle stratégie a été modifiée, quel dossier a été ouvert à tous.

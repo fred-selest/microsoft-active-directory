@@ -339,3 +339,36 @@ class TestRoutes:
         name = rh.run_snapshot(c.application, {'server': 'dc', 'username': 'svc', 'password': 'p',
                                                'base_dn': 'OU=X,' + BASE}, 'planification')
         assert name == '20261112-020000' and seen['share'] == ('svc@corp.local', 'p')
+
+
+def test_photo_plus_recente_signalee(client):
+    """Une comparaison ancienne restée dans l'adresse ne doit pas masquer la dernière photo."""
+    c, _, _, _ = client
+    a = dh.save(state(), 'CORP\\admin')
+    b = dh.save(state(), 'CORP\\admin')
+    new = state()
+    new['users']['u2']['enabled'] = False
+    last = dh.save(new, 'CORP\\admin', dh.diff(state(), new))
+    html = c.get(f'/history/?a={a}&b={b}').get_data(as_text=True)
+    assert 'Une photo plus récente existe' in html and '1 changement(s)' in html
+    html = c.get('/history/').get_data(as_text=True)
+    assert 'Une photo plus récente existe' not in html and 'Compte désactivé : bob' in html
+    status = c.get('/history/api/status').get_json()
+    assert status == {'running': False, 'latest': last, 'error': None}
+
+
+def test_photo_en_cours_visible_tout_de_suite(client, monkeypatch):
+    import threading
+    c, _, tok, rh = client
+    gate = threading.Event()
+    monkeypatch.setattr(rh, '_run_snapshot', lambda *a: gate.wait(5))
+    c.post('/history/snapshot', data={'csrf_token': tok})
+    assert c.get('/history/api/status').get_json()['running'] is True
+    assert 'Photo en cours' in c.get('/history/').get_data(as_text=True)
+    gate.set()
+    for _ in range(100):
+        if not c.get('/history/api/status').get_json()['running']:
+            break
+        import time
+        time.sleep(0.02)
+    assert c.get('/history/api/status').get_json()['running'] is False
