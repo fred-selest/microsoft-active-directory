@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Stratégies de groupe - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📜 Stratégies de groupe</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('gpo.applied') }}" class="btn btn-primary">Qui reçoit quoi ?</a>
+    </div>
+</div>
+
+<div class="stats-grid gpo-stats">
+    <div class="stat-card"><div><div class="stat-value">{{ stats.total }}</div><div class="stat-label">Stratégies</div></div></div>
+    <div class="stat-card"><div><div class="stat-value">{{ stats.unlinked }}</div><div class="stat-label">Liées nulle part</div></div></div>
+    <div class="stat-card"><div><div class="stat-value">{{ stats.disabled }}</div><div class="stat-label">Désactivées</div></div></div>
+    <div class="stat-card"><div><div class="stat-value">{{ stats.issues }}</div><div class="stat-label">À vérifier</div></div></div>
+</div>
+
+<section class="card">
+    <h3>Toutes les stratégies</h3>
+    <div class="table-container folder-table-wrap">
+        <table class="data-table sortable">
+            <thead><tr><th>Stratégie</th><th>État</th><th>Liée à</th><th>S'applique à (filtrage)</th><th>Modifiée</th><th>Constats</th></tr></thead>
+            <tbody>
+                {% for g in data.gpos %}
+                <tr>
+                    <td><a href="{{ url_for('gpo.view_gpo', guid=g.guid) }}"><strong>{{ g.name }}</strong></a>
+                        {% if g.wmi_filter %}<br><small class="text-muted">Filtre WMI</small>{% endif %}</td>
+                    <td><span class="badge {{ 'badge-success' if g.flags == 0 else 'badge-danger' if g.flags == 3 else 'badge-warning' }}">{{ g.status }}</span></td>
+                    <td>
+                        {% for l in g.links %}
+                        <div class="{{ 'gpo-off' if l.disabled }}">{{ l.target_name }}{% if l.enforced %} <span class="badge badge-info">Appliqué</span>{% endif %}{% if l.disabled %} <small>(lien désactivé)</small>{% endif %}</div>
+                        {% else %}<span class="text-muted">—</span>{% endfor %}
+                    </td>
+                    <td>
+                        {% if g.apply_sids is none %}<span class="text-muted">Illisible avec ce compte</span>
+                        {% else %}{% for f in g.filtering %}<div>{{ f.name }}</div>{% else %}<span class="text-muted">Personne</span>{% endfor %}
+                        {% for f in g.denied %}<div class="gpo-deny">Refusé : {{ f.name }}</div>{% endfor %}{% endif %}
+                    </td>
+                    <td>{{ g.changed.strftime('%d/%m/%Y') if g.changed and g.changed.strftime else '' }}</td>
+                    <td>{% for code, text in g.issues %}<div class="gpo-issue">⚠️ {{ text }}</div>{% endfor %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center">Aucune stratégie lisible.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card" id="ou">
+    <h3>Par unité d'organisation</h3>
+    <p class="text-muted">Ordre de priorité : la stratégie n° 1 l'emporte. Les OU sans lien ni blocage n'apparaissent pas :
+        elles héritent de leur parent.</p>
+    <div class="table-container folder-table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Emplacement</th><th>Héritage</th><th>Stratégies liées</th><th data-no-sort>Action</th></tr></thead>
+            <tbody>
+                {% for c in data.containers %}
+                <tr>
+                    <td><a href="{{ url_for('gpo.applied', dn=c.dn) }}" title="Stratégies reçues par cet emplacement"><strong>{{ c.name }}</strong></a>
+                        <br><small class="text-muted access-path">{{ c.dn }}</small></td>
+                    <td>{% if c.block %}<span class="badge badge-warning">Bloqué</span>{% else %}<span class="text-muted">Hérite</span>{% endif %}</td>
+                    <td>
+                        {% for g in c.gpos %}
+                        <div class="{{ 'gpo-off' if g.disabled }}">{{ g.order }}.
+                            {% if g.missing %}<span class="gpo-deny">{{ g.name }}</span>
+                            {% else %}<a href="{{ url_for('gpo.view_gpo', guid=g.guid) }}">{{ g.name }}</a>{% endif %}
+                            {% if g.enforced %}<span class="badge badge-info">Appliqué</span>{% endif %}
+                            {% if g.disabled %}<small>(désactivé)</small>{% endif %}
+                            {% if g.missing and check_user_permission('gpo:manage') %}
+                            <form method="post" action="{{ url_for('gpo.link') }}" class="inline-form"
+                                  data-confirm="Supprimer ce lien vers une stratégie qui n'existe plus ?">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="guid" value="{{ g.guid }}">
+                                <input type="hidden" name="target" value="{{ c.dn }}">
+                                <input type="hidden" name="action" value="remove">
+                                <input type="hidden" name="back" value="list">
+                                <button type="submit" class="btn btn-sm btn-danger">Nettoyer</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% else %}<span class="text-muted">Aucune</span>{% endfor %}
+                    </td>
+                    <td>
+                        {% if check_user_permission('gpo:manage') %}
+                        <form method="post" action="{{ url_for('gpo.inheritance') }}"
+                              data-confirm="{{ 'Rétablir' if c.block else 'Bloquer' }} l'héritage des stratégies sur {{ c.name }} ?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="target" value="{{ c.dn }}">
+                            <input type="hidden" name="block" value="{{ '0' if c.block else '1' }}">
+                            <button type="submit" class="btn btn-sm btn-secondary">{{ 'Rétablir l\'héritage' if c.block else 'Bloquer l\'héritage' }}</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center">Aucun lien.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card" id="sauvegardes">
+    <div class="section-head-row">
+        <h3>Sauvegardes</h3>
+        {% if check_user_permission('gpo:backup') %}
+        <form method="post" action="{{ url_for('gpo.backup') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary">Sauvegarder toutes les stratégies</button>
+        </form>
+        {% endif %}
+    </div>
+    <p class="text-muted">Copie complète des paramètres de chaque stratégie, conservée sur le serveur de l'application
+        (30 dernières). La restauration se fait depuis la fiche d'une stratégie.</p>
+    {% if backups %}
+    <ul class="gpo-backups">
+        {% for b in backups %}<li><strong>{{ b.date.strftime('%d/%m/%Y %H:%M') }}</strong> — {{ b.gpos|length }} stratégie(s), par {{ b.by }}</li>{% endfor %}
+    </ul>
+    {% else %}<p>Aucune sauvegarde pour l'instant.</p>{% endif %}
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.gpo-stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 1rem; }
+.gpo-off { opacity: .55; }
+.gpo-deny { color: var(--danger, #dc3545); }
+.gpo-issue { font-size: .85rem; }
+.inline-form { display: inline; }
+.section-head-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; }
+.section-head-row h3 { margin: 0; }
+.card { margin-bottom: 1rem; }
+</style>
+{% endblock %}

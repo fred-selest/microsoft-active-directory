@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ gpo.name }} - Stratégies de groupe{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📜 {{ gpo.name }}</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('gpo.list_gpos') }}" class="btn btn-secondary">Toutes les stratégies</a>
+    </div>
+</div>
+
+{% for code, text in gpo.issues %}<div class="alert alert-warning">⚠️ {{ text }}</div>{% endfor %}
+
+<div class="gpo-grid">
+    <section class="card">
+        <h3>État</h3>
+        <p><span class="badge {{ 'badge-success' if gpo.flags == 0 else 'badge-danger' if gpo.flags == 3 else 'badge-warning' }}">{{ gpo.status }}</span></p>
+        <p class="text-muted">Identifiant : <code>{{ gpo.guid }}</code><br>
+            Versions : utilisateur {{ gpo.user_version }}, ordinateur {{ gpo.computer_version }}<br>
+            Modifiée : {{ gpo.changed.strftime('%d/%m/%Y %H:%M') if gpo.changed and gpo.changed.strftime else '—' }}
+            {% if gpo.wmi_filter %}<br>Filtre WMI : <code>{{ gpo.wmi_filter }}</code> (non évalué par cette page){% endif %}</p>
+        {% if check_user_permission('gpo:manage') %}
+        <form method="post" action="{{ url_for('gpo.status') }}" class="gpo-inline"
+              data-confirm="Changer l'état de la stratégie {{ gpo.name }} ?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="guid" value="{{ gpo.guid }}">
+            <select name="flags">
+                {% for value, label in statuses.items() %}<option value="{{ value }}" {% if value == gpo.flags %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-secondary">Appliquer</button>
+        </form>
+        {% endif %}
+        <p class="form-hint">Les paramètres eux-mêmes se modifient dans la console Windows « Gestion des stratégies de groupe ».</p>
+    </section>
+
+    <section class="card">
+        <h3>Groupes et comptes concernés (filtrage de sécurité)</h3>
+        {% if gpo.apply_sids is none %}
+        <p class="text-muted">Le filtrage n'est pas lisible avec ce compte.</p>
+        {% else %}
+        <ul class="gpo-list">
+            {% for f in gpo.filtering %}<li title="{{ f.sid }}">✅ {{ f.name }}</li>{% else %}<li class="text-muted">Personne n'a le droit d'appliquer cette stratégie.</li>{% endfor %}
+            {% for f in gpo.denied %}<li class="gpo-deny" title="{{ f.sid }}">⛔ Refusé : {{ f.name }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        <p class="form-hint">Seuls les membres de ces groupes, situés sous un emplacement lié, reçoivent la stratégie.</p>
+    </section>
+</div>
+
+<section class="card">
+    <h3>Unités d'organisation liées</h3>
+    <div class="table-container folder-table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Emplacement</th><th>Priorité</th><th>Lien</th>{% if check_user_permission('gpo:manage') %}<th data-no-sort>Actions</th>{% endif %}</tr></thead>
+            <tbody>
+                {% for l in gpo.links %}
+                <tr>
+                    <td><a href="{{ url_for('gpo.applied', dn=l.target_dn) }}"><strong>{{ l.target_name }}</strong></a><br><small class="text-muted access-path">{{ l.target_dn }}</small></td>
+                    <td>{{ l.order }}</td>
+                    <td>{% if l.disabled %}<span class="badge badge-danger">Désactivé</span>{% else %}<span class="badge badge-success">Actif</span>{% endif %}
+                        {% if l.enforced %}<span class="badge badge-info">Appliqué</span>{% endif %}</td>
+                    {% if check_user_permission('gpo:manage') %}
+                    <td class="actions">
+                        {% for action, label, cls in [('enable' if l.disabled else 'disable', 'Activer' if l.disabled else 'Désactiver', 'btn-secondary'),
+                                                      ('unenforce' if l.enforced else 'enforce', 'Ne plus forcer' if l.enforced else 'Forcer', 'btn-secondary'),
+                                                      ('up', '▲', 'btn-secondary'), ('down', '▼', 'btn-secondary'),
+                                                      ('remove', 'Délier', 'btn-danger')] %}
+                        <form method="post" action="{{ url_for('gpo.link') }}" class="inline-form"
+                              {% if action == 'remove' %}data-confirm="Délier {{ gpo.name }} de {{ l.target_name }} ?"{% endif %}>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="guid" value="{{ gpo.guid }}">
+                            <input type="hidden" name="target" value="{{ l.target_dn }}">
+                            <input type="hidden" name="action" value="{{ action }}">
+                            <button type="submit" class="btn btn-sm {{ cls }}">{{ label }}</button>
+                        </form>
+                        {% endfor %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center">Cette stratégie n'est liée nulle part.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if check_user_permission('gpo:manage') %}
+    <form method="post" action="{{ url_for('gpo.link') }}" class="gpo-inline"
+          data-confirm="Lier {{ gpo.name }} à cet emplacement ? Elle s'appliquera à tous les comptes concernés qui s'y trouvent.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="guid" value="{{ gpo.guid }}">
+        <input type="hidden" name="action" value="add">
+        <select name="target" required>
+            <option value="">— Lier à un emplacement —</option>
+            {% for ou in ous %}<option value="{{ ou.dn }}">{{ ou.name }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Lier</button>
+    </form>
+    {% endif %}
+</section>
+
+<section class="card" id="scope" data-url="{{ url_for('gpo.api_scope', guid=gpo.guid) }}"
+         data-user-url="{{ url_for('gpo.applied') }}">
+    <h3>Utilisateurs et ordinateurs qui la reçoivent</h3>
+    <div id="scope-result"><p class="text-muted">⏳ Calcul en cours…</p></div>
+</section>
+
+{% if check_user_permission('gpo:backup') %}
+<section class="card">
+    <h3>Restaurer depuis une sauvegarde</h3>
+    {% if backups %}
+    <form method="post" action="{{ url_for('gpo.restore') }}" class="gpo-inline"
+          data-confirm="Restaurer {{ gpo.name }} ? Ses paramètres actuels seront remplacés par ceux de la sauvegarde.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="guid" value="{{ gpo.guid }}">
+        <select name="backup" required>
+            {% for b in backups %}<option value="{{ b.name }}">{{ b.date.strftime('%d/%m/%Y %H:%M') }} — par {{ b.by }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-warning">Restaurer</button>
+    </form>
+    {% else %}<p class="text-muted">Aucune sauvegarde ne contient cette stratégie. Lancez-en une depuis la liste des stratégies.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.gpo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1rem; }
+.card { margin-bottom: 1rem; }
+.gpo-inline { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .75rem; }
+.gpo-inline select { flex: 1 1 14rem; min-width: 0; padding: .45rem .6rem; border: 1px solid var(--border-color, #ccc); border-radius: 6px; font: inherit; }
+.gpo-list { list-style: none; padding: 0; margin: 0 0 .5rem; }
+.gpo-list li { padding: .15rem 0; }
+.gpo-deny { color: var(--danger, #dc3545); }
+.inline-form { display: inline; }
+.scope-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.scope-list { max-height: 22rem; overflow-y: auto; margin: 0; padding-left: 1.1rem; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var box = document.getElementById('scope'), out = document.getElementById('scope-result');
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+    function list(title, items, count) {
+        return '<div><h4>' + title + ' (' + count + ')</h4>' + (items.length ? '<ul class="scope-list">' +
+            items.map(function (i) {
+                return '<li><a href="' + esc(box.dataset.userUrl + '?dn=' + encodeURIComponent(i.dn)) + '">' +
+                    esc(i.name) + '</a></li>';
+            }).join('') + '</ul>' : '<p class="text-muted">Aucun.</p>') + '</div>';
+    }
+    fetch(box.dataset.url).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.success) { out.innerHTML = '<div class="alert alert-error">' + esc(d.error) + '</div>'; return; }
+        out.innerHTML = '<div class="scope-cols">' + list('Utilisateurs', d.users, d.users_count) +
+            list('Ordinateurs', d.computers, d.computers_count) + '</div>' +
+            (d.truncated ? '<p class="text-muted">Liste limitée aux 2000 premiers.</p>' : '') +
+            '<p class="form-hint">D\'après les liens actifs, les blocages d\'héritage et le filtrage de sécurité. ' +
+            'Les filtres WMI et les sites ne sont pas évalués.</p>';
+    }).catch(function () { out.innerHTML = '<div class="alert alert-error">Le serveur n\'a pas répondu.</div>'; });
+})();
+</script>
+{% endblock %}

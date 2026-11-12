@@ -20,6 +20,7 @@ routes/
 ├── api.py                # Endpoints JSON/API REST
 ├── admin_tools.py        # Outils d'administration (permissions, settings)
 ├── folders/              # Répertoires : droits NTFS, AGDLP, dossiers personnels
+├── gpo/                  # Stratégies de groupe
 │
 ├── users/                # Gestion des utilisateurs AD
 │   ├── __init__.py       # Déclaration du blueprint users_bp

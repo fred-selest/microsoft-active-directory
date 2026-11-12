@@ -142,6 +142,8 @@ class Config:
     FEATURE_RECYCLE_BIN_ENABLED = os.environ.get('FEATURE_RECYCLE_BIN_ENABLED', 'false').lower() == 'true'  # Désactivé par défaut (non implémenté)
     FEATURE_LOCKED_ACCOUNTS_ENABLED = os.environ.get('FEATURE_LOCKED_ACCOUNTS_ENABLED', 'false').lower() == 'true'  # Désactivé par défaut (non implémenté)
     # Répertoires partagés (droits NTFS, dossiers personnels) — Windows uniquement
+    # Stratégies de groupe (GPO)
+    FEATURE_GPO_ENABLED = os.environ.get('FEATURE_GPO_ENABLED', 'true').lower() == 'true'
     FEATURE_FOLDERS_ENABLED = os.environ.get('FEATURE_FOLDERS_ENABLED', 'true').lower() == 'true'
     FEATURE_EXPIRING_ACCOUNTS_ENABLED = os.environ.get('FEATURE_EXPIRING_ACCOUNTS_ENABLED', 'true').lower() == 'true'
     FEATURE_PASSWORD_POLICY_ENABLED = os.environ.get('FEATURE_PASSWORD_POLICY_ENABLED', 'true').lower() == 'true'

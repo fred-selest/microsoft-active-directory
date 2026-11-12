@@ -37,6 +37,7 @@ FEATURE_FLAGS = {
     'locked_accounts': config.FEATURE_LOCKED_ACCOUNTS_ENABLED,
     'expiring_accounts': config.FEATURE_EXPIRING_ACCOUNTS_ENABLED,
     'folders': config.FEATURE_FOLDERS_ENABLED,
+    'gpo': config.FEATURE_GPO_ENABLED,
     'password_policy': config.FEATURE_PASSWORD_POLICY_ENABLED,
     'password_audit': config.FEATURE_PASSWORD_AUDIT_ENABLED,
     

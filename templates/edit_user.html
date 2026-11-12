@@ -16,6 +16,9 @@
         {% if config.FEATURE_FOLDERS_ENABLED and check_user_permission('tools:folders_read') %}
         <br><a href="#repertoires" class="btn btn-sm btn-secondary" style="margin-top:.5rem;">🗂️ Répertoires accessibles</a>
         {% endif %}
+        {% if config.FEATURE_GPO_ENABLED and check_user_permission('gpo:read') %}
+        <a href="{{ url_for('gpo.applied', dn=user.dn) }}" class="btn btn-sm btn-secondary" style="margin-top:.5rem;">📜 Stratégies de groupe reçues</a>
+        {% endif %}
     </div>
 
     <form method="post" class="user-form">

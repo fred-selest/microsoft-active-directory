@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Qui reçoit quoi - Stratégies de groupe{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📜 Qui reçoit quoi ?</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('gpo.list_gpos') }}" class="btn btn-secondary">Toutes les stratégies</a>
+    </div>
+</div>
+
+<form method="get" class="card gpo-search">
+    <div class="form-group">
+        <label for="name">Utilisateur ou ordinateur</label>
+        <input type="text" id="name" name="name" value="{{ name }}" placeholder="jdupont ou PC-COMPTA-01">
+    </div>
+    <div class="form-group">
+        <label for="dn">ou unité d'organisation</label>
+        <select id="dn" name="dn">
+            <option value="">—</option>
+            {% for ou in ous %}<option value="{{ ou.dn }}" {% if result and result.target.kind == 'ou' and ou.dn|lower == dn|lower %}selected{% endif %}>{{ ou.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Afficher</button>
+</form>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if result %}
+<section class="card">
+    <h3>{{ {'user': '👤', 'computer': '💻', 'ou': '📁'}[result.target.kind] }} {{ result.target.name }} —
+        {{ result.applied|length }} stratégie(s) reçue(s)</h3>
+    <p class="text-muted access-path">{{ result.target.dn }}</p>
+    <div class="table-container folder-table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Priorité</th><th>Stratégie</th><th>Vient de</th><th>Grâce à</th></tr></thead>
+            <tbody>
+                {% for g in result.applied %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><a href="{{ url_for('gpo.view_gpo', guid=g.guid) }}"><strong>{{ g.name }}</strong></a>
+                        {% if g.enforced %}<span class="badge badge-info">Appliqué</span>{% endif %}
+                        {% if g.wmi_filter %}<span class="badge badge-warning">Filtre WMI</span>{% endif %}</td>
+                    <td>{{ g.source_name }}</td>
+                    <td>{{ g.via or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center">Aucune stratégie ne s'applique.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="form-hint">En cas de réglages contradictoires, la stratégie n° 1 l'emporte.</p>
+</section>
+
+{% if result.excluded %}
+<section class="card">
+    <h3>Écartées ({{ result.excluded|length }})</h3>
+    <div class="table-container folder-table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Stratégie</th><th>Liée à</th><th>Pourquoi elle ne s'applique pas</th></tr></thead>
+            <tbody>
+                {% for g in result.excluded %}
+                <tr><td>{{ g.name or g.guid }}</td><td>{{ g.source_name }}</td><td>{{ g.reason }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<div class="alert alert-info">{% for note in result.notes %}{{ note }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.gpo-search { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; margin-bottom: 1rem; }
+.gpo-search .form-group { flex: 1 1 16rem; margin: 0; min-width: 0; }
+.gpo-search select { max-width: 100%; }
+.card { margin-bottom: 1rem; }
+</style>
+{% endblock %}

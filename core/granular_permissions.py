@@ -55,6 +55,11 @@ ALL_PERMISSIONS = {
     'tools:folders_create': 'Créer des dossiers partagés et leurs groupes d\'accès',
     'tools:home_folders': 'Créer les dossiers personnels',
 
+    # Stratégies de groupe
+    'gpo:read': 'Voir les stratégies de groupe et leurs rattachements',
+    'gpo:manage': 'Lier, délier, activer ou désactiver des stratégies de groupe',
+    'gpo:backup': 'Sauvegarder et restaurer les stratégies de groupe',
+
     # Admin
     'admin:settings': 'Paramètres',
     'admin:backups': 'Sauvegardes',
@@ -77,6 +82,8 @@ ALL_PERMISSIONS = {
 # indirectement, d'obtenir un contrôle complet sur le domaine. A n'accorder
 # qu'aux administrateurs. Utilisé par l'UI pour afficher un avertissement.
 SENSITIVE_PERMISSIONS = {
+    'gpo:manage',
+    'gpo:backup',
     'system:execute_script',
     'system:update',
     'system:configure_ldaps',
