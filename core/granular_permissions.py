@@ -65,6 +65,11 @@ ALL_PERMISSIONS = {
     'history:snapshot': 'Prendre une photo du domaine',
     'history:revert': 'Annuler un changement depuis le journal du domaine',
 
+    # Microsoft 365
+    'm365:mailboxes_read': 'Voir les boîtes aux lettres partagées et leurs accès',
+    'm365:mailboxes_manage': 'Ajouter ou retirer des accès aux boîtes partagées',
+    'm365:mailboxes_create': 'Créer des boîtes aux lettres partagées',
+
     # Admin
     'admin:settings': 'Paramètres',
     'admin:backups': 'Sauvegardes',
@@ -87,6 +92,7 @@ ALL_PERMISSIONS = {
 # indirectement, d'obtenir un contrôle complet sur le domaine. A n'accorder
 # qu'aux administrateurs. Utilisé par l'UI pour afficher un avertissement.
 SENSITIVE_PERMISSIONS = {
+    'm365:mailboxes_manage',
     'history:revert',
     'gpo:manage',
     'gpo:backup',

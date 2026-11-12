@@ -31,6 +31,7 @@ Le répertoire `core/` contient tous les **modules utilitaires** essentiels au f
 | `ad_dates.py` | **Dates AD :** FILETIME, intervalles, dernière connexion, stratégie de comptes, verrou actif, échéance du mot de passe |
 | `account_stats.py` | **Statistiques :** Compteurs du centre des alertes et du tableau de bord (recherches paginées) |
 | `domain_history.py` | **Journal du domaine :** photos de l'annuaire, comparaison en événements classés, annulation, alerte |
+| `exchange.py` | **Microsoft 365 :** boîtes aux lettres partagées Exchange Online (identité d'application par certificat) |
 | `gpo.py` | **Stratégies de groupe :** lecture LDAP, filtrage de sécurité, calcul des stratégies reçues, liens, sauvegarde et restauration |
 | `folders.py` | **Répertoires :** Droits NTFS des partages, analyse d'accès, groupes AGDLP, dossiers personnels (PowerShell sous l'identité de l'administrateur connecté) |
 | `windows_auth.py` | **Authentification Windows :** vérification d'un compte administrateur du serveur sans LDAP (LogonUser + appartenance à Administrateurs) |

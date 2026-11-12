@@ -14,6 +14,12 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.57.0 — Boîtes aux lettres partagées Microsoft 365
+
+- **Liste des boîtes partagées** et des personnes qui y ont accès ; ajout et retrait d'un utilisateur choisi dans l'annuaire.
+- **Création** d'une boîte partagée.
+- **Mise en place** : lancez une fois `scripts\setup_m365.ps1` en administrateur sur le serveur, avec un compte Administrateur général Microsoft 365.
+
 ## 🆕 Nouveautés v1.56.1 — Journal du domaine
 
 - La page affiche d'elle-même les changements de la photo qui vient d'être prise ; un bandeau signale une comparaison ancienne.

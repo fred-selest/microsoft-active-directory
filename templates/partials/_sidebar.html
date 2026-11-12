@@ -24,7 +24,7 @@
             {% endif %}
         {% endfor %}
 
-        {% if active_tools and (check_permission_prefix('tools') or check_permission_prefix('gpo')) %}
+        {% if active_tools and (check_permission_prefix('tools') or check_permission_prefix('gpo') or check_permission_prefix('m365')) %}
         <div class="sidebar-section">
             <div class="sidebar-label">Outils</div>
             {% for item in active_tools %}

@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}Boîtes partagées - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📬 Boîtes aux lettres partagées</h2>
+    {% if cfg %}
+    <div class="page-actions">
+        <button type="button" class="btn btn-secondary" id="mb-refresh">↻ Actualiser</button>
+    </div>
+    {% endif %}
+</div>
+
+{% if not cfg %}
+<div class="card">
+    <h3>Liaison Microsoft 365 à mettre en place</h3>
+    <p>Les boîtes partagées sont dans Exchange Online. Pour que l'application puisse les lire et les modifier, lancez
+        <strong>une fois</strong> le script de mise en place sur ce serveur :</p>
+    <ol>
+        <li>Ouvrez PowerShell <strong>en tant qu'administrateur</strong> sur le serveur de l'application.</li>
+        <li>Lancez : <code>powershell -ExecutionPolicy Bypass -File scripts\setup_m365.ps1</code> (depuis le dossier de l'application).</li>
+        <li>Connectez-vous avec un compte <strong>Administrateur général</strong> Microsoft 365 quand la fenêtre s'ouvre.</li>
+        <li>Rechargez cette page. Microsoft met parfois jusqu'à une heure à appliquer les droits.</li>
+    </ol>
+    <p class="form-hint">Le script crée une application « AD Web Interface - Exchange » dans Entra ID, identifiée par un
+        certificat conservé sur ce serveur (aucun mot de passe enregistré), avec le rôle « Administrateur des
+        destinataires Exchange ». Pour tout retirer : supprimez l'application dans Entra ID.</p>
+</div>
+{% else %}
+
+<p class="text-muted">Locataire : {{ cfg.organization }}{% if cfg.expires %} — certificat valide jusqu'au {{ cfg.expires }}{% endif %}.
+    Chaque opération se connecte à Exchange Online : comptez quelques secondes.</p>
+
+<div id="mb-error"></div>
+
+<div class="mb-layout">
+    <section class="card">
+        <div class="mb-head">
+            <h3>Boîtes (<span id="mb-count">…</span>)</h3>
+            <input type="text" id="mb-filter" placeholder="Filtrer…">
+        </div>
+        <ul class="mb-list" id="mb-list"><li class="text-muted">⏳ Lecture d'Exchange Online…</li></ul>
+    </section>
+
+    <section class="card" id="mb-detail">
+        <p class="text-muted">Choisissez une boîte pour voir qui y a accès.</p>
+    </section>
+</div>
+
+{% if check_user_permission('m365:mailboxes_create') %}
+<section class="card">
+    <h3>Créer une boîte partagée</h3>
+    <form id="mb-create" class="mb-form">
+        <div class="form-group">
+            <label for="mb-name">Nom affiché *</label>
+            <input type="text" id="mb-name" required maxlength="64" placeholder="Comptabilité">
+        </div>
+        <div class="form-group">
+            <label for="mb-alias">Adresse *</label>
+            <input type="text" id="mb-alias" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" placeholder="comptabilite">
+        </div>
+        <div class="form-group">
+            <label for="mb-domain">Domaine</label>
+            <select id="mb-domain"></select>
+        </div>
+        <button type="submit" class="btn btn-primary">Créer</button>
+    </form>
+    <p class="form-hint">Une boîte partagée n'a pas besoin de licence (jusqu'à 50 Go). Elle apparaît dans Outlook des
+        personnes qui y ont accès, en général dans l'heure.</p>
+</section>
+{% endif %}
+{% endif %}
+<datalist id="mb-users"></datalist>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card { margin-bottom: 1rem; }
+.mb-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 1rem; }
+@media (max-width: 1000px) { .mb-layout { grid-template-columns: minmax(0, 1fr); } }
+.mb-head { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; }
+.mb-head h3 { margin: 0; }
+.mb-head input, .mb-form input, .mb-form select, .mb-add input { padding: .45rem .6rem; border: 1px solid var(--border-color, #ccc); border-radius: 6px; font: inherit; min-width: 0; }
+.mb-list { list-style: none; margin: .75rem 0 0; padding: 0; max-height: 32rem; overflow-y: auto; }
+.mb-list button { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border-color, #eee); padding: .5rem .25rem; font: inherit; color: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.mb-list button.active { background: var(--bg-tertiary, #e7f1fb); }
+.mb-list small { color: var(--text-secondary, #666); }
+.mb-form, .mb-add { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+.mb-form .form-group { flex: 1 1 12rem; margin: 0; min-width: 0; }
+.mb-add { margin-top: 1rem; align-items: center; }
+.mb-add input[type=text] { flex: 1 1 14rem; }
+.mb-member td { overflow-wrap: anywhere; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{% if cfg %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var canManage = {{ check_user_permission('m365:mailboxes_manage')|tojson }};
+    var urls = {list: {{ url_for('mailboxes.api_list')|tojson }}, members: {{ url_for('mailboxes.api_members')|tojson }},
+                grant: {{ url_for('mailboxes.api_grant')|tojson }}, revoke: {{ url_for('mailboxes.api_revoke')|tojson }},
+                create: {{ url_for('mailboxes.api_create')|tojson }}};
+    var listEl = document.getElementById('mb-list'), detail = document.getElementById('mb-detail');
+    var errorEl = document.getElementById('mb-error'), filter = document.getElementById('mb-filter');
+    var mailboxes = [], current = null;
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+    function showError(msg) {
+        errorEl.innerHTML = msg ? '<div class="alert alert-error">' + esc(msg) + '</div>' : '';
+    }
+    function post(url, body) {
+        return fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content}, body: JSON.stringify(body)})
+            .then(function (r) { return r.json(); })
+            .catch(function () { return {success: false, error: 'Le serveur n\'a pas répondu.'}; });
+    }
+
+    function renderList() {
+        var q = filter.value.trim().toLowerCase();
+        var shown = mailboxes.filter(function (m) {
+            return !q || m.name.toLowerCase().indexOf(q) >= 0 || m.address.indexOf(q) >= 0;
+        });
+        document.getElementById('mb-count').textContent = mailboxes.length;
+        listEl.innerHTML = shown.length ? shown.map(function (m) {
+            return '<li><button type="button" data-address="' + esc(m.address) + '" class="' +
+                (m.address === current ? 'active' : '') + '"><strong>' + esc(m.name) + '</strong><br><small>' +
+                esc(m.address) + '</small></button></li>';
+        }).join('') : '<li class="text-muted">Aucune boîte partagée.</li>';
+    }
+
+    function load(refresh) {
+        listEl.innerHTML = '<li class="text-muted">⏳ Lecture d\'Exchange Online…</li>';
+        fetch(urls.list + (refresh ? '?refresh=1' : '')).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success) { showError(d.error); listEl.innerHTML = ''; return; }
+            showError('');
+            mailboxes = d.mailboxes;
+            renderList();
+            var sel = document.getElementById('mb-domain');
+            if (sel) {
+                sel.innerHTML = d.domains.map(function (x) { return '<option value="' + esc(x) + '">@' + esc(x) + '</option>'; }).join('');
+            }
+        }).catch(function () { showError('Le serveur n\'a pas répondu.'); });
+    }
+
+    function renderMembers(address, members) {
+        var m = mailboxes.filter(function (x) { return x.address === address; })[0] || {name: address};
+        var html = '<h3>' + esc(m.name) + '</h3><p class="text-muted">' + esc(address) + '</p>';
+        html += '<div class="table-container folder-table-wrap"><table class="data-table"><thead><tr><th>Utilisateur</th>' +
+            '<th>Accès total</th><th>Envoyer en tant que</th>' + (canManage ? '<th data-no-sort>Action</th>' : '') +
+            '</tr></thead><tbody>';
+        html += members.length ? members.map(function (x) {
+            return '<tr class="mb-member"><td>' + esc(x.user) + '</td><td>' + (x.full_access ? '✅' : '—') + '</td><td>' +
+                (x.send_as ? '✅' : '—') + '</td>' + (canManage ? '<td><button type="button" class="btn btn-sm btn-danger mb-remove" data-user="' +
+                esc(x.user) + '">Retirer</button></td>' : '') + '</tr>';
+        }).join('') : '<tr><td colspan="4" class="text-center">Personne n\'a accès à cette boîte.</td></tr>';
+        html += '</tbody></table></div>';
+        if (canManage) {
+            html += '<form class="mb-add" id="mb-add"><input type="text" id="mb-user" list="mb-users" required autocomplete="off" ' +
+                'placeholder="Identifiant ou adresse de l\'utilisateur">' +
+                '<label><input type="checkbox" id="mb-full" checked> Accès total</label>' +
+                '<label><input type="checkbox" id="mb-send" checked> Envoyer en tant que</label>' +
+                '<button type="submit" class="btn btn-primary">Ajouter</button></form>';
+        }
+        detail.innerHTML = html;
+    }
+
+    function open(address) {
+        current = address;
+        renderList();
+        detail.innerHTML = '<p class="text-muted">⏳ Lecture des accès de ' + esc(address) + '…</p>';
+        fetch(urls.members + '?mailbox=' + encodeURIComponent(address)).then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.success) { detail.innerHTML = '<div class="alert alert-error">' + esc(d.error) + '</div>'; return; }
+                renderMembers(address, d.members);
+            }).catch(function () { detail.innerHTML = '<div class="alert alert-error">Le serveur n\'a pas répondu.</div>'; });
+    }
+
+    listEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-address]');
+        if (btn) { open(btn.dataset.address); }
+    });
+    filter.addEventListener('input', renderList);
+    document.getElementById('mb-refresh').addEventListener('click', function () { load(true); });
+
+    detail.addEventListener('click', function (e) {
+        var btn = e.target.closest('.mb-remove');
+        if (!btn || !window.confirm('Retirer l\'accès de ' + btn.dataset.user + ' à ' + current + ' ?')) { return; }
+        btn.disabled = true;
+        post(urls.revoke, {mailbox: current, user: btn.dataset.user}).then(function (d) {
+            if (!d.success) { showError(d.error); btn.disabled = false; return; }
+            showError('');
+            renderMembers(current, d.members);
+        });
+    });
+    detail.addEventListener('submit', function (e) {
+        if (e.target.id !== 'mb-add') { return; }
+        e.preventDefault();
+        var button = e.target.querySelector('button[type=submit]');
+        button.disabled = true;
+        post(urls.grant, {mailbox: current, user: document.getElementById('mb-user').value,
+                          full_access: document.getElementById('mb-full').checked,
+                          send_as: document.getElementById('mb-send').checked}).then(function (d) {
+            if (!d.success) { showError(d.error); button.disabled = false; return; }
+            showError('');
+            renderMembers(current, d.members);
+        });
+    });
+
+    // Suggestions de comptes de l'annuaire.
+    var timer = null, users = document.getElementById('mb-users');
+    detail.addEventListener('input', function (e) {
+        if (e.target.id !== 'mb-user') { return; }
+        clearTimeout(timer);
+        var q = e.target.value.trim();
+        if (q.length < 2) { return; }
+        timer = setTimeout(function () {
+            fetch('/api/ad-search?type=user&q=' + encodeURIComponent(q)).then(function (r) { return r.ok ? r.json() : []; })
+                .then(function (items) {
+                    users.innerHTML = '';
+                    items.slice(0, 20).forEach(function (i) {
+                        var o = document.createElement('option');
+                        o.value = i.value; o.label = i.label;
+                        users.appendChild(o);
+                    });
+                }).catch(function () {});
+        }, 250);
+    });
+
+    var createForm = document.getElementById('mb-create');
+    if (createForm) {
+        createForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var button = createForm.querySelector('button[type=submit]');
+            button.disabled = true;
+            post(urls.create, {name: document.getElementById('mb-name').value, alias: document.getElementById('mb-alias').value,
+                               domain: document.getElementById('mb-domain').value}).then(function (d) {
+                button.disabled = false;
+                if (!d.success) { showError(d.error); return; }
+                showError('');
+                createForm.reset();
+                current = d.address;
+                load(true);
+                detail.innerHTML = '<div class="alert alert-success">Boîte ' + esc(d.address) +
+                    ' créée. Sélectionnez-la dans la liste pour y ajouter des utilisateurs.</div>';
+            });
+        });
+    }
+    load(false);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -48,6 +48,7 @@ from routes.admin_tools import admin_tools_bp
 from routes.folders import folders_bp
 from routes.gpo import gpo_bp
 from routes.history import history_bp
+from routes.mailboxes import mailboxes_bp
 
 app = Flask(__name__)
 config = get_config()
@@ -108,6 +109,7 @@ app.register_blueprint(admin_tools_bp)
 app.register_blueprint(folders_bp)
 app.register_blueprint(gpo_bp)
 app.register_blueprint(history_bp)
+app.register_blueprint(mailboxes_bp)
 
 # Debug
 if config.DEBUG:
