@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Départ de {{ info.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🚪 Départ de {{ info.name }} <small class="text-muted">({{ info.sam }})</small></h2>
+    <div class="page-actions">
+        <a href="{{ url_for('users.overview', dn=info.dn) }}" class="btn btn-secondary">Retour à la fiche</a>
+    </div>
+</div>
+
+{% for w in info.warnings %}<div class="alert alert-warning">⚠️ {{ w }}</div>{% endfor %}
+{% if not info.enabled %}<div class="alert alert-info">Ce compte est déjà désactivé.</div>{% endif %}
+
+<div class="card">
+    <p>Rien n'est supprimé : le compte, son dossier personnel et sa boîte aux lettres sont conservés. Un rapport
+        permet d'<strong>annuler le départ</strong> (compte réactivé, remis à sa place et dans ses groupes).</p>
+    <form method="post" data-confirm="Traiter le départ de {{ info.name }} ({{ info.sam }}) ?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for key, label in steps.items() %}
+        {% if key != 'mailbox' or m365 %}
+        <label class="off-step">
+            <input type="checkbox" name="step_{{ key }}"
+                   {% if key in default_steps and not (key == 'password' and not can_set_password) %}checked{% endif %}
+                   {% if key == 'password' and not can_set_password %}disabled{% endif %}>
+            <span><strong>{{ label }}</strong>
+                {% if key == 'groups' %}<br><small class="text-muted">{{ info.groups|length }} groupe(s) :
+                    {{ info.groups|map(attribute='name')|join(', ') or 'aucun' }}</small>
+                {% elif key == 'password' and not can_set_password %}<br><small class="text-warning">Indisponible : connexion LDAP non chiffrée.</small>
+                {% elif key == 'hide' %}<br><small class="text-muted">Repris par Microsoft 365 à la synchronisation suivante.</small>
+                {% elif key == 'mailbox' %}<br><small class="text-muted">Boîte {{ info.upn or info.mail }}. Retirez ensuite sa licence (le retrait des groupes le fait si la licence vient d'un groupe).</small>
+                {% endif %}</span>
+        </label>
+        {% endif %}
+        {% endfor %}
+
+        <div class="form-row off-fields">
+            <div class="form-group">
+                <label for="target_ou">Unité d'organisation des départs</label>
+                <select id="target_ou" name="target_ou">
+                    <option value="">— Choisir —</option>
+                    {% for ou in ous %}<option value="{{ ou }}" {% if ou|lower == default_ou|lower %}selected{% endif %}>{{ ou }}</option>{% endfor %}
+                </select>
+                <small class="form-hint">Actuellement dans {{ info.ou }}. Le choix est retenu pour les prochains départs.</small>
+            </div>
+            {% if m365 %}
+            <div class="form-group">
+                <label for="mailbox_delegate">Donner accès à sa boîte à (facultatif)</label>
+                <input type="text" id="mailbox_delegate" name="mailbox_delegate" placeholder="identifiant du responsable">
+            </div>
+            {% endif %}
+        </div>
+
+        {% if info.home %}<p class="text-muted">Dossier personnel conservé : <code>{{ info.home }}</code>.</p>{% endif %}
+        <button type="submit" class="btn btn-danger">Traiter le départ</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.off-step { display: flex; gap: .6rem; align-items: flex-start; padding: .5rem 0; border-bottom: 1px solid var(--border-color, #eee); }
+.off-step input { margin-top: .3rem; }
+.off-step small { overflow-wrap: anywhere; }
+.off-fields { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
+.off-fields .form-group { flex: 1 1 18rem; min-width: 0; }
+.off-fields select { max-width: 100%; }
+.page-header h2 small { font-size: .6em; font-weight: normal; }
+</style>
+{% endblock %}

@@ -47,6 +47,9 @@ templates/
 ├── folder_discover.html      # Serveurs et partages du domaine
 ├── history.html              # Journal du domaine
 ├── mailboxes.html            # Boîtes aux lettres partagées Microsoft 365
+├── user_overview.html        # Fiche complète d'une personne
+├── offboard.html             # Départ d'un collaborateur (aperçu, choix des actions)
+├── offboard_report.html      # Rapport de départ, annulation
 ├── gpo_list.html             # Stratégies de groupe, liens par OU, sauvegardes
 ├── gpo_detail.html           # Fiche d'une stratégie
 ├── gpo_applied.html          # Stratégies reçues par un objet

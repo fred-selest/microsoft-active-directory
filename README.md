@@ -14,6 +14,12 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.58.0 — Fiche complète et départ d'un collaborateur
+
+- **Fiche complète d'une personne** (clic sur son nom) : compte, messagerie, groupes, stratégies reçues, répertoires accessibles.
+- **Départ en un clic** : compte désactivé, mot de passe remplacé, groupes retirés, compte déplacé, boîte convertie en boîte partagée. Rien n'est supprimé.
+- **Annulation** depuis le rapport de départ.
+
 ## 🆕 Nouveautés v1.57.0 — Boîtes aux lettres partagées Microsoft 365
 
 - **Liste des boîtes partagées** et des personnes qui y ont accès ; ajout et retrait d'un utilisateur choisi dans l'annuaire.

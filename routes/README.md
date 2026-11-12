@@ -32,6 +32,7 @@ routes/
 │   ├── delete.py         # POST /users/<dn>/delete
 │   ├── password.py       # POST /users/<dn>/password
 │   ├── move.py           # POST /users/<dn>/move
+│   ├── overview.py       # Fiche complète (/users/<dn>/overview), départ et annulation
 │   ├── helpers.py        # Fonctions utilitaires partagées
 │   └── validators.py     # Validation des données (dataclasses)
 │

@@ -80,6 +80,15 @@ try {
                 -PrimarySmtpAddress $req.address
             $out.address = [string]$m.PrimarySmtpAddress
         }
+        'to_shared' {
+            # Depart d'un collaborateur : seule une boite d'utilisateur est convertie.
+            $m = Get-EXOMailbox -Identity $req.mailbox -Properties RecipientTypeDetails
+            if ($m.RecipientTypeDetails -eq 'UserMailbox') {
+                Set-Mailbox -Identity $m.Identity -Type Shared
+            } elseif ($m.RecipientTypeDetails -ne 'SharedMailbox') {
+                throw "Type de boite non pris en charge : $($m.RecipientTypeDetails)"
+            }
+        }
         default { throw "Operation inconnue : $($req.op)" }
     }
 } catch {
