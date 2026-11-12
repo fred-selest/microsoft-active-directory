@@ -14,6 +14,12 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.56.0 — Journal du domaine
+
+- **Photos quotidiennes du domaine** et **journal des changements** classés par gravité : qui est entré dans les Admins du domaine, quelle stratégie a été modifiée, quel dossier a été ouvert à tous.
+- **Annulation en un clic** des changements de groupes, de comptes et de liens de stratégies.
+- **Alerte par e-mail** sur les changements critiques.
+
 ## 🆕 Nouveautés v1.55.0 — Stratégies de groupe (GPO)
 
 - **Toutes les stratégies** avec leurs OU liées, leurs groupes concernés et les anomalies (liée nulle part, vide, lien orphelin).

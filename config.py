@@ -144,6 +144,8 @@ class Config:
     # Répertoires partagés (droits NTFS, dossiers personnels) — Windows uniquement
     # Stratégies de groupe (GPO)
     FEATURE_GPO_ENABLED = os.environ.get('FEATURE_GPO_ENABLED', 'true').lower() == 'true'
+    # Journal du domaine (photos, changements, annulation)
+    FEATURE_HISTORY_ENABLED = os.environ.get('FEATURE_HISTORY_ENABLED', 'true').lower() == 'true'
     FEATURE_FOLDERS_ENABLED = os.environ.get('FEATURE_FOLDERS_ENABLED', 'true').lower() == 'true'
     FEATURE_EXPIRING_ACCOUNTS_ENABLED = os.environ.get('FEATURE_EXPIRING_ACCOUNTS_ENABLED', 'true').lower() == 'true'
     FEATURE_PASSWORD_POLICY_ENABLED = os.environ.get('FEATURE_PASSWORD_POLICY_ENABLED', 'true').lower() == 'true'

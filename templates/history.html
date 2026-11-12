@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}Journal du domaine - AD Web Interface{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🕰️ Journal du domaine</h2>
+    <div class="page-actions">
+        {% if check_user_permission('history:snapshot') %}
+        <form method="post" action="{{ url_for('history.snapshot') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary" {% if running %}disabled{% endif %}>
+                {{ '⏳ Photo en cours…' if running else '📸 Prendre une photo maintenant' }}</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if last_error %}<div class="alert alert-error">La dernière photo a échoué : {{ last_error }}</div>{% endif %}
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if not snapshots %}
+<div class="alert alert-info">
+    Aucune photo du domaine pour l'instant. Prenez-en une : la suivante montrera tout ce qui a changé entre les deux
+    (comptes, membres des groupes, stratégies de groupe, droits des partages).
+    {% if running %}<br>⏳ Une photo est en cours ; rechargez la page dans un instant.{% endif %}
+</div>
+{% else %}
+
+<form method="get" class="card history-compare">
+    <div class="form-group">
+        <label for="a">De</label>
+        <select id="a" name="a">
+            {% for s in snapshots %}<option value="{{ s.name }}" {% if old and s.name == old.name %}selected{% endif %}>{{ s.date.strftime('%d/%m/%Y %H:%M') }} — {{ s.by }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="b">à</label>
+        <select id="b" name="b">
+            {% for s in snapshots %}<option value="{{ s.name }}" {% if new and s.name == new.name %}selected{% endif %}>{{ s.date.strftime('%d/%m/%Y %H:%M') }} — {{ s.by }}</option>{% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-secondary">Comparer</button>
+</form>
+
+{% if old and new %}
+<div class="stats-grid history-stats">
+    <button type="button" class="stat-card history-filter" data-sev="critical"><div><div class="stat-value sev-critical">{{ counts.critical }}</div><div class="stat-label">Critiques</div></div></button>
+    <button type="button" class="stat-card history-filter" data-sev="warning"><div><div class="stat-value sev-warning">{{ counts.warning }}</div><div class="stat-label">À vérifier</div></div></button>
+    <button type="button" class="stat-card history-filter" data-sev="info"><div><div class="stat-value">{{ counts.info }}</div><div class="stat-label">Courants</div></div></button>
+</div>
+
+<section class="card">
+    <h3>Ce qui a changé entre le {{ old.date.strftime('%d/%m/%Y %H:%M') }} et le {{ new.date.strftime('%d/%m/%Y %H:%M') }}</h3>
+    {% for note in new.notes %}<p class="text-muted">ℹ️ {{ note }}</p>{% endfor %}
+    {% if events %}
+    <div class="table-container folder-table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Gravité</th><th>Domaine</th><th>Changement</th><th data-no-sort>Action</th></tr></thead>
+            <tbody id="history-rows">
+                {% for e in events %}
+                <tr data-sev="{{ e.severity }}">
+                    <td><span class="sev-badge sev-bg-{{ e.severity }}">{{ {'critical': 'Critique', 'warning': 'À vérifier', 'info': 'Courant'}[e.severity] }}</span></td>
+                    <td>{{ sections[e.section] }}</td>
+                    <td><strong>{{ e.title }}</strong>{% if e.detail %}<br><small class="text-muted access-path">{{ e.detail }}</small>{% endif %}</td>
+                    <td class="actions">
+                        {% if e.revert %}
+                            {% if e.revert.op in direct %}
+                                {% if check_user_permission('history:revert') %}
+                                <form method="post" action="{{ url_for('history.revert') }}"
+                                      data-confirm="Annuler ce changement ?&#10;{{ e.title }}&#10;→ {{ revert_labels[e.revert.op] }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="a" value="{{ old.name }}">
+                                    <input type="hidden" name="b" value="{{ new.name }}">
+                                    <input type="hidden" name="event" value="{{ e.id }}">
+                                    <button type="submit" class="btn btn-sm btn-primary">↩ {{ revert_labels[e.revert.op] }}</button>
+                                </form>
+                                {% endif %}
+                            {% elif e.revert.op == 'gpo_restore' %}
+                                <a class="btn btn-sm btn-secondary" href="{{ url_for('gpo.view_gpo', guid=e.revert.guid) }}">{{ revert_labels[e.revert.op] }}</a>
+                            {% elif e.revert.op == 'folder' %}
+                                <a class="btn btn-sm btn-secondary" href="{{ url_for('folders.browse', path=e.revert.path) }}">{{ revert_labels[e.revert.op] }}</a>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="form-hint">« Annuler » rétablit l'état de la première photo pour ce seul changement. Un objet supprimé se
+        restaure depuis la corbeille AD ; les droits d'un dossier se corrigent sur sa page.</p>
+    {% else %}
+    <p>✅ Aucun changement entre ces deux photos.</p>
+    {% endif %}
+</section>
+{% elif snapshots|length == 1 %}
+<div class="alert alert-info">Une seule photo pour l'instant : la prochaine montrera les changements.</div>
+{% endif %}
+
+<section class="card">
+    <h3>Photos ({{ snapshots|length }})</h3>
+    <div class="table-container folder-table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Date</th><th>Prise par</th><th>Contenu</th><th>Changements depuis la précédente</th></tr></thead>
+            <tbody>
+                {% for s in snapshots[:30] %}
+                <tr>
+                    <td><a href="{{ url_for('history.timeline', b=s.name) }}">{{ s.date.strftime('%d/%m/%Y %H:%M') }}</a></td>
+                    <td>{{ s.by }}</td>
+                    <td><small>{{ s.counts.users }} comptes, {{ s.counts.groups }} groupes, {{ s.counts.computers }} ordinateurs, {{ s.counts.gpos }} stratégies, {{ s.counts.shares }} dossiers</small></td>
+                    <td>{% if s.changes.critical %}<span class="sev-badge sev-bg-critical">{{ s.changes.critical }} critique(s)</span>{% endif %}
+                        {% if s.changes.warning %}<span class="sev-badge sev-bg-warning">{{ s.changes.warning }} à vérifier</span>{% endif %}
+                        {% if s.changes.info %}<span class="sev-badge sev-bg-info">{{ s.changes.info }}</span>{% endif %}
+                        {% if not (s.changes.critical or s.changes.warning or s.changes.info) %}<span class="text-muted">—</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if check_user_permission('admin:settings') %}
+<section class="card" id="reglages">
+    <h3>Réglages</h3>
+    <form method="post" action="{{ url_for('history.settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="checkbox-label"><input type="checkbox" name="auto_daily" {% if cfg.auto_daily %}checked{% endif %}>
+            Prendre une photo à la première connexion du jour d'un administrateur</label>
+        <label class="checkbox-label"><input type="checkbox" name="notify" {% if cfg.notify %}checked{% endif %}>
+            Envoyer un e-mail quand une photo révèle des changements critiques (destinataire des alertes, Admin › SMTP)</label>
+        <h4>Photo chaque nuit (facultatif)</h4>
+        <p class="form-hint">Sans personne connectée, l'application a besoin d'un compte pour lire l'annuaire. Créez un compte
+            ordinaire dédié (simple membre de « Utilisateurs du domaine », mot de passe long) : il suffit pour lire les
+            comptes, groupes et stratégies. Son mot de passe est enregistré chiffré sur le serveur. Les droits des partages
+            ne figureront dans les photos nocturnes que s'il peut les lire.</p>
+        <div class="form-row history-service">
+            <div class="form-group">
+                <label for="service_username">Compte de lecture</label>
+                <input type="text" id="service_username" name="service_username" value="{{ cfg.service.username or '' }}"
+                       placeholder="DOMAINE\svc-adweb-lecture" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="service_password">Mot de passe</label>
+                <input type="password" id="service_password" name="service_password" autocomplete="new-password"
+                       placeholder="{{ 'Inchangé' if cfg.service else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="hour">Heure</label>
+                <input type="number" id="hour" name="hour" min="0" max="23" value="{{ cfg.hour }}">
+            </div>
+        </div>
+        {% if cfg.service %}<label class="checkbox-label"><input type="checkbox" name="remove_service"> Supprimer ce compte des réglages</label>{% endif %}
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+    </form>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card { margin-bottom: 1rem; }
+.history-compare { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+.history-compare .form-group { flex: 1 1 14rem; margin: 0; min-width: 0; }
+.history-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 1rem; }
+.history-filter { cursor: pointer; border: 2px solid transparent; text-align: left; font: inherit; color: inherit; }
+.history-filter.active { border-color: var(--primary-color, #0078d4); }
+.sev-critical { color: #9b1c1c; }
+.sev-warning { color: #8a4b00; }
+.sev-badge { display: inline-block; padding: .1rem .45rem; border-radius: 4px; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.sev-bg-critical { background: #9b1c1c; color: #fff; }
+.sev-bg-warning { background: #fff3e0; color: #8a4b00; border: 1px solid #f5c98b; }
+.sev-bg-info { background: #eee; color: #444; }
+.history-service .form-group { flex: 1 1 12rem; }
+.checkbox-label { display: block; margin: .35rem 0; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var buttons = document.querySelectorAll('.history-filter'), active = null;
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            active = active === btn.dataset.sev ? null : btn.dataset.sev;
+            buttons.forEach(function (b) { b.classList.toggle('active', b.dataset.sev === active); });
+            document.querySelectorAll('#history-rows tr').forEach(function (tr) {
+                tr.style.display = !active || tr.dataset.sev === active ? '' : 'none';
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

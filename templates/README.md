@@ -45,6 +45,7 @@ templates/
 ├── folder_access.html        # Dossiers accessibles à un compte
 ├── folder_settings.html      # Partages gérés, dossiers personnels
 ├── folder_discover.html      # Serveurs et partages du domaine
+├── history.html              # Journal du domaine
 ├── gpo_list.html             # Stratégies de groupe, liens par OU, sauvegardes
 ├── gpo_detail.html           # Fiche d'une stratégie
 ├── gpo_applied.html          # Stratégies reçues par un objet
