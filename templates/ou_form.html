@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="page-header">
-    <h2>{% if action == 'create' %}Nouvelle unite organisationnelle{% else %}Modifier l'OU{% endif %}</h2>
+    <h2>{% if action == 'create' %}Nouvelle unité organisationnelle{% else %}Modifier l'OU{% endif %}</h2>
     <a href="{{ url_for('ous.list_ous') }}" class="btn btn-secondary">Retour</a>
 </div>
 
@@ -46,7 +46,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">
-                {% if action == 'create' %}Creer l'OU{% else %}Enregistrer{% endif %}
+                {% if action == 'create' %}Créer l'OU{% else %}Enregistrer{% endif %}
             </button>
             <a href="{{ url_for('ous.list_ous') }}" class="btn btn-secondary">Annuler</a>
         </div>

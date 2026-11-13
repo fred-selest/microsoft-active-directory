@@ -33,7 +33,7 @@
                 <th>Action</th>
                 <th>Utilisateur</th>
                 <th>Adresse IP</th>
-                <th data-no-sort>Details</th>
+                <th data-no-sort>Détails</th>
             </tr>
         </thead>
         <tbody>
@@ -42,9 +42,9 @@
                 <td>{{ log.timestamp }}</td>
                 <td>
                     {% if log.status == 'SUCCESS' %}
-                    <span class="badge badge-success">Succes</span>
+                    <span class="badge badge-success">Succès</span>
                     {% else %}
-                    <span class="badge badge-danger">Echec</span>
+                    <span class="badge badge-danger">Échec</span>
                     {% endif %}
                 </td>
                 <td>{{ log.action }}</td>
@@ -63,7 +63,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="text-center">Aucun log trouve.</td>
+                <td colspan="6" class="text-center">Aucune entrée trouvée.</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Backups - AD Web Interface{% endblock %}
+{% block title %}Sauvegardes - AD Web Interface{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2>Backups</h2>
-    <a href="{{ url_for('main.audit_logs') }}" class="btn btn-secondary">Voir les audits</a>
+    <h2>💾 Sauvegardes</h2>
+    <a href="{{ url_for('main.audit_logs') }}" class="btn btn-secondary">Journal d'audit</a>
 </div>
 
 <div class="table-container">
@@ -30,14 +30,14 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="text-center">Aucun backup disponible.</td>
+                <td colspan="4" class="text-center">Aucune sauvegarde disponible.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="results-count">{{ backups|length }} backup(s)</p>
+<p class="results-count">{{ backups|length }} sauvegarde(s)</p>
 
 {% endblock %}
 

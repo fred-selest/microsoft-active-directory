@@ -10,9 +10,6 @@ from core.user_templates import (
     load_templates, create_template, update_template, delete_template,
 )
 
-MAX_FAVORITES = 200
-
-
 def _favorites_counts(favorites_list):
     counts = {'user': 0, 'group': 0, 'computer': 0, 'ou': 0}
     for fav in favorites_list:
@@ -99,8 +96,9 @@ def delete_user_template(template_id):
 @tools_bp.route('/favorites')
 @require_connection
 def favorites():
-    """Page des favoris."""
-    favorites_list = session.get('favorites', [])
+    """Page des favoris de l'administrateur connecté."""
+    from core import favorites as fav
+    favorites_list = fav.load(session.get('ad_username'))
     return render_template('favorites_page.html', favorites=favorites_list,
                            counts=_favorites_counts(favorites_list), connected=True)
 
@@ -108,35 +106,22 @@ def favorites():
 @tools_bp.route('/favorites/toggle', methods=['POST'])
 @require_connection
 def toggle_favorite():
-    """Ajouter/retirer un favori."""
+    """Ajouter ou retirer un favori (conservé par administrateur)."""
+    from core import favorites as fav
+    user = session.get('ad_username')
     dn = request.form.get('dn', '').strip()
+    back = safe_referrer(url_for('tools.favorites'))
     if not dn:
         flash('Élément invalide.', 'error')
-        return redirect(url_for('tools.favorites'))
-
-    favorites_list = session.get('favorites', [])
-
+        return redirect(back)
     if request.form.get('action') == 'remove':
-        favorites_list = [f for f in favorites_list if f.get('dn') != dn]
+        fav.remove(user, dn)
+        flash('Retiré des favoris.', 'info')
+    elif fav.add(user, dn, request.form.get('type', '').strip(), request.form.get('name', '')):
+        flash('Ajouté aux favoris : vous le retrouvez sur le tableau de bord.', 'success')
     else:
-        fav_type = request.form.get('type', '').strip()
-        name = request.form.get('name', '').strip()
-        if not fav_type or not name:
-            flash('Élément invalide.', 'error')
-            return redirect(safe_referrer(url_for('tools.favorites')))
-        if not any(f.get('dn') == dn for f in favorites_list):
-            if len(favorites_list) >= MAX_FAVORITES:
-                flash(f'Limite de {MAX_FAVORITES} favoris atteinte.', 'error')
-                return redirect(safe_referrer(url_for('tools.favorites')))
-            favorites_list.append({
-                'dn': dn,
-                'type': fav_type,
-                'name': name,
-                'added': datetime.now().isoformat(),
-            })
-
-    session['favorites'] = favorites_list
-    return redirect(safe_referrer(url_for('tools.favorites')))
+        flash(f'Favori refusé (élément invalide ou limite de {fav.MAX_FAVORITES} atteinte).', 'error')
+    return redirect(back)
 
 
 def _build_api_docs_context():

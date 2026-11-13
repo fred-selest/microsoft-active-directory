@@ -13,6 +13,7 @@
         {% if check_user_permission('users:offboard') %}
         <a href="{{ url_for('users.offboard', dn=user.dn) }}" class="btn btn-danger">🚪 Départ</a>
         {% endif %}
+        {% with fav_dn = user.dn, fav_type = 'user', fav_name = user.name %}{% include 'partials/_favorite_button.html' %}{% endwith %}
         <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Liste</a>
     </div>
 </div>

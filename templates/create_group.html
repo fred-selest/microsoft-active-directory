@@ -26,7 +26,7 @@
             </div>
 
             <div class="form-group">
-                <label for="group_scope">Etendue</label>
+                <label for="group_scope">Étendue</label>
                 <select id="group_scope" name="group_scope">
                     <option value="global">Globale</option>
                     <option value="domainlocal">Domaine local</option>
@@ -36,9 +36,9 @@
 
             {% if ous %}
             <div class="form-group">
-                <label for="target_ou">Unite organisationnelle (OU)</label>
+                <label for="target_ou">Unité organisationnelle (OU)</label>
                 <select id="target_ou" name="target_ou">
-                    <option value="">CN=Users (par defaut)</option>
+                    <option value="">CN=Users (par défaut)</option>
                     {% for ou in ous %}
                     <option value="{{ ou.dn }}">{{ ou.name }}</option>
                     {% endfor %}
@@ -48,7 +48,7 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Creer le groupe</button>
+            <button type="submit" class="btn btn-primary">Créer le groupe</button>
             <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>

@@ -145,6 +145,16 @@ def _after_create(conn, user_dn, user_req, identity):
             flash(f'Compte créé, mais le mail de bienvenue n\'est pas parti : {e}', 'warning')
 
 
+def _user_templates():
+    """Modèles de compte (service, fonction) proposés à la création."""
+    try:
+        from core.user_templates import load_templates
+        return [{'id': k, 'name': v.get('name', k), **(v.get('attributes') or {})}
+                for k, v in sorted(load_templates().items(), key=lambda kv: str(kv[1].get('name', '')).lower())]
+    except Exception:
+        return []
+
+
 @users_bp.route('/create', methods=['GET', 'POST'])
 @require_connection
 @require_permission('users:create')
@@ -183,7 +193,7 @@ def create_user():
         return render_template('create_user.html',
                                ous=ou_list, default_ou=default_ou,
                                can_set_password=can_set_password, home_folder_root=home_folder_root,
-                               onboarding=onboarding,
+                               onboarding=onboarding, user_templates=_user_templates(),
                                form=request.form if request.method == 'POST' else {},
                                connected=is_connected())
 

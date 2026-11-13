@@ -93,7 +93,7 @@
             <tr>
                 <th><input type="checkbox" id="select-all-computers" data-onchange="toggleAllComputers" data-args='{{ ['$el']|tojson }}'></th>
                 <th>Nom</th>
-                <th>Systeme d'exploitation</th>
+                <th>Système d'exploitation</th>
                 <th class="hide-mobile">Nom DNS</th>
                 <th class="hide-mobile">OU</th>
                 <th>Statut</th>
@@ -193,12 +193,12 @@
 <!-- Modal pour deplacer -->
 <div id="moveModal" class="modal" style="display: none;">
     <div class="modal-content">
-        <h3>Deplacer l'ordinateur</h3>
+        <h3>Déplacer l'ordinateur</h3>
         <p id="moveComputerName"></p>
         <form method="post" id="moveForm" action="">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
-                <label for="new_ou">Unite d'organisation de destination</label>
+                <label for="new_ou">Unité d'organisation de destination</label>
                 <select id="new_ou" name="new_ou" required>
                     {% for ou in ous %}
                     <option value="{{ ou.dn }}">{{ ou.name }}</option>
@@ -206,7 +206,7 @@
                 </select>
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Deplacer</button>
+                <button type="submit" class="btn btn-primary">Déplacer</button>
                 <button type="button" class="btn btn-secondary" data-onclick="closeMoveModal">Annuler</button>
             </div>
         </form>

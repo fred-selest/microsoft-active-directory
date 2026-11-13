@@ -17,13 +17,13 @@
         <div class="form-group">
             <select name="filter" class="form-control" data-onchange="submitParentForm">
                 <option value="">Tous les groupes</option>
-                <option value="security" {% if filter == 'security' %}selected{% endif %}>Groupes de securite</option>
+                <option value="security" {% if filter == 'security' %}selected{% endif %}>Groupes de sécurité</option>
                 <option value="distribution" {% if filter == 'distribution' %}selected{% endif %}>Groupes de distribution</option>
                 <option value="empty" {% if filter == 'empty' %}selected{% endif %}>Groupes vides</option>
                 <option value="with_members" {% if filter == 'with_members' %}selected{% endif %}>Groupes avec membres</option>
-                <option value="global" {% if filter == 'global' %}selected{% endif %}>Etendue globale</option>
-                <option value="domain_local" {% if filter == 'domain_local' %}selected{% endif %}>Etendue domaine local</option>
-                <option value="universal" {% if filter == 'universal' %}selected{% endif %}>Etendue universelle</option>
+                <option value="global" {% if filter == 'global' %}selected{% endif %}>Étendue globale</option>
+                <option value="domain_local" {% if filter == 'domain_local' %}selected{% endif %}>Étendue domaine local</option>
+                <option value="universal" {% if filter == 'universal' %}selected{% endif %}>Étendue universelle</option>
             </select>
         </div>
         <button type="submit" class="btn btn-secondary">Rechercher</button>
@@ -50,7 +50,7 @@
                 <td>{{ group.cn }}</td>
                 <td>
                     {% if group.is_security %}
-                    <span class="badge badge-info">Securite</span>
+                    <span class="badge badge-info">Sécurité</span>
                     {% else %}
                     <span class="badge badge-secondary">Distribution</span>
                     {% endif %}
@@ -84,7 +84,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" class="text-center">Aucun groupe trouve.</td>
+                <td colspan="5" class="text-center">Aucun groupe trouvé.</td>
             </tr>
             {% endfor %}
         </tbody>

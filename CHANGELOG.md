@@ -4,6 +4,52 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.60.0] - 2026-11-12 — Ergonomie : revue de toutes les pages
+
+Les 53 pages ont été parcourues en format bureau et mobile sur un annuaire
+simulé : plus aucune page ne dépasse de l'écran.
+
+### Nouveautés
+- **Recherche rapide** dans la barre du haut (touche « / » ou Ctrl+K) :
+  comptes, groupes, ordinateurs, unités d'organisation et pages du menu,
+  avec navigation au clavier.
+- **Favoris** : bouton « ☆ Favori » sur la fiche d'un compte et d'un
+  groupe ; les favoris s'affichent sur le tableau de bord et sont
+  conservés d'une session à l'autre (ils étaient perdus à la déconnexion
+  et aucun bouton ne permettait d'en ajouter).
+- **Modèles de compte** proposés à la création d'un utilisateur (ils
+  remplissent le service et la fonction) ; la page des modèles n'était
+  reliée à rien.
+- **Fiche d'un groupe** : identifiant des membres (la colonne était
+  vide), groupes imbriqués en tête, groupes dont il est membre, bouton
+  Modifier. L'ancien lien « groupes imbriqués » n'affichait qu'un message.
+- **Tableau de bord** : chiffres clés cliquables en tête, un seul bloc
+  d'accès rapide (il était en double).
+- **Menu** : sections repliables, état mémorisé.
+- **Barre de chargement** pendant l'ouverture d'une page ; le bouton
+  d'envoi d'un formulaire se verrouille pour éviter un double envoi.
+
+### Corrections d'affichage
+- **Bandeaux d'information** : le texte était découpé en colonnes dès
+  qu'il contenait un lien, du gras ou du code (LAPS, Répertoires,
+  Expirations, Paramètres de messagerie, connexion).
+- **Mobile** : les tableaux en cartes affichent le nom de chaque colonne,
+  les valeurs ne sont plus coupées ; le titre ne recouvre plus le nom de
+  l'utilisateur dans la barre du haut.
+- **Liste des utilisateurs** : l'adresse e-mail n'est plus coupée lettre
+  par lettre, les actions tiennent sur une ligne, l'en-tête ne recouvre
+  plus la première ligne.
+- **Accents** rétablis sur une vingtaine de pages (BitLocker, modèles,
+  groupes, unités d'organisation, journal d'audit, documentation API…).
+- Audit de sécurité : les groupes concernés ne s'affichent plus sous
+  forme de données brutes.
+
+### Robustesse
+- Une réponse inattendue de l'annuaire n'affiche plus une page
+  « Erreur 500 » sur « Qui reçoit quoi ? » (stratégies de groupe) ni sur
+  l'analyse des accès aux répertoires.
+- Corbeille AD : message clair quand elle n'est pas lisible.
+
 ## [1.59.0] - 2026-11-12 — Microsoft 365 rapproché de l'annuaire
 
 ### Fonctionnalités

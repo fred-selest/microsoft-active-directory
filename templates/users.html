@@ -84,7 +84,7 @@
                     <div class="mobile-only"><small class="text-muted">{{ user.sAMAccountName }}</small></div>
                 </td>
                 <td class="col-login">{{ user.sAMAccountName }}</td>
-                <td class="hide-mobile col-email">{{ user.mail or '-' }}</td>
+                <td class="hide-mobile col-email" title="{{ user.mail or '' }}">{{ user.mail or '-' }}</td>
                 <td class="hide-tablet col-department">{{ user.department or '-' }}</td>
                 <td class="hide-tablet col-lastlogon">
                     {% if user.lastLogon %}
@@ -175,12 +175,12 @@
 <!-- Modal pour deplacer -->
 <div id="moveModal" class="modal" style="display: none;">
     <div class="modal-content">
-        <h3>Deplacer l'utilisateur</h3>
+        <h3>Déplacer l'utilisateur</h3>
         <p id="moveUserName"></p>
         <form method="post" id="moveForm" action="">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
-                <label for="new_ou">Unite d'organisation de destination</label>
+                <label for="new_ou">Unité d'organisation de destination</label>
                 <select id="new_ou" name="new_ou" required>
                     {% for ou in ous %}
                     <option value="{{ ou.dn }}">{{ ou.name }}</option>
@@ -188,7 +188,7 @@
                 </select>
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Deplacer</button>
+                <button type="submit" class="btn btn-primary">Déplacer</button>
                 <button type="button" class="btn btn-secondary" data-onclick="closeMoveModal">Annuler</button>
             </div>
         </form>

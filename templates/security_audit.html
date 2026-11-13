@@ -69,7 +69,7 @@
             <strong style="font-size: 0.875rem; color: var(--text-secondary);">Comptes concernés ({{ issue.total }}):</strong>
             <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.8125rem; color: var(--text-primary);">
                 {% for item in issue.affected %}
-                <li style="margin-bottom: 0.25rem;">{{ item }}</li>
+                <li style="margin-bottom: 0.25rem;">{% if item is mapping %}{{ item.cn or item.name or item.sam or item.dn }}{% if item.dn %} <small class="text-muted access-path">— {{ item.dn }}</small>{% endif %}{% else %}{{ item }}{% endif %}</li>
                 {% endfor %}
             </ul>
         </div>

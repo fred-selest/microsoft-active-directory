@@ -9,6 +9,8 @@
         {% if config.FEATURE_FOLDERS_ENABLED and check_user_permission('tools:folders_read') %}
         <a href="#repertoires" class="btn btn-secondary">🗂️ Répertoires</a>
         {% endif %}
+        {% with fav_dn = group.dn, fav_type = 'group', fav_name = group.cn %}{% include 'partials/_favorite_button.html' %}{% endwith %}
+        {% if check_user_permission('groups:update') %}<a href="{{ url_for('groups.edit_group', dn=group.dn) }}" class="btn btn-secondary">✏️ Modifier</a>{% endif %}
         <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Retour aux groupes</a>
     </div>
 </div>
@@ -24,11 +26,15 @@
 {% set is_protected = is_builtin or is_special_ad %}
 
 <div class="group-info">
-    <p><strong>DN:</strong> {{ group.dn }}</p>
-    {% if group.description %}
-    <p><strong>Description:</strong> {{ group.description }}</p>
-    {% endif %}
-    <p><strong>Nombre de membres:</strong> {{ group.members|length }}</p>
+    {% if group.description %}<p>{{ group.description }}</p>{% endif %}
+    <p class="text-muted access-path">{{ group.dn }}</p>
+    <p><strong>{{ group.members|length }}</strong> membre(s) direct(s){% set sub = group.members|selectattr('type', 'equalto', 'group')|list %}{% if sub %},
+        dont <strong>{{ sub|length }}</strong> groupe(s) imbriqué(s){% endif %}.</p>
+    <div id="imbrication">
+        <strong>Membre de :</strong>
+        {% for g in group.member_of %}<a class="badge badge-info" href="{{ url_for('groups.view_group', dn=g.dn) }}">{{ g.cn }}</a> {% else %}<span class="text-muted">aucun autre groupe</span>{% endfor %}
+        {% if group.member_of %}<br><small class="text-muted">Les membres de ce groupe héritent des droits de ces groupes.</small>{% endif %}
+    </div>
     {% if is_protected %}
     <div class="builtin-warning" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-top: 1rem; border-radius: 4px;">
         <strong>⚠️ Groupe système protégé</strong><br>
@@ -82,13 +88,16 @@
                 <td>
                     {% if member.type == 'user' %}
                     <span class="badge badge-info">Utilisateur</span>
+                    {% elif member.type == 'computer' %}
+                    <span class="badge badge-secondary">Ordinateur</span>
                     {% else %}
                     <span class="badge badge-secondary">Groupe</span>
                     {% endif %}
                 </td>
                 <td class="actions">
                     {% if member.type == 'user' %}
-                    <a href="{{ url_for('users.edit_user', dn=member.dn) }}" class="btn btn-sm btn-secondary">Modifier</a>
+                    <a href="{{ url_for('users.overview', dn=member.dn) }}" class="btn btn-sm btn-secondary">Fiche</a>
+                    {% elif member.type == 'computer' %}
                     {% else %}
                     <a href="{{ url_for('groups.view_group', dn=member.dn) }}" class="btn btn-sm btn-secondary">Voir</a>
                     {% endif %}

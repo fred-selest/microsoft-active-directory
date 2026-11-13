@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Modeles d'utilisateurs - AD Web Interface{% endblock %}
+{% block title %}Modèles d'utilisateurs - AD Web Interface{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2>Modeles d'utilisateurs</h2>
-    <a href="{{ url_for('tools.create_user_template') }}" class="btn btn-primary">Nouveau modele</a>
+    <h2>Modèles d'utilisateurs</h2>
+    <a href="{{ url_for('tools.create_user_template') }}" class="btn btn-primary">Nouveau modèle</a>
 </div>
 
 <div class="templates-list">
@@ -13,12 +13,12 @@
     <div class="template-card">
         <div class="template-header">
             <h3>{{ template.name }}</h3>
-            <span class="template-date">Cree le {{ template.created[:10] }}</span>
+            <span class="template-date">Créé le {{ template.created[:10] }}</span>
         </div>
         <p class="template-description">{{ template.description }}</p>
 
         <div class="template-details">
-            <h4>Attributs par defaut:</h4>
+            <h4>Attributs par défaut:</h4>
             <ul>
                 {% for key, value in template.attributes.items() %}
                 {% if value %}
@@ -37,7 +37,7 @@
             {% endif %}
 
             {% if template.ou %}
-            <h4>OU par defaut:</h4>
+            <h4>OU par défaut:</h4>
             <p>{{ template.ou }}</p>
             {% endif %}
         </div>
@@ -47,12 +47,12 @@
             <a href="{{ url_for('tools.edit_user_template', template_id=id) }}" class="btn btn-secondary btn-sm">Modifier</a>
             <form method="post" action="{{ url_for('tools.delete_user_template', template_id=id) }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-sm" data-confirm="Supprimer ce modele ?">Supprimer</button>
+                <button type="submit" class="btn btn-danger btn-sm" data-confirm="Supprimer ce modèle ?">Supprimer</button>
             </form>
         </div>
     </div>
     {% else %}
-    <p class="no-templates">Aucun modele defini. <a href="{{ url_for('tools.create_user_template') }}">Creer un modele</a></p>
+    <p class="no-templates">Aucun modèle défini. <a href="{{ url_for('tools.create_user_template') }}">Créer un modèle</a></p>
     {% endfor %}
 </div>
 

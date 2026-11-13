@@ -1,0 +1,12 @@
+{# Bouton « favori » : variables fav_dn, fav_type (user, group, computer, ou), fav_name. #}
+{% set _is_fav = is_favorite(fav_dn) %}
+<form method="post" action="{{ url_for('tools.toggle_favorite') }}" class="favorite-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="dn" value="{{ fav_dn }}">
+    <input type="hidden" name="type" value="{{ fav_type }}">
+    <input type="hidden" name="name" value="{{ fav_name }}">
+    {% if _is_fav %}<input type="hidden" name="action" value="remove">{% endif %}
+    <button type="submit" class="btn btn-secondary favorite-button{{ ' is-favorite' if _is_fav }}"
+            title="{{ 'Retirer des favoris' if _is_fav else 'Ajouter aux favoris (accès direct depuis le tableau de bord)' }}"
+            aria-pressed="{{ 'true' if _is_fav else 'false' }}">{{ '★' if _is_fav else '☆' }} Favori</button>
+</form>

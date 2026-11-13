@@ -32,6 +32,7 @@ Le répertoire `core/` contient tous les **modules utilitaires** essentiels au f
 | `account_stats.py` | **Statistiques :** Compteurs du centre des alertes et du tableau de bord (recherches paginées) |
 | `domain_history.py` | **Journal du domaine :** photos de l'annuaire, comparaison en événements classés, annulation, alerte |
 | `offboarding.py` | **Départ d'un collaborateur :** étapes indépendantes, rapport (data/offboarding/), annulation |
+| `favorites.py` | Favoris de chaque administrateur (data/favorites.json) |
 | `m365.py` | **Microsoft 365 :** licences, synchronisation, écarts avec l'annuaire, taille des boîtes (lecture seule, Microsoft Graph) |
 | `exchange.py` | **Microsoft 365 :** boîtes aux lettres partagées Exchange Online (identité d'application par certificat) |
 | `gpo.py` | **Stratégies de groupe :** lecture LDAP, filtrage de sécurité, calcul des stratégies reçues, liens, sauvegarde et restauration |

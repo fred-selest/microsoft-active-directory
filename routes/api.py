@@ -840,6 +840,75 @@ def api_ad_search():
             pass
 
 
+@api_bp.route('/quick-search')
+@require_connection
+@require_permission('users:read')
+def api_quick_search():
+    """
+    Recherche rapide de la barre du haut : comptes, groupes, ordinateurs et
+    unités d'organisation en une seule requête. Chaque résultat porte le
+    lien de sa page.
+    """
+    from flask import url_for
+    from ldap3 import SUBTREE
+    from core.security import escape_ldap_filter
+
+    query = request.args.get('q', '').strip()
+    if len(query) < 2:
+        return jsonify([])
+    conn, error = get_ad_connection()
+    if not conn:
+        return jsonify([])
+    try:
+        base_dn = session.get('ad_base_dn', '')
+        q = escape_ldap_filter(query)
+        conn.search(base_dn,
+                    '(&(|(objectClass=user)(objectClass=group)(objectClass=organizationalUnit))'
+                    f'(|(cn=*{q}*)(sAMAccountName=*{q}*)(displayName=*{q}*)(mail=*{q}*)(ou=*{q}*)))',
+                    SUBTREE, attributes=['objectClass', 'cn', 'sAMAccountName', 'displayName', 'mail', 'ou'],
+                    size_limit=40)
+        results = []
+        for e in conn.entries:
+            def val(attr):
+                value = getattr(e, attr).value if attr in e else None
+                if isinstance(value, list):
+                    value = value[0] if value else None
+                return '' if value is None else str(value)
+            classes = {str(c).lower() for c in (e.objectClass.values if 'objectClass' in e else [])}
+            dn = e.entry_dn
+            if 'computer' in classes:
+                name = val('cn')
+                item = {'kind': 'computer', 'label': name, 'detail': 'Ordinateur',
+                        'url': url_for('computers.list_computers', search=name)}
+            elif 'group' in classes:
+                item = {'kind': 'group', 'label': val('cn'), 'detail': 'Groupe',
+                        'url': url_for('groups.view_group', dn=dn)}
+            elif 'organizationalunit' in classes:
+                item = {'kind': 'ou', 'label': val('ou') or dn, 'detail': 'Unité d\'organisation',
+                        'url': url_for('users.list_users', ou=dn)}
+            elif 'user' in classes:
+                sam = val('sAMAccountName')
+                item = {'kind': 'user', 'label': val('displayName') or val('cn') or sam,
+                        'detail': ' — '.join(x for x in (sam, val('mail')) if x),
+                        'url': url_for('users.overview', dn=dn)}
+            else:
+                continue
+            results.append(item)
+        order = {'user': 0, 'group': 1, 'computer': 2, 'ou': 3}
+        ql = query.lower()
+        results.sort(key=lambda r: (order[r['kind']], not r['label'].lower().startswith(ql), r['label'].lower()))
+        return jsonify(results[:20])
+    except Exception as e:                       # la recherche ne doit jamais casser la page
+        import logging
+        logging.getLogger('api').warning('Recherche rapide impossible : %s', e)
+        return jsonify([])
+    finally:
+        try:
+            conn.unbind()
+        except Exception:
+            pass
+
+
 @api_bp.route('/permissions/<path:group_name>', methods=['DELETE'])
 @require_connection
 @require_permission('admin:permissions')

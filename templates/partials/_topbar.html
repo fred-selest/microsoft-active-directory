@@ -40,9 +40,14 @@
             {% endif %}
         </a>
     </div>
-    <div class="top-bar-center">
-        <span class="top-bar-title">{{ site_settings.title or 'AD Web Interface' }}</span>
+    <span class="top-bar-title">{{ site_settings.title or 'AD Web Interface' }}</span>
+    {% if connected and check_user_permission('users:read') %}
+    <div class="quick-search" id="quick-search" data-url="{{ url_for('api.api_quick_search') }}" role="search">
+        <input type="search" placeholder="Rechercher un compte, un groupe, un poste, une page…  ( / )"
+               aria-label="Recherche rapide" autocomplete="off" spellcheck="false">
+        <div class="quick-search-results" hidden></div>
     </div>
+    {% endif %}
     <div class="top-bar-right">
         {% if connected %}
         <span class="user-info">
@@ -54,8 +59,8 @@
                 {{ session.get('user_role', 'reader')|capitalize }}
             </span>
         </span>
-        <a href="{{ url_for('main.disconnect') }}" class="btn btn-logout" title="Déconnexion">
-            <span>&#x1F6AA;</span>
+        <a href="{{ url_for('main.disconnect') }}" class="btn btn-logout" title="Se déconnecter" aria-label="Se déconnecter">
+            <span aria-hidden="true">&#x23FB;</span>
         </a>
         {% else %}
         <a href="{{ url_for('main.connect') }}" class="btn btn-primary btn-sm">Connexion</a>

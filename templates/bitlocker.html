@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="page-header">
-    <h2>Cles de recuperation BitLocker</h2>
+    <h2>Clés de récupération BitLocker</h2>
 </div>
 
 <div class="search-box">
@@ -25,9 +25,9 @@
         <thead>
             <tr>
                 <th>Ordinateur</th>
-                <th>ID de recuperation</th>
-                <th>Cle de recuperation</th>
-                <th>Date de creation</th>
+                <th>ID de récupération</th>
+                <th>Clé de récupération</th>
+                <th>Date de création</th>
             </tr>
         </thead>
         <tbody>
@@ -47,14 +47,14 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="text-center">Aucune cle BitLocker trouvee.</td>
+                <td colspan="4" class="text-center">Aucune clé BitLocker trouvée.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="results-count">{{ keys|length }} cle(s) trouvee(s)</p>
+<p class="results-count">{{ keys|length }} clé(s) trouvée(s)</p>
 
 {% endblock %}
 

@@ -69,6 +69,14 @@ def inject_globals():
     if isinstance(dropdown_items, list):
         dropdown_items = _routable(dropdown_items)
 
+    def _user_favorites():
+        from core import favorites
+        return favorites.load(session.get('ad_username')) if session.get('ad_username') else []
+
+    def _is_favorite(dn):
+        dn = (dn or '').lower()
+        return any(f['dn'].lower() == dn for f in _user_favorites())
+
     def check_user_permission(permission):
         """
         Vérifie si l'utilisateur actuel détient une permission.
@@ -137,6 +145,8 @@ def inject_globals():
         'update_info': _update_cache['result'],
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
         'check_user_permission': check_user_permission,
+        'is_favorite': _is_favorite,
+        'user_favorites': _user_favorites,
         'check_any_permission': check_any_permission,
         'check_permission_prefix': check_permission_prefix,
         'dark_mode': session.get('dark_mode', False),
