@@ -4,6 +4,35 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.61.0] - 2026-11-13 — Résistance au rançongiciel
+
+### Fonctionnalités
+- **Page « Rançongiciel »** (menu Outils), en lecture seule, avec une note
+  sur 100 et, pour chaque constat, pourquoi c'est un risque et quoi faire.
+- **Qui peut prendre la main sur le domaine ?**
+  - comptes d'administration et leur chemin : appartenance directe,
+    groupes imbriqués (droits obtenus sans apparaître dans le groupe
+    d'administration), groupe principal ;
+  - comptes d'administration utilisés comme comptes de service (SPN),
+    sans pré-authentification Kerberos, inutilisés, désactivés mais encore
+    membres, à mot de passe ancien ou sans expiration, non protégés contre
+    la délégation ;
+  - membres des groupes d'opérateurs, délégation Kerberos sans contrainte,
+    âge du mot de passe krbtgt, mots de passe vides autorisés ou à
+    chiffrement réversible, corbeille AD désactivée.
+- **Où un poste infecté peut-il écrire ?** Dossiers des partages gérés
+  ouverts en écriture à Tout le monde, aux Utilisateurs authentifiés ou
+  aux Utilisateurs du domaine ; dossiers lisibles par tout le monde.
+- **Peut-on restaurer ?** Sur le serveur de l'application : dernière
+  Sauvegarde Windows Server réussie, clichés instantanés par volume,
+  logiciels de sauvegarde tiers détectés.
+- Nouvelle permission « tools:resilience », classée sensible.
+
+### Limites
+- Les droits délégués par ACL sur les objets de l'annuaire (« qui peut
+  réinitialiser le mot de passe d'un administrateur ») ne sont pas analysés.
+- Seul le serveur de l'application est examiné pour les sauvegardes.
+
 ## [1.60.0] - 2026-11-12 — Ergonomie : revue de toutes les pages
 
 Les 53 pages ont été parcourues en format bureau et mobile sur un annuaire

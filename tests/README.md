@@ -12,7 +12,7 @@ Interface. Elle est exécutée par la CI (`.github/workflows/ci.yml`, job
 
 **Framework :** `pytest`
 
-Ce fichier décrit les fichiers **réellement présents** dans `tests/` (30
+Ce fichier décrit les fichiers **réellement présents** dans `tests/` (31
 fichiers). Les versions précédentes de ce document faisaient référence à des
 dizaines de fichiers (`test_users.py`, `test_groups.py`, `test_mobile.py`,
 `test_page_structure.py`…) qui n'ont jamais existé dans ce dépôt : ce
@@ -46,6 +46,7 @@ document les remplace.
 | `test_domain_history.py` | Journal du domaine : comparaison de deux photos (gravité, déplacement sans faux changement, stratégies, partages), stockage, annulation recalculée côté serveur, alerte e-mail, collecte, photo quotidienne unique, compte de lecture chiffré, permissions |
 | `test_offboarding.py` | Fiche complète et départ d'un collaborateur : aperçu et avertissements, étapes indépendantes (échec ou exception LDAP), mot de passe jamais conservé, conversion de la boîte simulée, rapport, annulation (complète, partielle, compte introuvable), identifiant de rapport, pages et permission dédiée |
 | `test_ergonomie.py` | Confort d'utilisation : recherche rapide (classement, liens, saisie échappée, annuaire injoignable), fiche de groupe (identifiants, imbrication), modèles proposés à la création, bandeaux, étiquettes des tableaux sur mobile, accents, erreur inattendue sans page 500 |
+| `test_resilience.py` | Résistance au rançongiciel : chemins vers les droits d'administration (imbrication, boucle de groupes, groupe principal), comptes fragiles, délégation, krbtgt, partages ouverts à tous (droit hérité signalé une seule fois), sauvegardes et clichés instantanés, note, analyse en arrière-plan, permission, script en lecture seule |
 | `test_m365.py` | Microsoft 365 rapproché de l'annuaire : état de la liaison, paramètres sur l'entrée standard, erreurs lisibles, cache, ancre de synchronisation, écarts AD ↔ cloud, licences, retard de synchronisation, taille des boîtes et relevé en arrière-plan, pages, permission, scripts en lecture seule |
 | `test_mailboxes.py` | Boîtes partagées Exchange Online : configuration écrite par le script de mise en place, paramètres sur l'entrée standard, liste et cache, accès, refus d'une boîte non partagée, création (domaine accepté, doublon), adresse M365 d'un compte de l'annuaire, permissions, garde-fous des scripts |
 | `test_pagination.py` | Pagination des listes : total réel, liens vers toutes les pages, filtres conservés, recherche encodée, numéro de page borné |
