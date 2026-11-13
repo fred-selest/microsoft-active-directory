@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Résistance au rançongiciel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🛟 Résistance au rançongiciel</h2>
+    <div class="page-actions">
+        <button type="button" id="r-refresh" class="btn btn-secondary">↻ Relancer l'analyse</button>
+    </div>
+</div>
+
+<p class="text-muted">Ce qu'un poste infecté trouverait sur ce domaine, et ce qui permettrait de s'en relever.
+    Lecture seule : rien n'est modifié.</p>
+
+<div class="r-summary card">
+    <div class="r-score" id="r-score"><strong>…</strong><span>/ 100</span></div>
+    <div class="r-summary-text">
+        <h3 id="r-verdict">Analyse en cours…</h3>
+        <p id="r-counts" class="text-muted"></p>
+        <p class="text-muted r-hint">Note indicative : 100, moins 25 points par constat critique, 12 par constat élevé,
+            5 par constat moyen.</p>
+    </div>
+</div>
+
+<section class="card">
+    <h3>1. Qui peut prendre la main sur le domaine ?</h3>
+    <div id="r-dir-error"></div>
+    <div id="r-dir" class="text-muted">Lecture de l'annuaire…</div>
+    <details class="r-admins" id="r-admins-wrap" hidden>
+        <summary>Comptes d'administration et leur chemin (<span id="r-admins-count">0</span>)</summary>
+        <div class="table-container">
+            <table class="data-table">
+                <thead><tr><th>Compte</th><th>Chemin vers les droits</th><th>Dernière connexion</th>
+                    <th>Mot de passe</th><th>État</th></tr></thead>
+                <tbody id="r-admins"></tbody>
+            </table>
+        </div>
+    </details>
+</section>
+
+<section class="card">
+    <h3>2. Où un poste infecté peut-il écrire ?</h3>
+    {% if not shares %}
+    <div class="alert alert-info">Aucun partage n'est déclaré : ajoutez vos partages depuis
+        <a href="{{ url_for('folders.discover') }}">Répertoires › Partages du domaine</a> pour qu'ils soient analysés.</div>
+    {% endif %}
+    <div id="r-shares" class="text-muted">{{ 'Lecture des droits des partages (peut prendre une à deux minutes)…' if shares else '' }}</div>
+</section>
+
+<section class="card">
+    <h3>3. Peut-on restaurer ?</h3>
+    <div id="r-backups" class="text-muted">Lecture de l'état des sauvegardes du serveur…</div>
+    <p class="text-muted r-hint">Seul le serveur de l'application est examiné. Une sauvegarde n'est fiable que si elle
+        est hors d'atteinte des postes (support déconnecté ou stockage immuable) et si une restauration a été testée.</p>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card { margin-bottom: 1rem; }
+.r-summary { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; }
+.r-score { width: 7.5rem; height: 7.5rem; border-radius: 50%; border: .5rem solid var(--border-color, #ddd); flex-shrink: 0;
+           display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.r-score strong { font-size: 2.2rem; line-height: 1; }
+.r-score span { color: var(--text-secondary, #666); font-size: .85rem; }
+.r-score.good { border-color: #2e9e4f; } .r-score.mid { border-color: #d98300; } .r-score.bad { border-color: #c62828; }
+.r-summary-text { flex: 1 1 16rem; min-width: 0; }
+.r-summary-text h3 { margin: 0 0 .3rem; }
+.r-hint { font-size: .85rem; margin: .4rem 0 0; }
+.r-find { border: 1px solid var(--border-color, #e5e7eb); border-left-width: .35rem; border-radius: 6px; padding: .6rem .9rem; margin: .6rem 0; }
+.r-find.critical { border-left-color: #c62828; } .r-find.high { border-left-color: #e2630b; }
+.r-find.medium { border-left-color: #d9a400; } .r-find.info { border-left-color: #6b7c93; }
+.r-find summary { cursor: pointer; font-weight: 600; color: var(--text-primary, #222); }
+.r-find p { margin: .45rem 0; color: var(--text-primary, #222); }
+.r-find .r-fix { background: var(--gray-100, #f3f5f7); border-radius: 4px; padding: .5rem .7rem; }
+.r-find ul { margin: .4rem 0 0 1.1rem; max-height: 16rem; overflow-y: auto; }
+.r-find li { overflow-wrap: anywhere; padding: .1rem 0; }
+.r-find li small { color: var(--text-secondary, #666); }
+.r-tag { display: inline-block; border-radius: 999px; padding: 0 .55rem; font-size: .75rem; font-weight: 600; margin-right: .4rem; color: #fff; }
+.r-tag.critical { background: #c62828; } .r-tag.high { background: #e2630b; } .r-tag.medium { background: #b98a00; } .r-tag.info { background: #6b7c93; }
+.r-ok { color: #1b7a3a; font-weight: 600; margin: .4rem 0; }
+.r-admins { margin-top: .8rem; }
+.r-admins summary { cursor: pointer; font-weight: 600; margin-bottom: .5rem; }
+.r-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin: .6rem 0; color: var(--text-primary, #222); }
+.r-fact { background: var(--gray-100, #f3f5f7); border-radius: 6px; padding: .55rem .8rem; }
+.r-fact small { display: block; color: var(--text-secondary, #666); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var urls = {directory: {{ url_for('resilience.api_directory')|tojson }}, scan: {{ url_for('resilience.api_scan')|tojson }},
+                users: {{ url_for('users.list_users')|tojson }}, folders: {{ url_for('folders.browse')|tojson }}};
+    var hasShares = {{ (shares|length > 0)|tojson }};
+    var LABEL = {critical: 'Critique', high: 'Élevé', medium: 'Moyen', info: 'Info'};
+    var parts = {directory: null, shares: null, backups: null};
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+    function el(id) { return document.getElementById(id); }
+    function dnUrl(dn) { return urls.users + encodeURIComponent(dn).replace(/%2C/g, ',').replace(/%3D/g, '=') + '/overview'; }
+    function size(bytes) {
+        var units = ['o', 'Ko', 'Mo', 'Go', 'To'], i = 0;
+        while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+        return bytes.toLocaleString('fr-FR', {maximumFractionDigits: i > 2 ? 1 : 0}) + ' ' + units[i];
+    }
+    function json(url, options) {
+        return fetch(url, options || {headers: {'Accept': 'application/json'}})
+            .then(function (r) { return r.json(); })
+            .catch(function () { return {success: false, error: 'Le serveur n\'a pas répondu.'}; });
+    }
+
+    function findingHtml(f) {
+        var items = f.items.map(function (i) {
+            var name = esc(i.name || i.sam);
+            if (i.dn) { name = '<a href="' + dnUrl(i.dn) + '">' + name + '</a>'; }
+            else if (i.path) { name = '<a href="' + urls.folders + '?path=' + encodeURIComponent(i.path) + '">' + name + '</a>'; }
+            return '<li>' + name + (i.sam && i.sam !== i.name ? ' <small>(' + esc(i.sam) + ')</small>' : '') +
+                (i.detail ? ' <small>— ' + esc(i.detail) + '</small>' : '') + '</li>';
+        }).join('');
+        return '<details class="r-find ' + f.severity + '"' + (f.severity === 'critical' ? ' open' : '') + '><summary>' +
+            '<span class="r-tag ' + f.severity + '">' + LABEL[f.severity] + '</span>' + esc(f.title) +
+            (f.items.length ? ' <small>(' + f.count + ')</small>' : '') + '</summary><p>' + esc(f.why) +
+            '</p><p class="r-fix"><strong>Que faire :</strong> ' + esc(f.fix) + '</p>' +
+            (items ? '<ul>' + items + '</ul>' : '') +
+            (f.count > f.items.length ? '<p><small>… et ' + (f.count - f.items.length) + ' autres.</small></p>' : '') + '</details>';
+    }
+    function findingsHtml(list, okText) {
+        return list.length ? list.map(findingHtml).join('') : '<p class="r-ok">✅ ' + esc(okText) + '</p>';
+    }
+
+    function summary() {
+        var all = [], pending = false;
+        ['directory', 'shares', 'backups'].forEach(function (k) {
+            if (parts[k] === null) { pending = true; } else if (parts[k]) { all = all.concat(parts[k]); }
+        });
+        var cost = {critical: 25, high: 12, medium: 5, info: 0}, value = 100, n = {critical: 0, high: 0, medium: 0, info: 0};
+        all.forEach(function (f) { value -= cost[f.severity]; n[f.severity]++; });
+        value = Math.max(0, value);
+        var box = el('r-score');
+        box.className = 'r-score ' + (value >= 80 ? 'good' : (value >= 50 ? 'mid' : 'bad'));
+        box.querySelector('strong').textContent = pending ? '…' : value;
+        el('r-verdict').textContent = pending ? 'Analyse en cours…' :
+            (n.critical ? 'Des failles critiques sont à traiter en priorité' :
+             (n.high ? 'Des points importants restent à corriger' :
+              (n.medium ? 'Bonne base, quelques améliorations possibles' : 'Aucun constat : domaine bien tenu')));
+        el('r-counts').textContent = n.critical + ' critique(s), ' + n.high + ' élevé(s), ' + n.medium + ' moyen(s)' +
+            (pending ? ' pour l\'instant' : '');
+    }
+
+    function loadDirectory() {
+        parts.directory = null; summary();
+        el('r-dir').className = 'text-muted'; el('r-dir').textContent = 'Lecture de l\'annuaire…';
+        el('r-dir-error').innerHTML = '';
+        json(urls.directory).then(function (d) {
+            if (!d.success) {
+                parts.directory = false; summary();
+                el('r-dir').textContent = '';
+                el('r-dir-error').innerHTML = '<div class="alert alert-error">' + esc(d.error) + '</div>';
+                return;
+            }
+            parts.directory = d.findings; summary();
+            el('r-dir').className = '';
+            el('r-dir').innerHTML = '<div class="r-facts"><div class="r-fact"><strong>' + d.counts.admins +
+                '</strong><small>compte(s) avec tous les droits</small></div><div class="r-fact"><strong>' + d.counts.operators +
+                '</strong><small>opérateur(s)</small></div><div class="r-fact"><strong>' +
+                (d.recycle_bin === true ? 'Activée' : (d.recycle_bin === false ? 'Désactivée' : 'Inconnue')) +
+                '</strong><small>corbeille Active Directory</small></div></div>' +
+                findingsHtml(d.findings, 'Aucun chemin anormal vers les droits d\'administration.');
+            el('r-admins-wrap').hidden = !d.admins.length;
+            el('r-admins-count').textContent = d.admins.length;
+            el('r-admins').innerHTML = d.admins.map(function (a) {
+                return '<tr><td><a href="' + dnUrl(a.dn) + '"><strong>' + esc(a.name) + '</strong></a><br><small class="text-muted">' +
+                    esc(a.sam) + '</small></td><td>' + a.paths.map(esc).join('<br>') + '</td><td>' + esc(a.last_logon || 'Jamais') +
+                    '</td><td>' + (a.pwd_age_days == null ? '—' : 'changé il y a ' + a.pwd_age_days + ' j') + '</td><td>' +
+                    (a.enabled ? '<span class="badge badge-success">Actif</span>' : '<span class="badge badge-danger">Désactivé</span>') +
+                    (a.critical ? '' : ' <span class="badge badge-warning">Opérateur</span>') + '</td></tr>';
+            }).join('');
+        });
+    }
+
+    function renderScan(d) {
+        var s = d.shares, b = d.backups, errors = d.errors || [];
+        if (s) {
+            parts.shares = s.findings;
+            el('r-shares').className = '';
+            el('r-shares').innerHTML = (hasShares ? '<p class="text-muted">' + s.scanned + ' dossier(s) examiné(s) dans ' +
+                s.shares.length + ' partage(s)' + (s.truncated ? ' — analyse interrompue à la limite de dossiers' : '') + '.</p>' +
+                findingsHtml(s.findings, 'Aucun dossier ouvert en écriture à tous les utilisateurs.') : '') +
+                s.errors.map(function (e) { return '<div class="alert alert-warning">' + esc(e) + '</div>'; }).join('');
+        } else {
+            parts.shares = false;
+            el('r-shares').innerHTML = '';
+        }
+        if (b) {
+            parts.backups = b.findings;
+            var w = b.wsb;
+            el('r-backups').className = '';
+            el('r-backups').innerHTML = '<div class="r-facts"><div class="r-fact"><strong>' + esc(b.computer || 'Serveur') +
+                '</strong><small>serveur examiné</small></div><div class="r-fact"><strong>' +
+                (w.installed ? (w.last_success || 'Jamais') : 'Non installée') + '</strong><small>dernière sauvegarde Windows réussie' +
+                (w.versions ? ' — ' + w.versions + ' version(s)' : '') + '</small></div>' +
+                (w.next ? '<div class="r-fact"><strong>' + esc(w.next) + '</strong><small>prochaine sauvegarde</small></div>' : '') +
+                (b.other_software.length ? '<div class="r-fact"><strong>' + esc(b.other_software.slice(0, 2).join(', ')) +
+                    '</strong><small>autre logiciel de sauvegarde détecté</small></div>' : '') + '</div>' +
+                (b.volumes.length ? '<div class="table-container"><table class="data-table"><thead><tr><th>Volume</th><th>Taille</th>' +
+                    '<th>Libre</th><th>Clichés instantanés</th><th>Dernier cliché</th></tr></thead><tbody>' +
+                    b.volumes.map(function (v) {
+                        return '<tr><td><strong>' + esc(v.letter) + '</strong> ' + esc(v.label) + '</td><td>' + size(v.size) + '</td><td>' +
+                            size(v.free) + '</td><td>' + v.copies + '</td><td>' + esc(v.newest || '—') + '</td></tr>';
+                    }).join('') + '</tbody></table></div>' : '') +
+                findingsHtml(b.findings, 'Sauvegarde récente et clichés instantanés en place sur ce serveur.') +
+                b.notes.map(function (n) { return '<p class="text-muted"><small>' + esc(n) + '</small></p>'; }).join('');
+        } else {
+            parts.backups = false;
+            el('r-backups').innerHTML = '';
+        }
+        errors.forEach(function (e) {
+            var target = e.indexOf('Partages') === 0 ? 'r-shares' : 'r-backups';
+            el(target).innerHTML += '<div class="alert alert-warning">' + esc(e) + '</div>';
+        });
+        summary();
+    }
+
+    function poll(job) {
+        json(urls.scan + '/' + job).then(function (d) {
+            if (!d.success) { renderScan({errors: ['Partages : ' + d.error, 'Sauvegardes : ' + d.error]}); return; }
+            if (d.status === 'running') { setTimeout(function () { poll(job); }, 3000); return; }
+            renderScan(d);
+        });
+    }
+    function loadScan(refresh) {
+        parts.shares = null; parts.backups = null; summary();
+        json(urls.scan, {method: 'POST', headers: {'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+            body: JSON.stringify({refresh: !!refresh})}).then(function (d) {
+            if (!d.success) { renderScan({errors: ['Partages : ' + d.error, 'Sauvegardes : ' + d.error]}); return; }
+            poll(d.job);
+        });
+    }
+
+    el('r-refresh').addEventListener('click', function () { loadDirectory(); loadScan(true); });
+    loadDirectory();
+    loadScan(false);
+})();
+</script>
+{% endblock %}

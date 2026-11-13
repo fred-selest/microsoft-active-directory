@@ -14,6 +14,13 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.61.0 — Résistance au rançongiciel
+
+- **Chemins vers les droits d'administration** : qui est administrateur, directement ou par un groupe imbriqué ; comptes d'administration fragiles.
+- **Partages ouverts** : dossiers où tous les utilisateurs peuvent écrire.
+- **Sauvegardes** : dernière sauvegarde Windows réussie, clichés instantanés.
+- Une note sur 100, et pour chaque constat : pourquoi, et quoi faire.
+
 ## 🆕 Nouveautés v1.60.0 — Ergonomie
 
 - **Recherche rapide** dans la barre du haut (touche `/`) : comptes, groupes, ordinateurs, pages.

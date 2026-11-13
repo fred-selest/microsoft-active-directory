@@ -47,6 +47,7 @@ templates/
 ├── folder_discover.html      # Serveurs et partages du domaine
 ├── history.html              # Journal du domaine
 ├── mailboxes.html            # Boîtes aux lettres partagées Microsoft 365
+├── resilience.html           # Résistance au rançongiciel
 ├── m365.html                 # Microsoft 365 : licences, synchronisation, écarts, taille des boîtes
 ├── user_overview.html        # Fiche complète d'une personne
 ├── offboard.html             # Départ d'un collaborateur (aperçu, choix des actions)
