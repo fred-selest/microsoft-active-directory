@@ -12,7 +12,7 @@
    un rechargement de page la fait disparaitre definitivement. #}
 {% if new_key %}
 <div class="alert alert-success" style="border-left: 4px solid #107c10;">
-    <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">Nouvelle cle API generee</h4>
+    <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">Nouvelle clé API générée</h4>
     <p style="margin:0 0 0.75rem 0; font-size:0.9rem;">
         Copiez-la maintenant : elle ne sera <strong>plus jamais affichee</strong>.
     </p>
@@ -33,7 +33,7 @@
 
 <div class="api-section">
     <h3>Authentification</h3>
-    <p>Toutes les requetes API necessitent une cle API valide.</p>
+    <p>Toutes les requêtes API nécessitent une clé API valide.</p>
 
     <div class="code-block">
         <p><strong>Type:</strong> {{ api_docs.authentication.type }}</p>
@@ -41,14 +41,14 @@
         <code>{{ api_docs.authentication.example }}</code>
     </div>
 
-    <h4>Vos cles API</h4>
+    <h4>Vos clés API</h4>
     {% if api_keys %}
     <table class="data-table">
         <thead>
             <tr>
                 <th>Nom</th>
-                <th>Cree le</th>
-                <th>Derniere utilisation</th>
+                <th>Créé le</th>
+                <th>Dernière utilisation</th>
                 <th>Permissions</th>
                 <th>Actions</th>
             </tr>
@@ -72,25 +72,25 @@
         </tbody>
     </table>
     {% else %}
-    <p>Aucune cle API.</p>
+    <p>Aucune clé API.</p>
     {% endif %}
 
     <form method="post" action="{{ url_for('tools.generate_api_key_route') }}" class="generate-key-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
-            <label for="key_name">Nom de la cle</label>
-            <input type="text" id="key_name" name="name" required placeholder="Ma cle API">
+            <label for="key_name">Nom de la clé</label>
+            <input type="text" id="key_name" name="name" required placeholder="Ma clé API">
         </div>
         <div class="form-group">
             <label>Permissions</label>
             <div class="checkbox-group">
                 <label><input type="checkbox" name="permissions" value="read" checked> Lecture</label>
-                <label><input type="checkbox" name="permissions" value="write"> Ecriture</label>
+                <label><input type="checkbox" name="permissions" value="write"> Écriture</label>
                 <label><input type="checkbox" name="permissions" value="delete"> Suppression</label>
                 <label><input type="checkbox" name="permissions" value="admin"> Admin</label>
             </div>
         </div>
-        <button type="submit" class="btn btn-primary">Generer une cle</button>
+        <button type="submit" class="btn btn-primary">Générer une clé</button>
     </form>
 </div>
 

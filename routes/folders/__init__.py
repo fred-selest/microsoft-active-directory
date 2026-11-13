@@ -317,6 +317,9 @@ def api_access():
         return jsonify({'success': True, 'job': job_id, 'principal': principal_info}), 202
     except fs.FolderError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:                       # erreur LDAP inattendue : message lisible plutôt qu'une erreur 500
+        logger.exception('Analyse des accès impossible')
+        return jsonify({'success': False, 'error': f'Analyse impossible : {e}'}), 502
     finally:
         if conn:
             conn.unbind()

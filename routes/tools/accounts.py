@@ -1,10 +1,13 @@
 """Routes gestion des comptes : corbeille AD, comptes verrouillés, comptes expirant."""
+import logging
 from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, session
 from ldap3 import SUBTREE, MODIFY_DELETE, MODIFY_REPLACE
 from ldap3.utils.dn import escape_rdn
 
 from . import tools_bp
+
+logger = logging.getLogger(__name__)
 from ..core import get_ad_connection, decode_ldap_value, is_connected, require_connection, require_permission
 
 
@@ -71,7 +74,9 @@ def recycle_bin():
                 'type': obj_type,
             })
     except Exception as e:
-        flash(f'Corbeille AD non disponible: {e}', 'warning')
+        logger.warning('Corbeille AD illisible : %s', e)
+        flash('La corbeille Active Directory n\'est pas lisible : elle n\'est pas activée sur ce domaine, '
+              'ou votre compte n\'a pas le droit de la consulter.', 'warning')
     finally:
         conn.unbind()
 

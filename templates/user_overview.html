@@ -13,6 +13,7 @@
         {% if check_user_permission('users:offboard') %}
         <a href="{{ url_for('users.offboard', dn=user.dn) }}" class="btn btn-danger">🚪 Départ</a>
         {% endif %}
+        {% with fav_dn = user.dn, fav_type = 'user', fav_name = user.name %}{% include 'partials/_favorite_button.html' %}{% endwith %}
         <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Liste</a>
     </div>
 </div>
@@ -57,6 +58,7 @@
             <dd>{% set lic = user.groups|selectattr('license')|list %}
                 {% if lic %}{% for g in lic %}<span class="badge badge-info">{{ g.name }}</span> {% endfor %}
                 {% else %}<span class="text-muted">aucun groupe de licence</span>{% endif %}</dd>
+            {% if m365_ready %}<dt>Microsoft 365</dt><dd id="ov-m365" class="text-muted">lecture…</dd>{% endif %}
             <dt>Dossier personnel</dt><dd class="access-path">{{ user.home or '—' }}{% if user.home_drive %} ({{ user.home_drive }}){% endif %}</dd>
         </dl>
     </section>
@@ -118,4 +120,24 @@
 .page-header h2 small { font-size: .6em; font-weight: normal; }
 .folder-access-section { margin-top: 1rem; }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+{% if m365_ready %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var target = document.getElementById('ov-m365');
+    var url = {{ url_for('m365.api_user')|tojson }} + '?upn=' + encodeURIComponent({{ user.upn|tojson }}) +
+        '&anchor=' + encodeURIComponent({{ user.anchor|tojson }});
+    fetch(url, {headers: {'Accept': 'application/json'}}).then(function (r) { return r.json(); }).then(function (d) {
+        target.classList.remove('text-muted');
+        if (!d.success) { target.textContent = 'lecture impossible'; target.title = d.error || ''; return; }
+        if (!d.user) { target.textContent = 'aucun compte Microsoft 365'; return; }
+        var parts = [d.user.enabled ? 'compte actif' : 'compte bloqué', d.user.synced ? 'synchronisé' : 'non synchronisé',
+                     d.user.licenses.length ? d.user.licenses.join(', ') : 'sans licence'];
+        target.textContent = parts.join(' — ');
+    }).catch(function () { target.textContent = 'lecture impossible'; });
+})();
+</script>
+{% endif %}
 {% endblock %}

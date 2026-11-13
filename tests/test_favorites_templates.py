@@ -18,6 +18,8 @@ def client(tmp_path, monkeypatch):
     data/user_templates.json)."""
     import core.user_templates as user_templates_module
     monkeypatch.setattr(user_templates_module, 'TEMPLATES_FILE', tmp_path / 'user_templates.json')
+    import core.favorites as favorites_module
+    monkeypatch.setattr(favorites_module, 'FAVORITES_FILE', str(tmp_path / 'favorites.json'))
 
     from app import app
     app.config['TESTING'] = True
@@ -71,8 +73,20 @@ class TestFavorites:
         client.post('/tools/favorites/toggle', data=data)
         client.post('/tools/favorites/toggle', data=data)
 
+        from core import favorites
+        assert len(favorites.load('admin')) == 1
+
+    def test_favoris_conserves_par_administrateur(self, client):
+        """Les favoris survivent à la déconnexion et ne se mélangent pas entre comptes."""
+        from core import favorites
+        client.post('/tools/favorites/toggle', data={'csrf_token': 'test-csrf-token', 'type': 'user',
+                                                     'dn': 'CN=Zoe,DC=test,DC=local', 'name': 'Zoé'})
+        assert favorites.is_favorite('TEST\\Admin', 'cn=zoe,dc=test,dc=local')      # même compte, autre écriture
+        assert favorites.load('autre') == []
         with client.session_transaction() as sess:
-            assert len(sess.get('favorites', [])) == 1
+            sess.pop('favorites', None)
+        assert 'Zoé' in client.get('/tools/favorites').get_data(as_text=True)
+        assert not favorites.add('admin', 'CN=X,DC=test,DC=local', 'inconnu', 'X')    # type refusé
 
     def test_toggle_favorite_removes(self, client):
         add = {
@@ -95,8 +109,8 @@ class TestFavorites:
             'csrf_token': 'test-csrf-token', 'type': 'user', 'dn': '', 'name': 'X',
         })
         assert response.status_code == 302
-        with client.session_transaction() as sess:
-            assert sess.get('favorites', []) == []
+        from core import favorites
+        assert favorites.load('admin') == []
 
 
 class TestUserTemplates:
@@ -105,7 +119,7 @@ class TestUserTemplates:
     def test_templates_empty_by_default(self, client):
         response = client.get('/tools/templates')
         assert response.status_code == 200
-        assert 'Aucun modele' in response.get_data(as_text=True)
+        assert 'Aucun modèle' in response.get_data(as_text=True)
 
     def test_create_template_persists(self, client):
         response = client.post('/tools/templates/create', data={
@@ -128,7 +142,7 @@ class TestUserTemplates:
         })
         assert response.status_code == 200
         page = client.get('/tools/templates').get_data(as_text=True)
-        assert 'Aucun modele' in page
+        assert 'Aucun modèle' in page
 
     def test_edit_template_updates_fields(self, client):
         client.post('/tools/templates/create', data={
@@ -164,4 +178,4 @@ class TestUserTemplates:
 
         page = client.get('/tools/templates').get_data(as_text=True)
         assert 'A supprimer' not in page
-        assert 'Aucun modele' in page
+        assert 'Aucun modèle' in page

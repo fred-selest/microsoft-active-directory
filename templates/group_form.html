@@ -22,7 +22,7 @@
 
             {% if not duplicate %}
             <div class="form-group">
-                <label for="group_scope">Etendue</label>
+                <label for="group_scope">Étendue</label>
                 <select id="group_scope" name="group_scope">
                     <option value="global">Globale</option>
                     <option value="domain_local">Domaine local</option>
@@ -33,7 +33,7 @@
             <div class="form-group">
                 <label for="group_type">Type</label>
                 <select id="group_type" name="group_type">
-                    <option value="security">Securite</option>
+                    <option value="security">Sécurité</option>
                     <option value="distribution">Distribution</option>
                 </select>
             </div>
@@ -50,9 +50,9 @@
 
             {% if ous %}
             <div class="form-group">
-                <label for="ou">Unite organisationnelle</label>
+                <label for="ou">Unité organisationnelle</label>
                 <select id="ou" name="ou">
-                    <option value="">CN=Users (par defaut)</option>
+                    <option value="">CN=Users (par défaut)</option>
                     {% for ou in ous %}
                     <option value="{{ ou.dn }}">{{ ou.name }}</option>
                     {% endfor %}
@@ -74,7 +74,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">
-                {% if duplicate %}Dupliquer{% elif action == 'create' %}Creer le groupe{% else %}Enregistrer{% endif %}
+                {% if duplicate %}Dupliquer{% elif action == 'create' %}Créer le groupe{% else %}Enregistrer{% endif %}
             </button>
             <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Annuler</a>
         </div>

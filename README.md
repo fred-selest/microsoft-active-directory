@@ -14,6 +14,20 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.60.0 — Ergonomie
+
+- **Recherche rapide** dans la barre du haut (touche `/`) : comptes, groupes, ordinateurs, pages.
+- **Favoris** épinglés sur le tableau de bord, **modèles** proposés à la création d'un compte.
+- **Mobile** : tableaux lisibles, plus aucune page qui dépasse de l'écran.
+- Bandeaux d'information, liste des utilisateurs, fiche d'un groupe et accents corrigés.
+
+## 🆕 Nouveautés v1.59.0 — Microsoft 365 rapproché de l'annuaire
+
+- **Licences** : attribuées, achetées, libres ; **licences gaspillées** sur des comptes désactivés.
+- **Synchronisation** : alerte si Entra Connect est en retard ; comptes présents d'un seul côté.
+- **Taille des boîtes aux lettres** par rapport au quota.
+- **Mise en place** : relancez une fois `scripts\setup_m365.ps1` en administrateur pour accorder la lecture des comptes et des licences.
+
 ## 🆕 Nouveautés v1.58.0 — Fiche complète et départ d'un collaborateur
 
 - **Fiche complète d'une personne** (clic sur son nom) : compte, messagerie, groupes, stratégies reçues, répertoires accessibles.

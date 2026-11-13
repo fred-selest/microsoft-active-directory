@@ -188,7 +188,7 @@ def view_group(dn):
     try:
         # Recherche BASE sur le DN direct
         conn.search(dn, '(objectClass=*)', 'BASE',
-                   attributes=['cn', 'description', 'member', 'managedBy', 'groupType'])
+                   attributes=['cn', 'description', 'member', 'memberOf', 'managedBy', 'groupType'])
 
         # Si la recherche BASE échoue (CN=Builtin, etc.), fallback SUBTREE
         if not conn.entries or conn.result.get('result') == 53:  # 53 = unwillingToPerform
@@ -196,7 +196,7 @@ def view_group(dn):
                 logger.warning(f"BASE search unwillingToPerform (53) pour: {dn}, fallback SUBTREE")
             safe_dn = escape_ldap_filter(dn)
             conn.search(base_dn, f'(distinguishedName={safe_dn})', SUBTREE,
-                       attributes=['cn', 'description', 'member', 'managedBy', 'groupType'])
+                       attributes=['cn', 'description', 'member', 'memberOf', 'managedBy', 'groupType'])
 
         if not conn.entries:
             flash('Groupe non trouvé.', 'error')
@@ -212,10 +212,13 @@ def view_group(dn):
                     if conn.entries:
                         m = conn.entries[0]
                         obj_class = m.objectClass.values if hasattr(m, 'objectClass') else []
+                        kind = ('computer' if 'computer' in obj_class
+                                else 'user' if 'user' in obj_class else 'group')
                         members.append({
                             'cn': decode_ldap_value(m.cn),
+                            'sAMAccountName': decode_ldap_value(getattr(m, 'sAMAccountName', None)) or '',
                             'dn': str(member_dn),
-                            'type': 'user' if 'user' in obj_class else 'group'
+                            'type': kind
                         })
                 except Exception as member_err:
                     logger.warning(f"Erreur recherche membre {member_dn}: {member_err}")
@@ -225,7 +228,11 @@ def view_group(dn):
             'cn': decode_ldap_value(entry.cn),
             'description': decode_ldap_value(getattr(entry, 'description', None)),
             'dn': dn,
-            'members': members
+            'members': sorted(members, key=lambda x: (x['type'] != 'group', (x['cn'] or '').lower())),
+            # Groupes dont celui-ci est membre (imbrication) : ses membres en héritent les droits.
+            'member_of': sorted(({'dn': str(g), 'cn': str(g).split(',')[0].split('=', 1)[-1]}
+                                 for g in (entry.memberOf.values if 'memberOf' in entry else [])),
+                                key=lambda x: x['cn'].lower()),
         }
         conn.unbind()
 
@@ -497,6 +504,5 @@ def edit_group(dn):
 @groups_bp.route('/<path:dn>/nested')
 @require_connection
 def nested_groups(dn):
-    """Afficher les groupes imbriqués (stub)."""
-    flash('Groupes imbriqués disponible dans la version complète.', 'info')
-    return redirect(url_for('groups.view_group', dn=dn))
+    """Ancien lien « groupes imbriqués » : l'imbrication est affichée sur la fiche du groupe."""
+    return redirect(url_for('groups.view_group', dn=unquote(dn)) + '#imbrication')

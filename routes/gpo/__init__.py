@@ -12,6 +12,9 @@ from ..core import (get_ad_connection, is_connected, require_connection,
 from core import gpo as gp
 from core.audit import log_action
 
+import logging
+logger = logging.getLogger(__name__)
+
 gpo_bp = Blueprint('gpo', __name__, url_prefix='/gpo')
 
 
@@ -130,6 +133,9 @@ def applied():
             result = gp.applied_gpos(conn, _base(), dn)
     except (gp.GpoError, fs.FolderError) as e:
         error = str(e)
+    except Exception as e:                       # annuaire injoignable, réponse inattendue : pas de page d'erreur 500
+        logger.exception('Calcul des stratégies reçues impossible')
+        error = f'Lecture des stratégies impossible : {e}'
     finally:
         conn.unbind()
     return render_template('gpo_applied.html', result=result, error=error, dn=dn, name=name, ous=ous,

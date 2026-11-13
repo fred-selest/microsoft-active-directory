@@ -207,6 +207,22 @@ body.dark-mode .ldaps-manual-config summary {
         <div class="form-section">
             <h3>Informations professionnelles</h3>
 
+            {% if user_templates %}
+            <div class="form-group">
+                <label for="user_template">Modèle</label>
+                <select id="user_template">
+                    <option value="">— Aucun —</option>
+                    {% for t in user_templates %}
+                    <option value="{{ t.id }}" data-department="{{ t.department or '' }}" data-title="{{ t.title or '' }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+                <small class="form-hint">Remplit le service et la fonction.
+                    {% if check_user_permission('admin:user_templates') %}<a href="{{ url_for('tools.user_templates') }}">Gérer les modèles</a>{% endif %}</small>
+            </div>
+            {% elif check_user_permission('admin:user_templates') %}
+            <p class="form-hint">Astuce : des <a href="{{ url_for('tools.user_templates') }}">modèles</a> peuvent remplir le service et la fonction à votre place.</p>
+            {% endif %}
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="department">Service / Département</label>
@@ -241,6 +257,18 @@ body.dark-mode .ldaps-manual-config summary {
 {% endblock %}
 
 {% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var select = document.getElementById('user_template');
+    if (!select) { return; }
+    select.addEventListener('change', function () {
+        var option = select.options[select.selectedIndex];
+        if (!option.value) { return; }
+        document.getElementById('department').value = option.getAttribute('data-department') || '';
+        document.getElementById('title').value = option.getAttribute('data-title') || '';
+    });
+})();
+</script>
 <script nonce="{{ csp_nonce() }}">
 (function () {
     // ── Afficher/masquer mot de passe ────────────────────────────────────────

@@ -14,9 +14,15 @@
          non exportable) ;
       3. cree dans Entra ID l'application « AD Web Interface - Exchange », avec ce
          certificat pour seule preuve d'identite (aucun mot de passe) ;
-      4. lui accorde le droit Exchange.ManageAsApp et le role
-         « Administrateur des destinataires Exchange » ;
+      4. lui accorde le droit Exchange.ManageAsApp, le role
+         « Administrateur des destinataires Exchange », et la LECTURE des
+         comptes et des licences (Microsoft Graph : User.Read.All,
+         Organization.Read.All) ;
       5. ecrit data\m365.json, que l'application lit pour se connecter.
+
+    Le script peut etre relance sans risque (par exemple apres une mise a jour
+    qui demande un nouveau droit) : l'application et le certificat existants
+    sont reutilises.
 
     Pour tout retirer : supprimez l'application dans Entra ID (Inscriptions
     d'applications) et le certificat dans certlm.msc (Personnel > Certificats).
@@ -58,9 +64,25 @@ if (-not $organization) { throw "Domaine initial (.onmicrosoft.com) introuvable.
 Write-Host "    locataire : $organization"
 
 Write-Host "3/5 Certificat..." -ForegroundColor Cyan
-$cert = New-SelfSignedCertificate -Subject "CN=$appName ($env:COMPUTERNAME)" `
-    -CertStoreLocation 'Cert:\LocalMachine\My' -KeyExportPolicy NonExportable -KeySpec Signature `
-    -KeyLength 2048 -HashAlgorithm SHA256 -NotAfter (Get-Date).AddYears($Years)
+$cert = $null
+$newCert = $false
+if (Test-Path $outFile) {
+    # Relance : on garde le certificat deja en place s'il est encore valide plus de 30 jours.
+    try {
+        $previous = Get-Content -Raw -Path $outFile | ConvertFrom-Json
+        $candidate = Get-Item -Path ("Cert:\LocalMachine\My\" + $previous.thumbprint) -ErrorAction SilentlyContinue
+        if ($candidate -and $candidate.HasPrivateKey -and $candidate.NotAfter -gt (Get-Date).AddDays(30)) {
+            $cert = $candidate
+            Write-Host "    certificat existant reutilise"
+        }
+    } catch { }
+}
+if (-not $cert) {
+    $cert = New-SelfSignedCertificate -Subject "CN=$appName ($env:COMPUTERNAME)" `
+        -CertStoreLocation 'Cert:\LocalMachine\My' -KeyExportPolicy NonExportable -KeySpec Signature `
+        -KeyLength 2048 -HashAlgorithm SHA256 -NotAfter (Get-Date).AddYears($Years)
+    $newCert = $true
+}
 Write-Host "    empreinte : $($cert.Thumbprint) (valide jusqu'au $($cert.NotAfter.ToString('dd/MM/yyyy')))"
 
 Write-Host "4/5 Application Entra ID..." -ForegroundColor Cyan
@@ -70,29 +92,43 @@ if (-not $exo) { throw "Exchange Online n'est pas present dans ce locataire." }
 $manageAsApp = $exo.AppRoles | Where-Object { $_.Value -eq 'Exchange.ManageAsApp' }
 if (-not $manageAsApp) { throw "Droit Exchange.ManageAsApp introuvable." }
 
+# Microsoft Graph : lecture des comptes et des licences (aucune ecriture).
+$graphSp = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
+if (-not $graphSp) { throw "Microsoft Graph n'est pas present dans ce locataire." }
+$graphRoles = @($graphSp.AppRoles | Where-Object { $_.Value -in 'User.Read.All', 'Organization.Read.All' })
+if ($graphRoles.Count -ne 2) { throw "Droits Microsoft Graph introuvables (User.Read.All, Organization.Read.All)." }
+$access = @(@{ ResourceAppId = $exo.AppId; ResourceAccess = @(@{ Id = $manageAsApp.Id; Type = 'Role' }) },
+            @{ ResourceAppId = $graphSp.AppId
+               ResourceAccess = @($graphRoles | ForEach-Object { @{ Id = $_.Id; Type = 'Role' } }) })
+
 $existing = Get-MgApplication -Filter "displayName eq '$appName'"
 if ($existing) {
     $app = $existing | Select-Object -First 1
     Write-Host "    application existante reutilisee : $($app.AppId)"
-    $keys = @($app.KeyCredentials) + @(@{ Type = 'AsymmetricX509Cert'; Usage = 'Verify'; Key = $cert.RawData
-                                          DisplayName = $cert.Subject })
-    Update-MgApplication -ApplicationId $app.Id -KeyCredentials $keys
+    if ($newCert) {
+        $keys = @($app.KeyCredentials) + @(@{ Type = 'AsymmetricX509Cert'; Usage = 'Verify'; Key = $cert.RawData
+                                              DisplayName = $cert.Subject })
+        Update-MgApplication -ApplicationId $app.Id -KeyCredentials $keys
+    }
+    Update-MgApplication -ApplicationId $app.Id -RequiredResourceAccess $access
 } else {
     $app = New-MgApplication -DisplayName $appName -SignInAudience 'AzureADMyOrg' `
         -KeyCredentials @(@{ Type = 'AsymmetricX509Cert'; Usage = 'Verify'; Key = $cert.RawData
                              DisplayName = $cert.Subject }) `
-        -RequiredResourceAccess @(@{ ResourceAppId = $exo.AppId
-                                     ResourceAccess = @(@{ Id = $manageAsApp.Id; Type = 'Role' }) })
+        -RequiredResourceAccess $access
     Write-Host "    application creee : $($app.AppId)"
 }
 $sp = Get-MgServicePrincipal -Filter "appId eq '$($app.AppId)'"
 if (-not $sp) { $sp = New-MgServicePrincipal -AppId $app.AppId }
 
-$granted = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $sp.Id |
-    Where-Object { $_.AppRoleId -eq $manageAsApp.Id }
-if (-not $granted) {
-    New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $sp.Id -PrincipalId $sp.Id `
-        -ResourceId $exo.Id -AppRoleId $manageAsApp.Id | Out-Null
+$current = @(Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $sp.Id -All)
+$wanted = @(@{ Resource = $exo.Id; Role = $manageAsApp.Id })
+foreach ($r in $graphRoles) { $wanted += @{ Resource = $graphSp.Id; Role = $r.Id } }
+foreach ($w in $wanted) {
+    if (-not ($current | Where-Object { $_.AppRoleId -eq $w.Role -and $_.ResourceId -eq $w.Resource })) {
+        New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $sp.Id -PrincipalId $sp.Id `
+            -ResourceId $w.Resource -AppRoleId $w.Role | Out-Null
+    }
 }
 
 $role = Get-MgRoleManagementDirectoryRoleDefinition -Filter "displayName eq 'Exchange Recipient Administrator'"
@@ -102,11 +138,12 @@ if (-not $assigned) {
     New-MgRoleManagementDirectoryRoleAssignment -PrincipalId $sp.Id -RoleDefinitionId $role.Id `
         -DirectoryScopeId '/' | Out-Null
 }
-Write-Host "    droits accordes : Exchange.ManageAsApp, Administrateur des destinataires Exchange"
+Write-Host "    droits accordes : Exchange.ManageAsApp, Administrateur des destinataires Exchange,"
+Write-Host "                      lecture des comptes et des licences (Microsoft Graph)"
 
 Write-Host "5/5 Configuration de l'application..." -ForegroundColor Cyan
 $config = [ordered]@{ organization = $organization; app_id = $app.AppId; thumbprint = $cert.Thumbprint
-                      expires = $cert.NotAfter.ToString('yyyy-MM-dd') }
+                      expires = $cert.NotAfter.ToString('yyyy-MM-dd'); graph = $true }
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outFile) | Out-Null
 [IO.File]::WriteAllText($outFile, ($config | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 Disconnect-MgGraph | Out-Null
@@ -114,6 +151,6 @@ Disconnect-MgGraph | Out-Null
 Write-Host ""
 Write-Host "Termine. Configuration ecrite dans $outFile" -ForegroundColor Green
 Write-Host "Microsoft met parfois jusqu'a une heure a appliquer le nouveau role."
-Write-Host "Ouvrez ensuite Outils > Boites partagees dans AD Web Interface."
+Write-Host "Ouvrez ensuite Outils > Microsoft 365 et Outils > Boites partagees dans AD Web Interface."
 Write-Host "Si le service ne tourne pas sous le compte Systeme local, donnez a son compte"
 Write-Host "la lecture de la cle privee du certificat (certlm.msc > Gerer les cles privees)."

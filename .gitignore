@@ -126,3 +126,4 @@ temp_b64.txt
 temp_b64_clean.txt
 test_flask.py
 test_imports*.py
+data/favorites.json
