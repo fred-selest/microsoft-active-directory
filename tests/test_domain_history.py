@@ -263,7 +263,7 @@ def client(store, monkeypatch):
     monkeypatch.setattr(sm, 'SETTINGS_FILE', str(store / 'settings.json'))
     conn = Conn()
     monkeypatch.setattr(rh, 'get_ad_connection', lambda *a, **k: (conn, None))
-    monkeypatch.setattr(rh, '_state', {'day': None, 'scheduler': True, 'last_error': None})
+    monkeypatch.setattr(rh, '_state', {'days': {}, 'scheduler': True, 'last_error': None})
     app.config['TESTING'] = True
     c = app.test_client()
     with c.session_transaction() as s:

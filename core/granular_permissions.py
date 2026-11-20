@@ -51,6 +51,7 @@ ALL_PERMISSIONS = {
     'tools:recycle_bin': 'Corbeille AD (voir et restaurer)',
     'tools:laps': 'Consulter les mots de passe LAPS',
     'tools:bitlocker': 'Consulter les clés de récupération BitLocker',
+    'domains:read': 'Voir les domaines de la forêt, les approbations, les contrôleurs de domaine et la vue consolidée',
     'tools:resilience': 'Voir l\'analyse de résistance au rançongiciel (chemins d\'administration, partages, sauvegardes)',
     'tools:folders_read': 'Voir les droits des répertoires et les accès d\'un compte',
     'tools:folders_manage': 'Modifier les droits des répertoires',

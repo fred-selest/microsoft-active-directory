@@ -4,6 +4,55 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.62.0] - 2026-11-20 — Plusieurs domaines
+
+### Fonctionnalités
+- **Plusieurs domaines dans une même session** : « Ajouter un domaine »
+  (barre du haut) ouvre une connexion à un autre domaine sans fermer les
+  autres. Chaque domaine garde le compte utilisé pour s'y connecter, donc
+  ses propres droits.
+- **Sélecteur de domaine** dans la barre du haut : domaine actif, autres
+  domaines connectés (bascule en un clic, on reste sur la même page quand
+  elle a un sens dans l'autre domaine), domaines déjà utilisés (serveur
+  prérempli), ajout d'un domaine.
+- **Page « Domaines et forêt »** (menu Administration) :
+  - vue consolidée des domaines connectés : comptes actifs, désactivés,
+    verrouillés, groupes, ordinateurs, contrôleurs, niveau fonctionnel ;
+  - domaines de la forêt, avec un bouton pour s'y connecter ;
+  - approbations : type, sens expliqué, transitivité, filtrage SID,
+    authentification sélective ;
+  - contrôleurs de domaine : site, système, catalogue global, rôles FSMO,
+    dernier signe de vie ;
+  - constats : filtrage SID désactivé, approbation sans authentification
+    sélective ou en RC4, contrôleur en fin de support ou silencieux, un
+    seul contrôleur, niveau fonctionnel ancien.
+- **Recherche rapide sur tous les domaines connectés** : les résultats d'un
+  autre domaine portent son nom et y basculent quand on les ouvre.
+- **Microsoft 365** : les comptes de tous les domaines connectés sont
+  rapprochés du locataire (sinon ceux des autres domaines passaient pour
+  orphelins).
+
+### Données propres à chaque domaine
+- **Journal du domaine** : une série de photos par domaine
+  (un dossier par domaine dans data/snapshots) ; les photos existantes sont rangées
+  automatiquement dans le dossier de leur domaine. Photo quotidienne
+  automatique pour chaque domaine visité.
+- **Favoris** : seuls ceux du domaine actif sont proposés.
+- **Journal d'audit** : avec plusieurs domaines ouverts, chaque action
+  précise le domaine concerné.
+
+### Sécurité
+- Sans le mode « Ajouter un domaine », une connexion repart de zéro : sur
+  un poste partagé, le compte suivant n'hérite pas des autres domaines.
+- Les domaines mémorisés (data/domains.json) ne contiennent que le serveur
+  et la base, jamais d'identifiants.
+- Nouvelle permission « domains:read ».
+
+### Limites
+- La photo nocturne avec un compte de lecture ne concerne que le domaine
+  sur lequel ce compte a été configuré.
+- Les rôles FSMO et la forêt sont lus depuis le domaine actif.
+
 ## [1.61.0] - 2026-11-13 — Résistance au rançongiciel
 
 ### Fonctionnalités

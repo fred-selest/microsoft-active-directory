@@ -99,8 +99,10 @@
             } else {
                 list.innerHTML = items.map(function (r, i) {
                     return '<a href="' + esc(r.url) + '" class="quick-search-item' + (i === index ? ' active' : '') +
-                        '"><span class="quick-search-icon">' + (ICONS[r.kind] || '') + '</span><span><strong>' +
-                        esc(r.label) + '</strong><small>' + esc(r.detail || '') + '</small></span></a>';
+                        '" data-index="' + i + '"><span class="quick-search-icon">' + (ICONS[r.kind] || '') +
+                        '</span><span><strong>' + esc(r.label) + '</strong><small>' + esc(r.detail || '') +
+                        '</small></span>' +
+                        (r.domain ? '<span class="quick-search-domain">' + esc(r.domain) + '</span>' : '') + '</a>';
                 }).join('');
             }
             list.hidden = false;
@@ -132,8 +134,24 @@
                 render();
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                window.location.href = items[Math.max(index, 0)].url;
+                open(items[Math.max(index, 0)]);
             }
+        });
+        // Résultat d'un autre domaine : on bascule d'abord sur ce domaine.
+        function open(item) {
+            if (!item.switch) { window.location.href = item.url; return; }
+            var token = document.querySelector('meta[name="csrf-token"]');
+            fetch(box.getAttribute('data-switch'), {method: 'POST', headers: {'Content-Type': 'application/json',
+                'X-CSRFToken': token ? token.content : ''}, body: JSON.stringify({key: item.switch, next: '/'})})
+                .then(function (r) { return r.json(); })
+                .then(function (d) { if (d.success) { window.location.href = item.url; } })
+                .catch(function () { window.location.href = item.url; });
+        }
+        list.addEventListener('click', function (e) {
+            var a = e.target.closest('a.quick-search-item');
+            if (!a) { return; }
+            var item = items[+a.getAttribute('data-index')];
+            if (item && item.switch) { e.preventDefault(); open(item); }
         });
         document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
         // « / » ou Ctrl+K : aller à la recherche depuis n'importe où.
@@ -185,7 +203,15 @@
         });
     }
 
+    function initDomainSwitcher() {
+        var sw = document.querySelector('.domain-switcher');
+        if (!sw) { return; }
+        document.addEventListener('click', function (e) { if (sw.open && !sw.contains(e.target)) { sw.open = false; } });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { sw.open = false; } });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        initDomainSwitcher();
         watchTables();
         initSidebarSections();
         initQuickSearch();

@@ -69,9 +69,20 @@ def inject_globals():
     if isinstance(dropdown_items, list):
         dropdown_items = _routable(dropdown_items)
 
+    def _connected_domains():
+        from core import domains
+        return domains.connected() if session.get('ad_server') else []
+
+    def _known_domains():
+        from core import domains
+        keys = {d['key'] for d in _connected_domains()}
+        return [d for d in domains.known() if d['key'] not in keys][:8]
+
     def _user_favorites():
         from core import favorites
-        return favorites.load(session.get('ad_username')) if session.get('ad_username') else []
+        if not session.get('ad_username'):
+            return []
+        return favorites.load(session.get('ad_username'), session.get('ad_base_dn'))
 
     def _is_favorite(dn):
         dn = (dn or '').lower()
@@ -146,6 +157,8 @@ def inject_globals():
         'user_role': session.get('user_role', config.DEFAULT_ROLE),
         'check_user_permission': check_user_permission,
         'is_favorite': _is_favorite,
+        'connected_domains': _connected_domains,
+        'known_domains': _known_domains,
         'user_favorites': _user_favorites,
         'check_any_permission': check_any_permission,
         'check_permission_prefix': check_permission_prefix,

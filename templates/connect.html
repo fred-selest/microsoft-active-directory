@@ -4,7 +4,14 @@
 
 {% block content %}
 <div class="form-container">
+    {% if add_domain %}
+    <h2>🌐 Ajouter un domaine</h2>
+    <p class="text-muted">Connectez-vous avec un compte de cet autre domaine. Vos domaines déjà connectés
+        ({{ session.get('ad_domain') or session.get('ad_base_dn') }}…) restent ouverts : vous passerez de l'un à l'autre
+        depuis la barre du haut.</p>
+    {% else %}
     <h2>Connexion à Active Directory</h2>
+    {% endif %}
 
     {% if not config.AD_TLS_VERIFY %}
     <div class="alert alert-warning" style="border-left: 4px solid #dc3545;">
@@ -56,7 +63,8 @@
     
     <form method="POST" action="{{ url_for('main.connect') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
+        {% if add_domain %}<input type="hidden" name="add_domain" value="1">{% endif %}
+
         <div class="form-group">
             <label for="domain">Domaine</label>
             <input type="text" id="domain" name="domain"
@@ -123,8 +131,9 @@
         {% endif %}
 
         <button type="submit" class="btn btn-primary btn-block">
-            Se connecter
+            {{ 'Ajouter ce domaine' if add_domain else 'Se connecter' }}
         </button>
+        {% if add_domain %}<a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-block mt-3">Annuler</a>{% endif %}
     </form>
 
     {% if auto_detected %}

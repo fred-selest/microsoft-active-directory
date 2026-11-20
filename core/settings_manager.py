@@ -54,6 +54,7 @@ DEFAULT_SETTINGS = {
         ],
         # Section "Administration" — visible par les admins uniquement
         'admin_items': [
+            {'id': 'domains',    'label': 'Domaines',     'endpoint': 'domains.index',                 'icon': '🌐', 'feature': None,                          'enabled': True,  'order': 0},
             {'id': 'alerts',     'label': 'Alertes',      'endpoint': 'admin_tools.alerts_page',       'icon': '🔔', 'feature': None,                          'enabled': True,  'order': 1},
             {'id': 'history',    'label': 'Journal du domaine', 'endpoint': 'history.timeline',         'icon': '🕰️', 'feature': 'FEATURE_HISTORY_ENABLED',     'enabled': True,  'order': 2},
             {'id': 'audit',      'label': 'Audit',        'endpoint': 'main.audit_logs',               'icon': '📋', 'feature': 'FEATURE_AUDIT_LOGS_ENABLED',  'enabled': True,  'order': 2},

@@ -14,6 +14,12 @@ Gérez votre Active Directory depuis n'importe quel navigateur, sans installatio
 
 ---
 
+## 🆕 Nouveautés v1.62.0 — Plusieurs domaines
+
+- **Plusieurs domaines dans la même session**, chacun avec son compte et ses droits ; bascule depuis la barre du haut.
+- **Domaines et forêt** : vue consolidée, approbations, contrôleurs de domaine, rôles FSMO, constats de sécurité.
+- **Recherche rapide** et **Microsoft 365** sur tous les domaines connectés ; journal du domaine séparé par domaine.
+
 ## 🆕 Nouveautés v1.61.0 — Résistance au rançongiciel
 
 - **Chemins vers les droits d'administration** : qui est administrateur, directement ou par un groupe imbriqué ; comptes d'administration fragiles.

@@ -143,22 +143,71 @@ def collect(conn, base_dn, share_credentials=None):
 
 # --- Stockage ----------------------------------------------------------------
 
-def _path(name, suffix='.json.gz'):
+def _dir(base_dn=None):
+    """
+    Dossier des photos d'un domaine (data/snapshots/<nom DNS>). Avec plusieurs
+    domaines, chacun a son propre journal. Sans domaine : dossier racine
+    (photos d'avant la v1.62, utilisé aussi par les tests).
+    """
+    if not base_dn:
+        return SNAP_DIR
+    from core.domains import domain_key
+    key = domain_key(base_dn) or 'domaine'
+    return os.path.join(SNAP_DIR, re.sub(r'[^a-z0-9.-]', '_', key))
+
+
+_owners = {}      # photo du dossier racine → domaine (lu une seule fois par fichier)
+
+
+def _migrate(base_dn):
+    """
+    Photos d'avant la v1.62 (dossier racine) : rangées dans le dossier de leur
+    domaine, lu dans la photo elle-même. Celles d'un autre domaine restent en
+    place jusqu'à ce que ce domaine soit consulté.
+    """
+    if not base_dn or not os.path.isdir(SNAP_DIR):
+        return
+    target = _dir(base_dn)
+    for fname in os.listdir(SNAP_DIR):
+        if not fname.endswith('.meta.json') or not _NAME_RE.match(fname[:15]):
+            continue
+        name = fname[:15]
+        source = os.path.join(SNAP_DIR, name + '.json.gz')
+        if source not in _owners:
+            try:
+                with gzip.open(source, 'rt', encoding='utf-8') as f:
+                    _owners[source] = str(json.load(f).get('base_dn') or '').lower()
+            except (OSError, ValueError):
+                _owners[source] = ''
+        if _owners[source] != base_dn.lower():
+            continue
+        os.makedirs(target, exist_ok=True)
+        for suffix in ('.json.gz', '.meta.json'):
+            try:
+                os.replace(os.path.join(SNAP_DIR, name + suffix), os.path.join(target, name + suffix))
+            except OSError as e:
+                logger.warning('Photo %s non déplacée : %s', name, e)
+        _owners.pop(source, None)
+
+
+def _path(name, suffix='.json.gz', base_dn=None):
     if not _NAME_RE.match(name or ''):
         raise HistoryError('Photo inconnue.')
-    return os.path.join(SNAP_DIR, name + suffix)
+    return os.path.join(_dir(base_dn), name + suffix)
 
 
-def list_snapshots():
-    """Photos existantes, la plus récente d'abord (métadonnées seulement)."""
-    if not os.path.isdir(SNAP_DIR):
+def list_snapshots(base_dn=None):
+    """Photos existantes du domaine, la plus récente d'abord (métadonnées seulement)."""
+    _migrate(base_dn)
+    folder = _dir(base_dn)
+    if not os.path.isdir(folder):
         return []
     snaps = []
-    for fname in sorted(os.listdir(SNAP_DIR), reverse=True):
+    for fname in sorted(os.listdir(folder), reverse=True):
         if not fname.endswith('.meta.json') or not _NAME_RE.match(fname[:15]):
             continue
         try:
-            with open(os.path.join(SNAP_DIR, fname), encoding='utf-8') as f:
+            with open(os.path.join(folder, fname), encoding='utf-8') as f:
                 meta = json.load(f)
         except (OSError, ValueError):
             continue
@@ -168,31 +217,33 @@ def list_snapshots():
     return snaps
 
 
-def load(name):
+def load(name, base_dn=None):
+    _migrate(base_dn)
     try:
-        with gzip.open(_path(name), 'rt', encoding='utf-8') as f:
+        with gzip.open(_path(name, base_dn=base_dn), 'rt', encoding='utf-8') as f:
             return json.load(f)
     except (OSError, ValueError):
         raise HistoryError('Photo illisible.')
 
 
-def save(data, by, events=None):
-    os.makedirs(SNAP_DIR, exist_ok=True)
+def save(data, by, events=None, base_dn=None):
+    folder = _dir(base_dn)
+    os.makedirs(folder, exist_ok=True)
     name = datetime.now().strftime('%Y%m%d-%H%M%S')
-    with gzip.open(_path(name), 'wt', encoding='utf-8') as f:
+    with gzip.open(_path(name, base_dn=base_dn), 'wt', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
     events = events or []
     meta = {'by': by, 'counts': {s: len(data.get(s, {})) for s in SECTIONS},
             'changes': {sev: sum(1 for e in events if e['severity'] == sev)
                         for sev in ('critical', 'warning', 'info')},
             'notes': data.get('notes', [])}
-    with open(_path(name, '.meta.json'), 'w', encoding='utf-8') as f:
+    with open(_path(name, '.meta.json', base_dn), 'w', encoding='utf-8') as f:
         json.dump(meta, f, ensure_ascii=False)
-    names = sorted(n[:15] for n in os.listdir(SNAP_DIR) if n.endswith('.meta.json'))
+    names = sorted(n[:15] for n in os.listdir(folder) if n.endswith('.meta.json'))
     for old in names[:-MAX_SNAPSHOTS]:
         for suffix in ('.json.gz', '.meta.json'):
             try:
-                os.remove(os.path.join(SNAP_DIR, old + suffix))
+                os.remove(os.path.join(folder, old + suffix))
             except OSError:
                 pass
     return name
@@ -209,9 +260,9 @@ def take_snapshot(conn, base_dn, by, share_credentials=None):
         raise HistoryError('Une photo est déjà en cours.')
     try:
         data = collect(conn, base_dn, share_credentials)
-        previous = list_snapshots()
-        events = diff(load(previous[0]['name']), data) if previous else []
-        return save(data, by, events), events
+        previous = list_snapshots(base_dn)
+        events = diff(load(previous[0]['name'], base_dn), data) if previous else []
+        return save(data, by, events, base_dn), events
     finally:
         _LOCK.release()
 
@@ -435,7 +486,7 @@ def revert(conn, base_dn, old_name, new_name, event_id):
     """
     from ldap3 import BASE, MODIFY_ADD, MODIFY_DELETE, MODIFY_REPLACE
     from core import gpo as gp
-    events = diff(load(old_name), load(new_name))
+    events = diff(load(old_name, base_dn), load(new_name, base_dn))
     event = next((e for e in events if e['id'] == event_id), None)
     if not event or not event['revert'] or event['revert']['op'] not in DIRECT_REVERTS:
         raise HistoryError('Ce changement ne peut pas être annulé automatiquement.')
