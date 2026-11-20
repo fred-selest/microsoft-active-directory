@@ -246,7 +246,8 @@ def compare(data, ad_users, now=None):
             ad = by_upn.get(cu['upn'])
         paid = _license_names(data, cu, paid_only=True)
         row = {'name': cu['name'], 'upn': cu['upn'], 'sam': ad['sam'] if ad else cu['sam'],
-               'dn': ad['dn'] if ad else '', 'licenses': paid, 'detail': ''}
+               'dn': ad['dn'] if ad else '', 'domain': ad.get('domain', '') if ad else '', 'licenses': paid,
+               'detail': ''}
         if ad:
             matched_dns.add(ad['dn'])
         disabled = not cu['enabled'] or (ad is not None and not ad['enabled'])
@@ -266,7 +267,8 @@ def compare(data, ad_users, now=None):
         for ad in ad_users:
             if ad['dn'] not in matched_dns and ad['enabled'] and _routable(ad['upn']):
                 findings['ad_only'].append({'name': ad['name'], 'upn': ad['upn'], 'sam': ad['sam'],
-                                            'dn': ad['dn'], 'licenses': [], 'detail': ''})
+                                            'dn': ad['dn'], 'domain': ad.get('domain', ''), 'licenses': [],
+                                            'detail': ''})
     for rows in findings.values():
         rows.sort(key=lambda r: r['name'].lower())
 

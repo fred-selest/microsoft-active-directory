@@ -98,7 +98,7 @@ def delete_user_template(template_id):
 def favorites():
     """Page des favoris de l'administrateur connecté."""
     from core import favorites as fav
-    favorites_list = fav.load(session.get('ad_username'))
+    favorites_list = fav.load(session.get('ad_username'), session.get('ad_base_dn'))
     return render_template('favorites_page.html', favorites=favorites_list,
                            counts=_favorites_counts(favorites_list), connected=True)
 

@@ -40,6 +40,20 @@ file_handler.setFormatter(formatter)
 audit_logger.addHandler(file_handler)
 
 
+def _with_domain(details):
+    """Avec plusieurs domaines ouverts, chaque entrée précise le domaine concerné."""
+    try:
+        from flask import has_request_context, session
+        if not has_request_context() or len(session.get('domains') or {}) < 2:
+            return details
+        if isinstance(details, dict) and 'domain' in details:
+            return details
+        from core.domains import domain_key
+        return dict(details or {}, domain=domain_key(session.get('ad_base_dn', '')))
+    except Exception:
+        return details
+
+
 def log_action(action, user, details=None, success=True, ip_address=None):
     """
     Enregistrer une action dans le journal d'audit.
@@ -51,6 +65,7 @@ def log_action(action, user, details=None, success=True, ip_address=None):
         success: True si l'action a reussi
         ip_address: Adresse IP de l'utilisateur
     """
+    details = _with_domain(details)
     log_entry = {
         'timestamp': datetime.now().isoformat(),
         'action': action,

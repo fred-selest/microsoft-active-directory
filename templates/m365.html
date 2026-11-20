@@ -196,6 +196,8 @@
         }).join('') : '<tr><td colspan="5" class="text-muted">Aucune licence.</td></tr>';
     }
 
+    var activeDomain = '', multi = false;
+
     function renderFindings(findings) {
         el('m-findings').innerHTML = FINDINGS.map(function (f) {
             var rows = findings[f[0]] || [];
@@ -207,7 +209,9 @@
                 '<th>Nom</th><th>Identifiant Microsoft 365</th><th>Licences</th><th>Remarque</th></tr></thead><tbody>' +
                 rows.map(function (r) {
                     var name = esc(r.name || r.sam);
-                    if (r.dn && canOpenUser) {
+                    var here = !r.domain || r.domain === activeDomain;
+                    if (multi && r.domain) { name += ' <span class="badge badge-info">' + esc(r.domain) + '</span>'; }
+                    if (r.dn && canOpenUser && here) {
                         name = '<a href="' + urls.user + encodeURIComponent(r.dn).replace(/%2C/g, ',').replace(/%3D/g, '=') +
                             '/overview">' + name + '</a>';
                     }
@@ -224,7 +228,14 @@
             el('m-loading').hidden = true;
             if (!d.success) { showError('m-error', d.error); return; }
             el('m-body').hidden = false;
+            activeDomain = d.active_domain || '';
+            multi = (d.domains || []).length > 1;
             renderSync(d.organization);
+            if (multi || (d.domain_errors || []).length) {
+                el('m-sync').innerHTML += '<p class="text-muted">Comptes de l\'annuaire lus sur ' + (d.domains || []).length +
+                    ' domaine(s) : ' + esc((d.domains || []).join(', ')) + '.</p>' + (d.domain_errors || []).map(function (e) {
+                        return '<div class="alert alert-warning">Domaine non lu — ' + esc(e) + '</div>'; }).join('');
+            }
             var c = d.counts;
             el('m-tiles').innerHTML = tile(c.cloud, 'comptes Microsoft 365') + tile(c.licensed, 'avec une licence') +
                 tile(c.synced, 'synchronisés depuis l\'AD') + tile(c.guests, 'invités') +

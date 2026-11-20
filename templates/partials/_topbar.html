@@ -42,7 +42,7 @@
     </div>
     <span class="top-bar-title">{{ site_settings.title or 'AD Web Interface' }}</span>
     {% if connected and check_user_permission('users:read') %}
-    <div class="quick-search" id="quick-search" data-url="{{ url_for('api.api_quick_search') }}" role="search">
+    <div class="quick-search" id="quick-search" data-url="{{ url_for('api.api_quick_search') }}" data-switch="{{ url_for('domains.switch') }}" role="search">
         <input type="search" placeholder="Rechercher un compte, un groupe, un poste, une page…  ( / )"
                aria-label="Recherche rapide" autocomplete="off" spellcheck="false">
         <div class="quick-search-results" hidden></div>
@@ -50,6 +50,42 @@
     {% endif %}
     <div class="top-bar-right">
         {% if connected %}
+        {% set _doms = connected_domains() %}
+        {% set _active = (_doms|selectattr('active')|first) %}
+        <details class="domain-switcher">
+            <summary title="Domaine actif — cliquez pour en changer ou en ajouter un">
+                <span aria-hidden="true">🌐</span>
+                <span class="domain-switcher-name">{{ _active.key if _active else (session.get('ad_domain') or 'Domaine') }}</span>
+                {% if _doms|length > 1 %}<span class="domain-switcher-count">{{ _doms|length }}</span>{% endif %}
+            </summary>
+            <div class="domain-switcher-menu">
+                <div class="domain-switcher-label">Domaines connectés</div>
+                {% for d in _doms %}
+                {% if d.active %}
+                <div class="domain-switcher-item is-active"><strong>✓ {{ d.key }}</strong><small>{{ d.username }} — domaine actif</small></div>
+                {% else %}
+                <form method="post" action="{{ url_for('domains.switch') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="key" value="{{ d.key }}">
+                    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+                    <button type="submit" class="domain-switcher-item"><strong>{{ d.key }}</strong><small>{{ d.username }}</small></button>
+                </form>
+                {% endif %}
+                {% endfor %}
+                {% set _known = known_domains() %}
+                {% if _known %}
+                <div class="domain-switcher-label">Déjà utilisés</div>
+                {% for d in _known %}
+                <a class="domain-switcher-item" href="{{ url_for('main.connect', add=1, key=d.key) }}"><strong>{{ d.key }}</strong><small>se connecter…</small></a>
+                {% endfor %}
+                {% endif %}
+                <div class="domain-switcher-sep"></div>
+                <a class="domain-switcher-item" href="{{ url_for('main.connect', add=1) }}">➕ Ajouter un domaine</a>
+                {% if check_user_permission('domains:read') %}
+                <a class="domain-switcher-item" href="{{ url_for('domains.index') }}">🌐 Domaines et forêt</a>
+                {% endif %}
+            </div>
+        </details>
         <span class="user-info">
             {% set username = session.get('ad_username', 'U')|string %}
             {% set first_char = username[0] if username else 'U' %}

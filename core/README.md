@@ -33,6 +33,8 @@ Le répertoire `core/` contient tous les **modules utilitaires** essentiels au f
 | `domain_history.py` | **Journal du domaine :** photos de l'annuaire, comparaison en événements classés, annulation, alerte |
 | `offboarding.py` | **Départ d'un collaborateur :** étapes indépendantes, rapport (data/offboarding/), annulation |
 | `favorites.py` | Favoris de chaque administrateur (data/favorites.json) |
+| `domains.py` | **Plusieurs domaines :** connexions de la session, domaine actif, domaines mémorisés, appels en parallèle |
+| `forest.py` | **Forêt :** domaines, approbations, contrôleurs, rôles FSMO, niveaux fonctionnels, constats |
 | `resilience.py` | **Résistance au rançongiciel :** chemins vers les droits d'administration, partages ouverts à tous, sauvegardes (lecture seule) |
 | `m365.py` | **Microsoft 365 :** licences, synchronisation, écarts avec l'annuaire, taille des boîtes (lecture seule, Microsoft Graph) |
 | `exchange.py` | **Microsoft 365 :** boîtes aux lettres partagées Exchange Online (identité d'application par certificat) |

@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}Domaines et forêt{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🌐 Domaines et forêt</h2>
+    <div class="page-actions">
+        <a href="{{ url_for('main.connect', add=1) }}" class="btn btn-primary">➕ Ajouter un domaine</a>
+    </div>
+</div>
+
+<section class="card">
+    <h3>Domaines connectés</h3>
+    <p class="text-muted">Chaque domaine garde le compte avec lequel vous vous y êtes connecté, et donc ses propres droits.
+        Le domaine actif est celui sur lequel agissent toutes les pages ; changez-en depuis la barre du haut ou ci-dessous.</p>
+    <div class="table-container">
+        <table class="data-table">
+            <thead><tr><th>Domaine</th><th>Comptes</th><th>Groupes et postes</th>
+                <th>Niveau fonctionnel</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for d in domain_rows %}
+                <tr data-domain="{{ d.key }}">
+                    <td><strong>{{ d.key }}</strong>{% if d.active %} <span class="badge badge-success">actif</span>{% endif %}
+                        <br><small class="text-muted">connecté en tant que {{ d.username }}</small></td>
+                    <td data-k="accounts">…</td><td data-k="objects">…</td><td data-k="level">…</td>
+                    <td class="actions">
+                        {% if not d.active %}
+                        <form method="post" action="{{ url_for('domains.switch') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="key" value="{{ d.key }}">
+                            <input type="hidden" name="next" value="{{ url_for('domains.index') }}">
+                            <button type="submit" class="btn btn-sm btn-primary">Activer</button>
+                        </form>
+                        {% endif %}
+                        <form method="post" action="{{ url_for('domains.disconnect', key=d.key) }}"
+                              data-confirm="Se déconnecter du domaine {{ d.key }} ?{{ ' Ce sera la fin de la session.' if domain_rows|length == 1 else '' }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-secondary">Déconnecter</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div id="d-summary-errors"></div>
+
+    {% if known %}
+    <h4 class="d-sub">Domaines déjà utilisés sur cette application</h4>
+    <ul class="d-known">
+        {% for d in known %}
+        <li><strong>{{ d.key }}</strong> <small class="text-muted">— serveur {{ d.server }}, dernière connexion le
+            {{ d.last_used[8:10] }}/{{ d.last_used[5:7] }}/{{ d.last_used[:4] }}</small>
+            <a href="{{ url_for('main.connect', add=1, key=d.key) }}" class="btn btn-sm btn-secondary">Se connecter</a>
+            <form method="post" action="{{ url_for('domains.forget_known', key=d.key) }}" class="d-inline"
+                  data-confirm="Oublier {{ d.key }} ? (aucun identifiant n'est enregistré, seulement le serveur)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-secondary" title="Oublier ce domaine">✕</button>
+            </form></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</section>
+
+<div id="f-error"></div>
+<div id="f-loading" class="card text-muted">Lecture de la forêt depuis {{ session.get('ad_domain') or 'le domaine actif' }}…</div>
+<div id="f-body" hidden>
+    <section class="card">
+        <h3>Forêt <span id="f-root"></span></h3>
+        <div class="d-facts" id="f-facts"></div>
+        <div id="f-findings"></div>
+    </section>
+
+    <section class="card">
+        <h3>Domaines de la forêt</h3>
+        <div class="table-container"><table class="data-table">
+            <thead><tr><th>Domaine</th><th>NetBIOS</th><th>Rôle</th><th>Dans cette session</th></tr></thead>
+            <tbody id="f-domains"></tbody>
+        </table></div>
+    </section>
+
+    <section class="card">
+        <h3>Approbations du domaine actif</h3>
+        <p class="text-muted">Une approbation permet aux comptes d'un domaine d'accéder aux ressources d'un autre.
+            Le filtrage SID empêche un administrateur de l'autre domaine de se fabriquer des droits ici.</p>
+        <div class="table-container"><table class="data-table">
+            <thead><tr><th>Domaine approuvé</th><th>Type et sens</th><th>Protections</th><th>Créée le</th><th></th></tr></thead>
+            <tbody id="f-trusts"></tbody>
+        </table></div>
+    </section>
+
+    <section class="card">
+        <h3>Contrôleurs de domaine</h3>
+        <div class="table-container"><table class="data-table">
+            <thead><tr><th>Contrôleur</th><th>Site</th><th>Système</th><th>Catalogue global</th><th>Rôles FSMO</th>
+                <th>Dernier signe</th></tr></thead>
+            <tbody id="f-dcs"></tbody>
+        </table></div>
+        <h4 class="d-sub">Rôles FSMO</h4>
+        <div class="d-facts" id="f-roles"></div>
+    </section>
+    <div id="f-notes"></div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card { margin-bottom: 1rem; }
+.d-num { text-align: right; white-space: nowrap; }
+.d-sub { margin: 1.2rem 0 .5rem; font-size: 1rem; }
+.d-known { list-style: none; margin: 0; padding: 0; }
+.d-known li { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding: .35rem 0; border-top: 1px solid var(--border-color, #eee); }
+.d-inline { display: inline; margin: 0; }
+td.actions form { display: inline; margin: 0; }
+.d-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .6rem; margin: .6rem 0; }
+.d-fact { background: var(--gray-100, #f3f5f7); border-radius: 6px; padding: .55rem .8rem; color: var(--text-primary, #222); }
+.d-fact small { display: block; color: var(--text-secondary, #666); }
+.r-find { border: 1px solid var(--border-color, #e5e7eb); border-left-width: .35rem; border-radius: 6px; padding: .6rem .9rem; margin: .6rem 0; }
+.r-find.critical { border-left-color: #c62828; } .r-find.high { border-left-color: #e2630b; }
+.r-find.medium { border-left-color: #d9a400; } .r-find.info { border-left-color: #6b7c93; }
+.r-find summary { cursor: pointer; font-weight: 600; }
+.r-find p { margin: .45rem 0; }
+.r-find .r-fix { background: var(--gray-100, #f3f5f7); border-radius: 4px; padding: .5rem .7rem; }
+.r-find ul { margin: .4rem 0 0 1.1rem; }
+.r-tag { display: inline-block; border-radius: 999px; padding: 0 .55rem; font-size: .75rem; font-weight: 600; margin-right: .4rem; color: #fff; }
+.r-tag.critical { background: #c62828; } .r-tag.high { background: #e2630b; } .r-tag.medium { background: #b98a00; } .r-tag.info { background: #6b7c93; }
+.r-ok { color: #1b7a3a; font-weight: 600; }
+.yes { color: #1b7a3a; font-weight: 600; } .no { color: #b3261e; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    var urls = {forest: {{ url_for('domains.api_forest')|tojson }}, summary: {{ url_for('domains.api_summary')|tojson }}};
+    var LABEL = {critical: 'Critique', high: 'Élevé', medium: 'Moyen', info: 'Info'};
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+    function el(id) { return document.getElementById(id); }
+    function json(url) {
+        return fetch(url, {headers: {'Accept': 'application/json'}}).then(function (r) { return r.json(); })
+            .catch(function () { return {success: false, error: 'Le serveur n\'a pas répondu.'}; });
+    }
+    function fact(value, label) {
+        return '<div class="d-fact"><strong>' + esc(value) + '</strong><small>' + esc(label) + '</small></div>';
+    }
+    function yes(v, good) {
+        return v ? '<span class="' + (good === false ? 'no' : 'yes') + '">Oui</span>' :
+            '<span class="' + (good === false ? 'yes' : 'no') + '">Non</span>';
+    }
+
+    json(urls.summary).then(function (d) {
+        var errors = [];
+        (d.domains || []).forEach(function (row) {
+            var tr = document.querySelector('tr[data-domain="' + row.key.replace(/"/g, '') + '"]');
+            if (!tr) { return; }
+            function n(v) { return (v || 0).toLocaleString('fr-FR'); }
+            var cells = {
+                accounts: row.ok ? '<strong>' + n(row.active) + '</strong> actifs<br><small class="text-muted">' + n(row.disabled) +
+                    ' désactivés' + (row.locked ? ' · <span class="no">' + n(row.locked) + ' verrouillé(s)</span>' : '') + '</small>' : '—',
+                objects: row.ok ? n(row.groups) + ' groupes<br><small class="text-muted">' + n(row.computers) + ' ordinateurs, dont ' +
+                    n(row.dcs) + ' contrôleur(s)</small>' : '—',
+                level: row.ok ? esc(row.level) : '<span class="no">injoignable</span>'
+            };
+            tr.querySelectorAll('[data-k]').forEach(function (td) { td.innerHTML = cells[td.getAttribute('data-k')]; });
+            if (!row.ok) { errors.push(row.key + ' : ' + row.error); }
+        });
+        if (!d.success) { errors.push(d.error); }
+        el('d-summary-errors').innerHTML = errors.map(function (e) {
+            return '<div class="alert alert-warning">Domaine injoignable — ' + esc(e) + '</div>'; }).join('');
+    });
+
+    json(urls.forest).then(function (d) {
+        el('f-loading').hidden = true;
+        if (!d.success) { el('f-error').innerHTML = '<div class="alert alert-error">' + esc(d.error) + '</div>'; return; }
+        el('f-body').hidden = false;
+        el('f-root').textContent = d.forest_root ? '— racine ' + d.forest_root : '';
+        el('f-facts').innerHTML = fact(d.dns, 'domaine actif' + (d.netbios ? ' (' + d.netbios + ')' : '')) +
+            fact(d.domain_level.label, 'niveau fonctionnel du domaine') + fact(d.forest_level.label, 'niveau fonctionnel de la forêt') +
+            fact(d.domains.length, 'domaine(s) dans la forêt') + fact(d.trusts.length, 'approbation(s)') +
+            fact(d.dcs.length, 'contrôleur(s) de domaine') + (d.sites.length ? fact(d.sites.length, 'site(s) : ' + d.sites.join(', ')) : '') +
+            (d.connected_to ? fact(d.connected_to, 'contrôleur interrogé') : '');
+        el('f-findings').innerHTML = d.findings.length ? d.findings.map(function (f) {
+            return '<details class="r-find ' + f.severity + '"' + (f.severity === 'high' || f.severity === 'critical' ? ' open' : '') +
+                '><summary><span class="r-tag ' + f.severity + '">' + LABEL[f.severity] + '</span>' + esc(f.title) +
+                (f.items.length ? ' <small>(' + f.count + ')</small>' : '') + '</summary><p>' + esc(f.why) +
+                '</p><p class="r-fix"><strong>Que faire :</strong> ' + esc(f.fix) + '</p>' +
+                (f.items.length ? '<ul>' + f.items.map(function (i) {
+                    return '<li>' + esc(i.name) + (i.detail ? ' <small class="text-muted">— ' + esc(i.detail) + '</small>' : '') + '</li>';
+                }).join('') + '</ul>' : '') + '</details>';
+        }).join('') : '<p class="r-ok">✅ Aucun constat sur l\'architecture du domaine.</p>';
+        el('f-domains').innerHTML = d.domains.length ? d.domains.map(function (x) {
+            return '<tr><td><strong>' + esc(x.dns) + '</strong>' + (x.current ? ' <span class="badge badge-success">actif</span>' : '') +
+                '</td><td>' + esc(x.netbios) + '</td><td>' + (x.root ? 'Racine de la forêt' : 'Domaine enfant ou arborescence') +
+                '</td><td>' + (x.connected ? 'Connecté' : '<a class="btn btn-sm btn-secondary" href="' + esc(x.connect_url) + '">Se connecter</a>') +
+                '</td></tr>';
+        }).join('') : '<tr><td colspan="4" class="text-center">Domaines de la forêt illisibles.</td></tr>';
+        el('f-trusts').innerHTML = d.trusts.length ? d.trusts.map(function (t) {
+            return '<tr><td><strong>' + esc(t.partner) + '</strong>' + (t.netbios ? '<br><small class="text-muted">' + esc(t.netbios) + '</small>' : '') +
+                '</td><td>' + esc(t.category) + '<br><strong>' + esc(t.direction) + '</strong>' + (t.direction_help ? ' <small class="text-muted">— ' +
+                esc(t.direction_help) + '</small>' : '') + (t.transitive ? '' : '<br><small class="text-muted">non transitive</small>') +
+                '</td><td>' + (t.within_forest ? '<small class="text-muted">Sans objet (même forêt)</small>' :
+                'Filtrage SID : ' + yes(t.sid_filtering) + '<br>Authentification sélective : ' + yes(t.selective)) +
+                '</td><td>' + esc(t.created || '—') + '</td><td>' +
+                (t.connected ? 'Connecté' : '<a class="btn btn-sm btn-secondary" href="' + esc(t.connect_url) + '">Se connecter</a>') + '</td></tr>';
+        }).join('') : '<tr><td colspan="5" class="text-center">Aucune approbation : ce domaine ne fait confiance à aucun autre.</td></tr>';
+        el('f-dcs').innerHTML = d.dcs.length ? d.dcs.map(function (x) {
+            return '<tr><td><strong>' + esc(x.name) + '</strong>' + (x.rodc ? ' <span class="badge badge-info">lecture seule</span>' : '') +
+                (x.disabled ? ' <span class="badge badge-danger">désactivé</span>' : '') + (x.current ? ' <span class="badge badge-success">interrogé</span>' : '') +
+                '<br><small class="text-muted">' + esc(x.dns) + '</small></td><td>' + esc(x.site || '—') + '</td><td>' + esc(x.os) +
+                '</td><td>' + yes(x.gc) + '</td><td>' + (x.roles.length ? x.roles.map(esc).join('<br>') : '—') + '</td><td>' +
+                esc(x.last_seen || '—') + '</td></tr>';
+        }).join('') : '<tr><td colspan="6" class="text-center">Aucun contrôleur trouvé.</td></tr>';
+        el('f-roles').innerHTML = d.roles.map(function (r) { return fact(r.server, r.role + ' (' + r.scope + ')'); }).join('');
+        el('f-notes').innerHTML = d.notes.map(function (n) { return '<div class="alert alert-warning">' + esc(n) + '</div>'; }).join('');
+    });
+})();
+</script>
+{% endblock %}

@@ -245,7 +245,7 @@ def _make_server(server, port, use_ssl, ip_mode=IP_V4_PREFERRED):
                   allowed_referral_hosts=[('*')])  # Autoriser les referrals
 
 
-def _try_connection(server, username, password):
+def _try_connection(server, username, password, remember=True):
     """Essayer différentes méthodes de connexion AD."""
     errors = []
     ntlm_user = _get_ntlm_user(server, username)
@@ -279,9 +279,10 @@ def _try_connection(server, username, password):
                 conn.start_tls(_tls_config)
 
             if conn.bind():
-                session['ad_use_ssl'] = use_ssl
-                session['ad_starttls'] = starttls
-                session['ad_port'] = port
+                if remember:
+                    session['ad_use_ssl'] = use_ssl
+                    session['ad_starttls'] = starttls
+                    session['ad_port'] = port
                 if not encrypted:
                     logger.warning(
                         f"Connexion AD établie EN CLAIR via {label} (port {port}). "
@@ -324,9 +325,10 @@ def _try_connection(server, username, password):
                         conn.open()
                         conn.start_tls(_tls_config)
                     if conn.bind():
-                        session['ad_use_ssl'] = use_ssl
-                        session['ad_starttls'] = starttls
-                        session['ad_port'] = port
+                        if remember:
+                            session['ad_use_ssl'] = use_ssl
+                            session['ad_starttls'] = starttls
+                            session['ad_port'] = port
                         if not encrypted:
                             logger.warning(f"Connexion AD établie EN CLAIR via {label} (IPv4, port {port}).")
                         return conn, None
@@ -404,11 +406,21 @@ def _analyze_connection_errors(errors):
     return (None, None)
 
 
-def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None):
-    """Créer une connexion à Active Directory avec gestion des erreurs améliorée."""
+def get_ad_connection(server=None, username=None, password=None, use_ssl=False, port=None, remember=True):
+    """
+    Créer une connexion à Active Directory avec gestion des erreurs améliorée.
+
+    remember=False : connexion à un autre domaine que le domaine actif
+    (core/domains.py) — tous les paramètres sont fournis, la session n'est ni
+    lue ni modifiée, ce qui permet aussi de l'appeler depuis un thread.
+    """
     import logging
     logger = logging.getLogger('ad_connection')
-    
+
+    if not remember:
+        port = port or (636 if use_ssl else 389)
+        if not all([server, username, password]):
+            return None, "Non connecté"
     # Récupérer depuis la session
     server = server or session.get('ad_server')
     username = username or session.get('ad_username')
@@ -420,8 +432,9 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             except ValueError:
                 logger.warning("Session invalide - décryptage échoué")
                 return None, "Session invalide"
-    use_ssl = use_ssl or session.get('ad_use_ssl', False)
-    port = port or session.get('ad_port') or (636 if use_ssl else 389)
+    if remember:
+        use_ssl = use_ssl or session.get('ad_use_ssl', False)
+        port = port or session.get('ad_port') or (636 if use_ssl else 389)
 
     if not all([server, username, password]):
         return None, "Non connecté"
@@ -442,9 +455,10 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
                             receive_timeout=10)
             conn.open()
             if conn.bind():
-                session['ad_use_ssl'] = use_ssl
-                session['ad_starttls'] = False
-                session['ad_port'] = port
+                if remember:
+                    session['ad_use_ssl'] = use_ssl
+                    session['ad_starttls'] = False
+                    session['ad_port'] = port
                 logger.info(f"Connexion réussie: {server}:{port} (SSL={use_ssl}, auth={auth})")
                 return conn, None
             else:
@@ -464,7 +478,7 @@ def get_ad_connection(server=None, username=None, password=None, use_ssl=False, 
             # Toute autre erreur (SSL, réseau, timeout) → fallback vers _try_connection()
 
     # Essayer toutes les méthodes
-    conn, errors = _try_connection(server, username, password)
+    conn, errors = _try_connection(server, username, password, remember)
     if conn:
         logger.info(f"Connexion réussie (méthode automatique): {server}")
         return conn, None

@@ -22,6 +22,7 @@ routes/
 ├── folders/              # Répertoires : droits NTFS, AGDLP, dossiers personnels
 ├── gpo/                  # Stratégies de groupe
 ├── mailboxes/            # Boîtes aux lettres partagées Exchange Online
+├── domains/              # Plusieurs domaines : bascule, page Domaines et forêt
 ├── resilience/           # Résistance au rançongiciel : administration, partages, sauvegardes
 ├── m365/                 # Microsoft 365 : licences, synchronisation, écarts avec l'annuaire
 ├── history/              # Journal du domaine (photos, changements, annulation)

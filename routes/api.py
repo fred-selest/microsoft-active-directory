@@ -840,73 +840,95 @@ def api_ad_search():
             pass
 
 
+def _quick_rows(conn, base_dn, query):
+    """Recherche brute (sans liens) : utilisable dans un thread, pour un autre domaine."""
+    from ldap3 import SUBTREE
+    from core.security import escape_ldap_filter
+    q = escape_ldap_filter(query)
+    conn.search(base_dn,
+                '(&(|(objectClass=user)(objectClass=group)(objectClass=organizationalUnit))'
+                f'(|(cn=*{q}*)(sAMAccountName=*{q}*)(displayName=*{q}*)(mail=*{q}*)(ou=*{q}*)))',
+                SUBTREE, attributes=['objectClass', 'cn', 'sAMAccountName', 'displayName', 'mail', 'ou'],
+                size_limit=40)
+    rows = []
+    for e in conn.entries:
+        def val(attr):
+            value = getattr(e, attr).value if attr in e else None
+            if isinstance(value, list):
+                value = value[0] if value else None
+            return '' if value is None else str(value)
+        classes = {str(c).lower() for c in (e.objectClass.values if 'objectClass' in e else [])}
+        dn = e.entry_dn
+        if 'computer' in classes:
+            rows.append({'kind': 'computer', 'label': val('cn'), 'detail': 'Ordinateur', 'dn': dn})
+        elif 'group' in classes:
+            rows.append({'kind': 'group', 'label': val('cn'), 'detail': 'Groupe', 'dn': dn})
+        elif 'organizationalunit' in classes:
+            rows.append({'kind': 'ou', 'label': val('ou') or dn, 'detail': 'Unité d\'organisation', 'dn': dn})
+        elif 'user' in classes:
+            sam = val('sAMAccountName')
+            rows.append({'kind': 'user', 'label': val('displayName') or val('cn') or sam,
+                         'detail': ' — '.join(x for x in (sam, val('mail')) if x), 'dn': dn})
+    return rows
+
+
 @api_bp.route('/quick-search')
 @require_connection
 @require_permission('users:read')
 def api_quick_search():
     """
     Recherche rapide de la barre du haut : comptes, groupes, ordinateurs et
-    unités d'organisation en une seule requête. Chaque résultat porte le
-    lien de sa page.
+    unités d'organisation. Avec plusieurs domaines connectés, les autres
+    domaines sont aussi interrogés : leurs résultats portent le nom du domaine
+    et y basculent quand on les ouvre.
     """
+    import logging
     from flask import url_for
-    from ldap3 import SUBTREE
-    from core.security import escape_ldap_filter
+    from core import domains as dom
 
     query = request.args.get('q', '').strip()
     if len(query) < 2:
         return jsonify([])
+
+    def link(row):
+        if row['kind'] == 'computer':
+            return url_for('computers.list_computers', search=row['label'])
+        if row['kind'] == 'group':
+            return url_for('groups.view_group', dn=row['dn'])
+        if row['kind'] == 'ou':
+            return url_for('users.list_users', ou=row['dn'])
+        return url_for('users.overview', dn=row['dn'])
+
+    order = {'user': 0, 'group': 1, 'computer': 2, 'ou': 3}
+    ql = query.lower()
+
+    def ranked(rows):
+        return sorted(rows, key=lambda r: (order[r['kind']], not r['label'].lower().startswith(ql), r['label'].lower()))
+
+    results = []
     conn, error = get_ad_connection()
-    if not conn:
-        return jsonify([])
-    try:
-        base_dn = session.get('ad_base_dn', '')
-        q = escape_ldap_filter(query)
-        conn.search(base_dn,
-                    '(&(|(objectClass=user)(objectClass=group)(objectClass=organizationalUnit))'
-                    f'(|(cn=*{q}*)(sAMAccountName=*{q}*)(displayName=*{q}*)(mail=*{q}*)(ou=*{q}*)))',
-                    SUBTREE, attributes=['objectClass', 'cn', 'sAMAccountName', 'displayName', 'mail', 'ou'],
-                    size_limit=40)
-        results = []
-        for e in conn.entries:
-            def val(attr):
-                value = getattr(e, attr).value if attr in e else None
-                if isinstance(value, list):
-                    value = value[0] if value else None
-                return '' if value is None else str(value)
-            classes = {str(c).lower() for c in (e.objectClass.values if 'objectClass' in e else [])}
-            dn = e.entry_dn
-            if 'computer' in classes:
-                name = val('cn')
-                item = {'kind': 'computer', 'label': name, 'detail': 'Ordinateur',
-                        'url': url_for('computers.list_computers', search=name)}
-            elif 'group' in classes:
-                item = {'kind': 'group', 'label': val('cn'), 'detail': 'Groupe',
-                        'url': url_for('groups.view_group', dn=dn)}
-            elif 'organizationalunit' in classes:
-                item = {'kind': 'ou', 'label': val('ou') or dn, 'detail': 'Unité d\'organisation',
-                        'url': url_for('users.list_users', ou=dn)}
-            elif 'user' in classes:
-                sam = val('sAMAccountName')
-                item = {'kind': 'user', 'label': val('displayName') or val('cn') or sam,
-                        'detail': ' — '.join(x for x in (sam, val('mail')) if x),
-                        'url': url_for('users.overview', dn=dn)}
-            else:
-                continue
-            results.append(item)
-        order = {'user': 0, 'group': 1, 'computer': 2, 'ou': 3}
-        ql = query.lower()
-        results.sort(key=lambda r: (order[r['kind']], not r['label'].lower().startswith(ql), r['label'].lower()))
-        return jsonify(results[:20])
-    except Exception as e:                       # la recherche ne doit jamais casser la page
-        import logging
-        logging.getLogger('api').warning('Recherche rapide impossible : %s', e)
-        return jsonify([])
-    finally:
+    if conn:
         try:
-            conn.unbind()
-        except Exception:
-            pass
+            results = [dict(r, url=link(r)) for r in ranked(_quick_rows(conn, session.get('ad_base_dn', ''), query))]
+        except Exception as e:                   # la recherche ne doit jamais casser la page
+            logging.getLogger('api').warning('Recherche rapide impossible : %s', e)
+        finally:
+            try:
+                conn.unbind()
+            except Exception:
+                pass
+    results = results[:20]
+
+    others = [d['key'] for d in dom.connected() if not d['active']]
+    if others:
+        found = dom.for_each(lambda c, base, key: _quick_rows(c, base, query), keys=others, timeout=8)
+        for key in others:
+            r = found.get(key) or {}
+            for row in ranked(r.get('result') or [])[:8] if r.get('ok') else []:
+                results.append(dict(row, url=link(row), domain=key, switch=key))
+    for row in results:
+        row.pop('dn', None)
+    return jsonify(results)
 
 
 @api_bp.route('/permissions/<path:group_name>', methods=['DELETE'])

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 history_bp = Blueprint('history', __name__, url_prefix='/history')
 
-_state = {'day': None, 'scheduler': False, 'last_error': None}
+_state = {'days': {}, 'scheduler': False, 'last_error': None}   # days : {domaine: jour de la dernière photo auto}
 
 
 def _enabled():
@@ -113,9 +113,9 @@ def _start(creds, by, notify):
                      name='domain-snapshot', daemon=True).start()
 
 
-def _today_done():
+def _today_done(base_dn):
     today = datetime.now().strftime('%Y%m%d')
-    return any(s['name'].startswith(today) for s in dh.list_snapshots()[:3])
+    return any(s['name'].startswith(today) for s in dh.list_snapshots(base_dn)[:3])
 
 
 def _scheduler(app):
@@ -127,7 +127,7 @@ def _scheduler(app):
             with app.app_context():
                 cfg = _settings()
             service = cfg['service']
-            if not service or datetime.now().hour < cfg['hour'] or _today_done():
+            if not service or datetime.now().hour < cfg['hour'] or _today_done(service.get('base_dn')):
                 continue
             creds = dict(service, password=decrypt_password(service['password_enc']))
             run_snapshot(app, creds, 'planification', cfg['notify'])
@@ -147,7 +147,8 @@ def _daily():
             threading.Thread(target=_scheduler, args=(app._get_current_object(),),
                              name='domain-snapshot-scheduler', daemon=True).start()
     today = datetime.now().strftime('%Y%m%d')
-    if _state['day'] == today or request.endpoint in (None, 'static') or not is_connected():
+    base_dn = session.get('ad_base_dn', '')
+    if _state['days'].get(base_dn.lower()) == today or request.endpoint in (None, 'static') or not is_connected():
         return None
     if not _enabled() or not _settings()['auto_daily']:
         return None
@@ -155,8 +156,8 @@ def _daily():
     if not has_permission(session.get('user_groups', []), 'history:snapshot',
                           username=session.get('ad_username'), user_dn=session.get('user_dn')):
         return None
-    _state['day'] = today
-    if not _today_done():
+    _state['days'][base_dn.lower()] = today
+    if not _today_done(base_dn):
         try:
             _start(_session_creds(), session.get('ad_username', ''), _settings()['notify'])
         except Exception:
@@ -170,7 +171,8 @@ def _daily():
 @require_connection
 @require_permission('history:read')
 def timeline():
-    snapshots = dh.list_snapshots()
+    base_dn = session.get('ad_base_dn', '')
+    snapshots = dh.list_snapshots(base_dn)
     names = [s['name'] for s in snapshots]
     new_name = request.args.get('b') if request.args.get('b') in names else (names[0] if names else None)
     old_name = request.args.get('a') if request.args.get('a') in names else None
@@ -182,7 +184,7 @@ def timeline():
         if old_name > new_name:
             old_name, new_name = new_name, old_name
         try:
-            events = dh.diff(dh.load(old_name), dh.load(new_name))
+            events = dh.diff(dh.load(old_name, base_dn), dh.load(new_name, base_dn))
         except dh.HistoryError as e:
             error = str(e)
     counts = {sev: sum(1 for e in events if e['severity'] == sev) for sev in ('critical', 'warning', 'info')}
@@ -200,7 +202,7 @@ def timeline():
 @require_permission('history:read')
 def api_status():
     """Photo en cours ? Nom de la dernière photo (la page se recharge quand il change)."""
-    snapshots = dh.list_snapshots()
+    snapshots = dh.list_snapshots(session.get('ad_base_dn', ''))
     return jsonify({'running': dh._LOCK.locked() or _state.get('pending', False),
                     'latest': snapshots[0]['name'] if snapshots else None,
                     'error': _state['last_error']})

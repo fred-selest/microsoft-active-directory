@@ -58,7 +58,8 @@ def api_scan():
     credentials = fs._credentials()
     owner = session.get('ad_username')
     try:
-        job_id = fs.start_job(owner, ('resilience',), lambda: rs.scan_server(credentials),
+        job_id = fs.start_job(owner, ('resilience', session.get('ad_base_dn', '').lower()),
+                              lambda: rs.scan_server(credentials),
                               refresh=bool(data.get('refresh')))
     except fs.FolderError as e:
         return _fail(e, 429)

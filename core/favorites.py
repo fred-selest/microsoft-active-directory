@@ -31,10 +31,30 @@ def _read():
         return {}
 
 
-def load(username):
-    """Favoris d'un administrateur : [{dn, type, name, added}], par nom."""
+def in_domain(dn, base_dn):
+    """
+    L'objet appartient-il à ce domaine ? Un objet d'un domaine enfant
+    (DC=college,DC=laprovidence,DC=local) finit aussi par la base du parent :
+    il ne doit pas y avoir d'autre composant DC= avant la base.
+    """
+    dn, base = (dn or '').lower(), (base_dn or '').lower()
+    if dn == base:
+        return True
+    if not dn.endswith(',' + base):
+        return False
+    return not any(p.strip().startswith('dc=') for p in dn[:-len(base) - 1].split(','))
+
+
+def load(username, base_dn=None):
+    """
+    Favoris d'un administrateur : [{dn, type, name, added}], par nom.
+
+    base_dn : seulement ceux de ce domaine (avec plusieurs domaines, un
+    favori d'un autre domaine mènerait à un objet introuvable).
+    """
     items = [f for f in _read().get(_key(username), [])
-             if isinstance(f, dict) and f.get('dn') and f.get('type') in TYPES]
+             if isinstance(f, dict) and f.get('dn') and f.get('type') in TYPES
+             and (not base_dn or in_domain(f['dn'], base_dn))]
     return sorted(items, key=lambda f: (TYPES.index(f['type']), str(f.get('name', '')).lower()))
 
 

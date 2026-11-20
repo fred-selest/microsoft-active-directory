@@ -55,6 +55,10 @@ def connect():
         port = request.form.get('port', '')
         base_dn = request.form.get('base_dn', '')
         domain = request.form.get('domain', '').strip()
+        # « Ajouter un domaine » : les domaines déjà connectés sont conservés.
+        # Sans ce mode explicite, une nouvelle connexion repart de zéro : sur un
+        # poste partagé, le compte suivant ne doit pas hériter des autres domaines.
+        add_domain = request.form.get('add_domain') == '1' and is_connected()
 
         # Valeurs par défaut pour le re-rendu du formulaire en cas d'erreur
         auto_detected = False
@@ -83,10 +87,18 @@ def connect():
                                    base_dn=ad_cfg2.get('base_dn', ''), use_ssl=False)
 
         port = int(port) if port else None
+        from core import domains as dom
+        if add_domain:
+            # À ranger AVANT de se connecter : la connexion réussie écrit le port
+            # et le chiffrement du nouveau domaine dans la session.
+            dom.remember_active()
         conn, error = get_ad_connection(server, username, password, use_ssl, port)
 
         if conn:
             record_attempt(ip, success=True, action='login')
+            if not add_domain:
+                dom.reset()
+            session.pop('user_dn', None)
             session['ad_server'] = server
             session['ad_username'] = username
             session['ad_password'] = encrypt_password(password)
@@ -108,11 +120,27 @@ def connect():
             session.permanent = True
 
             # Stocker l'heure de connexion pour calculer la durée de session
-            session['_login_time'] = datetime.now().isoformat()
+            session.setdefault('_login_time', datetime.now().isoformat())
+            if not add_domain:
+                session['_login_time'] = datetime.now().isoformat()
 
             conn.unbind()
 
-            log_action(ACTIONS['LOGIN'], username, {'server': server, 'role': user_role}, True, ip)
+            key = dom.domain_key(session['ad_base_dn'])
+            session['ad_domain'] = key
+            try:
+                dom.remember_active()
+                dom.remember_known(key, server, session['ad_base_dn'], session.get('ad_port'),
+                                   session.get('ad_use_ssl'), dom.netbios_of(username))
+            except dom.DomainError as e:
+                flash(str(e), 'error')
+
+            log_action(ACTIONS['LOGIN'], username, {'server': server, 'role': user_role, 'domain': key,
+                                                    'added': add_domain}, True, ip)
+            if add_domain:
+                flash(f'Domaine {key} ajouté : il est maintenant le domaine actif. '
+                      'Changez de domaine depuis la barre du haut.', 'success')
+                return redirect(url_for('main.dashboard'))
 
             # Afficher la page de succès de connexion au lieu de rediriger
             return render_template('login_success.html',
@@ -151,12 +179,28 @@ def connect():
             session['_connect_base_dn'] = base_dn
 
             flash(f'Erreur: {error}', 'error')
-            return render_template('connect.html', connected=is_connected(),
+            return render_template('connect.html', connected=is_connected(), add_domain=add_domain,
                                    show_fix_ldaps=show_fix_ldaps,
                                    auto_domain=domain or detected_domain,
                                    auto_detected=auto_detected,
                                    server=server, port=port or 389,
                                    base_dn=base_dn, use_ssl=use_ssl)
+
+    # « Ajouter un domaine » : formulaire prérempli depuis un domaine connu ou
+    # un domaine de la forêt (page Domaines).
+    if request.args.get('add') == '1' and is_connected():
+        from core import domains as dom
+        server = request.args.get('server', '').strip()[:255]
+        base_dn = request.args.get('base_dn', '').strip()[:500]
+        netbios = request.args.get('domain', '').strip()[:15]
+        entry = dom.known_entry(request.args.get('key', '').strip().lower())
+        if entry:
+            server, base_dn = server or entry['server'], base_dn or entry['base_dn']
+            netbios = netbios or entry.get('netbios', '')
+        return render_template('connect.html', connected=True, add_domain=True, show_fix_ldaps=False,
+                               auto_domain=netbios, auto_detected=False, server=server,
+                               port=(entry or {}).get('port') or 389, base_dn=base_dn,
+                               use_ssl=bool((entry or {}).get('use_ssl')))
 
     # GET : pré-remplir les champs via auto-détection
     ad_cfg = detect_ad_config()
