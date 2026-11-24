@@ -4,7 +4,17 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
-## [1.62.0] - 2026-11-20 — Plusieurs domaines
+## [1.62.1] - 2026-11-24 — Renommer un compte (login)
+
+### Fonctionnalités
+- **Renommer le compte depuis la fiche d'un utilisateur** (section « Renommer
+  le compte ») : deux modes —
+  - renommage simple du login (sAMAccountName) seul ;
+  - renommage complet du compte (CN + DN + sAMAccountName), avec mise à jour
+    optionnelle de l'UPN et du displayName.
+- Vérification d'unicité du nouveau login avant modification.
+
+---
 
 ### Fonctionnalités
 - **Plusieurs domaines dans une même session** : « Ajouter un domaine »

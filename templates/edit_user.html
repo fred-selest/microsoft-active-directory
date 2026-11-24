@@ -39,7 +39,7 @@
                 <div class="form-group">
                     <label for="sAMAccountName">Identifiant (login)</label>
                     <input type="text" id="sAMAccountName" value="{{ user.sAMAccountName }}" disabled
-                           style="opacity: 0.6; cursor: not-allowed;" title="Non modifiable">
+                           style="opacity: 0.6; cursor: not-allowed;" title="Modifiable dans la section « Renommer le compte » ci-dessous.">
                 </div>
             </div>
 
@@ -81,6 +81,63 @@
             <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary">Annuler</a>
         </div>
     </form>
+</div>
+
+<!-- ════════════════════ RENOMMER LE COMPTE ════════════════════ -->
+<div class="form-container" id="renommer">
+    <div class="form-section">
+        <h3>🔄 Renommer le compte</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+            Identifiant actuel : <code>{{ user.sAMAccountName }}</code> — nom du compte : <code>{{ user.cn }}</code>
+        </p>
+
+        <form method="post" style="margin-bottom: 1.25rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="rename_login">
+            <div class="form-row" style="align-items: flex-end;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="new_login_simple">Nouveau login (sAMAccountName)</label>
+                    <input type="text" id="new_login_simple" name="new_login"
+                           placeholder="{{ user.sAMAccountName }}" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-secondary"
+                            data-confirm="Renommer le login ?">
+                        Renommer le login
+                    </button>
+                </div>
+            </div>
+            <small class="form-hint">Change uniquement l'identifiant Windows (sAMAccountName). Le nom du compte (CN) et le DN restent inchangés.</small>
+        </form>
+
+        <hr>
+
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="rename_account">
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label for="new_login_full">Nouveau login (sAMAccountName)</label>
+                    <input type="text" id="new_login_full" name="new_login"
+                           value="{{ user.sAMAccountName }}" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="new_cn">Nouveau nom du compte (CN)</label>
+                    <input type="text" id="new_cn" name="new_cn"
+                           value="{{ user.cn }}" placeholder="Jean Dupont">
+                </div>
+            </div>
+            <div class="form-group form-check">
+                <input type="checkbox" id="rename_upn" name="rename_upn" class="form-check-input" checked>
+                <label for="rename_upn" class="form-check-label">Mettre à jour l'UPN (identifiant de connexion) avec le nouveau login.</label>
+            </div>
+            <button type="submit" class="btn btn-primary"
+                    data-confirm="Renommer le compte (CN + DN) et le login ? Cette opération est irréversible.">
+                Renommer le compte
+            </button>
+            <small class="form-hint">Renomme le compte (CN), le DN et le login (sAMAccountName). Met à jour aussi le displayName.</small>
+        </form>
+    </div>
 </div>
 
 {% with folder_dn = user.dn %}{% include 'partials/_folder_access_section.html' %}{% endwith %}

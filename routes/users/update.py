@@ -210,6 +210,99 @@ def edit_user(dn):
                 except Exception as e:
                     flash(f'Erreur déplacement: {str(e)}', 'error')
 
+        elif action == 'rename_login':
+            # Renommage simple : sAMAccountName seul (login Windows)
+            new_login = request.form.get('new_login', '').strip()
+            if not new_login:
+                flash('Nouveau login requis.', 'error')
+            elif new_login == user.get('sAMAccountName', ''):
+                flash("Le nouveau login est identique à l'actuel.", 'warning')
+            else:
+                # Unicité
+                try:
+                    conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(new_login)})',
+                               SUBTREE, attributes=['dn'])
+                    if conn.entries:
+                        flash(f'Le login « {new_login} » est déjà utilisé.', 'error')
+                    else:
+                        conn.modify(dn, {'sAMAccountName': [(MODIFY_REPLACE, [new_login])]})
+                        if conn.result.get('result') == 0:
+                            log_action('rename_login', session.get('ad_username'),
+                                      {'dn': dn, 'old': user.get('sAMAccountName'), 'new': new_login},
+                                      True, request.remote_addr)
+                            flash(f'Login renommé en « {new_login} ».', 'success')
+                            user['sAMAccountName'] = new_login
+                        else:
+                            flash(format_ldap_error(conn.result.get('result', 0),
+                                                  conn.result.get('description', ''),
+                                                  conn.result.get('message', ''), 'edit'), 'error')
+                except Exception as e:
+                    flash(f'Erreur renommage login : {str(e)}', 'error')
+
+        elif action == 'rename_account':
+            # Renommage complet : CN (RDN) + sAMAccountName + DN, UPN optionnel
+            new_login = request.form.get('new_login', '').strip()
+            new_cn = request.form.get('new_cn', '').strip() or new_login
+            rename_upn = request.form.get('rename_upn') == 'on'
+            if not new_login:
+                flash('Nouveau login requis.', 'error')
+            elif new_login == user.get('sAMAccountName', '') and new_cn == user.get('cn', ''):
+                flash('Aucun changement détecté.', 'warning')
+            else:
+                try:
+                    # Unicité sAMAccountName (sauf si inchangé)
+                    if new_login != user.get('sAMAccountName', ''):
+                        conn.search(base_dn, f'(sAMAccountName={escape_ldap_filter(new_login)})',
+                                   SUBTREE, attributes=['dn'])
+                        if conn.entries:
+                            flash(f'Le login « {new_login} » est déjà utilisé.', 'error')
+                            raise StopIteration
+                    # 1. sAMAccountName
+                    if new_login != user.get('sAMAccountName', ''):
+                        conn.modify(dn, {'sAMAccountName': [(MODIFY_REPLACE, [new_login])]})
+                        if conn.result.get('result') != 0:
+                            flash(format_ldap_error(conn.result.get('result', 0),
+                                                  conn.result.get('description', ''),
+                                                  conn.result.get('message', ''), 'edit'), 'error')
+                            raise StopIteration
+                    # 2. CN / RDN (renomme le compte et le DN)
+                    if new_cn and new_cn != user.get('cn', ''):
+                        new_rdn = f"CN={sanitize_dn_component(new_cn)}"
+                        conn.modify_dn(dn, new_rdn)
+                        if conn.result.get('result') != 0:
+                            flash(format_ldap_error(conn.result.get('result', 0),
+                                                  conn.result.get('description', ''),
+                                                  conn.result.get('message', ''), 'edit'), 'error')
+                            raise StopIteration
+                        # Mettre à jour le DN local
+                        ou_part = dn.split(',', 1)[1] if ',' in dn else ''
+                        dn = f"{new_rdn},{ou_part}"
+                        user['dn'] = dn
+                        user['cn'] = new_cn
+                    # 3. UPN optionnel
+                    if rename_upn:
+                        _domain = base_dn.replace('DC=', '').replace(',', '.')
+                        conn.modify(dn, {'userPrincipalName': [(MODIFY_REPLACE, [f'{new_login}@{_domain}'])]})
+                        if conn.result.get('result') == 0:
+                            user['userPrincipalName'] = f'{new_login}@{_domain}'
+                    # 4. displayName optionnel (aligné sur le nouveau CN)
+                    if new_cn and new_cn != user.get('displayName', ''):
+                        conn.modify(dn, {'displayName': [(MODIFY_REPLACE, [new_cn])]})
+                        if conn.result.get('result') == 0:
+                            user['displayName'] = new_cn
+                    log_action('rename_account', session.get('ad_username'),
+                              {'old_dn': user.get('dn'), 'new_dn': dn, 'login': new_login, 'cn': new_cn},
+                              True, request.remote_addr)
+                    flash(f'Compte renommé en « {new_cn} » (login « {new_login} »).', 'success')
+                    user['sAMAccountName'] = new_login
+                    user['cn'] = new_cn
+                    # Redirection vers le nouveau DN
+                    return redirect(url_for('users.edit_user', dn=dn))
+                except StopIteration:
+                    pass
+                except Exception as e:
+                    flash(f'Erreur renommage compte : {str(e)}', 'error')
+
         elif action == 'update_mail':
             _update_mail(conn, dn, user)
 
