@@ -63,7 +63,12 @@
             (a.deny ? 'Refusé : ' : '') + esc(a.level) + '</span>';
     }
 
-    /* Tableau des dossiers accessibles à un compte (réponse de /folders/api/access). */
+    function shortPath(p) {
+    if (!p) { return ''; }
+    var parts = String(p).replace(/\\/g, '/').split('/').filter(function (x) { return x.length; });
+    if (parts.length <= 2) { return p; }
+    return '…\\' + parts.slice(-2).join('\\');
+}
     function renderAccess(out, data, browseUrl, options) {
         options = options || {};
         if (!data.success) {
@@ -80,8 +85,8 @@
             html += '<div class="table-container folder-table-wrap"><table class="data-table"><thead><tr>' +
                 '<th>Dossier</th><th>Droits</th><th>Via</th><th>S\'applique à</th></tr></thead><tbody>';
             data.found.forEach(function (a) {
-                html += '<tr><td class="access-path"><a href="' +
-                    esc(browseUrl + '?path=' + encodeURIComponent(a.path)) + '">' + esc(a.path) + '</a>' +
+                html += '<tr><td class="access-path" title="' + esc(a.path) + '"><a href="' +
+                    esc(browseUrl + '?path=' + encodeURIComponent(a.path)) + '">' + esc(shortPath(a.path)) + '</a>' +
                     (a.inherited ? ' <small class="text-muted">(hérité)</small>' : '') + '</td><td>' +
                     rightBadge(a) + '</td><td>' + (a.direct ? '<strong>Directement</strong>' : esc(a.via)) +
                     '</td><td>' + esc(a.applies) + '</td></tr>';

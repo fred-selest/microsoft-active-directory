@@ -1532,7 +1532,8 @@ body.dark-mode .form-section h3 {
 .right-special { background: #eeeeee; color: #444;    border-color: #ccc; }
 .right-deny    { background: #9b1c1c; color: #fff; }
 .folder-table-wrap { overflow-x: auto; }
-.access-path { overflow-wrap: anywhere; }
+.access-path { overflow-wrap: anywhere; max-width: 320px; }
+.access-path a { display: inline-block; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .folder-access-section .section-head { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; }
 .folder-access-section .section-head h3 { margin: 0; }
 /* En-tête collant désactivé dans un tableau qui défile horizontalement :
