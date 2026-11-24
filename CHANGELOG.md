@@ -4,6 +4,13 @@ Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Historique complet : `git log`. Détails et captures d'écran : `README.md`.
 
+## [1.62.2] - 2026-11-24 — Affichage compact des répertoires
+
+### Améliorations
+- **Répertoires accessibles** : chemins longs tronqués (affichage des 2 derniers segments) avec tooltip montrant le chemin complet. CSS ellipsis pour éviter le débordement horizontal.
+
+---
+
 ## [1.62.1] - 2026-11-24 — Renommer un compte (login)
 
 ### Fonctionnalités
